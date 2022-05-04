@@ -1,8 +1,8 @@
 #! /usr/bin/env python
 # License: 3-clause BSD
-from setuptools import setup
 import builtins
 
+from setuptools import setup
 
 # This is a bit (!) hackish: we are setting a global variable so that the
 # main modelcard __init__ can detect if it is being loaded by the setup
@@ -23,13 +23,13 @@ with open("README.rst") as f:
     LONG_DESCRIPTION = f.read()
 MAINTAINER = "Adrin Jalali"
 MAINTAINER_EMAIL = "adrin.jalali@gmail.com"
-URL = "http://github.com/adrinjalali/skops"
+URL = "http://github.com/skops-dev/skops"
 DOWNLOAD_URL = "https://pypi.org/project/skops/#files"
 LICENSE = "MIT"
 PROJECT_URLS = {
-    "Bug Tracker": "http://github.com/adrinjalali/skops/issues",
-    "Documentation": "http://github.com/adrinjalali/skops",
-    "Source Code": "http://github.com/adrinjalali/skops",
+    "Bug Tracker": "http://github.com/skops-dev/skops/issues",
+    "Documentation": "http://github.com/skops-dev/skops",
+    "Source Code": "http://github.com/skops-dev/skops",
 }
 
 
@@ -52,7 +52,7 @@ def setup_package():
             "Programming Language :: Python",
             "Topic :: Software Development",
             "Topic :: Scientific/Engineering",
-            "Development Status :: 5 - Alpha",
+            "Development Status :: 1 - Planning",
             "Operating System :: Microsoft :: Windows",
             "Operating System :: POSIX",
             "Operating System :: Unix",
@@ -61,7 +61,7 @@ def setup_package():
             "Programming Language :: Python :: 3.8",
             "Programming Language :: Python :: 3.9",
             "Programming Language :: Python :: 3.10",
-            ("Programming Language :: Python :: " "Implementation :: CPython"),
+            "Programming Language :: Python :: Implementation :: CPython",
         ],
         python_requires=">=3.8",
         install_requires=min_deps.tag_to_packages["install"],

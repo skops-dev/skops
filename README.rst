@@ -4,6 +4,8 @@ SKOPS
 This library helps you share your scikit-learn based models and put them in
 production.
 
+THIS LIBRARY IS NOT READY TO BE USED.
+
 Sharing via HuggingFace Hub
 ===========================
 
