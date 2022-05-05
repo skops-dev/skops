@@ -1,10 +1,11 @@
-# %%
-# scikit-learn models on HuggingFace Hub
-# --------------------------------------
-#
-# This guide demonstrates how you can use this package to create a HuggingFace
-# Hub model repository based on a scikit-learn compatible model, and how to
-# fetch scikit-learn compatible models from the Hub and run them locally.
+"""
+scikit-learn models on HuggingFace Hub
+--------------------------------------
+
+This guide demonstrates how you can use this package to create a HuggingFace
+Hub model repository based on a scikit-learn compatible model, and how to
+fetch scikit-learn compatible models from the Hub and run them locally.
+"""
 
 # %%
 # Imports
@@ -62,11 +63,12 @@ model.score(X_test, y_test)
 # that, we need to first store the model as a pickle file and pass it to the
 # hub tools.
 
-pkl_file = mkstemp(prefix="skops")
-pickle.dump(model, file=pkl_file)
+_, pkl_name = mkstemp(prefix="skops")
+with open(pkl_name, mode="bw") as f:
+    pickle.dump(model, file=f)
 
 local_repo = mkdtemp(prefix="skops")
-hf_hub.init(model=pkl_file, requirements=["scikit-learn"], destination=local_repo)
+hf_hub.init(model=pkl_name, requirements=["scikit-learn"], destination=local_repo)
 
 # %%
 # We can no see what the contents of the created local repo are:

@@ -13,6 +13,10 @@ Welcome to skops's documentation!
    modules/classes
 
 
+Examples
+========
+.. include:: auto_examples/index.rst
+
 Indices and tables
 ==================
 

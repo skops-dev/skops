@@ -3,8 +3,8 @@ This module contains utilities to push a model to the hub and pull from the
 hub.
 """
 
-from typing import Union, List
 from pathlib import Path
+from typing import List, Union
 
 
 def _validate_folder(path: Union[str, Path]):
@@ -64,7 +64,7 @@ def update_env(*, path: Union[str, Path], requirements: List[str] = None):
     ----------
     path: str, or Path
         The path to an existing local repo.
-    
+
     requirements: list of str, optional
         The list of required packages for the model. If none is passed, the
         list of existing requirements is used and their versions are updated.
@@ -76,7 +76,7 @@ def update_env(*, path: Union[str, Path], requirements: List[str] = None):
     pass
 
 
-def push(*, repo_id: str, source: Union[str, Path], token: str):
+def push(*, repo_id: str, source: Union[str, Path], token: str = None):
     """Pushes the contents of a model repo to HuggingFace Hub.
 
     This function validates the contents of the folder before pushing it to the
