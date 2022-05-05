@@ -14,8 +14,8 @@
 import os
 import pickle
 from tempfile import mkdtemp, mkstemp
+from uuid import uuid4
 
-from huggingface_hub import Repository
 from sklearn.datasets import load_breast_cancer
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.experimental import enable_halving_search_cv  # noqa
@@ -70,7 +70,7 @@ hf_hub.init(model=pkl_file, requirements=["scikit-learn"], destination=local_rep
 
 # %%
 # We can no see what the contents of the created local repo are:
-print(os.listdir(dest))
+print(os.listdir(local_repo))
 
 
 # %%
