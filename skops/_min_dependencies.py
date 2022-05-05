@@ -19,6 +19,7 @@ dependent_packages = {
     "numpydoc": ("1.0.0", "docs"),
     "sphinx-prompt": ("1.3.0", "docs"),
     "matplotlib": ("3.3", "docs"),
+    "pandas": ("1", "docs"),
 }
 
 
