@@ -16,6 +16,7 @@ dependent_packages = {
     "mypy": ("0.770", "tests"),
     "sphinx": ("3.2.0", "docs"),
     "sphinx-gallery": ("0.7.0", "docs"),
+    "sphinx-rtd-theme": ("1", "docs"),
     "numpydoc": ("1.0.0", "docs"),
     "sphinx-prompt": ("1.3.0", "docs"),
     "matplotlib": ("3.3", "docs"),
