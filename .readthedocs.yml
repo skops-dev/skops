@@ -1,3 +1,4 @@
-python:
-  install:
-    - requirements: docs/requirements.txt
+build:
+  os: ubuntu20
+  languages:
+    python: "3.10"
