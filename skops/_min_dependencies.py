@@ -8,6 +8,8 @@ PYTEST_MIN_VERSION = "5.0.1"
 # The values are (version_spec, comma seperated tags)
 # tags can be: 'build', 'install', 'docs', 'examples', 'tests', 'benchmark'
 dependent_packages = {
+    "scikit-learn": ("0.24", "install"),
+    "huggingface_hub": ("0.5", "install"),
     "pytest": (PYTEST_MIN_VERSION, "tests"),
     "pytest-cov": ("2.9.0", "tests"),
     "flake8": ("3.8.2", "tests"),
