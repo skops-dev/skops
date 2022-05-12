@@ -10,7 +10,7 @@ fetch scikit-learn compatible models from the Hub and run them locally.
 # %%
 # Imports
 # =======
-# First we will import everhing required for the rest of this document.
+# First we will import everything required for the rest of this document.
 
 import os
 import pickle
