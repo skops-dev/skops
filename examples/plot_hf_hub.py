@@ -10,13 +10,14 @@ fetch scikit-learn compatible models from the Hub and run them locally.
 # %%
 # Imports
 # =======
-# First we will import everhing required for the rest of this document.
+# First we will import everything required for the rest of this document.
 
 import os
 import pickle
 from tempfile import mkdtemp, mkstemp
 from uuid import uuid4
 
+from huggingface_hub import HfApi
 from sklearn.datasets import load_breast_cancer
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.experimental import enable_halving_search_cv  # noqa
@@ -74,9 +75,39 @@ hf_hub.init(model=pkl_name, requirements=["scikit-learn"], destination=local_rep
 # We can no see what the contents of the created local repo are:
 print(os.listdir(local_repo))
 
+# %%
+# Model Card
+# ==========
+# TODO: create a model card here
+
 
 # %%
 # Push to Hub
 # ===========
-# And finally, we can push the model to the hub.
-hf_hub.push(repo_id=f"hf_hub_example-{uuid4()}", source=local_repo)
+# And finally, we can push the model to the hub. This requires a user access
+# token which you can get under https://huggingface.co/settings/tokens
+repo_name = f"hf_hub_example-{uuid4()}"
+# you can put your own token here.
+MY_TOKEN = os.environ["HF_HUB_TOKEN"]
+hf_hub.push(repo_id=repo_name, source=local_repo, token=MY_TOKEN)
+
+# %%
+# Now you can check the contents of the repository under your user.
+#
+# Update Requirements
+# ===================
+# If you update your environment and the versions of your requirements are
+# changed, you can update the requirement in your repo by calling
+# ``update_env``, which automatically detects the existing installation of the
+# current environment and updates the requirements accordingly.
+
+hf_hub.update_env(path=local_repo, requirements=["scikit-learn"])
+
+# %%
+# Delete Repository
+# =================
+# At the end, you can also delete the repository you created using
+# ``HfApi().delete_repo``. For more information please refer to the
+# documentation of ``huggingface_hub`` library.
+
+HfApi().delete_repo(repo_id=repo_name, token=MY_TOKEN)
