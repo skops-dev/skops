@@ -3,8 +3,11 @@ This module contains utilities to push a model to the hub and pull from the
 hub.
 """
 
+import shutil
 from pathlib import Path
 from typing import List, Union
+
+import toml
 
 
 def _validate_folder(path: Union[str, Path]):
@@ -12,6 +15,10 @@ def _validate_folder(path: Union[str, Path]):
 
     This function checks if the contents of a folder make a valid repo for a
     scikit-learn based repo on the HuggingFace Hub.
+
+    A valid repository is one which is understood by the Hub as well as this
+    library to run and use the model. Otherwise anything can be put as a model
+    repository on the Hub and use it as a `git` and `git lfs` server.
 
     Raises a ``TypeError`` if invalid.
 
@@ -24,12 +31,60 @@ def _validate_folder(path: Union[str, Path]):
     -------
     None
     """
-    pass
+    path = Path(path)
+    if not path.is_dir():
+        raise TypeError("The given path is not a directory.")
+
+    config_path = path / "pyproject.toml"
+    if not config_path.exists():
+        raise TypeError("Configuration file `pyproject.toml` missing.")
+
+    config = toml.load(config_path)
+    model_path = (
+        config.get("hf_hub", {}).get("sklearn", {}).get("model", {}).get("file", None)
+    )
+    if not model_path:
+        raise TypeError(
+            "Model file not configured in the configuration file. It should be stored"
+            " in the hf_hub.sklearn.model key."
+        )
+
+    if not (path / model_path).exists():
+        raise TypeError(f"Model file {model_path} does not exist.")
 
 
-def init(
-    *, model: Union[str, Path], requirements: List[str], destination: Union[str, Path]
-):
+def _create_config(*, model_path: str, requirements: List[str], dst: str):
+    """Write the configuration into a `pyproject.toml` file.
+
+    Parameters
+    ----------
+    model_path : str
+        The relative path (from the repo root) to the model file.
+
+    requirements : list of str
+        A list of required packages. The versions are then extracted from the
+        current environment.
+
+    dst : str, or Path
+        The path to an existing folder where the config file should be created.
+
+    Returns
+    -------
+    None
+    """
+    with open(Path(dst) / "pyproject.toml", mode="w") as f:
+        f.write("[hf_hub.sklearn.model]\n")
+        f.write(f'file="{model_path}"\n')
+
+        f.write("\n")
+
+        f.write("[hf_hub.sklearn.environment]\n")
+
+        for package in requirements:
+            f.write(f"{package}\n")
+
+
+def init(*, model: Union[str, Path], requirements: List[str], dst: Union[str, Path]):
     """Initialize a scikit-learn based HuggingFace repo.
 
     Given a model pickle and a set of required packages, this function
@@ -44,14 +99,22 @@ def init(
         A list of required packages. The versions are then extracted from the
         current environment.
 
-    destination: str, or Path
-        The path to a non-existing folder which is to be initializes.
+    dst: str, or Path
+        The path to a non-existing or empty folder which is to be initialized.
 
     Returns
     -------
     None
     """
-    pass
+    dst = Path(dst)
+    if dst.exists() and next(dst.iterdir(), None):
+        raise OSError("None-empty dst path already exists!")
+    dst.mkdir(parents=True, exist_ok=True)
+
+    shutil.copy2(src=model, dst=dst)
+
+    model_name = Path(model).name
+    _create_config(model_path=model_name, requirements=requirements, dst=dst)
 
 
 def update_env(*, path: Union[str, Path], requirements: List[str] = None):
