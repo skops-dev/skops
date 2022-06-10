@@ -69,7 +69,7 @@ with open(pkl_name, mode="bw") as f:
     pickle.dump(model, file=f)
 
 local_repo = mkdtemp(prefix="skops")
-hf_hub.init(model=pkl_name, requirements=["scikit-learn"], destination=local_repo)
+hf_hub.init(model=pkl_name, requirements=["scikit-learn"], dst=local_repo)
 
 # %%
 # We can no see what the contents of the created local repo are:
