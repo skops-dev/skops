@@ -35,7 +35,7 @@ for package, (min_version, extras, condition) in dependent_packages.items():
         spec = f"{package}>={min_version}"
         if condition:
             spec += f"; {condition}"
-        tag_to_packages[extra].append(condition)
+        tag_to_packages[extra].append(spec)
 
 
 # Used by CI to get the min dependencies
