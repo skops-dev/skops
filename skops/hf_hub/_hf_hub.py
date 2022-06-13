@@ -4,10 +4,18 @@ hub.
 """
 
 import shutil
+import sys
 from pathlib import Path
 from typing import List, Union
 
-import toml
+if sys.version_info >= (3, 11):
+    try:
+        import tomllib
+    except ImportError:
+        # Help users on older alphas
+        import tomli as tomllib
+else:
+    import tomli as tomllib
 
 
 def _validate_folder(path: Union[str, Path]):
@@ -39,7 +47,9 @@ def _validate_folder(path: Union[str, Path]):
     if not config_path.exists():
         raise TypeError("Configuration file `pyproject.toml` missing.")
 
-    config = toml.load(config_path)
+    with open(config_path, "rb") as f:
+        config = tomllib.load(f)
+
     model_path = (
         config.get("hf_hub", {}).get("sklearn", {}).get("model", {}).get("file", None)
     )
