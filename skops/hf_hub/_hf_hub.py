@@ -8,6 +8,8 @@ import sys
 from pathlib import Path
 from typing import List, Union
 
+from huggingface_hub import HfApi
+
 if sys.version_info >= (3, 11):
     try:
         import tomllib
@@ -149,7 +151,13 @@ def update_env(*, path: Union[str, Path], requirements: List[str] = None):
     pass
 
 
-def push(*, repo_id: str, source: Union[str, Path], token: str = None):
+def push(
+    *,
+    repo_id: str,
+    source: Union[str, Path],
+    token: str = None,
+    commit_message: str = None,
+):
     """Pushes the contents of a model repo to HuggingFace Hub.
 
     This function validates the contents of the folder before pushing it to the
@@ -167,6 +175,9 @@ def push(*, repo_id: str, source: Union[str, Path], token: str = None):
         A token to push to the hub. If not provided, the user should be already
         logged in using ``huggingface-cli login``.
 
+    commit_message: str, optional
+        The commit message to be used when pushing to the repo.
+
     Returns
     -------
     None
@@ -176,4 +187,15 @@ def push(*, repo_id: str, source: Union[str, Path], token: str = None):
     This function raises a ``TypeError`` if the contents of the source folder
     do not make a valid HuggingFace Hub scikit-learn based repo.
     """
-    pass
+    client = HfApi()
+    client.upload_folder(
+        repo_id=repo_id,
+        path_in_repo=".",
+        folder_path=source,
+        commit_message=commit_message,
+        commit_description=None,
+        token=token,
+        repo_type=None,
+        revision=None,
+        create_pr=False,
+    )

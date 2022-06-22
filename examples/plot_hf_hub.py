@@ -87,9 +87,21 @@ print(os.listdir(local_repo))
 # And finally, we can push the model to the hub. This requires a user access
 # token which you can get under https://huggingface.co/settings/tokens
 repo_name = f"hf_hub_example-{uuid4()}"
-# you can put your own token here.
-MY_TOKEN = os.environ["HF_HUB_TOKEN"]
-hf_hub.push(repo_id=repo_name, source=local_repo, token=MY_TOKEN)
+# you can put your own token here, or set it as an environment variable before
+# running this script.
+token = os.environ["HF_HUB_TOKEN"]
+
+# If the repository doesn't exist, we should first create it. This can be done
+# via the hf.co UI, or programmatically:
+HfApi().create_repo(repo_id=repo_name, token=token, repo_type="model")
+
+# Now we can push our files to the repo:
+hf_hub.push(
+    repo_id=repo_name,
+    source=local_repo,
+    token=token,
+    commit_message="pushing files to the repo from the example!",
+)
 
 # %%
 # Now you can check the contents of the repository under your user.
@@ -110,4 +122,4 @@ hf_hub.update_env(path=local_repo, requirements=["scikit-learn"])
 # ``HfApi().delete_repo``. For more information please refer to the
 # documentation of ``huggingface_hub`` library.
 
-HfApi().delete_repo(repo_id=repo_name, token=MY_TOKEN)
+HfApi().delete_repo(repo_id=repo_name, token=token)
