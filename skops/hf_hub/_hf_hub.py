@@ -3,21 +3,13 @@ This module contains utilities to push a model to the hub and pull from the
 hub.
 """
 
+import collections
+import json
 import shutil
-import sys
 from pathlib import Path
 from typing import List, Union
 
 from huggingface_hub import HfApi
-
-if sys.version_info >= (3, 11):
-    try:
-        import tomllib
-    except ImportError:
-        # Help users on older alphas
-        import tomli as tomllib
-else:
-    import tomli as tomllib
 
 
 def _validate_folder(path: Union[str, Path]):
@@ -45,16 +37,14 @@ def _validate_folder(path: Union[str, Path]):
     if not path.is_dir():
         raise TypeError("The given path is not a directory.")
 
-    config_path = path / "pyproject.toml"
+    config_path = path / "config.json"
     if not config_path.exists():
-        raise TypeError("Configuration file `pyproject.toml` missing.")
+        raise TypeError("Configuration file `config.json` missing.")
 
-    with open(config_path, "rb") as f:
-        config = tomllib.load(f)
+    with open(config_path, "r") as f:
+        config = json.load(f)
 
-    model_path = (
-        config.get("hf_hub", {}).get("sklearn", {}).get("model", {}).get("file", None)
-    )
+    model_path = config.get("sklearn", {}).get("model", {}).get("file", None)
     if not model_path:
         raise TypeError(
             "Model file not configured in the configuration file. It should be stored"
@@ -66,7 +56,7 @@ def _validate_folder(path: Union[str, Path]):
 
 
 def _create_config(*, model_path: str, requirements: List[str], dst: str):
-    """Write the configuration into a `pyproject.toml` file.
+    """Write the configuration into a `config.json` file.
 
     Parameters
     ----------
@@ -84,16 +74,18 @@ def _create_config(*, model_path: str, requirements: List[str], dst: str):
     -------
     None
     """
-    with open(Path(dst) / "pyproject.toml", mode="w") as f:
-        f.write("[hf_hub.sklearn.model]\n")
-        f.write(f'file="{model_path}"\n')
+    # so that we don't have to explicitly add keys and they're added as a
+    # dictionary if they are not found
+    # see: https://stackoverflow.com/a/13151294/2536294
+    def recursively_default_dict():
+        return collections.defaultdict(recursively_default_dict)
 
-        f.write("\n")
+    config = recursively_default_dict()
+    config["sklearn"]["model"]["file"] = model_path
+    config["sklearn"]["environment"] = requirements
 
-        f.write("[hf_hub.sklearn.environment]\n")
-
-        for package in requirements:
-            f.write(f"{package}\n")
+    with open(Path(dst) / "config.json", mode="w") as f:
+        json.dump(config, f, sort_keys=True, indent=4)
 
 
 def init(*, model: Union[str, Path], requirements: List[str], dst: Union[str, Path]):
@@ -187,6 +179,7 @@ def push(
     This function raises a ``TypeError`` if the contents of the source folder
     do not make a valid HuggingFace Hub scikit-learn based repo.
     """
+    _validate_folder(path=source)
     client = HfApi()
     client.upload_folder(
         repo_id=repo_id,

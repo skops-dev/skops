@@ -1,3 +1,4 @@
+import json
 import os
 import shutil
 import tempfile
@@ -24,16 +25,18 @@ def test_validate_folder():
     with pytest.raises(TypeError, match="The given path is not a directory."):
         _validate_folder(path=file_path)
 
-    with pytest.raises(TypeError, match="Configuration file `pyproject.toml` missing."):
+    with pytest.raises(TypeError, match="Configuration file `config.json` missing."):
         _validate_folder(path=dir_path)
 
-    (Path(dir_path) / "pyproject.toml").touch()
+    with open(Path(dir_path) / "config.json", "w") as f:
+        json.dump(dict(), f)
+
     with pytest.raises(
         TypeError, match="Model file not configured in the configuration file."
     ):
         _validate_folder(path=dir_path)
 
-    example_file = _get_cwd() / "sample_repo/pyproject.toml"
+    example_file = _get_cwd() / "sample_repo/config.json"
 
     shutil.copy2(example_file, dir_path)
     with pytest.raises(TypeError, match="Model file model.pkl does not exist."):
@@ -53,16 +56,16 @@ def test_create_config():
         dst=dir_path,
     )
 
-    config_content = """[hf_hub.sklearn.model]
-file="model.pkl"
+    config_content = {
+        "sklearn": {
+            "environment": ['scikit-learn="1.1.1"', "numpy"],
+            "model": {"file": "model.pkl"},
+        }
+    }
 
-[hf_hub.sklearn.environment]
-scikit-learn="1.1.1"
-numpy
-"""
-
-    with open(Path(dir_path) / "pyproject.toml") as f:
-        assert f.read() == config_content
+    with open(Path(dir_path) / "config.json") as f:
+        config = json.load(f)
+        assert config == config_content
 
 
 def test_init():

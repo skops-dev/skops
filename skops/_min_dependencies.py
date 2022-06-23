@@ -7,8 +7,9 @@ PYTEST_MIN_VERSION = "5.0.1"
 # It will NOT be included in setup's extras_require
 # The values are (version_spec, comma separated tags, condition)
 # tags can be: 'build', 'install', 'docs', 'examples', 'tests', 'benchmark'
+# example:
+#     "tomli": ("1.1.0", "install", "python_full_version < '3.11.0a7'"),
 dependent_packages = {
-    "tomli": ("1.1.0", "install", "python_full_version < '3.11.0a7'"),
     "scikit-learn": ("0.24", "install", None),
     "huggingface_hub": ("0.5", "install", None),
     "pytest": (PYTEST_MIN_VERSION, "tests", None),
