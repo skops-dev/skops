@@ -4,11 +4,15 @@ import shutil
 import tempfile
 from importlib import metadata
 from pathlib import Path
+from uuid import uuid4
 
 import pytest
+from huggingface_hub import HfApi
 
-from skops.hf_hub import init
+from skops.hf_hub import init, push
 from skops.hf_hub._hf_hub import _create_config, _validate_folder
+
+HF_HUB_TOKEN = os.environ.get("HF_HUB_TOKEN", None)
 
 
 def _get_cwd():
@@ -88,3 +92,28 @@ def test_init():
             requirements=[f'scikit-learn="{version}"'],
             dst=dir_path,
         )
+
+
+def test_push():
+    client = HfApi()
+    with tempfile.TemporaryDirectory(prefix="skops-test") as dir_path:
+        version = metadata.version("scikit-learn")
+        init(
+            model=_get_cwd() / "sample_repo/model.pkl",
+            requirements=[f'scikit-learn="{version}"'],
+            dst=dir_path,
+        )
+
+        user = client.whoami(token=HF_HUB_TOKEN)["name"]
+        repo_id = f"{user}/test-{uuid4()}"
+        client.create_repo(repo_id=repo_id, token=HF_HUB_TOKEN, repo_type="model")
+        push(
+            repo_id=repo_id,
+            source=dir_path,
+            token=HF_HUB_TOKEN,
+            commit_message="test message",
+        )
+
+    files = client.list_repo_files(repo_id=repo_id, token=HF_HUB_TOKEN)
+    for f_name in ["model.pkl", "config.json"]:
+        assert f_name in files
