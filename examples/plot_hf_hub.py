@@ -69,7 +69,7 @@ with open(pkl_name, mode="bw") as f:
     pickle.dump(model, file=f)
 
 local_repo = mkdtemp(prefix="skops")
-hf_hub.init(model=pkl_name, requirements=["scikit-learn"], destination=local_repo)
+hf_hub.init(model=pkl_name, requirements=["scikit-learn"], dst=local_repo)
 
 # %%
 # We can no see what the contents of the created local repo are:
@@ -86,10 +86,25 @@ print(os.listdir(local_repo))
 # ===========
 # And finally, we can push the model to the hub. This requires a user access
 # token which you can get under https://huggingface.co/settings/tokens
+
+# you can put your own token here, or set it as an environment variable before
+# running this script.
+token = os.environ["HF_HUB_TOKEN"]
+
 repo_name = f"hf_hub_example-{uuid4()}"
-# you can put your own token here.
-MY_TOKEN = os.environ["HF_HUB_TOKEN"]
-hf_hub.push(repo_id=repo_name, source=local_repo, token=MY_TOKEN)
+user_name = HfApi().whoami(token=token)["name"]
+repo_id = f"{user_name}/{repo_name}"
+
+# Now we can push our files to the repo. The following function creates the
+# remote repository if it doesn't exist; this is controlled via the
+# ``create_remote`` argument.
+hf_hub.push(
+    repo_id=repo_id,
+    source=local_repo,
+    token=token,
+    commit_message="pushing files to the repo from the example!",
+    create_remote=True,
+)
 
 # %%
 # Now you can check the contents of the repository under your user.
@@ -110,4 +125,4 @@ hf_hub.update_env(path=local_repo, requirements=["scikit-learn"])
 # ``HfApi().delete_repo``. For more information please refer to the
 # documentation of ``huggingface_hub`` library.
 
-HfApi().delete_repo(repo_id=repo_name, token=MY_TOKEN)
+HfApi().delete_repo(repo_id=repo_id, token=token)
