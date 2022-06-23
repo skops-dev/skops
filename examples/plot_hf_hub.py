@@ -95,16 +95,15 @@ repo_name = f"hf_hub_example-{uuid4()}"
 user_name = HfApi().whoami(token=token)["name"]
 repo_id = f"{user_name}/{repo_name}"
 
-# If the repository doesn't exist, we should first create it. This can be done
-# via the hf.co UI, or programmatically:
-HfApi().create_repo(repo_id=repo_name, token=token, repo_type="model")
-
-# Now we can push our files to the repo:
+# Now we can push our files to the repo. The following function creates the
+# remote repository if it doesn't exist; this is controlled via the
+# ``create_remote`` argument.
 hf_hub.push(
     repo_id=repo_id,
     source=local_repo,
     token=token,
     commit_message="pushing files to the repo from the example!",
+    create_remote=True,
 )
 
 # %%
