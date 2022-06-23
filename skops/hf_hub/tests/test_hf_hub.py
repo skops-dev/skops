@@ -94,7 +94,8 @@ def test_init():
         )
 
 
-def test_push():
+@pytest.mark.parametrize("explicit_create", [True, False])
+def test_push(explicit_create):
     client = HfApi()
     with tempfile.TemporaryDirectory(prefix="skops-test") as dir_path:
         version = metadata.version("scikit-learn")
@@ -106,14 +107,18 @@ def test_push():
 
         user = client.whoami(token=HF_HUB_TOKEN)["name"]
         repo_id = f"{user}/test-{uuid4()}"
-        client.create_repo(repo_id=repo_id, token=HF_HUB_TOKEN, repo_type="model")
+        if explicit_create:
+            client.create_repo(repo_id=repo_id, token=HF_HUB_TOKEN, repo_type="model")
         push(
             repo_id=repo_id,
             source=dir_path,
             token=HF_HUB_TOKEN,
             commit_message="test message",
+            create_remote=True,
         )
 
     files = client.list_repo_files(repo_id=repo_id, token=HF_HUB_TOKEN)
     for f_name in ["model.pkl", "config.json"]:
         assert f_name in files
+
+    client.delete_repo(repo_id=repo_id, token=HF_HUB_TOKEN)

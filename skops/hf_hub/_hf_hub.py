@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import List, Union
 
 from huggingface_hub import HfApi
+from requests import HTTPError
 
 
 def _validate_folder(path: Union[str, Path]):
@@ -149,6 +150,7 @@ def push(
     source: Union[str, Path],
     token: str = None,
     commit_message: str = None,
+    create_remote: bool = False,
 ):
     """Pushes the contents of a model repo to HuggingFace Hub.
 
@@ -170,6 +172,12 @@ def push(
     commit_message: str, optional
         The commit message to be used when pushing to the repo.
 
+    create_remote: bool, optional
+        Whether to create the remote repository if it doesn't exist. If the
+        remote repository doesn't exist and this parameter is ``False``, it
+        raises an error. Otherwise it checks if the remote repository exists,
+        and would create it if it doesn't.
+
     Returns
     -------
     None
@@ -181,6 +189,13 @@ def push(
     """
     _validate_folder(path=source)
     client = HfApi()
+
+    if create_remote:
+        try:
+            client.model_info(repo_id=repo_id, token=token)
+        except HTTPError:
+            client.create_repo(repo_id=repo_id, token=token, repo_type="model")
+
     client.upload_folder(
         repo_id=repo_id,
         path_in_repo=".",
