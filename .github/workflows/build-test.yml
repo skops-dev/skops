@@ -44,13 +44,13 @@ jobs:
       env:
         SUPER_SECRET: ${{ secrets.HF_HUB_TOKEN }}
       run: |
-        python -m pytest --cov=skops --cov-report=xml -v skops/
+        python -m pytest -s --cov=skops --cov-report=xml -v skops/
 
     - name: Doc Tests
       env:
         SUPER_SECRET: ${{ secrets.HF_HUB_TOKEN }}
       run: |
-        python -m pytest --cov-skops --doctest-modules skops/
+        python -m pytest -s --cov-skops --doctest-modules skops/
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v2
