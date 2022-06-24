@@ -11,8 +11,7 @@ from huggingface_hub import HfApi
 
 from skops.hf_hub import init, push
 from skops.hf_hub._hf_hub import _create_config, _validate_folder
-
-HF_HUB_TOKEN = os.environ.get("HF_HUB_TOKEN", None)
+from skops.hf_hub.tests.common import HF_HUB_TOKEN
 
 
 def _get_cwd():

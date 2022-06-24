@@ -1,0 +1,1 @@
+HF_HUB_TOKEN = "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"
