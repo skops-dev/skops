@@ -10,7 +10,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     if: "github.repository == 'skops-dev/skops'"
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         python: ["3.8", "3.9", "3.10"]
@@ -50,7 +50,7 @@ jobs:
       env:
         SUPER_SECRET: ${{ secrets.HF_HUB_TOKEN }}
       run: |
-        python -m pytest -s --cov-skops --doctest-modules skops/
+        python -m pytest -s --cov=skops --doctest-modules skops/
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v2
