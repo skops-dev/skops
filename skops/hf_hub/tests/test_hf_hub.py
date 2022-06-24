@@ -103,7 +103,7 @@ def test_push(explicit_create):
             requirements=[f'scikit-learn="{version}"'],
             dst=dir_path,
         )
-
+        print("token: ", HF_HUB_TOKEN)
         user = client.whoami(token=HF_HUB_TOKEN)["name"]
         repo_id = f"{user}/test-{uuid4()}"
         if explicit_create:
