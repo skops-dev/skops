@@ -2,7 +2,11 @@ name: pytest
 
 on:
   - push
+    repositories:
+      - 'skops-dev/skops'
   - pull_request
+    repositories:
+      - 'skops-dev/skops'
 
 jobs:
   pytest:
@@ -47,12 +51,12 @@ jobs:
       run: |
         python -m pytest --cov-skops --doctest-modules skops/
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v2
-        with:
-          env_vars: OS,PYTHON
-          fail_ci_if_error: true
-          files: ./coverage.xml
-          flags: unittests
-          name: codecov-umbrella
-          verbose: true
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v2
+      with:
+        env_vars: OS,PYTHON
+        fail_ci_if_error: true
+        files: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+        verbose: true
