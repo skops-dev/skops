@@ -2,13 +2,13 @@ name: pytest
 
 on:
   - push
-  - pull_request
+  - pull_request_target
 
 jobs:
   pytest:
 
     runs-on: ${{ matrix.os }}
-    if: "github.repository == 'skops-dev/skop'"
+    if: "github.repository == 'skops-dev/skops'"
     strategy:
       fail-fast: false
       matrix:
