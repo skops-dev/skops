@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import List, Union
 
 from huggingface_hub import HfApi
+from huggingface_hub.file_download import hf_hub_url, http_get, http_user_agent
 from requests import HTTPError
 
 
@@ -207,3 +208,107 @@ def push(
         revision=None,
         create_pr=False,
     )
+
+
+def get_config(path: Union[str, Path]):
+    """Returns the configuration of a project.
+
+    Parameters
+    ----------
+    path: str
+        The path to the director holding the project and its ``config.json``
+        configuration file.
+
+    Returns
+    -------
+    config: dict
+        A dictionary which holds the configs of the project.
+    """
+    with open(Path(path) / "config.json", "r") as f:
+        config = json.load(f)
+    return config
+
+
+def get_requirements(path: Union[str, Path]):
+    """Returns the requirements of a project.
+
+    Parameters
+    ----------
+    path: str
+        The path to the director holding the project and its ``config.json``
+        configuration file.
+
+    Returns
+    -------
+    requirements: list of str
+        The list of requirements which can be passed to the package manager to
+        be installed.
+    """
+    config = get_config(path)
+    return config.get("sklearn", dict()).get("environment", dict())
+
+
+def download(
+    *,
+    repo_id: str,
+    dst: Union[str, Path],
+    revision: str = None,
+    token: str = None,
+    proxies: dict = None,
+):
+    """Download a repository into a directory.
+
+    The directory needs to be an empty or a non-existing one.
+
+    Parameters
+    ----------
+    repo_id: str
+        The ID of the Hugging Face Hub repository in the form of
+        ``OWNER/REPO_NAME``.
+
+    dst: str, or Path
+        The directory to which the files are downloaded.
+
+    revision: str
+        The revision of the project to download. This can be a git tag, branch,
+        or a git commit hash.
+
+    token: str, optional
+        The token to be used to download the files. Only required if the
+        repository is private.
+
+    proxies: dict, optional
+        Dictionary mapping protocol to the URL of the proxy passed to
+        ``requests.request``.
+
+    Returns
+    -------
+    None
+    """
+    dst = Path(dst)
+    if dst.exists() and next(dst.iterdir(), None):
+        raise OSError("None-empty dst path already exists!")
+    dst.mkdir(parents=True, exist_ok=True)
+
+    client = HfApi()
+    files = client.list_repo_files(repo_id=repo_id, token=token)
+    headers = {
+        "user-agent": http_user_agent(
+            library_name="skops",
+        )
+    }
+    if token:
+        headers["authorization"] = f"Bearer {token}"
+
+    for fname in files:
+        url = hf_hub_url(
+            repo_id=repo_id, filename=fname, revision=revision, repo_type="model"
+        )
+        # TODO: support files in folders
+        with open(dst / fname, "wb") as f:
+            http_get(
+                url=url,
+                temp_file=f,
+                proxies=proxies,
+                headers=headers,
+            )

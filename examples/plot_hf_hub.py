@@ -12,6 +12,7 @@ fetch scikit-learn compatible models from the Hub and run them locally.
 # =======
 # First we will import everything required for the rest of this document.
 
+import json
 import os
 import pickle
 from tempfile import mkdtemp, mkstemp
@@ -64,11 +65,11 @@ model.score(X_test, y_test)
 # that, we need to first store the model as a pickle file and pass it to the
 # hub tools.
 
-_, pkl_name = mkstemp(prefix="skops")
+_, pkl_name = mkstemp(prefix="skops-", suffix=".pkl")
 with open(pkl_name, mode="bw") as f:
     pickle.dump(model, file=f)
 
-local_repo = mkdtemp(prefix="skops")
+local_repo = mkdtemp(prefix="skops-")
 hf_hub.init(model=pkl_name, requirements=["scikit-learn"], dst=local_repo)
 
 # %%
@@ -89,7 +90,8 @@ print(os.listdir(local_repo))
 
 # you can put your own token here, or set it as an environment variable before
 # running this script.
-token = os.environ["HF_HUB_TOKEN"]
+# token = os.environ["HF_HUB_TOKEN"]
+token = "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"
 
 repo_name = f"hf_hub_example-{uuid4()}"
 user_name = HfApi().whoami(token=token)["name"]
@@ -105,6 +107,22 @@ hf_hub.push(
     commit_message="pushing files to the repo from the example!",
     create_remote=True,
 )
+
+# %%
+# Once uploaded, other users can download and use it, unless you make the repo
+# private. Given a repository's name, here's how one can download it:
+repo_copy = mkdtemp(prefix="skops")
+hf_hub.download(repo_id=repo_id, dst=repo_copy)
+print(os.listdir(repo_copy))
+
+
+# %%
+# You can also get the requirements of this repository:
+print(hf_hub.get_requirements(path=repo_copy))
+
+# %%
+# As well as the complete configuration of the project:
+print(json.dumps(hf_hub.get_config(path=repo_copy), indent=2))
 
 # %%
 # Now you can check the contents of the repository under your user.

@@ -9,7 +9,7 @@ from uuid import uuid4
 import pytest
 from huggingface_hub import HfApi
 
-from skops.hf_hub import init, push
+from skops.hf_hub import download, init, push
 from skops.hf_hub._hf_hub import _create_config, _validate_folder
 from skops.hf_hub.tests.common import HF_HUB_TOKEN
 
@@ -94,7 +94,7 @@ def test_init():
 
 
 @pytest.mark.parametrize("explicit_create", [True, False])
-def test_push(explicit_create):
+def test_push_download(explicit_create):
     client = HfApi()
     with tempfile.TemporaryDirectory(prefix="skops-test") as dir_path:
         version = metadata.version("scikit-learn")
@@ -119,5 +119,10 @@ def test_push(explicit_create):
     files = client.list_repo_files(repo_id=repo_id, token=HF_HUB_TOKEN)
     for f_name in ["model.pkl", "config.json"]:
         assert f_name in files
+
+    with tempfile.TemporaryDirectory(prefix="skops-test") as dst:
+        download(repo_id=repo_id, dst=dst)
+        copy_files = os.listdir(dst)
+        assert set(copy_files) == set(files)
 
     client.delete_repo(repo_id=repo_id, token=HF_HUB_TOKEN)
