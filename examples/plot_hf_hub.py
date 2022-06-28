@@ -65,6 +65,8 @@ model.score(X_test, y_test)
 # that, we need to first store the model as a pickle file and pass it to the
 # hub tools.
 
+# The file name is not significant, here we choose to save it with a `pkl`
+# extension.
 _, pkl_name = mkstemp(prefix="skops-", suffix=".pkl")
 with open(pkl_name, mode="bw") as f:
     pickle.dump(model, file=f)
