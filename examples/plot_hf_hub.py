@@ -23,7 +23,7 @@ from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.experimental import enable_halving_search_cv  # noqa
 from sklearn.model_selection import HalvingGridSearchCV, train_test_split
 
-from skops import hf_hub
+from skops import card, hf_hub
 
 # %%
 # Data
@@ -78,7 +78,7 @@ print(os.listdir(local_repo))
 # %%
 # Model Card
 # ==========
-# TODO: create a model card here
+card.create_model_card(model, local_repo)
 
 
 # %%

@@ -41,8 +41,7 @@ def create_model_card(
     metrics: list
         Metrics model is evaluated on.
     """
-
-    model_plot = estimator_html_repr(model)
+    model_plot = str(estimator_html_repr(model))
     hyperparameter_table = _extract_estimator_config(model)
     card = ModelCard.from_template(
         card_data=CardData(
@@ -51,11 +50,11 @@ def create_model_card(
             tags=tags,
             metrics=metrics,
         ),
-        template_path="default_template.md",
+        template_path="skops/skops/card/default_template.md",
         model_id=model_id,
         hyperparameter_table=hyperparameter_table,
         model_plot=model_plot,
     )
 
-    with open(path, "w+", encoding="utf-8") as f:
-        f.write(card)
+    with open(f"{path}/README.md", "w+", encoding="utf-8") as f:
+        f.write(str(card))

@@ -16,12 +16,17 @@ This model doesn't exist, so you probably don't want to use it! This is just an 
 ### Hyperparameters
 
 The model is trained with below hyperparameters.
+
+
 {{ hyperparameter_table }}
+
 
 ###
 
 The model plot is below.
 
-{{ model_plot }}
+{% autoescape false %}
+  {{ model_plot | replace("\n             ", "")}}
+{% endautoescape %}
 
 """
