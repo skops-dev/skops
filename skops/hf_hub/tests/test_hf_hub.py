@@ -2,7 +2,6 @@ import json
 import os
 import shutil
 import tempfile
-from importlib import metadata
 from pathlib import Path
 from uuid import uuid4
 
@@ -11,8 +10,8 @@ from huggingface_hub import HfApi
 
 from skops.hf_hub import init, push
 from skops.hf_hub._hf_hub import _create_config, _validate_folder
-
-HF_HUB_TOKEN = os.environ.get("HF_HUB_TOKEN", None)
+from skops.hf_hub.tests.common import HF_HUB_TOKEN
+from skops.utils.fixes import metadata
 
 
 def _get_cwd():

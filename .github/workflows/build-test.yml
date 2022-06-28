@@ -1,0 +1,67 @@
+name: pytest
+
+on:
+  - push
+  - pull_request
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pytest:
+
+    runs-on: ${{ matrix.os }}
+    if: "github.repository == 'skops-dev/skops'"
+    strategy:
+      fail-fast: true
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python: ["3.7", "3.8", "3.9", "3.10"]
+
+    # Timeout: https://stackoverflow.com/a/59076067/4521646
+    timeout-minutes: 35
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python ${{ matrix.python }}
+      uses: actions/setup-python@v3
+      with:
+        python-version: ${{ matrix.python }}
+
+    - name: Install dependencies
+      run: |
+        pip install .[docs]
+        pip install pytest black isort pytest-cov
+        python --version
+        pip --version
+        pip list
+      shell: bash
+
+    - name: Check black
+      run: black --check --diff .
+
+    - name: Check isort
+      run: isort --check --diff .
+
+    - name: Tests
+      env:
+        SUPER_SECRET: ${{ secrets.HF_HUB_TOKEN }}
+      run: |
+        python -m pytest -s --cov=skops --cov-report=xml -v skops/
+
+    - name: Doc Tests
+      env:
+        SUPER_SECRET: ${{ secrets.HF_HUB_TOKEN }}
+      run: |
+        python -m pytest -s --cov=skops --doctest-modules skops/
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v2
+      with:
+        env_vars: OS,PYTHON
+        fail_ci_if_error: true
+        files: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+        verbose: true
