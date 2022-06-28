@@ -124,7 +124,7 @@ def test_push_download(explicit_create):
         assert f_name in files
 
     with tempfile.TemporaryDirectory(prefix="skops-test") as dst:
-        download(repo_id=repo_id, dst=dst, token=HF_HUB_TOKEN)
+        download(repo_id=repo_id, dst=dst, token=HF_HUB_TOKEN, keep_cache=False)
         copy_files = os.listdir(dst)
         assert set(copy_files) == set(files)
 
