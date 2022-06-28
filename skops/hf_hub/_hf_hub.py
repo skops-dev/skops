@@ -9,8 +9,7 @@ import shutil
 from pathlib import Path
 from typing import List, Union
 
-from huggingface_hub import HfApi
-from huggingface_hub.file_download import hf_hub_url, http_get, http_user_agent
+from huggingface_hub import HfApi, snapshot_download
 from requests import HTTPError
 
 
@@ -254,7 +253,8 @@ def download(
     dst: Union[str, Path],
     revision: str = None,
     token: str = None,
-    proxies: dict = None,
+    keep_cache: bool = True,
+    **kwargs,
 ):
     """Download a repository into a directory.
 
@@ -277,9 +277,14 @@ def download(
         The token to be used to download the files. Only required if the
         repository is private.
 
-    proxies: dict, optional
-        Dictionary mapping protocol to the URL of the proxy passed to
-        ``requests.request``.
+    keep_cache: bool, default=True
+        Whether the cached data should be kept or removed after download. By
+        default a copy of the cached files will be created in the ``dst``
+        folder. If ``False``, the cache will be removed after the contents are
+        copied.
+
+    kwargs: dict
+        Other parameters to be passed to ``huggingface_hub.snapshot_download``.
 
     Returns
     -------
@@ -288,27 +293,11 @@ def download(
     dst = Path(dst)
     if dst.exists() and next(dst.iterdir(), None):
         raise OSError("None-empty dst path already exists!")
-    dst.mkdir(parents=True, exist_ok=True)
+    dst.rmdir()
 
-    client = HfApi()
-    files = client.list_repo_files(repo_id=repo_id, token=token)
-    headers = {
-        "user-agent": http_user_agent(
-            library_name="skops",
-        )
-    }
-    if token:
-        headers["authorization"] = f"Bearer {token}"
-
-    for fname in files:
-        url = hf_hub_url(
-            repo_id=repo_id, filename=fname, revision=revision, repo_type="model"
-        )
-        # TODO: support files in folders
-        with open(dst / fname, "wb") as f:
-            http_get(
-                url=url,
-                temp_file=f,
-                proxies=proxies,
-                headers=headers,
-            )
+    cached_folder = snapshot_download(
+        repo_id=repo_id, revision=revision, use_auth_token=token, **kwargs
+    )
+    shutil.copytree(cached_folder, dst)
+    if not keep_cache:
+        shutil.rmtree(path=cached_folder)
