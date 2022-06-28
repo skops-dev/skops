@@ -90,8 +90,7 @@ print(os.listdir(local_repo))
 
 # you can put your own token here, or set it as an environment variable before
 # running this script.
-# token = os.environ["HF_HUB_TOKEN"]
-token = "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"
+token = os.environ["HF_HUB_TOKEN"]
 
 repo_name = f"hf_hub_example-{uuid4()}"
 user_name = HfApi().whoami(token=token)["name"]
