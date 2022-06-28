@@ -1,21 +1,18 @@
 from modelcards import CardData, ModelCard
-from sklearn import set_config
 from sklearn.utils import estimator_html_repr
-
-
-def _plot_estimator(model):
-    set_config(display="diagram")
-    return estimator_html_repr(model)
 
 
 def _extract_estimator_config(model):
     """Extracts estimator configuration and renders them into a vertical table.
 
-    Args:
+    Parameters
+    ----------
         model (estimator): scikit-learn pipeline or model.
 
-    Returns:
-        str: Markdown table of hyperparameters.
+    Returns
+    -------
+    str:
+        Markdown table of hyperparameters.
     """
     hyperparameter_dict = model.get_params(deep=True)
     table = "| Hyperparameters | Value |\n| :-- | :-- |\n"
@@ -24,19 +21,28 @@ def _extract_estimator_config(model):
     return table
 
 
-def create_model_card(model, path, model_id, license, tags, metrics):
+def create_model_card(
+    model, path, model_id=None, license=None, tags=None, metrics=None
+):
     """Creates a model card for the model and saves it to the target directory.
 
-    Args:
-        model (estimator): scikit-learn pipeline or model.
-        path (Path): Path to repository that the model card is generated in.
-        model_id (str): Hugging Face Hub ID.
-        license (str): Model license.
-        tags (list): Tags about the model. e.g. tabular-classification
-        metrics (list): Metrics model is evaluated on.
+    Parameters:
+    ----------
+    model: estimator
+        scikit-learn pipeline or model.
+    path: Path
+        Path to repository that the model card is generated in.
+    model_id: str
+        Hugging Face Hub ID.
+    license: str
+        Model license.
+    tags: list
+        Tags about the model. e.g. tabular-classification
+    metrics: list
+        Metrics model is evaluated on.
     """
 
-    model_plot = _plot_estimator(model)
+    model_plot = estimator_html_repr(model)
     hyperparameter_table = _extract_estimator_config(model)
     card = ModelCard.from_template(
         card_data=CardData(
