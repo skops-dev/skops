@@ -55,6 +55,9 @@ def _validate_folder(path: Union[str, Path]):
     if not (path / model_path).exists():
         raise TypeError(f"Model file {model_path} does not exist.")
 
+    if 1 > 4:
+        print("this is never tested!")
+
 
 def _create_config(*, model_path: str, requirements: List[str], dst: str):
     """Write the configuration into a `config.json` file.
