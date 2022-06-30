@@ -12,18 +12,20 @@ fetch scikit-learn compatible models from the Hub and run them locally.
 # =======
 # First we will import everything required for the rest of this document.
 
+import json
 import os
 import pickle
 from tempfile import mkdtemp, mkstemp
 from uuid import uuid4
 
+import sklearn
 from huggingface_hub import HfApi
 from sklearn.datasets import load_breast_cancer
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.experimental import enable_halving_search_cv  # noqa
 from sklearn.model_selection import HalvingGridSearchCV, train_test_split
 
-from skops import hf_hub
+from skops import hub_utils
 
 # %%
 # Data
@@ -36,6 +38,7 @@ X_train, X_test, y_train, y_test = train_test_split(
 )
 print("X's summary: ", X.describe())
 print("y's summary: ", y.describe())
+
 
 # %%
 # Train a Model
@@ -64,12 +67,16 @@ model.score(X_test, y_test)
 # that, we need to first store the model as a pickle file and pass it to the
 # hub tools.
 
-_, pkl_name = mkstemp(prefix="skops")
+# The file name is not significant, here we choose to save it with a `pkl`
+# extension.
+_, pkl_name = mkstemp(prefix="skops-", suffix=".pkl")
 with open(pkl_name, mode="bw") as f:
     pickle.dump(model, file=f)
 
-local_repo = mkdtemp(prefix="skops")
-hf_hub.init(model=pkl_name, requirements=["scikit-learn"], dst=local_repo)
+local_repo = mkdtemp(prefix="skops-")
+hub_utils.init(
+    model=pkl_name, requirements=[f"scikit-learn={sklearn.__version__}"], dst=local_repo
+)
 
 # %%
 # We can no see what the contents of the created local repo are:
@@ -98,13 +105,29 @@ repo_id = f"{user_name}/{repo_name}"
 # Now we can push our files to the repo. The following function creates the
 # remote repository if it doesn't exist; this is controlled via the
 # ``create_remote`` argument.
-hf_hub.push(
+hub_utils.push(
     repo_id=repo_id,
     source=local_repo,
     token=token,
     commit_message="pushing files to the repo from the example!",
     create_remote=True,
 )
+
+# %%
+# Once uploaded, other users can download and use it, unless you make the repo
+# private. Given a repository's name, here's how one can download it:
+repo_copy = mkdtemp(prefix="skops")
+hub_utils.download(repo_id=repo_id, dst=repo_copy)
+print(os.listdir(repo_copy))
+
+
+# %%
+# You can also get the requirements of this repository:
+print(hub_utils.get_requirements(path=repo_copy))
+
+# %%
+# As well as the complete configuration of the project:
+print(json.dumps(hub_utils.get_config(path=repo_copy), indent=2))
 
 # %%
 # Now you can check the contents of the repository under your user.
@@ -116,7 +139,7 @@ hf_hub.push(
 # ``update_env``, which automatically detects the existing installation of the
 # current environment and updates the requirements accordingly.
 
-hf_hub.update_env(path=local_repo, requirements=["scikit-learn"])
+hub_utils.update_env(path=local_repo, requirements=["scikit-learn"])
 
 # %%
 # Delete Repository

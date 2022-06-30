@@ -9,7 +9,7 @@ import shutil
 from pathlib import Path
 from typing import List, Union
 
-from huggingface_hub import HfApi
+from huggingface_hub import HfApi, snapshot_download
 from requests import HTTPError
 
 
@@ -210,3 +210,101 @@ def push(
         revision=None,
         create_pr=False,
     )
+
+
+def get_config(path: Union[str, Path]):
+    """Returns the configuration of a project.
+
+    Parameters
+    ----------
+    path: str
+        The path to the director holding the project and its ``config.json``
+        configuration file.
+
+    Returns
+    -------
+    config: dict
+        A dictionary which holds the configs of the project.
+    """
+    with open(Path(path) / "config.json", "r") as f:
+        config = json.load(f)
+    return config
+
+
+def get_requirements(path: Union[str, Path]):
+    """Returns the requirements of a project.
+
+    Parameters
+    ----------
+    path: str
+        The path to the director holding the project and its ``config.json``
+        configuration file.
+
+    Returns
+    -------
+    requirements: list of str
+        The list of requirements which can be passed to the package manager to
+        be installed.
+    """
+    config = get_config(path)
+    return config.get("sklearn", dict()).get("environment", list())
+
+
+def download(
+    *,
+    repo_id: str,
+    dst: Union[str, Path],
+    revision: str = None,
+    token: str = None,
+    keep_cache: bool = True,
+    **kwargs,
+):
+    """Download a repository into a directory.
+
+    The directory needs to be an empty or a non-existing one.
+
+    Parameters
+    ----------
+    repo_id: str
+        The ID of the Hugging Face Hub repository in the form of
+        ``OWNER/REPO_NAME``.
+
+    dst: str, or Path
+        The directory to which the files are downloaded.
+
+    revision: str, optional
+        The revision of the project to download. This can be a git tag, branch,
+        or a git commit hash. By default the latest revision of the default
+        branch is downloaded.
+
+    token: str, optional
+        The token to be used to download the files. Only required if the
+        repository is private.
+
+    keep_cache: bool, default=True
+        Whether the cached data should be kept or removed after download. By
+        default a copy of the cached files will be created in the ``dst``
+        folder. If ``False``, the cache will be removed after the contents are
+        copied. Note that the cache is git based and by default new files are
+        only downloaded if there is a new revision of them on the hub. If you
+        keep the cache, the old files are not removed after downloading the
+        newer versions of them.
+
+    kwargs: dict
+        Other parameters to be passed to ``huggingface_hub.snapshot_download``.
+
+    Returns
+    -------
+    None
+    """
+    dst = Path(dst)
+    if dst.exists() and next(dst.iterdir(), None):
+        raise OSError("None-empty dst path already exists!")
+    dst.rmdir()
+
+    cached_folder = snapshot_download(
+        repo_id=repo_id, revision=revision, use_auth_token=token, **kwargs
+    )
+    shutil.copytree(cached_folder, dst)
+    if not keep_cache:
+        shutil.rmtree(path=cached_folder)
