@@ -8,9 +8,9 @@ from uuid import uuid4
 import pytest
 from huggingface_hub import HfApi
 
-from skops.hf_hub import download, get_config, get_requirements, init, push
-from skops.hf_hub._hf_hub import _create_config, _validate_folder
-from skops.hf_hub.tests.common import HF_HUB_TOKEN
+from skops.hub_utils import download, get_config, get_requirements, init, push
+from skops.hub_utils._hf_hub import _create_config, _validate_folder
+from skops.hub_utils.tests.common import HF_HUB_TOKEN
 from skops.utils.fixes import metadata
 
 

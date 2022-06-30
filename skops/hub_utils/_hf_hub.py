@@ -244,7 +244,7 @@ def get_requirements(path: Union[str, Path]):
         be installed.
     """
     config = get_config(path)
-    return config.get("sklearn", dict()).get("environment", dict())
+    return config.get("sklearn", dict()).get("environment", list())
 
 
 def download(
@@ -269,9 +269,10 @@ def download(
     dst: str, or Path
         The directory to which the files are downloaded.
 
-    revision: str
+    revision: str, optional
         The revision of the project to download. This can be a git tag, branch,
-        or a git commit hash.
+        or a git commit hash. By default the latest revision of the default
+        branch is downloaded.
 
     token: str, optional
         The token to be used to download the files. Only required if the
@@ -281,7 +282,10 @@ def download(
         Whether the cached data should be kept or removed after download. By
         default a copy of the cached files will be created in the ``dst``
         folder. If ``False``, the cache will be removed after the contents are
-        copied.
+        copied. Note that the cache is git based and by default new files are
+        only downloaded if there is a new revision of them on the hub. If you
+        keep the cache, the old files are not removed after downloading the
+        newer versions of them.
 
     kwargs: dict
         Other parameters to be passed to ``huggingface_hub.snapshot_download``.

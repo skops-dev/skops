@@ -18,13 +18,14 @@ import pickle
 from tempfile import mkdtemp, mkstemp
 from uuid import uuid4
 
+import sklearn
 from huggingface_hub import HfApi
 from sklearn.datasets import load_breast_cancer
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.experimental import enable_halving_search_cv  # noqa
 from sklearn.model_selection import HalvingGridSearchCV, train_test_split
 
-from skops import hf_hub
+from skops import hub_utils
 
 # %%
 # Data
@@ -37,6 +38,7 @@ X_train, X_test, y_train, y_test = train_test_split(
 )
 print("X's summary: ", X.describe())
 print("y's summary: ", y.describe())
+
 
 # %%
 # Train a Model
@@ -72,7 +74,9 @@ with open(pkl_name, mode="bw") as f:
     pickle.dump(model, file=f)
 
 local_repo = mkdtemp(prefix="skops-")
-hf_hub.init(model=pkl_name, requirements=["scikit-learn"], dst=local_repo)
+hub_utils.init(
+    model=pkl_name, requirements=[f"scikit-learn={sklearn.__version__}"], dst=local_repo
+)
 
 # %%
 # We can no see what the contents of the created local repo are:
@@ -101,7 +105,7 @@ repo_id = f"{user_name}/{repo_name}"
 # Now we can push our files to the repo. The following function creates the
 # remote repository if it doesn't exist; this is controlled via the
 # ``create_remote`` argument.
-hf_hub.push(
+hub_utils.push(
     repo_id=repo_id,
     source=local_repo,
     token=token,
@@ -113,17 +117,17 @@ hf_hub.push(
 # Once uploaded, other users can download and use it, unless you make the repo
 # private. Given a repository's name, here's how one can download it:
 repo_copy = mkdtemp(prefix="skops")
-hf_hub.download(repo_id=repo_id, dst=repo_copy)
+hub_utils.download(repo_id=repo_id, dst=repo_copy)
 print(os.listdir(repo_copy))
 
 
 # %%
 # You can also get the requirements of this repository:
-print(hf_hub.get_requirements(path=repo_copy))
+print(hub_utils.get_requirements(path=repo_copy))
 
 # %%
 # As well as the complete configuration of the project:
-print(json.dumps(hf_hub.get_config(path=repo_copy), indent=2))
+print(json.dumps(hub_utils.get_config(path=repo_copy), indent=2))
 
 # %%
 # Now you can check the contents of the repository under your user.
@@ -135,7 +139,7 @@ print(json.dumps(hf_hub.get_config(path=repo_copy), indent=2))
 # ``update_env``, which automatically detects the existing installation of the
 # current environment and updates the requirements accordingly.
 
-hf_hub.update_env(path=local_repo, requirements=["scikit-learn"])
+hub_utils.update_env(path=local_repo, requirements=["scikit-learn"])
 
 # %%
 # Delete Repository
