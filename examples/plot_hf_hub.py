@@ -78,8 +78,8 @@ print(os.listdir(local_repo))
 # %%
 # Model Card
 # ==========
-card.create_model_card(model, local_repo)
-
+model_card = card.create_model_card(model)
+model_card.save(f"{local_repo}/README.md")
 
 # %%
 # Push to Hub

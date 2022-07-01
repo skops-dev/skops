@@ -1,4 +1,3 @@
-"""
 ---
 {{ card_data }}
 ---
@@ -9,6 +8,7 @@ This model is part of `super_cool_models` package (which doesn't exist)! It is a
 
 ## Intended uses & limitations
 
+{{ limitations }}
 This model doesn't exist, so you probably don't want to use it! This is just an example template. Please write a very thoughtful model card ❤️
 
 ## Training Procedure
@@ -28,5 +28,3 @@ The model plot is below.
 {% autoescape false %}
   {{ model_plot | replace("\n             ", "")}}
 {% endautoescape %}
-
-"""

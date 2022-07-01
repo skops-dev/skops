@@ -21,23 +21,19 @@ def _extract_estimator_config(model):
     return table
 
 
-def create_model_card(
-    model, path, model_id=None, license=None, tags=None, metrics=None
-):
+def create_model_card(model, model_id=None, license=None, tags=None, metrics=None):
     """Creates a model card for the model and saves it to the target directory.
 
     Parameters:
     ----------
     model: estimator
         scikit-learn pipeline or model.
-    path: Path
-        Path to repository that the model card is generated in.
     model_id: str
         Hugging Face Hub ID.
     license: str
         Model license.
     tags: list
-        Tags about the model. e.g. tabular-classification
+        List of tags about the model. e.g. tabular-classification
     metrics: list
         Metrics model is evaluated on.
     """
@@ -56,5 +52,4 @@ def create_model_card(
         model_plot=model_plot,
     )
 
-    with open(f"{path}/README.md", "w+", encoding="utf-8") as f:
-        f.write(str(card))
+    return card
