@@ -50,8 +50,10 @@ model.score(X_test, y_test)
 # %% Create a model card
 # =======================
 # We now create a model card, set couple of attributes and save it.
+limitations = "This model is not ready to be used in production."
+license = "afl3.0"
+model_card = card.create_model_card(
+    model, tags=["tabular-classification"], license=license, limitations=limitations
+)
 
-model_card = card.create_model_card(model)
-model_card.limitations = "This model is not ready to be used in production."
-model_card.license = "afl3.0"
 model_card.save("./README.md")
