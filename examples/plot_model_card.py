@@ -79,4 +79,4 @@ model_card = card.create_model_card(
 )
 save_dir = mkdtemp(prefix="skops")
 
-model_card.save(f"{save_dir}/README.md").encode("utf-8")
+model_card.save(f"{save_dir}/README.md")
