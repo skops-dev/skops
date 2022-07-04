@@ -88,9 +88,9 @@ print(os.listdir(local_repo))
 # ==========
 card_data = CardData(tags=["tabular-classification"])
 model_card = card.create_model_card(
-    model, card_data, template_path="skops/skops/card/default_template.md"
+    model, card_data, template_path="skops/card/default_template.md"
 )
-model_card.save(f"{local_repo}/README.md")
+model_card.save(f"{local_repo}/README.md").encode("utf-8")
 
 # %%
 # Push to Hub
