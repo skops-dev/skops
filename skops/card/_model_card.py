@@ -47,11 +47,11 @@ def create_model_card(
     template_path = card_kwargs.get("template_path")
     if template_path is None:
         template_path = "skops/skops/card/default_template.md"
+    card_kwargs["template_path"] = template_path
     card = ModelCard.from_template(
         card_data=card_data,
         hyperparameter_table=hyperparameter_table,
         model_plot=model_plot,
-        template_path=template_path,
         **card_kwargs,
     )
 
