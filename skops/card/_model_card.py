@@ -44,10 +44,12 @@ def create_model_card(
     model_plot = re.sub(r"\n\s+", "", str(estimator_html_repr(model)))
     hyperparameter_table = _extract_estimator_config(model)
     card_data.library_name = "sklearn"
-
+    template_path = card_kwargs.get("template_path")
+    if template_path is None:
+        template_path = "skops/skops/card/default_template.md"
     card = ModelCard.from_template(
         card_data=card_data,
-        template_path="skops/skops/card/default_template.md",
+        template_path=template_path,
         hyperparameter_table=hyperparameter_table,
         model_plot=model_plot,
         **card_kwargs,

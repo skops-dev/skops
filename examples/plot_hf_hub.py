@@ -20,12 +20,13 @@ from uuid import uuid4
 
 import sklearn
 from huggingface_hub import HfApi
+from modelcards import CardData
 from sklearn.datasets import load_breast_cancer
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.experimental import enable_halving_search_cv  # noqa
 from sklearn.model_selection import HalvingGridSearchCV, train_test_split
 
-from skops import hub_utils
+from skops import card, hub_utils
 
 # %%
 # Data
@@ -85,7 +86,10 @@ print(os.listdir(local_repo))
 # %%
 # Model Card
 # ==========
-model_card = card.create_model_card(model)
+card_data = CardData(tags=["tabular-classification"])
+model_card = card.create_model_card(
+    model, card_data, template_path="skops/skops/card/default_template.md"
+)
 model_card.save(f"{local_repo}/README.md")
 
 # %%

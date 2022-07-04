@@ -16,7 +16,6 @@ from tempfile import mkdtemp
 from modelcards import CardData
 from sklearn.datasets import load_breast_cancer
 from sklearn.ensemble import HistGradientBoostingClassifier
-from sklearn.experimental import enable_halving_search_cv  # noqa
 from sklearn.model_selection import HalvingGridSearchCV, train_test_split
 
 from skops import card
@@ -54,6 +53,9 @@ model.score(X_test, y_test)
 # %% Create a model card
 # =======================
 # We now create a model card, set couple of attributes and save it.
+# We first set the metadata with CardData and pass it to create_model_card.
+# We pass information other than metadata in kwargs.
+
 limitations = "This model is not ready to be used in production."
 model_description = (
     "This is a HistGradientBoostingClassifier model trained on breast cancer dataset."
