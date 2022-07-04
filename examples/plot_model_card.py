@@ -6,7 +6,8 @@ This guide demonstrates how you can use this package to create a model card on a
 scikit-learn compatible model and save it.
 """
 
-# %% Imports
+# %%
+# Imports
 # =======
 # First we will import everything required for the rest of this document.
 
