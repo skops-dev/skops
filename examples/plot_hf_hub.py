@@ -87,9 +87,7 @@ print(os.listdir(local_repo))
 # Model Card
 # ==========
 card_data = CardData(tags=["tabular-classification"])
-model_card = card.create_model_card(
-    model, card_data, template_path="skops/card/default_template.md"
-)
+model_card = card.create_model_card(model, card_data)
 model_card.save(f"{local_repo}/README.md").encode("utf-8")
 
 # %%
