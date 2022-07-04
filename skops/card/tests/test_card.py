@@ -28,10 +28,11 @@ def fit_model():
 def write_card():
     model = fit_model()
     card_data = CardData(library_name="sklearn")
+
     model_card = create_model_card(
         model,
         card_data,
-        template_path="../default_template.md",
+        template_path="skops/skops/card/default_template.md",
         model_description="sklearn FTW",
     )
     return model_card
