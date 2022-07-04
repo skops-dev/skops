@@ -49,9 +49,9 @@ def create_model_card(
         template_path = "skops/skops/card/default_template.md"
     card = ModelCard.from_template(
         card_data=card_data,
-        template_path=template_path,
         hyperparameter_table=hyperparameter_table,
         model_plot=model_plot,
+        template_path=template_path,
         **card_kwargs,
     )
 
