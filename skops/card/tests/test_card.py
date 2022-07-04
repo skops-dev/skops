@@ -32,7 +32,7 @@ def write_card():
     model_card = create_model_card(
         model,
         card_data,
-        template_path="skops/skops/card/default_template.md",
+        template_path="skops/card/default_template.md",
         model_description="sklearn FTW",
     )
     return model_card
@@ -41,7 +41,10 @@ def write_card():
 def test_write_model_card():
     with tempfile.TemporaryDirectory(prefix="skops-test") as dir_path:
         model = fit_model()
-        model_card = create_model_card(model, model_description="sklearn FTW")
+        card_data = CardData(library_name="sklearn")
+        model_card = create_model_card(
+            model, card_data=card_data, model_description="sklearn FTW"
+        )
         model_card.save(f"{dir_path}/README.md")
         with open(f"{dir_path}/README.md", "r") as f:
             model_card = f.read()
