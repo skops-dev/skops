@@ -22,6 +22,4 @@ The model is trained with below hyperparameters.
 
 The model plot is below.
 
-{% autoescape false %}
-  {{ model_plot | regex_replace("\n\s+", "")}}
-{% endautoescape %}
+{{ model_plot }}
