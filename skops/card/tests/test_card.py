@@ -45,8 +45,8 @@ def test_write_model_card():
         model_card = create_model_card(
             model, card_data=card_data, model_description="sklearn FTW"
         )
-        model_card.save(f"{dir_path}/README.md")
-        with open(f"{dir_path}/README.md", "r") as f:
+        model_card.save(os.path.join(f"{dir_path}", "README.md"))
+        with open(os.path.join(f"{dir_path}", "README.md"), "r") as f:
             model_card = f.read()
         assert "sklearn FTW" in model_card
 
@@ -54,8 +54,8 @@ def test_write_model_card():
 def test_hyperparameter_table():
     with tempfile.TemporaryDirectory(prefix="skops-test") as dir_path:
         model_card = write_card()
-        model_card.save(f"{dir_path}/README.md")
-        with open(f"{dir_path}/README.md", "r") as f:
+        model_card.save(os.path.join(f"{dir_path}", "README.md"))
+        with open(os.path.join(f"{dir_path}", "README.md"), "r") as f:
             model_card = f.read()
         assert "fit_intercept" in model_card
 
@@ -63,7 +63,7 @@ def test_hyperparameter_table():
 def test_plot_model():
     with tempfile.TemporaryDirectory(prefix="skops-test") as dir_path:
         model_card = write_card()
-        model_card.save(f"{dir_path}/README.md")
-        with open(f"{dir_path}/README.md", "r") as f:
+        model_card.save(os.path.join(f"{dir_path}", "README.md"))
+        with open(os.path.join(f"{dir_path}", "README.md"), "r") as f:
             model_card = f.read()
         assert "<style>" in model_card
