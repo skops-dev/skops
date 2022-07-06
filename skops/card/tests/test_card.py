@@ -4,7 +4,7 @@ from pathlib import Path
 
 from modelcards import CardData
 
-from skops.card import create_model_card
+from skops.card import create_model_card, permutation_importances
 
 
 def _get_cwd():
@@ -18,29 +18,29 @@ def _get_cwd():
 def fit_model():
     import numpy as np
     from sklearn.linear_model import LinearRegression
+    from sklearn.model_selection import train_test_split
 
     X = np.array([[1, 1], [1, 2], [2, 2], [2, 3]])
     y = np.dot(X, np.array([1, 2])) + 3
-    reg = LinearRegression().fit(X, y)
-    return reg
+    X_train, X_test, y_train, y_test = train_test_split(X, y)
+    reg = LinearRegression().fit(X_train, y_train)
+    return reg, X_test, y_test
 
 
 def write_card():
-    model = fit_model()
+    model, _, _ = fit_model()
     card_data = CardData(library_name="sklearn")
 
     model_card = create_model_card(
-        model,
-        card_data,
-        template_path="skops/card/default_template.md",
-        model_description="sklearn FTW",
+        model=model,
+        card_data=card_data,
     )
     return model_card
 
 
 def test_write_model_card():
     with tempfile.TemporaryDirectory(prefix="skops-test") as dir_path:
-        model = fit_model()
+        model, _, _ = fit_model()
         card_data = CardData(library_name="sklearn")
         model_card = create_model_card(
             model, card_data=card_data, model_description="sklearn FTW"
@@ -67,3 +67,17 @@ def test_plot_model():
         with open(os.path.join(f"{dir_path}", "README.md"), "r") as f:
             model_card = f.read()
         assert "<style>" in model_card
+
+
+def test_permutation_importances():
+    with tempfile.TemporaryDirectory(prefix="skops-test") as dir_path:
+        model, X_test, y_test = fit_model()
+        importances = permutation_importances(model, X_test, y_test)
+        card_data = CardData(library_name="sklearn")
+        model_card = create_model_card(
+            model, card_data, permutation_importances=importances
+        )
+        model_card.save(os.path.join(f"{dir_path}", "README.md"))
+        with open(os.path.join(f"{dir_path}", "README.md"), "r") as f:
+            model_card = f.read()
+        assert "Below are permutation importances:" in model_card

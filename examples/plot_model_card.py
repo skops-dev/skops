@@ -71,11 +71,13 @@ card_data = CardData(
     metrics=["acc"],
 )
 
+permutation_importances = card.permutation_importances(model, X_test, y_test)
 model_card = card.create_model_card(
     model,
     card_data=card_data,
     limitations=limitations,
     model_description=model_description,
+    permutation_importances=permutation_importances,
 )
 save_dir = mkdtemp(prefix="skops")
 

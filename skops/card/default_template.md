@@ -18,8 +18,10 @@ The model is trained with below hyperparameters.
 
 {{ hyperparameter_table }}
 
-### Model Plot
+### Model Examination
 
 The model plot is below.
 
 {{ model_plot }}
+
+{{ permutation_importances }}

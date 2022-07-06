@@ -1,6 +1,7 @@
 import re
 
 from modelcards import ModelCard
+from sklearn.inspection import permutation_importance
 from sklearn.utils import estimator_html_repr
 
 
@@ -56,3 +57,16 @@ def create_model_card(
     )
 
     return card
+
+
+def permutation_importances(model, X_test, y_test):
+    importances = permutation_importance(
+        model, X_test, y_test, n_repeats=30, random_state=0
+    )
+    imp = "Below are permutation importances:\n\n"
+    for i in importances.importances_mean.argsort()[::-1]:
+        if importances.importances_mean[i] - 2 * importances.importances_std[i] > 0:
+            imp += f"{X_test.columns[i]:<8}\n"
+            imp += f"{importances.importances_mean[i]:.3f}"
+            imp += f" +/- {importances.importances_std[i]:.3f}"
+    return imp
