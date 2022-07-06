@@ -74,6 +74,7 @@ card_data = CardData(
 model_card = card.create_model_card(
     model,
     card_data=card_data,
+    template_path="../skops/card/default_template.md",
     limitations=limitations,
     model_description=model_description,
 )
