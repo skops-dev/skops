@@ -64,14 +64,19 @@ model_description = (
     " max_leaf_nodes and max_depth."
 )
 license = "mit"
+eval_results = card.evaluate(
+    model, X_test, y_test, "r2", "random_type", "dummy_dataset", "tabular-regression"
+)
 card_data = CardData(
     license=license,
     tags=["tabular-classification"],
     datasets="breast-cancer",
-    metrics=["acc"],
+    eval_results=eval_results,
+    model_name="my-cool-model",
 )
 
 permutation_importances = card.permutation_importances(model, X_test, y_test)
+
 model_card = card.create_model_card(
     model,
     card_data=card_data,

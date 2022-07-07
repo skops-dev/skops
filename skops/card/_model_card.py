@@ -1,7 +1,8 @@
 import re
 
-from modelcards import ModelCard
+from modelcards import EvalResult, ModelCard
 from sklearn.inspection import permutation_importance
+from sklearn.metrics import get_scorer
 from sklearn.utils import estimator_html_repr
 
 
@@ -37,7 +38,7 @@ def create_model_card(
         scikit-learn pipeline or model.
     card_data: CardData
         CardData object. See the
-        [docs](https://github.com/nateraw/modelcards/blob/main/modelcards/card_data.py#L76).
+        [docs](https://github.com/nateraw/modelcards/blob/main/modelcards/card_data.py#L78).
     card_kwargs:
         Card kwargs are information you can pass to fill in the sections of the
         card template, e.g. description of model
@@ -70,3 +71,55 @@ def permutation_importances(model, X_test, y_test):
             imp += f"{importances.importances_mean[i]:.3f}"
             imp += f" +/- {importances.importances_std[i]:.3f}"
     return imp
+
+
+def evaluate(model, X_test, y_test, metric, dataset_type, dataset_name, task_type):
+    """Evaluates the model and returns the score and the metric.
+    Parameters:
+    ----------
+    model: estimator
+        scikit-learn pipeline or model.
+    X_test: pandas.core.series.Series or numpy.ndarray
+        Split consisting of features for validation.
+    y_test: pandas.core.series.Series or numpy.ndarray
+        Split consisting of targets for validation.
+    metric: str or list
+        sklearn metric key or list of sklearn metric keys. See available list of
+        metrics
+        [here](https://scikit-learn.org/stable/modules/model_evaluation.html).
+    dataset_type: str
+        Type of dataset.
+    dataset_name: str
+        Name of dataset.
+    task_type: str
+        Task type. e.g. tabular-regression
+    Returns:
+    ----------
+        eval_results: list List of EvalResult objects to be passed to CardData.
+    """
+    metric_values = {}
+    if isinstance(metric, str):
+        scorer = get_scorer(metric)
+        metric_values[metric] = scorer(model, X_test, y_test)
+
+    elif isinstance(metric, list):
+        for metric_key in metric:
+            scorer = get_scorer(metric_key)
+            metric_values[metric_key] = scorer(model, X_test, y_test)
+    else:
+        raise ValueError("Metric should be a metric key or list of metric keys.")
+
+    eval_results = []
+
+    for metric_key, metric_value in metric_values:
+        eval_results.append(
+            EvalResult(
+                task_type=task_type,
+                dataset_type=dataset_type,
+                dataset_name=dataset_name,
+                metric_type=metric_key,
+                metric_value=metric_value,
+            )
+        )
+
+    return eval_results
