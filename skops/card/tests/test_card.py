@@ -4,7 +4,7 @@ from pathlib import Path
 
 from modelcards import CardData, RepoCard
 
-from skops.card import create_model_card, evaluate, permutation_importances
+from skops.card import create_model_card, evaluate
 
 
 def _get_cwd():
@@ -67,20 +67,6 @@ def test_plot_model():
         with open(os.path.join(f"{dir_path}", "README.md"), "r") as f:
             model_card = f.read()
         assert "<style>" in model_card
-
-
-def test_permutation_importances():
-    with tempfile.TemporaryDirectory(prefix="skops-test") as dir_path:
-        model, X_test, y_test = fit_model()
-        importances = permutation_importances(model, X_test, y_test)
-        card_data = CardData(library_name="sklearn")
-        model_card = create_model_card(
-            model, card_data, permutation_importances=importances
-        )
-        model_card.save(os.path.join(f"{dir_path}", "README.md"))
-        with open(os.path.join(f"{dir_path}", "README.md"), "r") as f:
-            model_card = f.read()
-        assert "Below are permutation importances:" in model_card
 
 
 def test_evaluate():
