@@ -67,6 +67,7 @@ def setup_package():
         python_requires=">=3.7",
         install_requires=min_deps.tag_to_packages["install"],
         extras_require={"docs": min_deps.tag_to_packages["docs"]},
+        include_package_data=True,
     )
 
     setup(**metadata)

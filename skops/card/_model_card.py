@@ -36,7 +36,7 @@ def create_model_card(
         scikit-learn pipeline or model.
     card_data: CardData
         CardData object. See the
-        [docs](https://github.com/nateraw/modelcards/blob/main/modelcards/card_data.py#L78).
+        [docs](https://github.com/nateraw/modelcards/blob/7cb1c427a75c0a796631c137c5690ceedab3b2f8/modelcards/card_data.py#L78).
     card_kwargs:
         Card kwargs are information you can pass to fill in the sections of the
         card template, e.g. description of model
