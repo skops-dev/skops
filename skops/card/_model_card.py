@@ -64,13 +64,16 @@ def permutation_importances(model, X_test, y_test):
     importances = permutation_importance(
         model, X_test, y_test, n_repeats=30, random_state=0
     )
-    imp = "Below are permutation importances:\n\n"
+    importance = ""
     for i in importances.importances_mean.argsort()[::-1]:
         if importances.importances_mean[i] - 2 * importances.importances_std[i] > 0:
-            imp += f"{X_test.columns[i]:<8}\n"
-            imp += f"{importances.importances_mean[i]:.3f}"
-            imp += f" +/- {importances.importances_std[i]:.3f}"
-    return imp
+            importance += f"{X_test.columns[i]:<8}\n"
+            importance += f"{importances.importances_mean[i]:.3f}"
+            importance += f" +/- {importances.importances_std[i]:.3f}"
+    if importance != "":
+        importance = "Below are permutation importances:\n\n" + importance
+
+    return importance
 
 
 def evaluate(model, X_test, y_test, metric, dataset_type, dataset_name, task_type):
@@ -100,18 +103,17 @@ def evaluate(model, X_test, y_test, metric, dataset_type, dataset_name, task_typ
     metric_values = {}
     if isinstance(metric, str):
         scorer = get_scorer(metric)
-        metric_values[metric] = scorer(model, X_test, y_test)
+        metric_values[metric] = float(scorer(model, X_test, y_test))
 
     elif isinstance(metric, list):
         for metric_key in metric:
             scorer = get_scorer(metric_key)
-            metric_values[metric_key] = scorer(model, X_test, y_test)
+            metric_values[metric_key] = float(scorer(model, X_test, y_test))
     else:
         raise ValueError("Metric should be a metric key or list of metric keys.")
 
     eval_results = []
-
-    for metric_key, metric_value in metric_values:
+    for metric_key, metric_value in metric_values.items():
         eval_results.append(
             EvalResult(
                 task_type=task_type,

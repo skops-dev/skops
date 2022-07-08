@@ -12,7 +12,7 @@ PYTEST_MIN_VERSION = "5.0.1"
 dependent_packages = {
     "scikit-learn": ("0.24", "install", None),
     "huggingface_hub": ("0.8.1", "install", None),
-    "modelcards": ("0.1.4", "install", None),
+    "modelcards": ("0.1.6", "install", None),
     "pytest": (PYTEST_MIN_VERSION, "tests", None),
     "pytest-cov": ("2.9.0", "tests", None),
     "flake8": ("3.8.2", "tests", None),
