@@ -9,7 +9,6 @@ from skops.card import create_model_card
 
 
 def fit_model():
-
     X = np.array([[1, 1], [1, 2], [2, 2], [2, 3]])
     y = np.dot(X, np.array([1, 2])) + 3
     reg = LinearRegression().fit(X, y)
