@@ -1,7 +1,12 @@
+import os
 import re
 
 from modelcards import ModelCard
 from sklearn.utils import estimator_html_repr
+
+import skops
+
+ROOT = skops.__path__
 
 
 def _extract_estimator_config(model):
@@ -46,7 +51,7 @@ def create_model_card(
     card_data.library_name = "sklearn"
     template_path = card_kwargs.get("template_path")
     if template_path is None:
-        template_path = "skops/card/default_template.md"
+        template_path = os.path.join(ROOT, "card", "default_template.md")
     card_kwargs["template_path"] = template_path
     card = ModelCard.from_template(
         card_data=card_data,

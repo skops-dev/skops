@@ -11,6 +11,7 @@ scikit-learn compatible model and save it.
 # =======
 # First we will import everything required for the rest of this document.
 
+import os
 import pickle
 from tempfile import mkdtemp, mkstemp
 
@@ -102,4 +103,4 @@ hub_utils.init(
     model=pkl_name, requirements=[f"scikit-learn={sklearn.__version__}"], dst=local_repo
 )
 
-model_card.save(f"{local_repo}/README.md")
+model_card.save(os.path.join(f"{local_repo}", "README.md"))
