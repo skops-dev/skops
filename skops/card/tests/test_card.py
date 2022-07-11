@@ -1,23 +1,14 @@
 import os
 import tempfile
-from pathlib import Path
 
+import numpy as np
 from modelcards import CardData
+from sklearn.linear_model import LinearRegression
 
 from skops.card import create_model_card
 
 
-def _get_cwd():
-    """Return the current working directory.
-
-    Only works if we're using pytest.
-    """
-    return Path(os.getenv("PYTEST_CURRENT_TEST").split("::")[0]).parent
-
-
 def fit_model():
-    import numpy as np
-    from sklearn.linear_model import LinearRegression
 
     X = np.array([[1, 1], [1, 2], [2, 2], [2, 3]])
     y = np.dot(X, np.array([1, 2])) + 3
@@ -25,7 +16,7 @@ def fit_model():
     return reg
 
 
-def write_card():
+def generate_card():
     model = fit_model()
     card_data = CardData(library_name="sklearn")
 
@@ -53,7 +44,7 @@ def test_write_model_card():
 
 def test_hyperparameter_table():
     with tempfile.TemporaryDirectory(prefix="skops-test") as dir_path:
-        model_card = write_card()
+        model_card = generate_card()
         model_card.save(os.path.join(f"{dir_path}", "README.md"))
         with open(os.path.join(f"{dir_path}", "README.md"), "r") as f:
             model_card = f.read()
@@ -62,7 +53,7 @@ def test_hyperparameter_table():
 
 def test_plot_model():
     with tempfile.TemporaryDirectory(prefix="skops-test") as dir_path:
-        model_card = write_card()
+        model_card = generate_card()
         model_card.save(os.path.join(f"{dir_path}", "README.md"))
         with open(os.path.join(f"{dir_path}", "README.md"), "r") as f:
             model_card = f.read()

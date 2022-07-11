@@ -23,3 +23,7 @@ The model is trained with below hyperparameters.
 The model plot is below.
 
 {{ model_plot }}
+
+## BibTeX Entry and Citation
+
+{{ citation }}

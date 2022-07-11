@@ -11,15 +11,17 @@ scikit-learn compatible model and save it.
 # =======
 # First we will import everything required for the rest of this document.
 
-from tempfile import mkdtemp
+import pickle
+from tempfile import mkdtemp, mkstemp
 
+import sklearn
 from modelcards import CardData
 from sklearn.datasets import load_breast_cancer
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.experimental import enable_halving_search_cv  # noqa
 from sklearn.model_selection import HalvingGridSearchCV, train_test_split
 
-from skops import card
+from skops import card, hub_utils
 
 # %% Data
 # ====
@@ -55,7 +57,8 @@ model.score(X_test, y_test)
 # =======================
 # We now create a model card, set couple of attributes and save it.
 # We first set the metadata with CardData and pass it to create_model_card.
-# We pass information other than metadata in kwargs.
+# Then, we pass information other than metadata in kwargs.
+# We'll initialize a local repository and save the card with the model in it.
 
 limitations = "This model is not ready to be used in production."
 model_description = (
@@ -64,6 +67,7 @@ model_description = (
     " max_leaf_nodes and max_depth."
 )
 license = "mit"
+
 card_data = CardData(
     license=license,
     tags=["tabular-classification"],
@@ -71,13 +75,26 @@ card_data = CardData(
     metrics=["acc"],
 )
 
+author = "skops_user"
+citation = "bibtex\n@inproceedings{...,year={2020}}"
+
 model_card = card.create_model_card(
     model,
     card_data=card_data,
     template_path="../skops/card/default_template.md",
     limitations=limitations,
     model_description=model_description,
+    citation=citation,
 )
-save_dir = mkdtemp(prefix="skops")
 
-model_card.save(f"{save_dir}/README.md")
+_, pkl_name = mkstemp(prefix="skops-", suffix=".pkl")
+
+with open(pkl_name, mode="bw") as f:
+    pickle.dump(model, file=f)
+
+local_repo = mkdtemp(prefix="skops-")
+hub_utils.init(
+    model=pkl_name, requirements=[f"scikit-learn={sklearn.__version__}"], dst=local_repo
+)
+
+model_card.save(f"{local_repo}/README.md")
