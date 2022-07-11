@@ -6,8 +6,6 @@ from sklearn.utils import estimator_html_repr
 
 import skops
 
-ROOT = skops.__path__
-
 
 def _extract_estimator_config(model):
     """Extracts estimator configuration and renders them into a vertical table.
@@ -46,12 +44,15 @@ def create_model_card(
         Card kwargs are information you can pass to fill in the sections of the
         card template, e.g. description of model
     """
+    ROOT = skops.__path__
     model_plot = re.sub(r"\n\s+", "", str(estimator_html_repr(model)))
     hyperparameter_table = _extract_estimator_config(model)
     card_data.library_name = "sklearn"
     template_path = card_kwargs.get("template_path")
     if template_path is None:
-        template_path = os.path.join(ROOT, "card", "default_template.md")
+        if isinstance(ROOT, list):
+            ROOT = ROOT[0]
+        template_path = os.path.join(f"{ROOT}", "card", "default_template.md")
     card_kwargs["template_path"] = template_path
     card = ModelCard.from_template(
         card_data=card_data,
