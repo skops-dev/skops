@@ -4,11 +4,11 @@
 
 # Model description
 
-{{ model_description }}
+{{ model_description | default("[More Information Needed]", true)}}
 
 ## Intended uses & limitations
 
-{{ limitations }}
+{{ limitations | default("[More Information Needed]", true)}}
 
 ## Training Procedure
 
@@ -24,6 +24,33 @@ The model plot is below.
 
 {{ model_plot }}
 
-## BibTeX Entry and Citation
+# How to Get Started with the Model [optional]
 
-{{ citation }}
+Use the code below to get started with the model.
+
+<details>
+<summary> Click to expand </summary>
+
+{{ get_started_code | default("[More Information Needed]", true)}}
+
+</details>
+
+
+# Model Card Authors [optional]
+
+This model card is written by following authors:
+
+{{ model_card_authors | default("[More Information Needed]", true)}}
+
+# Model Card Contact [optional]
+
+You can contact the model card authors through following channels:
+{{ model_card_contact | default("[More Information Needed]", true)}}
+
+# Citation [optional]
+
+Below you can find information related to citation.
+
+**BibTeX:**
+
+{{ citation_bibtex | default("[More Information Needed]", true)}}

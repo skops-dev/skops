@@ -75,7 +75,10 @@ card_data = CardData(
     metrics=["acc"],
 )
 
-author = "skops_user"
+model_card_authors = "skops_user"
+get_started_code = (
+    "import pickle\nwith open(dtc_pkl_filename, 'rb') as file:\nclf = pickle.load(file)"
+)
 citation = "bibtex\n@inproceedings{...,year={2020}}"
 
 model_card = card.create_model_card(
@@ -85,6 +88,8 @@ model_card = card.create_model_card(
     limitations=limitations,
     model_description=model_description,
     citation=citation,
+    model_card_authors=model_card_authors,
+    get_started_code=get_started_code,
 )
 
 _, pkl_name = mkstemp(prefix="skops-", suffix=".pkl")
