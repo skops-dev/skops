@@ -50,9 +50,7 @@ def create_model_card(
     card_data.library_name = "sklearn"
     template_path = card_kwargs.get("template_path")
     if template_path is None:
-        template_path = os.path.join(f"{ROOT}", "card", "default_template.md")
-    if isinstance(ROOT, list):
-        ROOT = ROOT[0]
+        template_path = os.path.join(f"{ROOT[0]}", "card", "default_template.md")
     card_kwargs["template_path"] = template_path
     card = ModelCard.from_template(
         card_data=card_data,
