@@ -36,7 +36,7 @@ def create_model_card(
     Parameters:
     ----------
     model: estimator
-        scikit-learn pipeline or model.
+        scikit-learn compatible estimator.
     card_data: CardData
         CardData object. See the
         [docs](https://github.com/nateraw/modelcards/blob/7cb1c427a75c0a796631c137c5690ceedab3b2f8/modelcards/card_data.py#L78).
