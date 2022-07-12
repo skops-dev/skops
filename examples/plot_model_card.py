@@ -24,7 +24,7 @@ from sklearn.model_selection import HalvingGridSearchCV, train_test_split
 
 from skops import card, hub_utils
 
-# %% 
+# %%
 # Data
 # ====
 # We load breast cancer dataset from sklearn.
@@ -88,10 +88,9 @@ citation = "bibtex\n@inproceedings{...,year={2020}}"
 model_card = card.create_model_card(
     model,
     card_data=card_data,
-    template_path="../skops/card/default_template.md",
     limitations=limitations,
     model_description=model_description,
-    citation=citation,
+    citation_bibtex=citation,
     model_card_authors=model_card_authors,
     get_started_code=get_started_code,
 )

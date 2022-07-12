@@ -38,11 +38,10 @@ def create_model_card(
     model: estimator
         scikit-learn compatible estimator.
     card_data: CardData
-        CardData object. See the
-        [docs](https://github.com/nateraw/modelcards/blob/7cb1c427a75c0a796631c137c5690ceedab3b2f8/modelcards/card_data.py#L78).
+        CardData object.
     card_kwargs:
         Card kwargs are information you can pass to fill in the sections of the
-        card template, e.g. description of model
+        card template, e.g. model_description, citation_bibtex, get_started_code.
     """
     ROOT = skops.__path__
     model_plot = re.sub(r"\n\s+", "", str(estimator_html_repr(model)))
