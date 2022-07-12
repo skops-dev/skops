@@ -56,8 +56,9 @@ model = HalvingGridSearchCV(
 ).fit(X_train, y_train)
 model.score(X_test, y_test)
 
-# %% Create a model card
-# =======================
+# %%
+# Create a model card
+# ====================
 # We now create a model card, set couple of attributes and save it.
 # We first set the metadata with CardData and pass it to create_model_card.
 # Then, we pass information other than metadata in kwargs.
