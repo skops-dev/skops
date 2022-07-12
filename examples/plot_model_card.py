@@ -35,7 +35,8 @@ X_train, X_test, y_train, y_test = train_test_split(
 print("X's summary: ", X.describe())
 print("y's summary: ", y.describe())
 
-# %% Train a Model
+# %%
+# Train a Model
 # =============
 # Using the above data, we train a model. To select the model, we use
 # :class:`~sklearn.model_selection.HalvingGridSearchCV` with a parameter grid
