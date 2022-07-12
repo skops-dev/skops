@@ -24,7 +24,8 @@ from sklearn.model_selection import HalvingGridSearchCV, train_test_split
 
 from skops import card, hub_utils
 
-# %% Data
+# %% 
+# Data
 # ====
 # We load breast cancer dataset from sklearn.
 
