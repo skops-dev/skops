@@ -78,7 +78,7 @@ def permutation_importances(model, X_test, y_test):
 
 def evaluate(model, *, X, y, metric, dataset_type, dataset_name, task_type):
     """Evaluates the model and returns the score and the metric.
-    Parameters:
+    Parameters
     ----------
     model: estimator
         scikit-learn pipeline or model.
