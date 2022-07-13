@@ -86,7 +86,7 @@ def evaluate(model, X_test, y_test, metric, dataset_type, dataset_name, task_typ
         Split consisting of features for validation.
     y_test: pandas.core.series.Series or numpy.ndarray
         Split consisting of targets for validation.
-    metric: str or list
+    metric: scorer, str, or list of such values
         sklearn metric key or list of sklearn metric keys. See available list of
         metrics
         [here](https://scikit-learn.org/stable/modules/model_evaluation.html).
