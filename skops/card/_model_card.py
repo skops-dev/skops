@@ -96,8 +96,8 @@ def evaluate(model, *, X, y, metric, dataset_type, dataset_name, task_type):
         Name of dataset.
     task_type: str
         Task type. e.g. tabular-regression
-    Returns:
-    ----------
+    Returns
+    -------
         eval_results: list List of ``EvalResult`` objects to be passed to ``CardData``.
     """
     metric_values = {}
