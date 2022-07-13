@@ -88,7 +88,8 @@ print(os.listdir(local_repo))
 # ==========
 card_data = CardData(tags=["tabular-classification"])
 model_card = card.create_model_card(model, card_data)
-model_card.save(f"{local_repo}/README.md")
+
+model_card.save(os.path.join(f"{local_repo}", "README.md"))
 
 # %%
 # Push to Hub

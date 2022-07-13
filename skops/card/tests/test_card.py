@@ -1,39 +1,29 @@
 import os
 import tempfile
-from pathlib import Path
 
-from modelcards import CardData, RepoCard
+import numpy as np
+from modelcards import CardData
+from sklearn.linear_model import LinearRegression
 
-from skops.card import create_model_card, evaluate
-
-
-def _get_cwd():
-    """Return the current working directory.
-
-    Only works if we're using pytest.
-    """
-    return Path(os.getenv("PYTEST_CURRENT_TEST").split("::")[0]).parent
+from skops.card import create_model_card
 
 
 def fit_model():
-    import numpy as np
-    from sklearn.linear_model import LinearRegression
-    from sklearn.model_selection import train_test_split
-
     X = np.array([[1, 1], [1, 2], [2, 2], [2, 3]])
     y = np.dot(X, np.array([1, 2])) + 3
-    X_train, X_test, y_train, y_test = train_test_split(X, y)
-    reg = LinearRegression().fit(X_train, y_train)
-    return reg, X_test, y_test
+    reg = LinearRegression().fit(X, y)
+    return reg
 
 
-def write_card():
-    model, _, _ = fit_model()
+def generate_card():
+    model = fit_model()
     card_data = CardData(library_name="sklearn")
 
     model_card = create_model_card(
-        model=model,
-        card_data=card_data,
+        model,
+        card_data,
+        template_path="skops/card/default_template.md",
+        model_description="sklearn FTW",
     )
     return model_card
 
@@ -53,7 +43,7 @@ def test_write_model_card():
 
 def test_hyperparameter_table():
     with tempfile.TemporaryDirectory(prefix="skops-test") as dir_path:
-        model_card = write_card()
+        model_card = generate_card()
         model_card.save(os.path.join(f"{dir_path}", "README.md"))
         with open(os.path.join(f"{dir_path}", "README.md"), "r") as f:
             model_card = f.read()
@@ -62,7 +52,7 @@ def test_hyperparameter_table():
 
 def test_plot_model():
     with tempfile.TemporaryDirectory(prefix="skops-test") as dir_path:
-        model_card = write_card()
+        model_card = generate_card()
         model_card.save(os.path.join(f"{dir_path}", "README.md"))
         with open(os.path.join(f"{dir_path}", "README.md"), "r") as f:
             model_card = f.read()
@@ -87,3 +77,4 @@ def test_evaluate():
         card.save(os.path.join(f"{dir_path}", "README.md"))
         loaded_card = RepoCard.load(os.path.join(f"{dir_path}", "README.md"))
         assert loaded_card.data.eval_results[0].task_type == "tabular-regression"
+

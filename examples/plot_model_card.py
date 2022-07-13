@@ -11,17 +11,23 @@ scikit-learn compatible model and save it.
 # =======
 # First we will import everything required for the rest of this document.
 
-from tempfile import mkdtemp
 
+import os
+import pickle
+from tempfile import mkdtemp, mkstemp
+
+import sklearn
 from modelcards import CardData
 from sklearn.datasets import load_breast_cancer
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.experimental import enable_halving_search_cv  # noqa
 from sklearn.model_selection import HalvingGridSearchCV, train_test_split
 
-from skops import card
 
-# %% Data
+from skops import card, hub_utils
+
+# %%
+# Data
 # ====
 # We load breast cancer dataset from sklearn.
 
@@ -32,7 +38,9 @@ X_train, X_test, y_train, y_test = train_test_split(
 print("X's summary: ", X.describe())
 print("y's summary: ", y.describe())
 
-# %% Train a Model
+
+# %%
+# Train a Model
 # =============
 # Using the above data, we train a model. To select the model, we use
 # :class:`~sklearn.model_selection.HalvingGridSearchCV` with a parameter grid
@@ -51,11 +59,13 @@ model = HalvingGridSearchCV(
 ).fit(X_train, y_train)
 model.score(X_test, y_test)
 
-# %% Create a model card
-# =======================
+# %%
+# Create a model card
+# ====================
 # We now create a model card, set couple of attributes and save it.
 # We first set the metadata with CardData and pass it to create_model_card.
-# We pass information other than metadata in kwargs.
+# Then, we pass information other than metadata in kwargs.
+# We'll initialize a local repository and save the card with the model in it.
 
 limitations = "This model is not ready to be used in production."
 model_description = (
@@ -64,26 +74,50 @@ model_description = (
     " max_leaf_nodes and max_depth."
 )
 license = "mit"
+
 eval_results = card.evaluate(
     model, X_test, y_test, "r2", "random_type", "dummy_dataset", "tabular-regression"
 )
+
 card_data = CardData(
     license=license,
     tags=["tabular-classification"],
     datasets="breast-cancer",
     eval_results=eval_results,
     model_name="my-cool-model",
+    metrics=["acc"]
 )
 
 permutation_importances = card.permutation_importances(model, X_test, y_test)
+
+
+model_card_authors = "skops_user"
+get_started_code = (
+    "import pickle\nwith open(dtc_pkl_filename, 'rb') as file:\nclf = pickle.load(file)"
+)
+citation = "bibtex\n@inproceedings{...,year={2020}}"
+
 
 model_card = card.create_model_card(
     model,
     card_data=card_data,
     limitations=limitations,
     model_description=model_description,
+    citation_bibtex=citation,
+    model_card_authors=model_card_authors,
+    get_started_code=get_started_code,
     permutation_importances=permutation_importances,
 )
-save_dir = mkdtemp(prefix="skops")
 
-model_card.save(f"{save_dir}/README.md")
+_, pkl_name = mkstemp(prefix="skops-", suffix=".pkl")
+
+with open(pkl_name, mode="bw") as f:
+    pickle.dump(model, file=f)
+
+local_repo = mkdtemp(prefix="skops-")
+hub_utils.init(
+    model=pkl_name, requirements=[f"scikit-learn={sklearn.__version__}"], dst=local_repo
+)
+
+model_card.save(os.path.join(f"{local_repo}", "README.md"))
+

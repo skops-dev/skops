@@ -1,9 +1,11 @@
+import os
 import re
 
 from modelcards import EvalResult, ModelCard
 from sklearn.inspection import permutation_importance
 from sklearn.metrics import get_scorer
 from sklearn.utils import estimator_html_repr
+import skops
 
 
 def _extract_estimator_config(model):
@@ -35,20 +37,21 @@ def create_model_card(
     Parameters:
     ----------
     model: estimator
-        scikit-learn pipeline or model.
+        scikit-learn compatible estimator.
     card_data: CardData
-        CardData object. See the
-        [docs](https://github.com/nateraw/modelcards/blob/7cb1c427a75c0a796631c137c5690ceedab3b2f8/modelcards/card_data.py#L78).
+        CardData object.
     card_kwargs:
         Card kwargs are information you can pass to fill in the sections of the
-        card template, e.g. description of model
+        card template, e.g. model_description, citation_bibtex, get_started_code.
     """
+    ROOT = skops.__path__
+
     model_plot = re.sub(r"\n\s+", "", str(estimator_html_repr(model)))
     hyperparameter_table = _extract_estimator_config(model)
     card_data.library_name = "sklearn"
     template_path = card_kwargs.get("template_path")
     if template_path is None:
-        template_path = "skops/card/default_template.md"
+        template_path = os.path.join(f"{ROOT[0]}", "card", "default_template.md")
     card_kwargs["template_path"] = template_path
     card = ModelCard.from_template(
         card_data=card_data,
