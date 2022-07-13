@@ -98,7 +98,7 @@ def evaluate(model, X_test, y_test, metric, dataset_type, dataset_name, task_typ
         Task type. e.g. tabular-regression
     Returns:
     ----------
-        eval_results: list List of EvalResult objects to be passed to CardData.
+        eval_results: list List of ``EvalResult`` objects to be passed to ``CardData``.
     """
     metric_values = {}
     if isinstance(metric, str):
