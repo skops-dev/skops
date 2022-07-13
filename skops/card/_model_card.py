@@ -76,7 +76,7 @@ def permutation_importances(model, X_test, y_test):
     return importance
 
 
-def evaluate(model, X_test, y_test, metric, dataset_type, dataset_name, task_type):
+def evaluate(model, *, X, y, metric, dataset_type, dataset_name, task_type):
     """Evaluates the model and returns the score and the metric.
     Parameters:
     ----------
