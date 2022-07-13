@@ -1,10 +1,12 @@
 import os
 import re
 
+import numpy as np
 from modelcards import EvalResult, ModelCard
 from sklearn.inspection import permutation_importance
 from sklearn.metrics import get_scorer
 from sklearn.utils import estimator_html_repr
+
 import skops
 
 
@@ -42,7 +44,8 @@ def create_model_card(
         CardData object.
     card_kwargs:
         Card kwargs are information you can pass to fill in the sections of the
-        card template, e.g. model_description, citation_bibtex, get_started_code.
+        card template, e.g. model_description, citation_bibtex,
+        get_started_code.
     """
     ROOT = skops.__path__
 
@@ -63,14 +66,25 @@ def create_model_card(
     return card
 
 
-def permutation_importances(model, X_test, y_test):
-    importances = permutation_importance(
-        model, X_test, y_test, n_repeats=30, random_state=0
-    )
+def permutation_importances(model, X, y):
+    """Calculates permutation importance and returns the importance.
+    Parameters
+    ----------
+    model: estimator
+        scikit-learn pipeline or model.
+    X: array-like of shape (n_samples, n_features)
+        Features, note that it should be from a hold-out set.
+    y: array-like of shape (n_samples, n_features)
+        Target column, note that it should be from a hold-out set.
+    Returns
+    -------
+    Feature names and their importance values.
+    """
+    importances = permutation_importance(model, X, y, n_repeats=30, random_state=0)
     importance = ""
     for i in importances.importances_mean.argsort()[::-1]:
         if importances.importances_mean[i] - 2 * importances.importances_std[i] > 0:
-            importance += f"{X_test.columns[i]:<8}\n"
+            importance += f"{X.columns[i]:<8}\n"
             importance += f"{importances.importances_mean[i]:.3f}"
             importance += f" +/- {importances.importances_std[i]:.3f}"
     if importance != "":
@@ -85,20 +99,20 @@ def evaluate(model, *, X, y, metric, dataset_type, dataset_name, task_type):
     ----------
     model: estimator
         scikit-learn pipeline or model.
-    X_test: pandas.core.series.Series or numpy.ndarray
-        Split consisting of features for validation.
-    y_test: pandas.core.series.Series or numpy.ndarray
-        Split consisting of targets for validation.
+    X: array-like of shape (n_samples, n_features)
+        Features, note that it should be from a hold-out set.
+    y: array-like of shape (n_samples, n_features)
+        Target column, note that it should be from a hold-out set.
     metric: scorer, str, or list of such values
         sklearn metric key or list of sklearn metric keys. See available list of
         metrics
         [here](https://scikit-learn.org/stable/modules/model_evaluation.html).
     dataset_type: str
-        Type of dataset.
+        Name of dataset. The dataset name shouldn't contain space or dot, e.g. titanic_data
     dataset_name: str
-        Name of dataset.
+        Pretty name of dataset. Dataset name can contain spaces, e.g. Titanic Data
     task_type: str
-        Task type. e.g. tabular-regression
+        Task type. e.g. tabular-classification.
     Returns
     -------
         eval_results: list List of ``EvalResult`` objects to be passed to ``CardData``.
@@ -106,12 +120,21 @@ def evaluate(model, *, X, y, metric, dataset_type, dataset_name, task_type):
     metric_values = {}
     if isinstance(metric, str):
         scorer = get_scorer(metric)
-        metric_values[metric] = float(scorer(model, X_test, y_test))
-
+        score = scorer(model, X, y)
+        if isinstance(score, np.float):
+            metric_values[metric] = float(scorer(model, X, y))
+            # TODO: also handle arrays
+        else:
+            raise ValueError("Scorer picked should return float.")
     elif isinstance(metric, list):
         for metric_key in metric:
             scorer = get_scorer(metric_key)
-            metric_values[metric_key] = float(scorer(model, X_test, y_test))
+            score = scorer(model, X, y)
+            if isinstance(score, np.float):
+                metric_values[metric] = float(scorer(model, X, y))
+                # TODO: also handle arrays
+            else:
+                raise ValueError("Scorer picked should return float.")
     else:
         raise ValueError("Metric should be a metric key or list of metric keys.")
 

@@ -16,13 +16,18 @@ import os
 import pickle
 from tempfile import mkdtemp, mkstemp
 
+import matplotlib.pyplot as plt
 import sklearn
 from modelcards import CardData
 from sklearn.datasets import load_breast_cancer
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.experimental import enable_halving_search_cv  # noqa
+from sklearn.metrics import (
+    ConfusionMatrixDisplay,
+    classification_report,
+    confusion_matrix,
+)
 from sklearn.model_selection import HalvingGridSearchCV, train_test_split
-
 
 from skops import card, hub_utils
 
@@ -63,9 +68,7 @@ model.score(X_test, y_test)
 # Create a model card
 # ====================
 # We now create a model card, set couple of attributes and save it.
-# We first set the metadata with CardData and pass it to create_model_card.
-# Then, we pass information other than metadata in kwargs.
-# We'll initialize a local repository and save the card with the model in it.
+# We first set the metadata with CardData and we'll later pass it to create_model_card.
 
 limitations = "This model is not ready to be used in production."
 model_description = (
@@ -85,11 +88,34 @@ card_data = CardData(
     datasets="breast-cancer",
     eval_results=eval_results,
     model_name="my-cool-model",
-    metrics=["acc"]
+    metrics=["acc"],
 )
 
-permutation_importances = card.permutation_importances(model, X_test, y_test)
+# %% Adding metrics
+# ====================
+# We'll pass permutation importances, confusion matrix and classification report
+# to our model card template. Skops includes a util to calculate and parse
+# permutation importances, we'll use that. For confusion matrix and
+# classification report, we'll use tools from scikit-learn. Additionally, model
+# card template has an extra section for images, so we will use
+# ConfusionMatrixDisplay and put the created plot in that section.
 
+
+predictions = model.predict(X_test)
+permutation_importances = card.permutation_importances(model, X_test, y_test)
+confusion_matrix_arr = confusion_matrix(y_test, predictions, labels=model.classes_)
+clf_report = classification_report(y_test, predictions, labels=model.classes_)
+disp = ConfusionMatrixDisplay(
+    confusion_matrix=confusion_matrix_arr, display_labels=model.classes_
+)
+plt.savefig("./confusion_matrix.png")
+
+
+# %% Additional sections
+# ======================
+# We can introduce introductions on how to use the model to our model card. This
+# section will be formatted as a code. We will also put citation info and name
+# of the author of the model card.
 
 model_card_authors = "skops_user"
 get_started_code = (
@@ -97,6 +123,12 @@ get_started_code = (
 )
 citation = "bibtex\n@inproceedings{...,year={2020}}"
 
+
+# %% Create and save the card!
+# ============================
+# We will now create the model card using model, card_data and rest of the
+# information. We'll initialize a repository and save the card along with the
+# model.
 
 model_card = card.create_model_card(
     model,
@@ -107,6 +139,9 @@ model_card = card.create_model_card(
     model_card_authors=model_card_authors,
     get_started_code=get_started_code,
     permutation_importances=permutation_importances,
+    classification_report=clf_report,
+    confusion_matrix=confusion_matrix_arr,
+    metric_plot="./confusion_matrix.png",
 )
 
 _, pkl_name = mkstemp(prefix="skops-", suffix=".pkl")
@@ -120,4 +155,3 @@ hub_utils.init(
 )
 
 model_card.save(os.path.join(f"{local_repo}", "README.md"))
-
