@@ -91,7 +91,8 @@ card_data = CardData(
     metrics=["acc"],
 )
 
-# %% Adding metrics
+# %%
+# Inspecting the model
 # ====================
 # We'll pass permutation importances, confusion matrix and classification report
 # to our model card template. Skops includes a util to calculate and parse
