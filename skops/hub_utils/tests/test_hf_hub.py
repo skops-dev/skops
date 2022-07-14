@@ -2,17 +2,16 @@ import json
 import os
 import shutil
 import tempfile
-from importlib import metadata
 from pathlib import Path
 from uuid import uuid4
 
 import pytest
 from huggingface_hub import HfApi
 
-from skops.hf_hub import init, push
-from skops.hf_hub._hf_hub import _create_config, _validate_folder
-
-HF_HUB_TOKEN = os.environ.get("HF_HUB_TOKEN", None)
+from skops.hub_utils import download, get_config, get_requirements, init, push
+from skops.hub_utils._hf_hub import _create_config, _validate_folder
+from skops.hub_utils.tests.common import HF_HUB_TOKEN
+from skops.utils.fixes import metadata
 
 
 def _get_cwd():
@@ -95,7 +94,7 @@ def test_init():
 
 
 @pytest.mark.parametrize("explicit_create", [True, False])
-def test_push(explicit_create):
+def test_push_download(explicit_create):
     client = HfApi()
     with tempfile.TemporaryDirectory(prefix="skops-test") as dir_path:
         version = metadata.version("scikit-learn")
@@ -117,8 +116,29 @@ def test_push(explicit_create):
             create_remote=True,
         )
 
+        with pytest.raises(OSError, match="None-empty dst path already exists!"):
+            download(repo_id=repo_id, dst=dir_path)
+
     files = client.list_repo_files(repo_id=repo_id, token=HF_HUB_TOKEN)
     for f_name in ["model.pkl", "config.json"]:
         assert f_name in files
 
+    with tempfile.TemporaryDirectory(prefix="skops-test") as dst:
+        download(repo_id=repo_id, dst=dst, token=HF_HUB_TOKEN, keep_cache=False)
+        copy_files = os.listdir(dst)
+        assert set(copy_files) == set(files)
+
     client.delete_repo(repo_id=repo_id, token=HF_HUB_TOKEN)
+
+
+def test_get_config():
+    config = get_config(_get_cwd() / "sample_repo")
+    expected_config = {
+        "sklearn": {
+            "environment": ['scikit-learn="1.1.1"'],
+            "model": {"file": "model.pkl"},
+        }
+    }
+
+    assert config == expected_config
+    assert get_requirements(_get_cwd() / "sample_repo") == ['scikit-learn="1.1.1"']
