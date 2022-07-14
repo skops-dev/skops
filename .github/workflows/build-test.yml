@@ -32,7 +32,10 @@ jobs:
     - name: Install dependencies
       run: |
         pip install .[docs]
-        pip install pytest black isort pytest-cov
+        pip install pytest=="5.0.1"
+        pip install black=="22.6.0"
+        pip install isort=="5.10.1"
+        pip install pytest-cov==2.9.0
         python --version
         pip --version
         pip list
