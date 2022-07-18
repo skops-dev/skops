@@ -85,15 +85,9 @@ get_started_code = (
 )
 citation = "bibtex\n@inproceedings{...,year={2020}}"
 
-model_card = card.create_model_card(
-    model,
-    card_data=card_data,
-    limitations=limitations,
-    model_description=model_description,
-    citation_bibtex=citation,
-    model_card_authors=model_card_authors,
-    get_started_code=get_started_code,
-)
+
+model_card = card.Card(model)
+
 
 _, pkl_name = mkstemp(prefix="skops-", suffix=".pkl")
 
@@ -105,4 +99,12 @@ hub_utils.init(
     model=pkl_name, requirements=[f"scikit-learn={sklearn.__version__}"], dst=local_repo
 )
 
-model_card.save(os.path.join(f"{local_repo}", "README.md"))
+model_card.save(
+    os.path.join(f"{local_repo}", "README.md"),
+    card_data=card_data,
+    limitations=limitations,
+    model_description=model_description,
+    citation_bibtex=citation,
+    model_card_authors=model_card_authors,
+    get_started_code=get_started_code,
+)
