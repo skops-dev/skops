@@ -64,12 +64,6 @@ model.score(X_test, y_test)
 # Then, we pass information other than metadata in kwargs.
 # We'll initialize a local repository and save the card with the model in it.
 
-limitations = "This model is not ready to be used in production."
-model_description = (
-    "This is a HistGradientBoostingClassifier model trained on breast cancer dataset."
-    " It's trained with Halving Grid Search Cross Validation, with parameter grids on"
-    " max_leaf_nodes and max_depth."
-)
 license = "mit"
 
 card_data = CardData(
@@ -78,12 +72,6 @@ card_data = CardData(
     datasets="breast-cancer",
     metrics=["acc"],
 )
-
-model_card_authors = "skops_user"
-get_started_code = (
-    "import pickle\nwith open(dtc_pkl_filename, 'rb') as file:\nclf = pickle.load(file)"
-)
-citation = "bibtex\n@inproceedings{...,year={2020}}"
 
 
 model_card = card.Card(model)
@@ -99,12 +87,20 @@ hub_utils.init(
     model=pkl_name, requirements=[f"scikit-learn={sklearn.__version__}"], dst=local_repo
 )
 
-model_card.save(
-    os.path.join(f"{local_repo}", "README.md"),
-    card_data=card_data,
-    limitations=limitations,
-    model_description=model_description,
-    citation_bibtex=citation,
-    model_card_authors=model_card_authors,
-    get_started_code=get_started_code,
+limitations = "This model is not ready to be used in production."
+model_description = (
+    "This is a HistGradientBoostingClassifier model trained on breast cancer dataset."
+    " It's trained with Halving Grid Search Cross Validation, with parameter grids on"
+    " max_leaf_nodes and max_depth."
 )
+model_card_authors = "skops_user"
+get_started_code = (
+    "import pickle\nwith open(dtc_pkl_filename, 'rb') as file:\nclf = pickle.load(file)"
+)
+
+model_card.add("citation", "bibtex\n@inproceedings{...,year={2020}}")
+model_card.add("get_started_code", get_started_code).add(
+    "model_card_authors", model_card_authors
+)
+model_card.add("limitations", limitations).add("model_description", model_description)
+model_card.save(os.path.join(f"{local_repo}", "README.md"), card_data=card_data)
