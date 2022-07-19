@@ -31,7 +31,7 @@ Using conda
 
 .. code:: bash
 
-          conda create -n skops python=3.10
+          conda create -c conda-forge -n skops python=3.10
           conda activate skops
           python -m pip install -e ".[tests,docs]"
           # add pre-commit hooks
