@@ -24,7 +24,7 @@ def _get_cwd():
     return Path(os.getenv("PYTEST_CURRENT_TEST").split("::")[0]).parent
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope="session")
 def repo_path():
     return _get_cwd() / "sample_repo"
 
@@ -35,7 +35,7 @@ def destination_path():
         return dir_path
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope="session")
 def model_pickle(repo_path):
     # Create a simple pickle file for the purpose of testing
     clf = LogisticRegression()
@@ -45,7 +45,7 @@ def model_pickle(repo_path):
         raise OSError(f"File {path} already exists")
 
     try:
-        with open(path, 'wb') as f:
+        with open(path, "wb") as f:
             pickle.dump(clf, f)
         yield path
     finally:
@@ -54,21 +54,17 @@ def model_pickle(repo_path):
 
 CONFIG = {
     "sklearn": {
-        "environment": [
-            "scikit-learn=\"1.1.1\""
-        ],
-        "model": {
-            "file": "model.pickle"
-        }
+        "environment": ['scikit-learn="1.1.1"'],
+        "model": {"file": "model.pickle"},
     }
 }
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope="session")
 def config_json(repo_path):
     path = repo_path / "config.json"
     try:
-        with open(path, 'w') as f:
+        with open(path, "w") as f:
             json.dump(CONFIG, f)
         yield path
     finally:
@@ -147,7 +143,9 @@ def test_init(model_pickle, config_json):
 
 
 @pytest.mark.parametrize("explicit_create", [True, False])
-def test_push_download(explicit_create, repo_path, destination_path, model_pickle, config_json):
+def test_push_download(
+    explicit_create, repo_path, destination_path, model_pickle, config_json
+):
     client = HfApi()
 
     version = metadata.version("scikit-learn")
