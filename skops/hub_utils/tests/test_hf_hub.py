@@ -16,23 +16,16 @@ from skops.hub_utils.tests.common import HF_HUB_TOKEN
 from skops.utils.fixes import metadata
 
 
-def _get_cwd():
-    """Return the current working directory.
-
-    Only works if we're using pytest.
-    """
-    return Path(os.getenv("PYTEST_CURRENT_TEST").split("::")[0]).parent
-
-
 @pytest.fixture(scope="session")
 def repo_path():
-    return _get_cwd() / "sample_repo"
+    with tempfile.TemporaryDirectory(prefix="skops-test-sample-repo") as repo_path:
+        yield Path(repo_path)
 
 
 @pytest.fixture
 def destination_path():
     with tempfile.TemporaryDirectory(prefix="skops-test") as dir_path:
-        return dir_path
+        yield Path(dir_path)
 
 
 @pytest.fixture(scope="session")
@@ -94,9 +87,7 @@ def test_validate_folder(config_json):
     ):
         _validate_folder(path=dir_path)
 
-    example_file = _get_cwd() / "sample_repo" / "config.json"
-
-    shutil.copy2(example_file, dir_path)
+    shutil.copy2(config_json, dir_path)
     with pytest.raises(TypeError, match="Model file model.pickle does not exist."):
         _validate_folder(path=dir_path)
 
