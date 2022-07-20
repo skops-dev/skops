@@ -41,7 +41,7 @@ def model_pickle(repo_path):
     clf = LogisticRegression()
     clf.fit([[0, 1], [1, 0]], [0, 1])
     path = repo_path / "model.pickle"
-    if os.path.exists(path):
+    if path.exists():
         raise OSError(f"File {path} already exists")
 
     try:
