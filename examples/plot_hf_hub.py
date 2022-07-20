@@ -87,7 +87,7 @@ print(os.listdir(local_repo))
 # Model Card
 # ==========
 card_data = CardData(tags=["tabular-classification"])
-model_card = card.create_model_card(model, card_data)
+model_card = card.Card(model)
 model_card.save(os.path.join(f"{local_repo}", "README.md"))
 
 # %%

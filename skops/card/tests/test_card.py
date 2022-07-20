@@ -2,10 +2,9 @@ import os
 import tempfile
 
 import numpy as np
-from modelcards import CardData
 from sklearn.linear_model import LinearRegression
 
-from skops.card import create_model_card
+from skops.card import Card
 
 
 def fit_model():
@@ -17,24 +16,15 @@ def fit_model():
 
 def generate_card():
     model = fit_model()
-    card_data = CardData(library_name="sklearn")
 
-    model_card = create_model_card(
-        model,
-        card_data,
-        template_path="skops/card/default_template.md",
-        model_description="sklearn FTW",
-    )
+    model_card = Card(model)
     return model_card
 
 
 def test_write_model_card():
     with tempfile.TemporaryDirectory(prefix="skops-test") as dir_path:
         model = fit_model()
-        card_data = CardData(library_name="sklearn")
-        model_card = create_model_card(
-            model, card_data=card_data, model_description="sklearn FTW"
-        )
+        model_card = Card(model)
         model_card.save(os.path.join(f"{dir_path}", "README.md"))
         with open(os.path.join(f"{dir_path}", "README.md"), "r") as f:
             model_card = f.read()

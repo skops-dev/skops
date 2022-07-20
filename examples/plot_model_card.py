@@ -15,8 +15,8 @@ import os
 import pickle
 from tempfile import mkdtemp, mkstemp
 
+import matplotlib.pyplot as plt
 import sklearn
-from modelcards import CardData
 from sklearn.datasets import load_breast_cancer
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.experimental import enable_halving_search_cv  # noqa
@@ -66,13 +66,6 @@ model.score(X_test, y_test)
 
 license = "mit"
 
-card_data = CardData(
-    license=license,
-    tags=["tabular-classification"],
-    datasets="breast-cancer",
-    metrics=["acc"],
-)
-
 
 model_card = card.Card(model)
 
@@ -103,4 +96,18 @@ model_card.add("get_started_code", get_started_code).add(
     "model_card_authors", model_card_authors
 )
 model_card.add("limitations", limitations).add("model_description", model_description)
-model_card.save(os.path.join(f"{local_repo}", "README.md"), card_data=card_data)
+
+plt.plot([1, 2, 3, 4])
+plt.ylabel("some numbers")
+plt.savefig(f"{local_repo}/fig1.png")
+
+plt.plot([4, 5, 6, 7])
+plt.ylabel("some numbers")
+plt.savefig(f"{local_repo}/fig2.png")
+
+
+model_card.add_inspection("fig1", "fig1.png")
+model_card.add_inspection("fig2", "fig2.png")
+
+
+model_card.save(os.path.join(f"{local_repo}", "README.md"))
