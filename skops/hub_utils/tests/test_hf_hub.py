@@ -57,6 +57,7 @@ def test_create_config():
         model_path="model.pkl",
         requirements=['scikit-learn="1.1.1"', "numpy"],
         dst=dir_path,
+        data=None,
     )
 
     config_content = {
@@ -81,6 +82,7 @@ def test_init():
         model=_get_cwd() / "sample_repo/model.pkl",
         requirements=[f'scikit-learn="{version}"'],
         dst=dir_path,
+        data=None,
     )
     _validate_folder(path=dir_path)
 
@@ -90,6 +92,7 @@ def test_init():
             model=_get_cwd() / "sample_repo/model.pkl",
             requirements=[f'scikit-learn="{version}"'],
             dst=dir_path,
+            data=None,
         )
 
 
@@ -102,6 +105,7 @@ def test_push_download(explicit_create):
             model=_get_cwd() / "sample_repo/model.pkl",
             requirements=[f'scikit-learn="{version}"'],
             dst=dir_path,
+            data=None,
         )
 
         user = client.whoami(token=HF_HUB_TOKEN)["name"]

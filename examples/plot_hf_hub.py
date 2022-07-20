@@ -15,12 +15,12 @@ fetch scikit-learn compatible models from the Hub and run them locally.
 import json
 import os
 import pickle
+from pathlib import Path
 from tempfile import mkdtemp, mkstemp
 from uuid import uuid4
 
 import sklearn
 from huggingface_hub import HfApi
-from modelcards import CardData
 from sklearn.datasets import load_breast_cancer
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.experimental import enable_halving_search_cv  # noqa
@@ -76,7 +76,11 @@ with open(pkl_name, mode="bw") as f:
 
 local_repo = mkdtemp(prefix="skops-")
 hub_utils.init(
-    model=pkl_name, requirements=[f"scikit-learn={sklearn.__version__}"], dst=local_repo
+    model=pkl_name,
+    requirements=[f"scikit-learn={sklearn.__version__}"],
+    dst=local_repo,
+    task="tabular-classification",
+    data=X_test,
 )
 
 # %%
@@ -86,9 +90,8 @@ print(os.listdir(local_repo))
 # %%
 # Model Card
 # ==========
-card_data = CardData(tags=["tabular-classification"])
-model_card = card.create_model_card(model, card_data)
-model_card.save(os.path.join(f"{local_repo}", "README.md"))
+model_card = card.create_model_card(local_repo)
+model_card.save(Path(local_repo) / "README.md")
 
 # %%
 # Push to Hub

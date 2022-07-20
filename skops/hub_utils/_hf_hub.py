@@ -9,8 +9,16 @@ import shutil
 from pathlib import Path
 from typing import List, Union
 
+import numpy as np
 from huggingface_hub import HfApi, snapshot_download
 from requests import HTTPError
+
+SUPPORTED_TASKS = [
+    "tabular-classification",
+    "tabular-regression",
+    "text-classification",
+    "text-regression",
+]
 
 
 def _validate_folder(path: Union[str, Path]):
@@ -56,7 +64,76 @@ def _validate_folder(path: Union[str, Path]):
         raise TypeError(f"Model file {model_path} does not exist.")
 
 
-def _create_config(*, model_path: str, requirements: List[str], dst: str):
+def _get_example_input(data):
+    """Returns the example input of a model.
+
+    The input is converted into a dictionary which is then stored in the config
+    file.
+
+    Parameters
+    ----------
+    data: array-like
+        The input needs to be either a ``pandas.DataFrame`` or a
+        ``numpy.ndarray``. The first 3 rows are used as example input.
+
+    Returns
+    -------
+    example_input: dict of lists
+        The example input of the model as accepted by HuggingFace's backend.
+    """
+    try:
+        import pandas as pd
+
+        if isinstance(data, pd.DataFrame):
+            return {x: data[x][:3].to_list() for x in data.columns}
+    except ImportError:
+        # pandas is not installed, the data cannot be a pandas DataFrame
+        pass
+
+    # here we convert the first three rows of the numpy array to a dict of lists
+    # to be stored in the config file
+    if isinstance(data, np.ndarray):
+        return {x: data[:3, x].tolist() for x in range(data.shape[1])}
+
+    raise ValueError("The data is not a pandas.DataFrame or a numpy.ndarray.")
+
+
+def _get_column_dtypes(data):
+    """Returns the dtype of the columns of the data.
+
+    If data is a numpy.ndarray, column names are assumed to be ``X0`` to
+    ``Xn-1``, where ``n`` is the number of columns.
+
+    Parameters
+    ----------
+    data: pandas.DataFrame or numpy.ndarray
+        The data whose columns along with their dtypes are to be returned.
+
+    Returns
+    -------
+    columns: list of tuples
+        A list of tuples of the form (column name, dtype).
+    """
+    try:
+        import pandas as pd
+
+        if isinstance(data, pd.DataFrame):
+            return list(zip(data.dtypes.index, data.dtypes.astype("str")))
+    except ImportError:
+        # pandas is not installed, the data cannot be a pandas DataFrame
+        pass
+
+    # TODO: this is going to fail for Structured Arrays. We can add support for
+    # them later if we see need for it.
+    if isinstance(data, np.ndarray):
+        return [(f"X{x}", str(data.dtype)) for x in range(data.shape[1])]
+
+    raise ValueError("The data is not a pandas.DataFrame or a numpy.ndarray.")
+
+
+def _create_config(
+    *, model_path: str, requirements: List[str], dst: str, task: str, data
+):
     """Write the configuration into a `config.json` file.
 
     Parameters
@@ -71,6 +148,21 @@ def _create_config(*, model_path: str, requirements: List[str], dst: str):
     dst : str, or Path
         The path to an existing folder where the config file should be created.
 
+    task: str
+        The task of the model, which determines the input and output type of
+        the model. It can be one of: ``tabular-classification``,
+        ``tabular-regression``, ``text-classification``, ``text-regression``.
+
+    data: array-like
+        The input to the model. This is used for two purposes:
+
+            1. Save an example input to the model, which is used by HuggingFace's
+                backend and shown in the widget of the model's page.
+            2. Store the dtype of the input, which is used by HugfingFace's backend
+                to pass the data with the right dtype to the model.
+
+        The first 3 input values are used as example inputs.
+
     Returns
     -------
     None
@@ -84,12 +176,29 @@ def _create_config(*, model_path: str, requirements: List[str], dst: str):
     config = recursively_default_dict()
     config["sklearn"]["model"]["file"] = model_path
     config["sklearn"]["environment"] = requirements
+    config["sklearn"]["task"] = task
+
+    if "tabular" in task:
+        config["sklearn"]["example_input"] = _get_example_input(data)
+        config["sklearn"]["columns"] = _get_column_dtypes(data)
+    elif "text" in task:
+        if isinstance(data, list):
+            config["sklearn"]["example_input"] = {"data": data[:3]}
+        else:
+            raise ValueError("The data needs to be a list of strings.")
 
     with open(Path(dst) / "config.json", mode="w") as f:
         json.dump(config, f, sort_keys=True, indent=4)
 
 
-def init(*, model: Union[str, Path], requirements: List[str], dst: Union[str, Path]):
+def init(
+    *,
+    model: Union[str, Path],
+    requirements: List[str],
+    dst: Union[str, Path],
+    task: str,
+    data,
+):
     """Initialize a scikit-learn based HuggingFace repo.
 
     Given a model pickle and a set of required packages, this function
@@ -107,6 +216,26 @@ def init(*, model: Union[str, Path], requirements: List[str], dst: Union[str, Pa
     dst: str, or Path
         The path to a non-existing or empty folder which is to be initialized.
 
+    task: str
+        The task of the model, which determines the input and output type of
+        the model. It can be one of: ``tabular-classification``,
+        ``tabular-regression``, ``text-classification``, ``text-regression``.
+
+    data: array-like
+        The input to the model. This is used for two purposes:
+
+            1. Save an example input to the model, which is used by HuggingFace's
+                backend and shown in the widget of the model's page.
+            2. Store the dtype of the input, which is used by HugfingFace's backend
+                to pass the data with the right dtype to the model.
+
+        The first 3 input values are used as example inputs.
+
+        If ``task`` is ``tabular-classification`` or ``tabular-regression``,
+        the data needs to be a ``pandas.DataFrame`` or a ``numpy.ndarray``. If
+        ``task`` is ``text-classification`` or ``text-regression``, the data
+        needs to be a ``list`` of strings.
+
     Returns
     -------
     None
@@ -114,12 +243,23 @@ def init(*, model: Union[str, Path], requirements: List[str], dst: Union[str, Pa
     dst = Path(dst)
     if dst.exists() and next(dst.iterdir(), None):
         raise OSError("None-empty dst path already exists!")
+
+    if task not in SUPPORTED_TASKS:
+        raise ValueError(
+            f"Task {task} not supported. Supported tasks are: {SUPPORTED_TASKS}"
+        )
     dst.mkdir(parents=True, exist_ok=True)
 
     shutil.copy2(src=model, dst=dst)
 
     model_name = Path(model).name
-    _create_config(model_path=model_name, requirements=requirements, dst=dst)
+    _create_config(
+        model_path=model_name,
+        requirements=requirements,
+        dst=dst,
+        task=task,
+        data=data,
+    )
 
 
 def update_env(*, path: Union[str, Path], requirements: List[str] = None):
@@ -215,7 +355,7 @@ def get_config(path: Union[str, Path]):
     Parameters
     ----------
     path: str
-        The path to the director holding the project and its ``config.json``
+        The path to the directory holding the project and its ``config.json``
         configuration file.
 
     Returns
