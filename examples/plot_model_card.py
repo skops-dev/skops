@@ -106,7 +106,7 @@ model_card.add(citation="bibtex\n@inproceedings{...,year={2020}}")
 model_card.add(get_started_code=get_started_code).add(
     model_card_authors=model_card_authors
 )
-model_card.add("limitations", limitations).add(model_description=model_description)
+model_card.add(limitations=limitations).add(model_description=model_description)
 predictions = model.predict(X_test)
 cm = confusion_matrix(y_test, predictions, labels=model.classes_)
 disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=model.classes_)
