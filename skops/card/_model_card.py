@@ -10,7 +10,8 @@ import skops
 class Card:
     def __init__(self, model):
         self.model = model
-        self.hyperparameter_table = self.extract_estimator_config()
+        self.hyperparameter_table = self._extract_estimator_config()
+        # the spaces in the pipeline breaks markdown, so we replace them
         self.model_plot = re.sub(r"\n\s+", "", str(estimator_html_repr(model)))
         self.template_sections = {}
         self.figure_paths = {}
@@ -36,7 +37,7 @@ class Card:
         plot_name: str
                 Name of the plot.
         """
-        self.template_sections[plot_name] = plot_path
+        self.figure_paths[plot_name] = plot_path
         return self
 
     def save(self, path):
@@ -78,15 +79,10 @@ class Card:
         # append plot_name if any plots are provided, at the end of the template
         template = open(self.template_sections["template_path"], "a")
 
-        with open(self.template_sections["template_path"], "r") as f:
-            template_content = f.read()
-            breakpoint()
-            for section in self.template_sections:
-                if section not in template_content and section != "template_path":
-                    template.write(
-                        f"\n\n{section}\n"
-                        + f"![{section}]({self.template_sections[section]})\n\n"
-                    )
+        for plot in self.figure_paths:
+            template.write(
+                f"\n\n{plot}\n" + f"![{plot}]({self.figure_paths[plot]})\n\n"
+            )
         template.close()
 
         card = ModelCard.from_template(
@@ -97,7 +93,7 @@ class Card:
         )
         card.save(path)
 
-    def extract_estimator_config(self):
+    def _extract_estimator_config(self):
         """Extracts estimator configuration and renders them into a vertical table.
 
         Parameters
