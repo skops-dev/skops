@@ -65,12 +65,3 @@ Below you can find information related to citation.
 ```
 {{ citation_bibtex | default("[More Information Needed]", true)}}
 ```
-
-
-fig1
-![fig1](fig1.png)
-
-
-
-fig2
-![fig2](fig2.png)

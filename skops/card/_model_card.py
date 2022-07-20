@@ -29,16 +29,15 @@ class Card:
             self.template_sections[section] = value
         return self
 
-    def add_inspection(self, plot_name, plot_path):
+    def add_inspection(self, **kwargs):
         """Takes plots to fill model card template.
         Parameters:
         ----------
-        plot_path: str
-                Plot path as a string.
-        plot_name: str
-                Name of the plot.
+        Parameters to be set for the model card. These parameters
+        need to be sections of the underlying `jinja` template used.
         """
-        self.figure_paths[plot_name] = plot_path
+        for plot_name, plot_path in kwargs.items():
+            self.figure_paths[plot_name] = plot_path
         return self
 
     def save(self, path):

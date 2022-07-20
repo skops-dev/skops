@@ -20,6 +20,7 @@ import sklearn
 from sklearn.datasets import load_breast_cancer
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.experimental import enable_halving_search_cv  # noqa
+from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
 from sklearn.model_selection import HalvingGridSearchCV, train_test_split
 
 from skops import card, hub_utils
@@ -60,26 +61,36 @@ model.score(X_test, y_test)
 # Create a model card
 # ====================
 # We now create a model card, set couple of attributes and save it.
-# We first set the metadata with CardData and pass it to create_model_card.
-# Then, we pass information other than metadata in kwargs.
+# Then, we pass information using add() and plots using add_inspection()
 # We'll initialize a local repository and save the card with the model in it.
-
-license = "mit"
-
 
 model_card = card.Card(model)
 
 
+# %%
+# Initialize a repository to save our files in
+# ====================
+# We will now initialize a repository and save our model
 _, pkl_name = mkstemp(prefix="skops-", suffix=".pkl")
 
 with open(pkl_name, mode="bw") as f:
     pickle.dump(model, file=f)
 
 local_repo = mkdtemp(prefix="skops-")
+
 hub_utils.init(
     model=pkl_name, requirements=[f"scikit-learn={sklearn.__version__}"], dst=local_repo
 )
 
+# %%
+# Pass information and plots to our model card
+# ====================
+# We will pass information to fill our model card
+# We will add plots to our card, note that these plots don't necessarily
+# have to have a section in our template
+# We will save the plots, and then pass plot name with path to add_inspection
+
+license = "mit"
 limitations = "This model is not ready to be used in production."
 model_description = (
     "This is a HistGradientBoostingClassifier model trained on breast cancer dataset."
@@ -91,23 +102,23 @@ get_started_code = (
     "import pickle\nwith open(dtc_pkl_filename, 'rb') as file:\nclf = pickle.load(file)"
 )
 
-model_card.add("citation", "bibtex\n@inproceedings{...,year={2020}}")
-model_card.add("get_started_code", get_started_code).add(
-    "model_card_authors", model_card_authors
+model_card.add(citation="bibtex\n@inproceedings{...,year={2020}}")
+model_card.add(get_started_code=get_started_code).add(
+    model_card_authors=model_card_authors
 )
-model_card.add("limitations", limitations).add("model_description", model_description)
+model_card.add("limitations", limitations).add(model_description=model_description)
+predictions = model.predict(X_test)
+cm = confusion_matrix(y_test, predictions, labels=model.classes_)
+disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=model.classes_)
+disp.plot()
 
-plt.plot([1, 2, 3, 4])
-plt.ylabel("some numbers")
-plt.savefig(f"{local_repo}/fig1.png")
+plt.savefig(f"{local_repo}/confusion_matrix.png")
 
-plt.plot([4, 5, 6, 7])
-plt.ylabel("some numbers")
-plt.savefig(f"{local_repo}/fig2.png")
+model_card.add_inspection(confusion_matrix="confusion_matrix.png")
 
-
-model_card.add_inspection("fig1", "fig1.png")
-model_card.add_inspection("fig2", "fig2.png")
-
+# %%
+# Save model card
+# ====================
+# We can simply save our model card by providing a path to save()
 
 model_card.save(os.path.join(f"{local_repo}", "README.md"))
