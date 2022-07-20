@@ -49,7 +49,10 @@ def model_pickle(repo_path):
             pickle.dump(clf, f)
         yield path
     finally:
-        path.unlink(missing_ok=True)
+        # we cannot use path.unlink(missing_ok=True) since it was added in
+        # Python 3.8 only
+        if path.exists():
+            path.unlink()
 
 
 CONFIG = {
@@ -68,7 +71,10 @@ def config_json(repo_path):
             json.dump(CONFIG, f)
         yield path
     finally:
-        path.unlink(missing_ok=True)
+        # we cannot use path.unlink(missing_ok=True) since it was added in
+        # Python 3.8 only
+        if path.exists():
+            path.unlink()
 
 
 def test_validate_folder(config_json):
