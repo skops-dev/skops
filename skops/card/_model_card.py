@@ -16,16 +16,17 @@ class Card:
         self.template_sections = {}
         self.figure_paths = {}
 
-    def add(self, section, value):
+    def add(self, **kwargs):
         """Takes values to fill model card template.
         Parameters:
         ----------
-        section: str
-                Section in the template.
-        value: str
-                Value to fill in the section.
+        **kwargs : dict
+            Parameters to be set for the model card. These parameters
+            need to be sections of the underlying `jinja` template used.
+
         """
-        self.template_sections[section] = value
+        for section, value in kwargs.items():
+            self.template_sections[section] = value
         return self
 
     def add_inspection(self, plot_name, plot_path):
