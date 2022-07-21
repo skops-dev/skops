@@ -29,6 +29,22 @@ The model plot is below.
 
 {{ model_plot }}
 
+### Model Examination
+
+## Prediction Reports
+
+Below you can see classification report and confusion matrix.
+
+{{ classification_report | default("[More Information Needed]", true)}}
+
+{{ confusion_matrix | default("[More Information Needed]", true)}}
+
+<img src="./{{ metric_plot }}"/>
+
+## Permutation Importances
+
+{{ permutation_importances | default("[More Information Needed]", true)}}
+
 # How to Get Started with the Model
 
 Use the code below to get started with the model.
@@ -42,9 +58,6 @@ Use the code below to get started with the model.
 ```
 
 </details>
-
-
-
 
 # Model Card Authors
 
