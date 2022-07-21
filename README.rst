@@ -1,6 +1,10 @@
 .. -*- mode: rst -*-
 
-|github-actions|_ |Codecov|_ |PyPi|_ |Black|_
+|readthedocs|_ |github-actions|_ |Codecov|_ |PyPi|_ |Black|_
+
+.. |readthedocs| image:: https://readthedocs.org/projects/skops/badge/?version=latest&style=flat
+    :target: https://skops.readthedocs.io/en/latest/
+    :alt: Documentation
 
 .. |github-actions| image:: https://img.shields.io/github/workflow/status/skops-dev/skops/CI?label=Linux%2C%20macOS%2C%20Windows
     :target: https://github.com/skops-dev/skops/actions?query=workflow%3Abuild
@@ -20,21 +24,26 @@
 
 
 SKOPS
----------
+=====
 
 This library helps you share your scikit-learn based models and put them in
 production.
 
-THIS LIBRARY IS NOT READY TO BE USED.
+Please refer to our `documentation <https://skops.readthedocs.io/en/latest/>`_
+on using the library as user.
 
-Sharing via HuggingFace Hub
-===========================
+If you want to contribute to the library, please refer to our `contributing
+<CONTRIBUTING.rst>`_ guidelines.
 
-Get model output via HuggingFace inference API
-==============================================
+Installation
+------------
 
-Demo a model using HuggingFace Spaces
-=====================================
+You can install this library using:
 
-Deploy a model using Seldon
-===========================
+    pip install skops
+
+Bug Reports and Questions
+-------------------------
+
+Please as all your questions and report issues on this repostory's issue
+tracker as an issue. Try to look for existing ones before you create a new one.
