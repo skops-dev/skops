@@ -42,7 +42,7 @@ def path_unlink(path: Path, missing_ok=False) -> None:
         path.unlink()
         return
 
-    if PYTHON_VERSION > (3, 7):
+    if PYTHON_VERSION >= (3, 8):
         path.unlink(missing_ok=missing_ok)
         return
 
