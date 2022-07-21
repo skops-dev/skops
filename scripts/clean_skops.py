@@ -6,7 +6,7 @@ removed.
 
 from huggingface_hub import HfApi
 
-# This is the token for the skops user.
+# This is the token for the skops user. TODO remove eventually, see issue #47
 token = "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"
 client = HfApi()
 user = client.whoami(token=token)["name"]
