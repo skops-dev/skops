@@ -13,7 +13,7 @@ from sklearn.linear_model import LogisticRegression
 from skops.hub_utils import download, get_config, get_requirements, init, push
 from skops.hub_utils._hf_hub import _create_config, _validate_folder
 from skops.hub_utils.tests.common import HF_HUB_TOKEN
-from skops.utils.fixes import metadata
+from skops.utils.fixes import metadata, path_unlink
 
 
 @pytest.fixture(scope="session")
@@ -34,18 +34,13 @@ def model_pickle(repo_path):
     clf = LogisticRegression()
     clf.fit([[0, 1], [1, 0]], [0, 1])
     path = repo_path / "model.pickle"
-    if path.exists():
-        raise OSError(f"File {path} already exists")
 
     try:
         with open(path, "wb") as f:
             pickle.dump(clf, f)
         yield path
     finally:
-        # we cannot use path.unlink(missing_ok=True) since it was added in
-        # Python 3.8 only
-        if path.exists():
-            path.unlink()
+        path_unlink(path, missing_ok=True)
 
 
 CONFIG = {
@@ -64,10 +59,7 @@ def config_json(repo_path):
             json.dump(CONFIG, f)
         yield path
     finally:
-        # we cannot use path.unlink(missing_ok=True) since it was added in
-        # Python 3.8 only
-        if path.exists():
-            path.unlink()
+        path_unlink(path, missing_ok=True)
 
 
 def test_validate_folder(config_json):
