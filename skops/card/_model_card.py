@@ -1,5 +1,6 @@
 import os
 import re
+import shutil
 
 from modelcards import CardData, ModelCard
 from sklearn.utils import estimator_html_repr
@@ -77,13 +78,19 @@ class Card:
             )
 
         # append plot_name if any plots are provided, at the end of the template
-        template = open(self.template_sections["template_path"], "a")
-
-        for plot in self.figure_paths:
-            template.write(
-                f"\n\n{plot}\n" + f"![{plot}]({self.figure_paths[plot]})\n\n"
+        if self.figure_paths != {}:
+            shutil.copyfile(
+                self.template_sections["template_path"],
+                f"{ROOT[0]}/temporary_template.md",
             )
-        template.close()
+            self.template_sections["template_path"] = f"{ROOT[0]}/temporary_template.md"
+            template = open(self.template_sections["template_path"], "a")
+
+            for plot in self.figure_paths:
+                template.write(
+                    f"\n\n{plot}\n" + f"![{plot}]({self.figure_paths[plot]})\n\n"
+                )
+            template.close()
 
         card = ModelCard.from_template(
             card_data=card_data,

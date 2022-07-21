@@ -68,3 +68,30 @@ def test_add_inspection():
             model_card = f.read()
             assert "![fig1](fig1.png)" in model_card
         assert os.path.exists(f"{dir_path}/fig1.png")
+
+
+def test_temporary_plot():
+    # test if the additions are made to a temporary plot
+    # and not to default template or template provided
+    with tempfile.TemporaryDirectory(prefix="skops-test") as dir_path:
+        import skops
+
+        ROOT = skops.__path__
+        # read original template
+        f = open(os.path.join(f"{ROOT[0]}", "card", "default_template.md"))
+        default_template = f.read()
+        f.seek(0)
+        model_card = generate_card()
+        plt.plot([4, 5, 6, 7])
+        plt.savefig(f"{dir_path}/fig1.png")
+        model_card.add_inspection(fig1="fig1.png")
+        model_card.save(os.path.join(f"{dir_path}", "README.md"))
+        # make sure the card has plots
+        with open(os.path.join(f"{dir_path}", "README.md"), "r") as f:
+            model_card = f.read()
+            assert "![fig1](fig1.png)" in model_card
+
+        # check if default template is not modified
+        f = open(os.path.join(f"{ROOT[0]}", "card", "default_template.md"))
+        default_template_post = f.read()
+        assert default_template == default_template_post
