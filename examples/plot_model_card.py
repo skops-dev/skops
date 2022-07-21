@@ -69,7 +69,7 @@ model_card = card.Card(model)
 
 # %%
 # Initialize a repository to save our files in
-# ====================
+# ============================================
 # We will now initialize a repository and save our model
 _, pkl_name = mkstemp(prefix="skops-", suffix=".pkl")
 
@@ -84,7 +84,7 @@ hub_utils.init(
 
 # %%
 # Pass information and plots to our model card
-# ====================
+# ============================================
 # We will pass information to fill our model card
 # We will add plots to our card, note that these plots don't necessarily
 # have to have a section in our template
@@ -118,7 +118,7 @@ model_card.add_inspection(confusion_matrix="confusion_matrix.png")
 
 # %%
 # Save model card
-# ====================
+# ===============
 # We can simply save our model card by providing a path to save()
 
 model_card.save(os.path.join(f"{local_repo}", "README.md"))
