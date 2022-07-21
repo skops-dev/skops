@@ -1,4 +1,4 @@
-"""This script removes all repos under skops user.
+"""This script removes all repos under the skops user on HF Hub.
 
 The user is used for the CI and if there are leftover repos, they can be
 removed.
