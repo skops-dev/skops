@@ -46,7 +46,10 @@ class Card:
         return self
 
     def save(self, path):
-        """Fills model card template, renders and saves it as markdown file to the target directory.
+         """Save the model card.
+
+        This method renders the model card in mardown format and then saves it
+        as the specified file.
 
         Parameters:
         ----------
