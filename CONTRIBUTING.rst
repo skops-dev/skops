@@ -2,6 +2,7 @@ Contributing to skops
 =====================
 
 Please follow this workflow when contributing to skops:
+
 - Fork the repository under your own user
 - Clone the repository locally
 - Create a new branch for your changes
