@@ -45,5 +45,5 @@ You can install this library using:
 Bug Reports and Questions
 -------------------------
 
-Please as all your questions and report issues on this repostory's issue
+Please send all your questions and report issues on this repository's issue
 tracker as an issue. Try to look for existing ones before you create a new one.
