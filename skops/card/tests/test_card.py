@@ -71,7 +71,7 @@ def test_add_inspection():
 
 
 def test_temporary_plot():
-    # test if the additions are made to a temporary plot
+    # test if the additions are made to a temporary template file
     # and not to default template or template provided
     with tempfile.TemporaryDirectory(prefix="skops-test") as dir_path:
         import skops
