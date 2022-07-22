@@ -11,8 +11,8 @@ scikit-learn compatible model and save it.
 # =======
 # First we will import everything required for the rest of this document.
 
-import os
 import pickle
+from pathlib import Path
 from tempfile import mkdtemp, mkstemp
 
 import matplotlib.pyplot as plt
@@ -57,15 +57,6 @@ model = HalvingGridSearchCV(
 ).fit(X_train, y_train)
 model.score(X_test, y_test)
 
-# %%
-# Create a model card
-# ====================
-# We now create a model card, set couple of attributes and save it.
-# Then, we pass information using add() and plots using add_inspection()
-# We'll initialize a local repository and save the card with the model in it.
-
-model_card = card.Card(model)
-
 
 # %%
 # Initialize a repository to save our files in
@@ -81,6 +72,16 @@ local_repo = mkdtemp(prefix="skops-")
 hub_utils.init(
     model=pkl_name, requirements=[f"scikit-learn={sklearn.__version__}"], dst=local_repo
 )
+
+# %%
+# Create a model card
+# ====================
+# We now create a model card.
+# Then, we pass information using add() and plots using add_plot().
+# We'll then save the card with the model in it.
+
+model_card = card.Card(model)
+
 
 # %%
 # Pass information and plots to our model card
@@ -116,7 +117,7 @@ disp.plot()
 
 plt.savefig(f"{local_repo}/confusion_matrix.png")
 
-model_card.add_inspection(confusion_matrix="confusion_matrix.png")
+model_card.add_plot(confusion_matrix="confusion_matrix.png")
 
 # %%
 # Save model card

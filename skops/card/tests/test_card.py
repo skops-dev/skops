@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.linear_model import LinearRegression
 
+import skops
 from skops.card import Card
 
 
@@ -57,12 +58,12 @@ def test_add():
             assert "sklearn FTW" in model_card
 
 
-def test_add_inspection():
+def test_add_plot():
     with tempfile.TemporaryDirectory(prefix="skops-test") as dir_path:
         model_card = generate_card()
         plt.plot([4, 5, 6, 7])
         plt.savefig(f"{dir_path}/fig1.png")
-        model_card.add_inspection(fig1="fig1.png")
+        model_card.add_plot(fig1="fig1.png")
         model_card.save(os.path.join(f"{dir_path}", "README.md"))
         with open(os.path.join(f"{dir_path}", "README.md"), "r") as f:
             model_card = f.read()
@@ -74,17 +75,15 @@ def test_temporary_plot():
     # test if the additions are made to a temporary template file
     # and not to default template or template provided
     with tempfile.TemporaryDirectory(prefix="skops-test") as dir_path:
-        import skops
-
-        ROOT = skops.__path__
+        root = skops.__path__
         # read original template
-        f = open(os.path.join(f"{ROOT[0]}", "card", "default_template.md"))
-        default_template = f.read()
-        f.seek(0)
+        with open(os.path.join(f"{root[0]}", "card", "default_template.md")) as f:
+            default_template = f.read()
+            f.seek(0)
         model_card = generate_card()
         plt.plot([4, 5, 6, 7])
         plt.savefig(f"{dir_path}/fig1.png")
-        model_card.add_inspection(fig1="fig1.png")
+        model_card.add_plot(fig1="fig1.png")
         model_card.save(os.path.join(f"{dir_path}", "README.md"))
         # make sure the card has plots
         with open(os.path.join(f"{dir_path}", "README.md"), "r") as f:
@@ -92,6 +91,6 @@ def test_temporary_plot():
             assert "![fig1](fig1.png)" in model_card
 
         # check if default template is not modified
-        f = open(os.path.join(f"{ROOT[0]}", "card", "default_template.md"))
-        default_template_post = f.read()
+        with open(os.path.join(f"{root[0]}", "card", "default_template.md")) as f:
+            default_template_post = f.read()
         assert default_template == default_template_post
