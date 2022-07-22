@@ -85,10 +85,10 @@ hub_utils.init(
 # %%
 # Pass information and plots to our model card
 # ============================================
-# We will pass information to fill our model card
+# We will pass information to fill our model card.
 # We will add plots to our card, note that these plots don't necessarily
-# have to have a section in our template
-# We will save the plots, and then pass plot name with path to add_inspection
+# have to have a section in our template.
+# We will save the plots, and then pass plot name with path to ``add_inspection``.
 
 license = "mit"
 limitations = "This model is not ready to be used in production."
