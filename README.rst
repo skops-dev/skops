@@ -1,55 +1,49 @@
+.. -*- mode: rst -*-
+
+|readthedocs| |github-actions| |Codecov| |PyPi| |Black|
+
+.. |readthedocs| image:: https://readthedocs.org/projects/skops/badge/?version=latest&style=flat
+    :target: https://skops.readthedocs.io/en/latest/
+    :alt: Documentation
+
+.. |github-actions| image:: https://github.com/skops-dev/skops/workflows/pytest/badge.svg
+    :target: https://github.com/skops-dev/skops/actions
+    :alt: Linux, macOS, Windows tests
+
+.. |Codecov| image:: https://codecov.io/gh/skops-dev/skops/branch/main/graph/badge.svg
+    :target: https://codecov.io/gh/skops-dev/skops
+    :alt: Codecov
+
+.. |PyPi| image:: https://img.shields.io/pypi/v/skops
+    :target: https://pypi.org/project/skops
+    :alt: PyPi
+
+.. |Black| image:: https://img.shields.io/badge/code%20style-black-000000.svg
+    :target: https://github.com/psf/black
+    :alt: Black
+
+
 SKOPS
------
+=====
 
 This library helps you share your scikit-learn based models and put them in
 production.
 
-THIS LIBRARY IS NOT READY TO BE USED.
+Please refer to our `documentation <https://skops.readthedocs.io/en/latest/>`_
+on using the library as user.
 
-Sharing via HuggingFace Hub
-===========================
+If you want to contribute to the library, please refer to our `contributing
+<CONTRIBUTING.rst>`_ guidelines.
 
-Get model output via HuggingFace inference API
-==============================================
+Installation
+------------
 
-Demo a model using HuggingFace Spaces
-=====================================
+You can install this library using:
 
-Deploy a model using Seldon
-===========================
+    pip install skops
 
-DEVELOPMENT
-===========
+Bug Reports and Questions
+-------------------------
 
-Setting up the dev environment
-==============================
-
-Follow these steps if you want to contribute to the skops development.
-
-Using conda
------------
-
-.. code:: bash
-
-          conda create -c conda-forge -n skops python=3.10
-          conda activate skops
-          python -m pip install -e ".[tests,docs]"
-          # add pre-commit hooks
-          conda install -c conda-forge pre-commit
-          pre-commit install
-
-Releases
-========
-
-Releases are created using `manual GitHub workflows <https://docs.github.com/en/actions/managing-workflow-runs/manually-running-a-workflow>`_. Follow these steps:
-
-1. Create a new branch
-2. Bump the version defined in ``skops/__init__.py``
-3. Git grep for any TODO's that need fixing before the release (e.g. deprecations)
-4. Update the ``CHANGES.md``
-5. Create a PR with all the changes and have it reviewed and merged
-6. Use the GitHub action to create a new release on **TestPyPI**. Check it for correctness `on test.pypi <https://test.pypi.org/project/skops/>`_.
-7. Use the GitHub action to create a new release on **PyPI**. Check it for correctness `pypi <https://pypi.org/project/skops/>`_.
-8. Create a `new release <https://github.com/skops-dev/skops/releases>`_ on GitHub
-9. Update the patch version of the package to a new dev version, e.g. from ``v0.3.0`` to ``v0.3.dev1``
-10. Check that the new stable branch of documentation was built correctly on `readthedocs <https://readthedocs.org/projects/skops/builds/>`_
+Please send all your questions and report issues on this repository's issue
+tracker as an issue. Try to look for existing ones before you create a new one.
