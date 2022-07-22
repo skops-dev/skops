@@ -6,8 +6,8 @@
     :target: https://skops.readthedocs.io/en/latest/
     :alt: Documentation
 
-.. |github-actions| image:: https://img.shields.io/github/workflow/status/skops-dev/skops/CI?label=Linux%2C%20macOS%2C%20Windows
-    :target: https://github.com/skops-dev/skops/actions?query=workflow%3Abuild
+.. |github-actions| image:: https://github.com/skops-dev/skops/workflows/pytest/badge.svg
+    :target: https://github.com/skops-dev/skops/actions
     :alt: Linux, macOS, Windows tests
 
 .. |Codecov| image:: https://codecov.io/gh/skops-dev/skops/branch/main/graph/badge.svg
