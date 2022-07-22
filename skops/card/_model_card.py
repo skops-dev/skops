@@ -53,7 +53,7 @@ class Card:
 
         Parameters:
         ----------
-        path: Path
+        path: str, or Path
               filepath to save your card.
         """
         ROOT = skops.__path__
