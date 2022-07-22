@@ -95,6 +95,7 @@ def test_create_config():
         model_path="model.pkl",
         requirements=['scikit-learn="1.1.1"', "numpy"],
         dst=dir_path,
+        data=None,
     )
 
     config_content = {
@@ -119,6 +120,7 @@ def test_init(model_pickle, config_json):
         model=model_pickle,
         requirements=[f'scikit-learn="{version}"'],
         dst=dir_path,
+        data=None,
     )
     _validate_folder(path=dir_path)
 
@@ -128,6 +130,7 @@ def test_init(model_pickle, config_json):
             model=model_pickle,
             requirements=[f'scikit-learn="{version}"'],
             dst=dir_path,
+            data=None,
         )
 
 
@@ -142,6 +145,7 @@ def test_push_download(
         model=model_pickle,
         requirements=[f'scikit-learn="{version}"'],
         dst=destination_path,
+        data=None,
     )
 
     user = client.whoami(token=HF_HUB_TOKEN)["name"]

@@ -1,10 +1,14 @@
 import os
+import pickle
 import re
+from pathlib import Path
 
-from modelcards import ModelCard
+from modelcards import CardData, ModelCard
 from sklearn.utils import estimator_html_repr
 
 import skops
+
+from ..hub_utils import get_config
 
 
 def _extract_estimator_config(model):
@@ -27,23 +31,44 @@ def _extract_estimator_config(model):
 
 
 def create_model_card(
-    model,
-    card_data,
+    path,
+    card_data=None,
     **card_kwargs,
 ):
     """Creates a model card for the model and saves it to the target directory.
 
     Parameters:
     ----------
-    model: estimator
-        scikit-learn compatible estimator.
-    card_data: CardData
+    path: str
+        The path to the local directory containing the model and corresponding
+        configuration file.
+    card_data: CardData, optional
         CardData object.
     card_kwargs:
         Card kwargs are information you can pass to fill in the sections of the
         card template, e.g. model_description, citation_bibtex, get_started_code.
     """
     ROOT = skops.__path__
+
+    # Load the model from the existing directory.
+    config = get_config(path)
+    model_path = Path(path) / config["sklearn"]["model"]["file"]
+    with open(model_path, "rb") as f:
+        model = pickle.load(f)
+
+    card_data = card_data or CardData()
+    card_data.tags = card_data.tags or list()
+
+    # Read relevant info from the config file and add them to the CardData
+    # object.
+    if "sklearn" not in card_data.tags:
+        card_data.tags += ["sklearn"]
+
+    if config["sklearn"]["task"] not in card_data.tags:
+        card_data.tags += [config["sklearn"]["task"]]
+
+    setattr(card_data, "widget", config["sklearn"]["example_input"])
+
     model_plot = re.sub(r"\n\s+", "", str(estimator_html_repr(model)))
     hyperparameter_table = _extract_estimator_config(model)
     card_data.library_name = "sklearn"
