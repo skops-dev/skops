@@ -107,8 +107,8 @@ model_card.add(get_started_code=get_started_code).add(
     model_card_authors=model_card_authors
 )
 model_card.add(limitations=limitations).add(model_description=model_description)
-predictions = model.predict(X_test)
-cm = confusion_matrix(y_test, predictions, labels=model.classes_)
+y_pred = model.predict(X_test)
+cm = confusion_matrix(y_test, y_pred, labels=model.classes_)
 disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=model.classes_)
 disp.plot()
 
