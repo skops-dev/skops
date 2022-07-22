@@ -20,7 +20,7 @@ __version__ = "0.1.dev0"
 
 try:
     # This variable is injected in the __builtins__ by the build
-    # process. It is used to enable importing subpackages of sklearn when
+    # process. It is used to enable importing subpackages of skops when
     # the binaries are not built
     # mypy error: Cannot determine type of '__SKOPS_SETUP__'
     __SKOPS_SETUP__  # type: ignore
