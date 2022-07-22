@@ -1,6 +1,6 @@
 .. -*- mode: rst -*-
 
-|readthedocs|_ |github-actions|_ |Codecov|_ |PyPi|_ |Black|_
+|readthedocs| |github-actions| |Codecov| |PyPi| |Black|
 
 .. |readthedocs| image:: https://readthedocs.org/projects/skops/badge/?version=latest&style=flat
     :target: https://skops.readthedocs.io/en/latest/
