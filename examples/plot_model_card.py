@@ -119,6 +119,6 @@ model_card.add_inspection(confusion_matrix="confusion_matrix.png")
 # %%
 # Save model card
 # ===============
-# We can simply save our model card by providing a path to save()
+# We can simply save our model card by providing a path to ``save()``
 
 model_card.save(os.path.join(f"{local_repo}", "README.md"))
