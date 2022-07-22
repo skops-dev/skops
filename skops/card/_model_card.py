@@ -77,7 +77,7 @@ class Card:
             )
 
         # append plot_name if any plots are provided, at the end of the template
-        if self.figure_paths != {}:
+        if self.figure_paths:
             shutil.copyfile(
                 self.template_sections["template_path"],
                 f"{ROOT[0]}/temporary_template.md",
