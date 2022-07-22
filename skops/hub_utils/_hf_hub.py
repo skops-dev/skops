@@ -7,7 +7,7 @@ import collections
 import json
 import shutil
 from pathlib import Path
-from typing import List, Union
+from typing import List, Literal, Union
 
 import numpy as np
 from huggingface_hub import HfApi, snapshot_download
@@ -132,7 +132,17 @@ def _get_column_dtypes(data):
 
 
 def _create_config(
-    *, model_path: str, requirements: List[str], dst: str, task: str, data
+    *,
+    model_path: str,
+    requirements: List[str],
+    dst: str,
+    task: Literal[
+        "tabular-classification",
+        "tabular-regression",
+        "text-classification",
+        "text-regression",
+    ],
+    data,
 ):
     """Write the configuration into a `config.json` file.
 
@@ -148,7 +158,9 @@ def _create_config(
     dst : str, or Path
         The path to an existing folder where the config file should be created.
 
-    task: str
+    task: "tabular-classification", "tabular-regression",
+    "text-classification", /
+            or "text-regression"
         The task of the model, which determines the input and output type of
         the model. It can be one of: ``tabular-classification``,
         ``tabular-regression``, ``text-classification``, ``text-regression``.
@@ -156,10 +168,11 @@ def _create_config(
     data: array-like
         The input to the model. This is used for two purposes:
 
-            1. Save an example input to the model, which is used by HuggingFace's
-                backend and shown in the widget of the model's page.
-            2. Store the dtype of the input, which is used by HugfingFace's backend
-                to pass the data with the right dtype to the model.
+            1. Save an example input to the model, which is used by
+               HuggingFace's backend and shown in the widget of the model's
+               page.
+            2. Store the dtype of the input, which is used by HuggingFace's
+               backend to pass the data with the right dtype to the model.
 
         The first 3 input values are used as example inputs.
 
@@ -182,7 +195,7 @@ def _create_config(
         config["sklearn"]["example_input"] = _get_example_input(data)
         config["sklearn"]["columns"] = _get_column_dtypes(data)
     elif "text" in task:
-        if isinstance(data, list):
+        if isinstance(data, list) and all(isinstance(x, str) for x in data):
             config["sklearn"]["example_input"] = {"data": data[:3]}
         else:
             raise ValueError("The data needs to be a list of strings.")
