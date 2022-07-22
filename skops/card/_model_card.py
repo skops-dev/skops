@@ -34,8 +34,11 @@ class Card:
         """Takes plots to fill model card template.
         Parameters:
         ----------
-        Parameters to be set for the model card. These parameters
-        need to be sections of the underlying `jinja` template used.
+        **kwargs : dict
+            The arguments should be of the form `name=plot_path`, where `name`
+            is the name of the plot and `plot_path` is the path to the plot,
+            relative to the root of the project. The plots should have already
+            been saved under the project's folder.
         """
         for plot_name, plot_path in kwargs.items():
             self.figure_paths[plot_name] = plot_path
