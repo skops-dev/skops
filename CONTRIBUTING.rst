@@ -14,7 +14,7 @@ Please follow this workflow when contributing to skops:
 Review Process
 --------------
 
-Don't hesitate to ping @skops-dev/mintainers in your issues and pull requests
+Don't hesitate to ping @skops-dev/maintainers in your issues and pull requests
 if you don't receive a review in a timely manner. We try to review all pull
 requests as soon as we can.
 
