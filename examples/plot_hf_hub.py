@@ -20,7 +20,6 @@ from uuid import uuid4
 
 import sklearn
 from huggingface_hub import HfApi
-from modelcards import CardData
 from sklearn.datasets import load_breast_cancer
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.experimental import enable_halving_search_cv  # noqa
@@ -86,8 +85,8 @@ print(os.listdir(local_repo))
 # %%
 # Model Card
 # ==========
-card_data = CardData(tags=["tabular-classification"])
-model_card = card.create_model_card(model, card_data)
+# We will now create a model card and save it
+model_card = card.Card(model)
 model_card.save(os.path.join(f"{local_repo}", "README.md"))
 
 # %%
