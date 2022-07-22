@@ -30,8 +30,9 @@ class Card:
             self.template_sections[section] = value
         return self
 
-    def add_inspection(self, **kwargs):
-        """Takes plots to fill model card template.
+    def add_plot(self, **kwargs):
+        """Add plots to the model card.
+        
         Parameters:
         ----------
         **kwargs : dict
