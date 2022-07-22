@@ -100,7 +100,7 @@ class Card:
         card.save(path)
 
     def _extract_estimator_config(self):
-        """Extracts estimator configuration and renders them into a vertical table.
+        """Extracts estimator hyperparameters and renders them into a vertical table.
 
         Parameters
         ----------
