@@ -9,6 +9,38 @@ import skops
 
 
 class Card:
+    """Intermediate model card class that will be used to generate model card.
+    This class can be used to write information and plots to model card and save
+    it. This class by default generates an interactive plot of the model and
+    table of hyperparameters. The slots to be filled are defined in the markdown
+    template.
+    Parameters:
+    ----------
+    model: estimator object
+        Model that will be examined.
+
+    Notes
+    -----
+    You can add plots to the model card template using add_plot, even if the
+    associated slot doesn't exist in the model card. The model card will be
+    extended accordingly.
+
+    Examples
+    --------
+    >>>> from sklearn.metrics import (ConfusionMatrixDisplay,
+                                        confusion_matrix=
+    >>>> model_card = card.Card(model)
+    >>>> model_card.add(license="mit")
+    >>>> y_pred = model.predict(X_test)
+    >>>> cm = confusion_matrix(y_test, y_pred,labels=model.classes_)
+    >>>> disp = ConfusionMatrixDisplay(confusion_matrix=cm,
+    ... display_labels=model.classes_)
+    >>>> disp.plot()
+    >>>> plt.savefig("confusion_matrix.png")
+    >>>> model_card.add_plot(confusion_matrix="confusion_matrix.png")
+    >>>> model_card.save(os.path.join("save_dir", "README.md"))
+    """
+
     def __init__(self, model):
         self.model = model
         self.hyperparameter_table = self._extract_estimator_config()
