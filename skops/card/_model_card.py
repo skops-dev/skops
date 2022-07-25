@@ -28,7 +28,7 @@ class Card:
     Examples
     --------
     >>>> from sklearn.metrics import (ConfusionMatrixDisplay,
-                                        confusion_matrix=
+                                        confusion_matrix)
     >>>> model_card = card.Card(model)
     >>>> model_card.add(license="mit")
     >>>> y_pred = model.predict(X_test)
