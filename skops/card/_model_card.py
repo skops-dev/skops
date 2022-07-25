@@ -41,7 +41,7 @@ class Card:
     >>> cm = confusion_matrix(y, y_pred,labels=model.classes_)
     >>> disp = ConfusionMatrixDisplay(confusion_matrix=cm,
     ... display_labels=model.classes_)
-    >>> disp.plot()
+    >>> plot = disp.plot()
     >>> plt.savefig("confusion_matrix.png")
     >>> model_card.add_plot(confusion_matrix="confusion_matrix.png")
     >>> model_card.save(Path("save_dir" / "README.md"))
