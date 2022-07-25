@@ -38,7 +38,7 @@ class Card:
     >>> model = LogisticRegression(random_state=0).fit(X, y)
     >>> model_card = card.Card(model)
     >>> model_card.add(license="mit") # doctest: +ELLIPSIS
-    ...
+    <skops.card._model_card.Card object at ...>
     >>> y_pred = model.predict(X)
     >>> cm = confusion_matrix(y, y_pred,labels=model.classes_)
     >>> disp = ConfusionMatrixDisplay(confusion_matrix=cm,
