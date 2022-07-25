@@ -95,7 +95,7 @@ def _get_example_input(data):
     # here we convert the first three rows of the numpy array to a dict of lists
     # to be stored in the config file
     if isinstance(data, np.ndarray):
-        return {x: data[:3, x].tolist() for x in range(data.shape[1])}
+        return {f"x{x}": data[:3, x].tolist() for x in range(data.shape[1])}
 
     raise ValueError("The data is not a pandas.DataFrame or a numpy.ndarray.")
 

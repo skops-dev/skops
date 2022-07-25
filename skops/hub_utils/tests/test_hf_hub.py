@@ -6,13 +6,20 @@ import tempfile
 from pathlib import Path
 from uuid import uuid4
 
+import numpy as np
+import pandas as pd
 import pytest
 from huggingface_hub import HfApi
 from sklearn.datasets import load_iris
 from sklearn.linear_model import LogisticRegression
 
 from skops.hub_utils import download, get_config, get_requirements, init, push
-from skops.hub_utils._hf_hub import _create_config, _validate_folder
+from skops.hub_utils._hf_hub import (
+    _create_config,
+    _get_column_dtypes,
+    _get_example_input,
+    _validate_folder,
+)
 from skops.hub_utils.tests.common import HF_HUB_TOKEN
 from skops.utils.fixes import metadata, path_unlink
 
@@ -215,3 +222,40 @@ def test_get_config(repo_path):
     config = get_config(repo_path)
     assert config == CONFIG
     assert get_requirements(repo_path) == ['scikit-learn="1.1.1"']
+
+
+def test_get_example_input():
+    """Test the _get_example_input function."""
+    with pytest.raises(
+        ValueError, match="The data is not a pandas.DataFrame or a numpy.ndarray."
+    ):
+        _get_example_input(["a", "b", "c"])
+
+    examples = _get_example_input(np.ones((5, 10)))
+    # the result if a dictionary of column name: list of values
+    assert len(examples) == 10
+    assert len(examples["x0"]) == 3
+
+    examples = _get_example_input(
+        pd.DataFrame(np.ones((5, 10)), columns=[f"column{x}" for x in range(10)])
+    )
+    # the result if a dictionary of column name: list of values
+    assert len(examples) == 10
+    assert len(examples["column0"]) == 3
+
+
+def test_get_column_dtypes():
+    with pytest.raises(
+        ValueError, match="The data is not a pandas.DataFrame or a numpy.ndarray."
+    ):
+        _get_column_dtypes(["a", "b", "c"])
+
+    X_array = np.ones((5, 10), dtype=np.float32)
+    expected_columns = [f"x{x}" for x in range(10)]
+    expected_dtypes = list(zip(expected_columns, [np.float32] * 10))
+    assert _get_column_dtypes(X_array) == expected_dtypes
+
+    expected_columns = [f"column{x}" for x in range(10)]
+    X_df = pd.DataFrame(X_array, columns=expected_columns)
+    expected_dtypes = zip(*(expected_columns, ["float32"] * 10))
+    assert _get_column_dtypes(X_df) == expected_dtypes
