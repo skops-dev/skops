@@ -19,6 +19,8 @@ class Card:
     ----------
     model: estimator object
         Model that will be documented.
+    model_diagram: bool, optional
+        Set to True if model diagram should be plotted in the card.
     Notes
     -----
     You can pass your own custom template using ``add`` method. You can add
@@ -41,11 +43,14 @@ class Card:
     >>> model_card.save(Path("save_dir" / "README.md"))
     """
 
-    def __init__(self, model):
+    def __init__(self, model, model_diagram=True):
         self.model = model
         self.hyperparameter_table = self._extract_estimator_config()
         # the spaces in the pipeline breaks markdown, so we replace them
-        self.model_plot = re.sub(r"\n\s+", "", str(estimator_html_repr(model)))
+        if model_diagram is True:
+            self.model_plot = re.sub(r"\n\s+", "", str(estimator_html_repr(model)))
+        else:
+            self.model_plot = None
         self.template_sections = {}
         self._figure_paths = {}
 

@@ -17,9 +17,9 @@ def fit_model():
     return reg
 
 
-def generate_card():
+def generate_card(model_diagram=True):
     model = fit_model()
-    model_card = Card(model)
+    model_card = Card(model, model_diagram)
     return model_card
 
 
@@ -50,6 +50,14 @@ def test_plot_model(destination_path):
     with open((Path(destination_path) / "README.md"), "r") as f:
         model_card = f.read()
         assert "<style>" in model_card
+
+
+def test_plot_model_false(destination_path):
+    model_card = generate_card(model_diagram=False)
+    model_card.save((Path(destination_path) / "README.md"))
+    with open((Path(destination_path) / "README.md"), "r") as f:
+        model_card = f.read()
+        assert "<style>" not in model_card
 
 
 def test_add(destination_path):
