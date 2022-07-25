@@ -15,6 +15,12 @@ except ImportError:
     # older pythons
     import importlib_metadata as metadata  # noqa
 
+try:
+    # py>=3.8
+    from typing import Literal  # noqa
+except ImportError:
+    from typing_extensions import Literal  # noqa
+
 
 def path_unlink(path: Path, missing_ok=False) -> None:
     """Remove this file or symbolic link

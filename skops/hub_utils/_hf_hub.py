@@ -7,11 +7,13 @@ import collections
 import json
 import shutil
 from pathlib import Path
-from typing import List, Literal, Union
+from typing import List, Union
 
 import numpy as np
 from huggingface_hub import HfApi, snapshot_download
 from requests import HTTPError
+
+from ..utils.fixes import Literal
 
 SUPPORTED_TASKS = [
     "tabular-classification",
