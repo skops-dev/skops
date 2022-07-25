@@ -43,7 +43,7 @@ class Card:
     ... display_labels=model.classes_)
     >>> plot = disp.plot()
     >>> plt.savefig("confusion_matrix.png")
-    >>> model_card.add_plot(confusion_matrix="confusion_matrix.png")
+    >>> model_card = model_card.add_plot(confusion_matrix="confusion_matrix.png")
     >>> model_card.save(Path("save_dir" / "README.md"))
     """
 
