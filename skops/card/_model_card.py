@@ -45,7 +45,7 @@ class Card:
     >>> plot = disp.plot()
     >>> plt.savefig("confusion_matrix.png")
     >>> model_card = model_card.add_plot(confusion_matrix="confusion_matrix.png")
-    >>> model_card.save(Path("save_dir" / "README.md"))
+    >>> model_card.save((Path("save_dir") / "README.md"))
     """
 
     def __init__(self, model, model_diagram=True):
