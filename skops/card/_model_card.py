@@ -37,18 +37,15 @@ class Card:
     >>> X, y = load_iris(return_X_y=True)
     >>> model = LogisticRegression(random_state=0).fit(X, y)
     >>> model_card = card.Card(model)
-    >>> model_card.add(license="mit")
-    ...
+    >>> model_card.add(license="mit") # doctest: +ELLIPSIS
     >>> y_pred = model.predict(X)
     >>> cm = confusion_matrix(y, y_pred,labels=model.classes_)
     >>> disp = ConfusionMatrixDisplay(confusion_matrix=cm,
     ... display_labels=model.classes_)
-    >>> disp.plot()
-    ...
-    >>> plt.savefig("confusion_matrix.png")
-    >>> model_card.add_plot(confusion_matrix="confusion_matrix.png")
-    ...
-    >>> model_card.save((Path("save_dir") / "README.md"))
+    >>> disp.plot() # doctest: +ELLIPSIS
+    >>> plt.savefig("confusion_matrix.png") # doctest: +ELLIPSIS
+    >>> model_card.add_plot(confusion_matrix="confusion_matrix.png") # doctest: +ELLIPSIS
+    >>> model_card.save((Path("save_dir") / "README.md")) # doctest: +ELLIPSIS
     """
 
     def __init__(self, model, model_diagram=True):
