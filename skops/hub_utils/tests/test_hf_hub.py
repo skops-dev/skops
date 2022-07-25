@@ -16,7 +16,7 @@ from sklearn.linear_model import LogisticRegression
 from skops.hub_utils import download, get_config, get_requirements, init, push
 from skops.hub_utils._hf_hub import (
     _create_config,
-    _get_column_dtypes,
+    _get_column_names,
     _get_example_input,
     _validate_folder,
 )
@@ -116,10 +116,10 @@ def test_create_config(classification_data):
     config_expected = {
         "sklearn": {
             "columns": [
-                ["petal length (cm)", "float64"],
-                ["petal width (cm)", "float64"],
-                ["sepal length (cm)", "float64"],
-                ["sepal width (cm)", "float64"],
+                "petal length (cm)",
+                "petal width (cm)",
+                "sepal length (cm)",
+                "sepal width (cm)",
             ],
             "environment": ['scikit-learn="1.1.1"', "numpy"],
             "example_input": {
@@ -244,18 +244,16 @@ def test_get_example_input():
     assert len(examples["column0"]) == 3
 
 
-def test_get_column_dtypes():
+def test_get_column_names():
     with pytest.raises(
         ValueError, match="The data is not a pandas.DataFrame or a numpy.ndarray."
     ):
-        _get_column_dtypes(["a", "b", "c"])
+        _get_column_names(["a", "b", "c"])
 
     X_array = np.ones((5, 10), dtype=np.float32)
     expected_columns = [f"x{x}" for x in range(10)]
-    expected_dtypes = list(zip(expected_columns, [np.float32] * 10))
-    assert _get_column_dtypes(X_array) == expected_dtypes
+    assert _get_column_names(X_array) == expected_columns
 
     expected_columns = [f"column{x}" for x in range(10)]
     X_df = pd.DataFrame(X_array, columns=expected_columns)
-    expected_dtypes = zip(*(expected_columns, ["float32"] * 10))
-    assert _get_column_dtypes(X_df) == expected_dtypes
+    assert _get_column_names(X_df) == expected_columns

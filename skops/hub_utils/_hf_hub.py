@@ -100,27 +100,27 @@ def _get_example_input(data):
     raise ValueError("The data is not a pandas.DataFrame or a numpy.ndarray.")
 
 
-def _get_column_dtypes(data):
-    """Returns the dtype of the columns of the data.
+def _get_column_names(data):
+    """Returns the column names of the input.
 
-    If data is a numpy.ndarray, column names are assumed to be ``X0`` to
-    ``Xn-1``, where ``n`` is the number of columns.
+    If data is a ``numpy.ndarray``, column names are assumed to be ``x0`` to
+    ``xn-1``, where ``n`` is the number of columns.
 
     Parameters
     ----------
     data: pandas.DataFrame or numpy.ndarray
-        The data whose columns along with their dtypes are to be returned.
+        The data whose columns names are to be returned.
 
     Returns
     -------
     columns: list of tuples
-        A list of tuples of the form (column name, dtype).
+        A list of strings. Each string is a column name.
     """
     try:
         import pandas as pd
 
         if isinstance(data, pd.DataFrame):
-            return list(zip(data.dtypes.index, data.dtypes.astype("str")))
+            return list(data.columns)
     except ImportError:
         # pandas is not installed, the data cannot be a pandas DataFrame
         pass
@@ -128,7 +128,7 @@ def _get_column_dtypes(data):
     # TODO: this is going to fail for Structured Arrays. We can add support for
     # them later if we see need for it.
     if isinstance(data, np.ndarray):
-        return [(f"x{x}", str(data.dtype)) for x in range(data.shape[1])]
+        return [f"x{x}" for x in range(data.shape[1])]
 
     raise ValueError("The data is not a pandas.DataFrame or a numpy.ndarray.")
 
@@ -195,7 +195,7 @@ def _create_config(
 
     if "tabular" in task:
         config["sklearn"]["example_input"] = _get_example_input(data)
-        config["sklearn"]["columns"] = _get_column_dtypes(data)
+        config["sklearn"]["columns"] = _get_column_names(data)
     elif "text" in task:
         if isinstance(data, list) and all(isinstance(x, str) for x in data):
             config["sklearn"]["example_input"] = {"data": data[:3]}
