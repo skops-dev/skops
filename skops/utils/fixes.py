@@ -19,6 +19,9 @@ try:
     # py>=3.8
     from typing import Literal  # noqa
 except ImportError:
+    # older pythons, this requires typing_extensions to be installed.
+    # if you're removing this, you should also remove the dependency from
+    # _min_dependencies.py
     from typing_extensions import Literal  # noqa
 
 
