@@ -140,13 +140,15 @@ class Card:
         # append plot_name if any plots are provided, at the end of the template
         # if any plot is given, copy the template to a different path
         if self._figure_paths:
-            with tempfile.NamedTemporaryFile() as fp:
+            with tempfile.TemporaryDirectory() as tmpdirname:
                 shutil.copyfile(
                     self.template_sections["template_path"],
-                    fp.name,
+                    f"{tmpdirname}/temporary_template.md",
                 )
                 #  create a temporary template with the additional plots
-                self.template_sections["template_path"] = fp.name
+                self.template_sections[
+                    "template_path"
+                ] = f"{tmpdirname}/temporary_template.md"
                 # add plots at the end of the template
                 with open(self.template_sections["template_path"], "a") as template:
                     for plot in self._figure_paths:
