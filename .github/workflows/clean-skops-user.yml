@@ -3,7 +3,7 @@ name: clean-skops-user
 on:
   schedule:
     # * is a special character in YAML so you have to quote this string
-    - cron:  '10 18 * * *'
+    - cron:  '10 1 * * *'
 
 jobs:
   clean-skops-user:
