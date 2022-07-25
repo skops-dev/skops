@@ -70,7 +70,6 @@ def test_add_plot(destination_path):
     with open((Path(destination_path) / "README.md"), "r") as f:
         model_card = f.read()
         assert "![fig1](fig1.png)" in model_card
-    assert (Path(destination_path) / "fig1.png").exists()
 
 
 def test_temporary_plot(destination_path):
