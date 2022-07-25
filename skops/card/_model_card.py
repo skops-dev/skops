@@ -38,7 +38,7 @@ class Card:
     >>> model_card = card.Card(model)
     >>> model_card = model_card.add(license="mit")
     >>> y_pred = model.predict(X)
-    >>> cm = confusion_matrix(X, y_pred,labels=model.classes_)
+    >>> cm = confusion_matrix(y, y_pred,labels=model.classes_)
     >>> disp = ConfusionMatrixDisplay(confusion_matrix=cm,
     ... display_labels=model.classes_)
     >>> disp.plot()
