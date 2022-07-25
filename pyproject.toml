@@ -11,3 +11,4 @@ filterwarnings = [
     "error::DeprecationWarning",
     "error::FutureWarning",
 ]
+addopts = "--doctest-modules"
