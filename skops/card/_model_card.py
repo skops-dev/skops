@@ -11,7 +11,7 @@ import skops
 class Card:
     """Intermediate model card class that will be used to generate model card.
     This class can be used to write information and plots to model card and save
-    it. This class by default generates an interactive plot of the model and
+    it. This class by default generates an interactive plot of the model and a
     table of hyperparameters. The slots to be filled are defined in the markdown
     template.
     Parameters:
