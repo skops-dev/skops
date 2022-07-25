@@ -56,6 +56,20 @@ model = HalvingGridSearchCV(
 ).fit(X_train, y_train)
 model.score(X_test, y_test)
 
+_, pkl_name = mkstemp(prefix="skops-", suffix=".pkl")
+
+with open(pkl_name, mode="bw") as f:
+    pickle.dump(model, file=f)
+
+local_repo = mkdtemp(prefix="skops-")
+hub_utils.init(
+    model=pkl_name,
+    requirements=[f"scikit-learn={sklearn.__version__}"],
+    dst=local_repo,
+    task="tabular-classification",
+    data=X_test,
+)
+
 # %%
 # Create a model card
 # ====================
@@ -86,23 +100,13 @@ get_started_code = (
 citation = "bibtex\n@inproceedings{...,year={2020}}"
 
 model_card = card.create_model_card(
-    model,
+    local_repo,
     card_data=card_data,
     limitations=limitations,
     model_description=model_description,
     citation_bibtex=citation,
     model_card_authors=model_card_authors,
     get_started_code=get_started_code,
-)
-
-_, pkl_name = mkstemp(prefix="skops-", suffix=".pkl")
-
-with open(pkl_name, mode="bw") as f:
-    pickle.dump(model, file=f)
-
-local_repo = mkdtemp(prefix="skops-")
-hub_utils.init(
-    model=pkl_name, requirements=[f"scikit-learn={sklearn.__version__}"], dst=local_repo
 )
 
 model_card.save(os.path.join(f"{local_repo}", "README.md"))
