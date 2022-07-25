@@ -8,6 +8,7 @@ from uuid import uuid4
 
 import pytest
 from huggingface_hub import HfApi
+from sklearn.datasets import load_iris
 from sklearn.linear_model import LogisticRegression
 
 from skops.hub_utils import download, get_config, get_requirements, init, push
@@ -29,10 +30,16 @@ def destination_path():
 
 
 @pytest.fixture(scope="session")
-def model_pickle(repo_path):
+def classification_data():
+    return load_iris(return_X_y=True, as_frame=True)
+
+
+@pytest.fixture(scope="session")
+def classifier_pickle(repo_path, classification_data):
     # Create a simple pickle file for the purpose of testing
-    clf = LogisticRegression()
-    clf.fit([[0, 1], [1, 0]], [0, 1])
+    X, y = classification_data
+    clf = LogisticRegression(solver="newton-cg")
+    clf.fit(X, y)
     path = repo_path / "model.pickle"
 
     try:
@@ -89,63 +96,91 @@ def test_validate_folder(config_json):
     _validate_folder(path=dir_path)
 
 
-def test_create_config():
+def test_create_config(classification_data):
     dir_path = tempfile.mkdtemp()
     _create_config(
         model_path="model.pkl",
         requirements=['scikit-learn="1.1.1"', "numpy"],
         dst=dir_path,
-        data=None,
+        task="tabular-classification",
+        data=classification_data[0],
     )
 
-    config_content = {
+    config_expected = {
         "sklearn": {
+            "columns": [
+                ["petal length (cm)", "float64"],
+                ["petal width (cm)", "float64"],
+                ["sepal length (cm)", "float64"],
+                ["sepal width (cm)", "float64"],
+            ],
             "environment": ['scikit-learn="1.1.1"', "numpy"],
+            "example_input": {
+                "petal length (cm)": [1.4, 1.4, 1.3],
+                "petal width (cm)": [0.2, 0.2, 0.2],
+                "sepal length (cm)": [5.1, 4.9, 4.7],
+                "sepal width (cm)": [3.5, 3.0, 3.2],
+            },
             "model": {"file": "model.pkl"},
+            "task": "tabular-classification",
         }
     }
 
     with open(Path(dir_path) / "config.json") as f:
         config = json.load(f)
-        assert config == config_content
+        for key in ["environment", "model", "task"]:
+            assert config["sklearn"][key] == config_expected["sklearn"][key]
+
+        for key in ["columns", "example_input"]:
+            assert sorted(config["sklearn"][key]) == sorted(
+                config_expected["sklearn"][key]
+            )
 
 
-def test_init(model_pickle, config_json):
+def test_init(classifier_pickle, classification_data, config_json):
     # create a temp directory and delete it, we just need a unique name.
     dir_path = tempfile.mkdtemp()
     shutil.rmtree(dir_path)
 
     version = metadata.version("scikit-learn")
     init(
-        model=model_pickle,
+        model=classifier_pickle,
         requirements=[f'scikit-learn="{version}"'],
         dst=dir_path,
-        data=None,
+        task="tabular-classification",
+        data=classification_data[0],
     )
     _validate_folder(path=dir_path)
 
     # it should fail a second time since the folder is no longer empty.
     with pytest.raises(OSError, match="None-empty dst path already exists!"):
         init(
-            model=model_pickle,
+            model=classifier_pickle,
             requirements=[f'scikit-learn="{version}"'],
             dst=dir_path,
-            data=None,
+            task="tabular-classification",
+            data=classification_data[0],
         )
 
 
 @pytest.mark.parametrize("explicit_create", [True, False])
 def test_push_download(
-    explicit_create, repo_path, destination_path, model_pickle, config_json
+    explicit_create,
+    repo_path,
+    destination_path,
+    classifier_pickle,
+    classification_data,
+    config_json,
 ):
     client = HfApi()
 
     version = metadata.version("scikit-learn")
     init(
-        model=model_pickle,
+        model=classifier_pickle,
         requirements=[f'scikit-learn="{version}"'],
         dst=destination_path,
-        data=None,
+        task="tabular-classification",
+        data=classification_data[0],
     )
 
     user = client.whoami(token=HF_HUB_TOKEN)["name"]
@@ -164,7 +199,7 @@ def test_push_download(
         download(repo_id=repo_id, dst=destination_path)
 
     files = client.list_repo_files(repo_id=repo_id, token=HF_HUB_TOKEN)
-    for f_name in [model_pickle.name, config_json.name]:
+    for f_name in [classifier_pickle.name, config_json.name]:
         assert f_name in files
 
     try:
