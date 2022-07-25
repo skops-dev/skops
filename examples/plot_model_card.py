@@ -78,7 +78,7 @@ hub_utils.init(
 # ====================
 # We now create a model card.
 # Then, we pass information using ``add()`` and plots using ``add_plot()``.
-# We'll then save the card with the model in it.
+# We'll then save the card as `README.md`.
 
 model_card = card.Card(model)
 
