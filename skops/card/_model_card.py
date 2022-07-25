@@ -32,6 +32,7 @@ class Card:
     >>> from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
     >>> from sklearn.datasets import load_iris
     >>> from sklearn.linear_model import LogisticRegression
+    >>> import matplotlib.pyplot as plt
     >>> from skops import card
     >>> X, y = load_iris(return_X_y=True)
     >>> model = LogisticRegression(random_state=0).fit(X, y)
