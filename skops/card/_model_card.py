@@ -36,7 +36,7 @@ class Card:
     >>> X, y = load_iris(return_X_y=True)
     >>> model = LogisticRegression(random_state=0).fit(X, y)
     >>> model_card = card.Card(model)
-    >>> model_card.add(license="mit").add(datasets="iris")
+    >>> model_card.add(license="mit")
     >>> y_pred = model.predict(X)
     >>> cm = confusion_matrix(X, y_pred,labels=model.classes_)
     >>> disp = ConfusionMatrixDisplay(confusion_matrix=cm,
