@@ -104,7 +104,7 @@ get_started_code = (
 )
 
 model_card.add(
-    citation="bibtex\n@inproceedings{...,year={2020}}",
+    citation_bibtex="bibtex\n@inproceedings{...,year={2020}}",
     get_started_code=get_started_code,
     model_card_authors=model_card_authors,
     limitations=limitations,
@@ -124,4 +124,4 @@ model_card.add_plot(confusion_matrix="confusion_matrix.png")
 # ===============
 # We can simply save our model card by providing a path to ``save()``
 
-model_card.save(Path(local_repo) / "README.md")
+model_card.save(Path(local_repo / "README.md"))

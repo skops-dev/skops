@@ -15,6 +15,7 @@ fetch scikit-learn compatible models from the Hub and run them locally.
 import json
 import os
 import pickle
+from pathlib import Path
 from tempfile import mkdtemp, mkstemp
 from uuid import uuid4
 
@@ -87,7 +88,7 @@ print(os.listdir(local_repo))
 # ==========
 # We will now create a model card and save it
 model_card = card.Card(model)
-model_card.save(os.path.join(f"{local_repo}", "README.md"))
+model_card.save(Path(local_repo / "README.md"))
 
 # %%
 # Push to Hub

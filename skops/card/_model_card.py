@@ -1,6 +1,7 @@
-import os
 import re
 import shutil
+import tempfile
+from pathlib import Path
 
 from modelcards import CardData, ModelCard
 from sklearn.utils import estimator_html_repr
@@ -9,7 +10,7 @@ import skops
 
 
 class Card:
-    """Intermediate model card class that will be used to generate model card.
+    """Model card class that will be used to generate model card.
     This class can be used to write information and plots to model card and save
     it. This class by default generates an interactive plot of the model and a
     table of hyperparameters. The slots to be filled are defined in the markdown
@@ -17,28 +18,27 @@ class Card:
     Parameters:
     ----------
     model: estimator object
-        Model that will be examined.
-
+        Model that will be documented.
     Notes
     -----
-    You can add plots to the model card template using add_plot, even if the
-    associated slot doesn't exist in the model card. The model card will be
-    extended accordingly.
+    You can pass your own custom template using ``add`` method. You can add
+    plots to the model card template using ``add_plot``. The key you pass to
+    ``add_plot`` will be used for header of the plot.
 
     Examples
     --------
-    >>>> from sklearn.metrics import (ConfusionMatrixDisplay,
-                                        confusion_matrix=
-    >>>> model_card = card.Card(model)
-    >>>> model_card.add(license="mit")
-    >>>> y_pred = model.predict(X_test)
-    >>>> cm = confusion_matrix(y_test, y_pred,labels=model.classes_)
-    >>>> disp = ConfusionMatrixDisplay(confusion_matrix=cm,
+    >>> from sklearn.metrics import (ConfusionMatrixDisplay,
+                                        confusion_matrix)
+    >>> model_card = card.Card(model)
+    >>> model_card.add(license="mit")
+    >>> y_pred = model.predict(X_test)
+    >>> cm = confusion_matrix(y_test, y_pred,labels=model.classes_)
+    >>> disp = ConfusionMatrixDisplay(confusion_matrix=cm,
     ... display_labels=model.classes_)
-    >>>> disp.plot()
-    >>>> plt.savefig("confusion_matrix.png")
-    >>>> model_card.add_plot(confusion_matrix="confusion_matrix.png")
-    >>>> model_card.save(os.path.join("save_dir", "README.md"))
+    >>> disp.plot()
+    >>> plt.savefig("confusion_matrix.png")
+    >>> model_card.add_plot(confusion_matrix="confusion_matrix.png")
+    >>> model_card.save(Path("save_dir" / "README.md"))
     """
 
     def __init__(self, model):
@@ -47,7 +47,7 @@ class Card:
         # the spaces in the pipeline breaks markdown, so we replace them
         self.model_plot = re.sub(r"\n\s+", "", str(estimator_html_repr(model)))
         self.template_sections = {}
-        self.figure_paths = {}
+        self._figure_paths = {}
 
     def add(self, **kwargs):
         """Takes values to fill model card template.
@@ -74,7 +74,7 @@ class Card:
             been saved under the project's folder.
         """
         for plot_name, plot_path in kwargs.items():
-            self.figure_paths[plot_name] = plot_path
+            self._figure_paths[plot_name] = plot_path
         return self
 
     def save(self, path):
@@ -86,7 +86,13 @@ class Card:
         Parameters:
         ----------
         path: str, or Path
-            filepath to save your card."""
+            filepath to save your card.
+
+        Notes
+        -----
+        The keys in model card metadata can be seen
+        [here](https://huggingface.co/docs/hub/models-cards#model-card-metadata).
+        """
         root = skops.__path__
 
         metadata_keys = [
@@ -111,37 +117,42 @@ class Card:
 
         # if template path is not given, use default
         if self.template_sections.get("template_path") is None:
-            self.template_sections["template_path"] = os.path.join(
-                f"{root[0]}", "card", "default_template.md"
+            self.template_sections["template_path"] = (
+                Path(root[0]) / "card" / "default_template.md"
             )
 
+        # copying the template so that the original template is not touched/changed
         # append plot_name if any plots are provided, at the end of the template
         # if any plot is given, copy the template to a different path
-        if self.figure_paths:
-            shutil.copyfile(
-                self.template_sections["template_path"],
-                f"{root[0]}/temporary_template.md",
-            )
-            #  create a temporary template with the additional plots
-            self.template_sections["template_path"] = f"{root[0]}/temporary_template.md"
-            with open(self.template_sections["template_path"], "a") as template:
+        if self._figure_paths:
+            with tempfile.NamedTemporaryFile() as fp:
+                shutil.copyfile(
+                    self.template_sections["template_path"],
+                    fp.name,
+                )
+                #  create a temporary template with the additional plots
+                self.template_sections["template_path"] = fp.name
                 # add plots at the end of the template
-                for plot in self.figure_paths:
-                    template.write(
-                        f"\n\n{plot}\n" + f"![{plot}]({self.figure_paths[plot]})\n\n"
-                    )
-                template.close()
+                with open(self.template_sections["template_path"], "a") as template:
+                    for plot in self._figure_paths:
+                        template.write(
+                            f"\n\n{plot}\n"
+                            + f"![{plot}]({self._figure_paths[plot]})\n\n"
+                        )
+                card = ModelCard.from_template(
+                    card_data=card_data,
+                    hyperparameter_table=self.hyperparameter_table,
+                    model_plot=self.model_plot,
+                    **self.template_sections,
+                )
 
-        card = ModelCard.from_template(
-            card_data=card_data,
-            hyperparameter_table=self.hyperparameter_table,
-            model_plot=self.model_plot,
-            **self.template_sections,
-        )
-
-        # remove temporary template if it exists
-        if os.path.exists(f"{root[0]}/temporary_template.md"):
-            os.remove(f"{root[0]}/temporary_template.md")
+        else:
+            card = ModelCard.from_template(
+                card_data=card_data,
+                hyperparameter_table=self.hyperparameter_table,
+                model_plot=self.model_plot,
+                **self.template_sections,
+            )
 
         card.save(path)
 
