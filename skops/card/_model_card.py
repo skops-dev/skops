@@ -122,7 +122,7 @@ class Card:
                 self.template_sections["template_path"],
                 f"{root[0]}/temporary_template.md",
             )
-            # provide the new template path and open the file in append mode
+            #  create a temporary template with the additional plots
             self.template_sections["template_path"] = f"{root[0]}/temporary_template.md"
             with open(self.template_sections["template_path"], "a") as template:
                 # add plots at the end of the template
