@@ -30,10 +30,15 @@ class Card:
     Examples
     --------
     >>> from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
+    >>> from sklearn.datasets import load_iris
+    >>> from sklearn.linear_model import LogisticRegression
+    >>> from skops import card
+    >>> X, y = load_iris(return_X_y=True)
+    >>> model = LogisticRegression(random_state=0).fit(X, y)
     >>> model_card = card.Card(model)
-    >>> model_card.add(license="mit")
-    >>> y_pred = model.predict(X_test)
-    >>> cm = confusion_matrix(y_test, y_pred,labels=model.classes_)
+    >>> model_card.add(license="mit").add("datasets"="iris")
+    >>> y_pred = model.predict(X)
+    >>> cm = confusion_matrix(X, y_pred,labels=model.classes_)
     >>> disp = ConfusionMatrixDisplay(confusion_matrix=cm,
     ... display_labels=model.classes_)
     >>> disp.plot()
