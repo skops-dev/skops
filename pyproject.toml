@@ -11,3 +11,6 @@ filterwarnings = [
     "error::DeprecationWarning",
     "error::FutureWarning",
 ]
+markers = [
+    "network: marks tests as requiring internet (deselect with '-m \"not slow\"')",
+]

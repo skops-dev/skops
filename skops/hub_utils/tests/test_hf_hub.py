@@ -131,6 +131,7 @@ def test_init(model_pickle, config_json):
         )
 
 
+@pytest.mark.network
 @pytest.mark.parametrize("explicit_create", [True, False])
 def test_push_download(
     explicit_create, repo_path, destination_path, model_pickle, config_json
