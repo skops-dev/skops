@@ -126,7 +126,7 @@ def _get_column_dtypes(data):
     # TODO: this is going to fail for Structured Arrays. We can add support for
     # them later if we see need for it.
     if isinstance(data, np.ndarray):
-        return [(f"X{x}", str(data.dtype)) for x in range(data.shape[1])]
+        return [(f"x{x}", str(data.dtype)) for x in range(data.shape[1])]
 
     raise ValueError("The data is not a pandas.DataFrame or a numpy.ndarray.")
 

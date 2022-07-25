@@ -67,7 +67,7 @@ def create_model_card(
     if config["sklearn"]["task"] not in card_data.tags:
         card_data.tags += [config["sklearn"]["task"]]
 
-    setattr(card_data, "widget", config["sklearn"]["example_input"])
+    card_data.widget = config["sklearn"]["example_input"]
 
     model_plot = re.sub(r"\n\s+", "", str(estimator_html_repr(model)))
     hyperparameter_table = _extract_estimator_config(model)
