@@ -44,7 +44,7 @@ class Card:
     >>> disp = ConfusionMatrixDisplay(confusion_matrix=cm,
     ... display_labels=model.classes_)
     >>> disp.plot() # doctest: +ELLIPSIS
-    ...
+    <sklearn.metrics._plot.confusion_matrix.ConfusionMatrixDisplay object at ...>
     >>> plt.savefig("confusion_matrix.png") # doctest: +ELLIPSIS
     ...
     >>> model_card.add_plot(confusion_matrix="confusion_matrix.png") # doctest: +ELLIPSIS
