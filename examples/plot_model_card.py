@@ -114,7 +114,7 @@ cm = confusion_matrix(y_test, y_pred, labels=model.classes_)
 disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=model.classes_)
 disp.plot()
 
-disp.figure_.savefig((Path(local_repo) / "confusion_matrix.png"))
+disp.figure_.savefig(Path(local_repo) / "confusion_matrix.png")
 
 model_card.add_plot(**{"confusion matrix": "confusion_matrix.png"})
 
