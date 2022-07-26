@@ -15,7 +15,6 @@ import pickle
 from pathlib import Path
 from tempfile import mkdtemp, mkstemp
 
-import matplotlib.pyplot as plt
 import sklearn
 from sklearn.datasets import load_breast_cancer
 from sklearn.ensemble import HistGradientBoostingClassifier
@@ -102,9 +101,9 @@ model_card_authors = "skops_user"
 get_started_code = (
     "import pickle\nwith open(dtc_pkl_filename, 'rb') as file:\nclf = pickle.load(file)"
 )
-
+citation_bibtex = "bibtex\n@inproceedings{...,year={2020}}"
 model_card.add(
-    citation_bibtex="bibtex\n@inproceedings{...,year={2020}}",
+    citation_bibtex=citation_bibtex,
     get_started_code=get_started_code,
     model_card_authors=model_card_authors,
     limitations=limitations,
@@ -115,9 +114,9 @@ cm = confusion_matrix(y_test, y_pred, labels=model.classes_)
 disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=model.classes_)
 disp.plot()
 
-plt.savefig(f"{local_repo}/confusion_matrix.png")
+disp.figure_.savefig((Path(local_repo) / "confusion_matrix.png"))
 
-model_card.add_plot(confusion_matrix="confusion_matrix.png")
+model_card.add_plot(**{"confusion matrix": "confusion_matrix.png"})
 
 # %%
 # Save model card

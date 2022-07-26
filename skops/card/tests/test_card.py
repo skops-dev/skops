@@ -68,7 +68,7 @@ def test_add(destination_path, model_card):
 
 def test_add_plot(destination_path, model_card):
     plt.plot([4, 5, 6, 7])
-    plt.savefig(f"{destination_path}/fig1.png")
+    plt.savefig((Path(destination_path) / "fig1.png"))
     model_card.add_plot(fig1="fig1.png")
     model_card.save(Path(destination_path) / "README.md")
     with open((Path(destination_path) / "README.md"), "r") as f:

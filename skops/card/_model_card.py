@@ -32,7 +32,6 @@ class Card:
     >>> from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
     >>> from sklearn.datasets import load_iris
     >>> from sklearn.linear_model import LogisticRegression
-    >>> import matplotlib.pyplot as plt
     >>> from skops import card
     >>> X, y = load_iris(return_X_y=True)
     >>> model = LogisticRegression(random_state=0).fit(X, y)
@@ -45,7 +44,7 @@ class Card:
     ... display_labels=model.classes_)
     >>> disp.plot()  # doctest: +ELLIPSIS
     <sklearn.metrics._plot.confusion_matrix.ConfusionMatrixDisplay object at ...>
-    >>> plt.savefig("confusion_matrix.png")
+    >>> disp.figure_.savefig("confusion_matrix.png")
     ...
     >>> model_card.add_plot(confusion_matrix="confusion_matrix.png") # doctest: +ELLIPSIS
     <skops.card._model_card.Card object at ...>
@@ -71,7 +70,10 @@ class Card:
         **kwargs : dict
             Parameters to be set for the model card. These parameters
             need to be sections of the underlying `jinja` template used.
-
+        Returns:
+        --------
+        self : object
+            Card object.
         """
         for section, value in kwargs.items():
             self.template_sections[section] = value
@@ -87,6 +89,10 @@ class Card:
             is the name of the plot and `plot_path` is the path to the plot,
             relative to the root of the project. The plots should have already
             been saved under the project's folder.
+        Returns:
+        --------
+        self : object
+            Card object.
         """
         for plot_name, plot_path in kwargs.items():
             self._figure_paths[plot_name] = plot_path
