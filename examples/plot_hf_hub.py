@@ -88,7 +88,7 @@ print(os.listdir(local_repo))
 # ==========
 # We will now create a model card and save it
 model_card = card.Card(model)
-model_card.save((Path(local_repo) / "README.md"))
+model_card.save(Path(local_repo) / "README.md")
 
 # %%
 # Push to Hub
