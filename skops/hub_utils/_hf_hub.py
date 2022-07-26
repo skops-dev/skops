@@ -116,10 +116,14 @@ def init(*, model: Union[str, Path], requirements: List[str], dst: Union[str, Pa
         raise OSError("None-empty dst path already exists!")
     dst.mkdir(parents=True, exist_ok=True)
 
-    shutil.copy2(src=model, dst=dst)
+    try:
+        shutil.copy2(src=model, dst=dst)
 
-    model_name = Path(model).name
-    _create_config(model_path=model_name, requirements=requirements, dst=dst)
+        model_name = Path(model).name
+        _create_config(model_path=model_name, requirements=requirements, dst=dst)
+    except Exception:
+        shutil.rmtree(dst)
+        raise
 
 
 def update_env(*, path: Union[str, Path], requirements: List[str] = None):
