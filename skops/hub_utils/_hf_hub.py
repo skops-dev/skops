@@ -173,8 +173,9 @@ def _create_config(
             1. Save an example input to the model, which is used by
                HuggingFace's backend and shown in the widget of the model's
                page.
-            2. Store the dtype of the input, which is used by HuggingFace's
-               backend to pass the data with the right dtype to the model.
+            2. Store the columns and their order of the input, which is used by
+               HuggingFace's backend to pass the data in the right form to the
+               model.
 
         The first 3 input values are used as example inputs.
 
@@ -239,10 +240,12 @@ def init(
     data: array-like
         The input to the model. This is used for two purposes:
 
-            1. Save an example input to the model, which is used by HuggingFace's
-                backend and shown in the widget of the model's page.
-            2. Store the dtype of the input, which is used by HugfingFace's backend
-                to pass the data with the right dtype to the model.
+            1. Save an example input to the model, which is used by
+               HuggingFace's backend and shown in the widget of the model's
+               page.
+            2. Store the columns and their order of the input, which is used by
+               HuggingFace's backend to pass the data in the right form to the
+               model.
 
         The first 3 input values are used as example inputs.
 
