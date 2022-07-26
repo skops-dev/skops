@@ -18,5 +18,7 @@ jobs:
     - uses: actions/checkout@v3
     - name: Set up Python
       uses: actions/setup-python@v3
+    - name: Install Requirements
+      run: pip install huggingface_hub
     - name: run cleanup
       run: echo "y" | python scripts/clean_skops.py

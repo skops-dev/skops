@@ -6,7 +6,6 @@ removed.
 
 import datetime
 
-import pandas as pd
 from huggingface_hub import HfApi
 
 # This is the token for the skops user. TODO remove eventually, see issue #47
@@ -25,7 +24,8 @@ print(f"Found {len(models)} models, checking their age...")
 for model_info in models:
     info = client.model_info(model_info.modelId, token=token)
     age = (
-        datetime.datetime.now(datetime.timezone.utc) - pd.to_datetime(info.lastModified)
+        datetime.datetime.now()
+        - datetime.datetime.fromisoformat(info.lastModified.rsplit(".", 1)[0])
     ).days
     if age < 7:
         print(f"Skipping model: {model_info.modelId}, age: {age}")
