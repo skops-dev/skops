@@ -55,6 +55,21 @@ Using conda
 You can also replace the above `mamba` commands with `conda` if you don't have
 `mamba` installed.
 
+
+Running Tests
+~~~~~~~~~~~~~
+
+Certain tests require internet access to run, and they typically take slightly
+longer to run than other tests. If you'd like to skip those tests, you can add
+`-m not network` to your `pytest` command, or `-m network` to only run those
+tests. For example, you can run all tests except the ones requiring internet
+with:
+
+.. code:: bash
+
+   pytest -m "not network"
+
+
 Releases
 ========
 
