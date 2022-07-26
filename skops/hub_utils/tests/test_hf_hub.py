@@ -7,6 +7,7 @@ from pathlib import Path
 from uuid import uuid4
 
 import pytest
+from flaky import flaky
 from huggingface_hub import HfApi
 from sklearn.linear_model import LogisticRegression
 
@@ -132,6 +133,7 @@ def test_init(model_pickle, config_json):
 
 
 @pytest.mark.network
+@flaky(max_runs=3)
 @pytest.mark.parametrize("explicit_create", [True, False])
 def test_push_download(
     explicit_create, repo_path, destination_path, model_pickle, config_json
