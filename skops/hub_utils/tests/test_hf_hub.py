@@ -9,6 +9,7 @@ from uuid import uuid4
 import numpy as np
 import pandas as pd
 import pytest
+from flaky import flaky
 from huggingface_hub import HfApi
 from sklearn.datasets import load_iris
 from sklearn.linear_model import LogisticRegression
@@ -221,6 +222,7 @@ def test_init(classifier_pickle, config_json):
         )
 
 
+@flaky(max_runs=3)
 @pytest.mark.parametrize("explicit_create", [True, False])
 def test_push_download(
     explicit_create,
