@@ -1,3 +1,4 @@
+import copy
 import tempfile
 from pathlib import Path
 
@@ -66,6 +67,13 @@ def test_add(destination_path, model_card):
         assert "sklearn FTW" in model_card
 
 
+def test_template_sections_not_mutated_by_save(destination_path, model_card):
+    template_sections_before = copy.deepcopy(model_card.template_sections)
+    model_card.save(Path(destination_path) / "README.md")
+    template_sections_after = copy.deepcopy(model_card.template_sections)
+    assert template_sections_before == template_sections_after
+
+
 def test_add_plot(destination_path, model_card):
     plt.plot([4, 5, 6, 7])
     plt.savefig(Path(destination_path) / "fig1.png")
@@ -83,7 +91,6 @@ def test_temporary_plot(destination_path, model_card):
     # read original template
     with open(Path(root[0]) / "card" / "default_template.md") as f:
         default_template = f.read()
-        f.seek(0)
     plt.plot([4, 5, 6, 7])
     plt.savefig(Path(destination_path) / "fig1.png")
     model_card.add_plot(fig1="fig1.png")

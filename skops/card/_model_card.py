@@ -1,3 +1,4 @@
+import copy
 import re
 import shutil
 import tempfile
@@ -116,6 +117,8 @@ class Card:
         """
         root = skops.__path__
 
+        template_sections = copy.deepcopy(self.template_sections)
+
         metadata_keys = [
             "language",
             "license",
@@ -137,44 +140,33 @@ class Card:
         card_data.library_name = "sklearn"
 
         # if template path is not given, use default
-        if self.template_sections.get("template_path") is None:
-            self.template_sections["template_path"] = (
+        if template_sections.get("template_path") is None:
+            template_sections["template_path"] = (
                 Path(root[0]) / "card" / "default_template.md"
             )
 
         # copying the template so that the original template is not touched/changed
         # append plot_name if any plots are provided, at the end of the template
         # if any plot is given, copy the template to a different path
-        if self._figure_paths:
-            with tempfile.TemporaryDirectory() as tmpdirname:
-                shutil.copyfile(
-                    self.template_sections["template_path"],
-                    f"{tmpdirname}/temporary_template.md",
-                )
-                #  create a temporary template with the additional plots
-                self.template_sections[
-                    "template_path"
-                ] = f"{tmpdirname}/temporary_template.md"
-                # add plots at the end of the template
-                with open(self.template_sections["template_path"], "a") as template:
-                    for plot in self._figure_paths:
-                        template.write(
-                            f"\n\n{plot}\n"
-                            + f"![{plot}]({self._figure_paths[plot]})\n\n"
-                        )
-                card = ModelCard.from_template(
-                    card_data=card_data,
-                    hyperparameter_table=self.hyperparameter_table,
-                    model_plot=self.model_plot,
-                    **self.template_sections,
-                )
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            shutil.copyfile(
+                template_sections["template_path"],
+                f"{tmpdirname}/temporary_template.md",
+            )
+            #  create a temporary template with the additional plots
+            template_sections["template_path"] = f"{tmpdirname}/temporary_template.md"
+            # add plots at the end of the template
+            with open(template_sections["template_path"], "a") as template:
+                for plot in self._figure_paths:
+                    template.write(
+                        f"\n\n{plot}\n" + f"![{plot}]({self._figure_paths[plot]})\n\n"
+                    )
 
-        else:
             card = ModelCard.from_template(
                 card_data=card_data,
                 hyperparameter_table=self.hyperparameter_table,
                 model_plot=self.model_plot,
-                **self.template_sections,
+                **template_sections,
             )
 
         card.save(path)
