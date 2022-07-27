@@ -1,4 +1,6 @@
 """All minimum dependencies for scikit-learn."""
+from __future__ import annotations
+
 import argparse
 
 PYTEST_MIN_VERSION = "5.0.1"
