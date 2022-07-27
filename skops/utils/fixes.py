@@ -5,9 +5,6 @@ import sys
 from contextlib import suppress
 from pathlib import Path
 
-PYTHON_VERSION = sys.version_info
-
-
 if sys.version_info >= (3, 8):
     from importlib import metadata  # noqa
 else:
@@ -40,8 +37,8 @@ def path_unlink(path: Path, missing_ok: bool = False) -> None:
         path.unlink()
         return
 
-    if PYTHON_VERSION >= (3, 8):
-        path.unlink(missing_ok=missing_ok)  # type: ignore  # silence mypy for Py 3.7
+    if sys.version_info >= (3, 8):
+        path.unlink(missing_ok=missing_ok)
         return
 
     # for Python 3.7, just catch the error
