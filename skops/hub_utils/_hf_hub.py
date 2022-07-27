@@ -56,12 +56,14 @@ def _validate_folder(path: Union[str, Path]):
         raise TypeError(f"Model file {model_path} does not exist.")
 
 
-def _create_config(*, model_path: str, requirements: List[str], dst: str):
+def _create_config(
+    *, model_path: Union[str, Path], requirements: List[str], dst: Union[str, Path]
+):
     """Write the configuration into a `config.json` file.
 
     Parameters
     ----------
-    model_path : str
+    model_path : str, or Path
         The relative path (from the repo root) to the model file.
 
     requirements : list of str
@@ -82,7 +84,7 @@ def _create_config(*, model_path: str, requirements: List[str], dst: str):
         return collections.defaultdict(recursively_default_dict)
 
     config = recursively_default_dict()
-    config["sklearn"]["model"]["file"] = model_path
+    config["sklearn"]["model"]["file"] = str(model_path)
     config["sklearn"]["environment"] = requirements
 
     with open(Path(dst) / "config.json", mode="w") as f:
@@ -112,7 +114,7 @@ def init(*, model: Union[str, Path], requirements: List[str], dst: Union[str, Pa
     None
     """
     dst = Path(dst)
-    if dst.exists() and next(dst.iterdir(), None):
+    if dst.exists() and bool(next(dst.iterdir(), None)):
         raise OSError("None-empty dst path already exists!")
     dst.mkdir(parents=True, exist_ok=True)
 
@@ -295,7 +297,7 @@ def download(
     None
     """
     dst = Path(dst)
-    if dst.exists() and next(dst.iterdir(), None):
+    if dst.exists() and bool(next(dst.iterdir(), None)):
         raise OSError("None-empty dst path already exists!")
     dst.rmdir()
 
