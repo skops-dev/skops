@@ -62,5 +62,6 @@ You can contact the model card authors through following channels:
 Below you can find information related to citation.
 
 **BibTeX:**
-
+```
 {{ citation_bibtex | default("[More Information Needed]", true)}}
+```
