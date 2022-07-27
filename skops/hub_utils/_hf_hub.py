@@ -3,17 +3,33 @@ This module contains utilities to push a model to the hub and pull from the
 hub.
 """
 
+from __future__ import annotations
+
 import collections
 import json
 import shutil
+import sys
 from pathlib import Path
-from typing import List, Union
+from typing import Any, Union
 
 from huggingface_hub import HfApi, snapshot_download
 from requests import HTTPError
 
+if sys.version_info >= (3, 8):
+    from typing import TypedDict
+else:
+    from typing_extensions import TypedDict
 
-def _validate_folder(path: Union[str, Path]):
+
+class _SklearnConfig(TypedDict):
+    environment: list[str]
+
+
+class ConfigJson(TypedDict):
+    sklearn: _SklearnConfig | None
+
+
+def _validate_folder(path: Union[str, Path]) -> None:
     """Validate the contents of a folder.
 
     This function checks if the contents of a folder make a valid repo for a
@@ -56,7 +72,9 @@ def _validate_folder(path: Union[str, Path]):
         raise TypeError(f"Model file {model_path} does not exist.")
 
 
-def _create_config(*, model_path: str, requirements: List[str], dst: str):
+def _create_config(
+    *, model_path: Union[str, Path], requirements: list[str], dst: Union[str, Path]
+) -> None:
     """Write the configuration into a `config.json` file.
 
     Parameters
@@ -78,10 +96,10 @@ def _create_config(*, model_path: str, requirements: List[str], dst: str):
     # so that we don't have to explicitly add keys and they're added as a
     # dictionary if they are not found
     # see: https://stackoverflow.com/a/13151294/2536294
-    def recursively_default_dict():
+    def recursively_default_dict():  # type: ignore
         return collections.defaultdict(recursively_default_dict)
 
-    config = recursively_default_dict()
+    config = recursively_default_dict()  # type: ignore
     config["sklearn"]["model"]["file"] = model_path
     config["sklearn"]["environment"] = requirements
 
@@ -89,7 +107,9 @@ def _create_config(*, model_path: str, requirements: List[str], dst: str):
         json.dump(config, f, sort_keys=True, indent=4)
 
 
-def init(*, model: Union[str, Path], requirements: List[str], dst: Union[str, Path]):
+def init(
+    *, model: Union[str, Path], requirements: list[str], dst: Union[str, Path]
+) -> None:
     """Initialize a scikit-learn based HuggingFace repo.
 
     Given a model pickle and a set of required packages, this function
@@ -112,7 +132,7 @@ def init(*, model: Union[str, Path], requirements: List[str], dst: Union[str, Pa
     None
     """
     dst = Path(dst)
-    if dst.exists() and next(dst.iterdir(), None):
+    if dst.exists() and bool(next(dst.iterdir(), None)):
         raise OSError("None-empty dst path already exists!")
     dst.mkdir(parents=True, exist_ok=True)
 
@@ -122,7 +142,9 @@ def init(*, model: Union[str, Path], requirements: List[str], dst: Union[str, Pa
     _create_config(model_path=model_name, requirements=requirements, dst=dst)
 
 
-def update_env(*, path: Union[str, Path], requirements: List[str] = None):
+def update_env(
+    *, path: Union[str, Path], requirements: list[str] | None = None
+) -> None:
     """Update the environment requirements of a repo.
 
     This function takes the path to the repo, and updates the requirements of
@@ -141,6 +163,7 @@ def update_env(*, path: Union[str, Path], requirements: List[str] = None):
     -------
     None
     """
+    # TODO: implement
     pass
 
 
@@ -148,10 +171,10 @@ def push(
     *,
     repo_id: str,
     source: Union[str, Path],
-    token: str = None,
-    commit_message: str = None,
+    token: str | None = None,
+    commit_message: str | None = None,
     create_remote: bool = False,
-):
+) -> None:
     """Pushes the contents of a model repo to HuggingFace Hub.
 
     This function validates the contents of the folder before pushing it to the
@@ -209,7 +232,7 @@ def push(
     )
 
 
-def get_config(path: Union[str, Path]):
+def get_config(path: Union[str, Path]) -> ConfigJson:
     """Returns the configuration of a project.
 
     Parameters
@@ -224,11 +247,11 @@ def get_config(path: Union[str, Path]):
         A dictionary which holds the configs of the project.
     """
     with open(Path(path) / "config.json", "r") as f:
-        config = json.load(f)
+        config: ConfigJson = json.load(f)
     return config
 
 
-def get_requirements(path: Union[str, Path]):
+def get_requirements(path: Union[str, Path]) -> list[str]:
     """Returns the requirements of a project.
 
     Parameters
@@ -244,18 +267,22 @@ def get_requirements(path: Union[str, Path]):
         be installed.
     """
     config = get_config(path)
-    return config.get("sklearn", dict()).get("environment", list())
+    sklearn_val = config.get("sklearn")
+    if not sklearn_val:
+        return []
+    environment_val = sklearn_val.get("environment", [])
+    return environment_val
 
 
 def download(
     *,
     repo_id: str,
     dst: Union[str, Path],
-    revision: str = None,
-    token: str = None,
+    revision: str | None = None,
+    token: str | None = None,
     keep_cache: bool = True,
-    **kwargs,
-):
+    **kwargs: Any,
+) -> None:
     """Download a repository into a directory.
 
     The directory needs to be an empty or a non-existing one.
@@ -295,7 +322,7 @@ def download(
     None
     """
     dst = Path(dst)
-    if dst.exists() and next(dst.iterdir(), None):
+    if dst.exists() and bool(next(dst.iterdir(), None)):
         raise OSError("None-empty dst path already exists!")
     dst.rmdir()
 

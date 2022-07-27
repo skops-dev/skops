@@ -3,11 +3,17 @@ import re
 import shutil
 import tempfile
 from pathlib import Path
+from typing import Any, Protocol, Union
 
 from modelcards import CardData, ModelCard
 from sklearn.utils import estimator_html_repr
 
 import skops
+
+
+class SklearnBaseEstimator(Protocol):
+    def get_params(self, deep: bool = True) -> dict[str, Any]:
+        ...
 
 
 class Card:
@@ -53,18 +59,20 @@ class Card:
     ...
     """
 
-    def __init__(self, model, model_diagram=True):
+    def __init__(self, model: SklearnBaseEstimator, model_diagram: bool = True) -> None:
         self.model = model
         self.hyperparameter_table = self._extract_estimator_config()
         # the spaces in the pipeline breaks markdown, so we replace them
         if model_diagram is True:
-            self.model_plot = re.sub(r"\n\s+", "", str(estimator_html_repr(model)))
+            self.model_plot: str | None = re.sub(
+                r"\n\s+", "", str(estimator_html_repr(model))
+            )
         else:
             self.model_plot = None
-        self.template_sections = {}
-        self._figure_paths = {}
+        self.template_sections: dict[str, Any] = {}
+        self._figure_paths: dict[str, str] = {}
 
-    def add(self, **kwargs):
+    def add(self, **kwargs: Any) -> "Card":
         """Takes values to fill model card template.
         Parameters:
         ----------
@@ -80,7 +88,7 @@ class Card:
             self.template_sections[section] = value
         return self
 
-    def add_plot(self, **kwargs):
+    def add_plot(self, **kwargs: str) -> "Card":
         """Add plots to the model card.
 
         Parameters:
@@ -99,7 +107,7 @@ class Card:
             self._figure_paths[plot_name] = plot_path
         return self
 
-    def save(self, path):
+    def save(self, path: Union[str, Path]) -> None:
         """Save the model card.
 
         This method renders the model card in mardown format and then saves it
@@ -170,7 +178,7 @@ class Card:
 
         card.save(path)
 
-    def _extract_estimator_config(self):
+    def _extract_estimator_config(self) -> str:
         """Extracts estimator hyperparameters and renders them into a vertical table.
 
         Returns

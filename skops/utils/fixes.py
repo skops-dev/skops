@@ -13,10 +13,10 @@ try:
     from importlib import metadata  # noqa
 except ImportError:
     # older pythons
-    import importlib_metadata as metadata  # noqa
+    import importlib_metadata as metadata  # type: ignore  # noqa
 
 
-def path_unlink(path: Path, missing_ok=False) -> None:
+def path_unlink(path: Path, missing_ok: bool = False) -> None:
     """Remove this file or symbolic link
 
     Parameters
