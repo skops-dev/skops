@@ -8,12 +8,10 @@ from pathlib import Path
 PYTHON_VERSION = sys.version_info
 
 
-try:
-    # py>=3.8
-    from importlib import metadata  # type: ignore  # noqa
-except ImportError:
-    # older pythons
-    import importlib_metadata as metadata  # type: ignore  # noqa
+if PYTHON_VERSION >= (3, 8):
+    from importlib import metadata  # noqa
+else:
+    import importlib_metadata as metadata  # noqa
 
 
 def path_unlink(path: Path, missing_ok: bool = False) -> None:
