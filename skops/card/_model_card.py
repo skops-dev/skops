@@ -3,14 +3,20 @@ from __future__ import annotations
 import copy
 import re
 import shutil
+import sys
 import tempfile
 from pathlib import Path
-from typing import Any, Protocol, Union
+from typing import Any, Union
 
 from modelcards import CardData, ModelCard
 from sklearn.utils import estimator_html_repr
 
 import skops
+
+if sys.version_info >= (3, 8):
+    from typing import Protocol
+else:
+    from typing_extensions import Protocol
 
 
 class SklearnBaseEstimator(Protocol):
