@@ -147,7 +147,6 @@ class Card:
 
         # copying the template so that the original template is not touched/changed
         # append plot_name if any plots are provided, at the end of the template
-        # if any plot is given, copy the template to a different path
         with tempfile.TemporaryDirectory() as tmpdirname:
             shutil.copyfile(
                 template_sections["template_path"],
