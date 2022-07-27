@@ -8,7 +8,7 @@ from pathlib import Path
 PYTHON_VERSION = sys.version_info
 
 
-if PYTHON_VERSION >= (3, 8):
+if sys.version_info >= (3, 8):
     from importlib import metadata  # noqa
 else:
     import importlib_metadata as metadata  # noqa
