@@ -10,7 +10,7 @@ PYTHON_VERSION = sys.version_info
 
 try:
     # py>=3.8
-    from importlib import metadata  # noqa
+    from importlib import metadata  # type: ignore  # noqa
 except ImportError:
     # older pythons
     import importlib_metadata as metadata  # type: ignore  # noqa
@@ -43,7 +43,7 @@ def path_unlink(path: Path, missing_ok: bool = False) -> None:
         return
 
     if PYTHON_VERSION >= (3, 8):
-        path.unlink(missing_ok=missing_ok)
+        path.unlink(missing_ok=missing_ok)  # type: ignore  # silence mypy for Py 3.7
         return
 
     # for Python 3.7, just catch the error
