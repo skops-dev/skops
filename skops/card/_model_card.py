@@ -132,8 +132,8 @@ class Card:
         card_data_keys = {}
 
         # if key is supposed to be in metadata and is provided by user, write it to card_data_keys
-        for key in self.template_sections.keys() & metadata_keys:
-            card_data_keys[key] = self.template_sections.pop(key, "")
+        for key in template_sections.keys() & metadata_keys:
+            card_data_keys[key] = template_sections.pop(key, "")
 
         # construct CardData
         card_data = CardData(**card_data_keys)
