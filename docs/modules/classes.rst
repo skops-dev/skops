@@ -9,5 +9,7 @@ This is the class and function reference of skops.
 :mod:`skops.hf_hub`: HuggingFace Hub Integration
 ================================================
 
-.. automodule:: skops.hf_hub
+.. automodule:: skops.hub_utils
+    :members:
+.. automodule:: skops.card
     :members:
