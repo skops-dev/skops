@@ -18,3 +18,8 @@ markers = [
 [tool.mypy]
 exclude = "(\\w+/)*test_\\w+\\.py$"
 ignore_missing_imports = true
+allow_untyped_calls = false
+allow_untyped_defs = false
+allow_incomplete_defs = false
+no_implicit_optional = true
+allow_untyped_globals = false

@@ -57,7 +57,7 @@ jobs:
         python -m pytest -s --cov=skops --doctest-modules skops/
 
     - name: Mypy
-      run: mypy skops
+      run: mypy --config-file pyproject.toml skops
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v2
