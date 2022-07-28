@@ -32,7 +32,7 @@ jobs:
     - name: Install dependencies
       run: |
         pip install .[docs,tests]
-        pip install black=="22.6.0" isort=="5.10.1"
+        pip install black=="22.6.0" isort=="5.10.1" mypy=="0.971"
         python --version
         pip --version
         pip list
