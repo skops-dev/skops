@@ -16,7 +16,7 @@ dependent_packages = {
     "pytest": (PYTEST_MIN_VERSION, "tests", None),
     "pytest-cov": ("2.9.0", "tests", None),
     "flake8": ("3.8.2", "tests", None),
-    "mypy": ("0.770", "tests", None),
+    "types-requests": ("2.28.5", "tests", None),
     "flaky": ("3.7.0", "tests", None),
     "sphinx": ("3.2.0", "docs", None),
     "sphinx-gallery": ("0.7.0", "docs", None),
