@@ -90,7 +90,8 @@ print(os.listdir(local_repo))
 # %%
 # Model Card
 # ==========
-model_card = card.create_model_card(local_repo)
+# We will now create a model card and save it
+model_card = card.Card(model)
 model_card.save(Path(local_repo) / "README.md")
 
 # %%
