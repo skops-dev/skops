@@ -8,7 +8,7 @@ import collections
 import json
 import shutil
 from pathlib import Path
-from typing import Any, MutableMapping, Union
+from typing import Any, List, MutableMapping, Union
 
 import numpy as np
 from huggingface_hub import HfApi, snapshot_download
