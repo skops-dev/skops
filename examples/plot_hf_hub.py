@@ -1,6 +1,6 @@
 """
 scikit-learn models on Hugging Face Hub
---------------------------------------
+---------------------------------------
 
 This guide demonstrates how you can use this package to create a Hugging Face
 Hub model repository based on a scikit-learn compatible model, and how to
