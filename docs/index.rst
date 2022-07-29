@@ -6,7 +6,7 @@
 Welcome to skops's documentation!
 =================================
 
-``skops`` is a Python library helping you share you `scikit-learn
+``skops`` is a Python library helping you share your `scikit-learn
 <https://scikit-learn.org/stable/>`__ based models and put them in production.
 
 The library is still a work in progress and under active development. You can
@@ -21,7 +21,7 @@ The following examples are good starting points:
   :ref:`sphx_glr_auto_examples_plot_model_card.py`
 
 In order to better understand the role of each file and their content when
-uploaded to HuggingFace Hub, refer to this :ref:`user guide <hf_hub>`.
+uploaded to Hugging Face Hub, refer to this :ref:`user guide <hf_hub>`.
 
 User Guide / API Reference
 ==========================

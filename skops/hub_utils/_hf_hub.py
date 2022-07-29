@@ -17,7 +17,7 @@ def _validate_folder(path: Union[str, Path]):
     """Validate the contents of a folder.
 
     This function checks if the contents of a folder make a valid repo for a
-    scikit-learn based repo on the HuggingFace Hub.
+    scikit-learn based repo on the Hugging Face Hub.
 
     A valid repository is one which is understood by the Hub as well as this
     library to run and use the model. Otherwise anything can be put as a model
@@ -90,10 +90,10 @@ def _create_config(*, model_path: str, requirements: List[str], dst: str):
 
 
 def init(*, model: Union[str, Path], requirements: List[str], dst: Union[str, Path]):
-    """Initialize a scikit-learn based HuggingFace repo.
+    """Initialize a scikit-learn based Hugging Face repo.
 
     Given a model pickle and a set of required packages, this function
-    initializes a folder to be a valid HuggingFace scikit-learn based repo.
+    initializes a folder to be a valid Hugging Face scikit-learn based repo.
 
     Parameters
     ----------
@@ -152,7 +152,7 @@ def push(
     commit_message: str = None,
     create_remote: bool = False,
 ):
-    """Pushes the contents of a model repo to HuggingFace Hub.
+    """Pushes the contents of a model repo to Hugging Face Hub.
 
     This function validates the contents of the folder before pushing it to the
     Hub.
@@ -185,7 +185,7 @@ def push(
     Notes
     -----
     This function raises a ``TypeError`` if the contents of the source folder
-    do not make a valid HuggingFace Hub scikit-learn based repo.
+    do not make a valid Hugging Face Hub scikit-learn based repo.
     """
     _validate_folder(path=source)
     client = HfApi()
