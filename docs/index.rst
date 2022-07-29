@@ -9,7 +9,9 @@ Welcome to skops's documentation!
 ``skops`` is a Python library helping you share you `scikit-learn
 <https://scikit-learn.org/stable/>`__ based models and put them in production.
 
-The library is still a work in progress and under active development.
+The library is still a work in progress and under active development. You can
+find the source code and the development discussions on `Github
+<https://github.com/skops-dev/skops>`__.
 
 The following examples are good starting points:
 
