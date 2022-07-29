@@ -18,20 +18,18 @@ The following examples are good starting points:
 - How to create a model card for your scikit-learn based model:
   :ref:`sphx_glr_auto_examples_plot_model_card.py`
 
+In order to better understand the role of each file and their content when
+uploaded to HuggingFace Hub, refer to this :ref:`user guide <hf_hub>`.
 
-
-API Reference
-=============
+User Guide / API Reference
+==========================
 
 .. toctree::
    :maxdepth: 2
 
+   hf_hub
    modules/classes
 
-
-All Examples
-============
-.. include:: auto_examples/index.rst
 
 Indices and tables
 ==================

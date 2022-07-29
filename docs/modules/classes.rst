@@ -11,5 +11,8 @@ This is the class and function reference of skops.
 
 .. automodule:: skops.hub_utils
     :members:
+
+:mod:`skops.card`: Model Card Utilities
+=======================================
 .. automodule:: skops.card
     :members:
