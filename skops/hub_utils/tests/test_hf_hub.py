@@ -172,7 +172,7 @@ def test_create_config(data, task, expected_config):
             )
 
 
-def test_create_config_invalid_data(temp_path):
+def test_create_config_invalid_text_data(temp_path):
     with pytest.raises(ValueError, match="The data needs to be a list of strings."):
         _create_config(
             model_path="model.pkl",
