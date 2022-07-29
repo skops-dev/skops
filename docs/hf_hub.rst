@@ -1,7 +1,7 @@
 .. _hf_hub:
 
-HuggingFace Hub
-===============
+scikit-learn Models on HuggingFace Hub
+======================================
 
 This library allows you to initialize and create a model repository compatible
 with HuggingFace Hub, which you can push to the hub and call an API to get the
