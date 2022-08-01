@@ -5,3 +5,5 @@ codecov:
   notify:
     after_n_builds: 12
     wait_for_ci: true
+ignore:
+  - "skops/_min_dependencies.py"  # This file is not tested, and won't be.

@@ -69,7 +69,11 @@ with open(pkl_name, mode="bw") as f:
 local_repo = mkdtemp(prefix="skops-")
 
 hub_utils.init(
-    model=pkl_name, requirements=[f"scikit-learn={sklearn.__version__}"], dst=local_repo
+    model=pkl_name,
+    requirements=[f"scikit-learn={sklearn.__version__}"],
+    dst=local_repo,
+    task="tabular-classification",
+    data=X_test,
 )
 
 # %%
