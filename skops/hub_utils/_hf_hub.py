@@ -2,6 +2,7 @@
 This module contains utilities to push a model to the hub and pull from the
 hub.
 """
+from __future__ import annotations
 
 import collections
 import json
