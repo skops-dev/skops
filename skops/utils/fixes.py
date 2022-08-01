@@ -5,18 +5,15 @@ import sys
 from contextlib import suppress
 from pathlib import Path
 
-PYTHON_VERSION = sys.version_info
-
-
-try:
+if sys.version_info >= (3, 8):
     # py>=3.8
     from importlib import metadata  # noqa
-except ImportError:
+else:
     # older pythons
     import importlib_metadata as metadata  # noqa
 
 
-def path_unlink(path: Path, missing_ok=False) -> None:
+def path_unlink(path: Path, missing_ok: bool = False) -> None:
     """Remove this file or symbolic link
 
     Parameters
@@ -42,7 +39,7 @@ def path_unlink(path: Path, missing_ok=False) -> None:
         path.unlink()
         return
 
-    if PYTHON_VERSION >= (3, 8):
+    if sys.version_info >= (3, 8):
         path.unlink(missing_ok=missing_ok)
         return
 

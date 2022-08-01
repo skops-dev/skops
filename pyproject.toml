@@ -14,3 +14,8 @@ filterwarnings = [
 markers = [
     "network: marks tests as requiring internet (deselect with '-m \"not network\"')",
 ]
+
+[tool.mypy]
+exclude = "(\\w+/)*test_\\w+\\.py$"
+ignore_missing_imports = true
+no_implicit_optional = true

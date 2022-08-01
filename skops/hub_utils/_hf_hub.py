@@ -7,13 +7,13 @@ import collections
 import json
 import shutil
 from pathlib import Path
-from typing import List, Union
+from typing import Any, List, MutableMapping, Union
 
 from huggingface_hub import HfApi, snapshot_download
 from requests import HTTPError
 
 
-def _validate_folder(path: Union[str, Path]):
+def _validate_folder(path: Union[str, Path]) -> None:
     """Validate the contents of a folder.
 
     This function checks if the contents of a folder make a valid repo for a
@@ -56,12 +56,14 @@ def _validate_folder(path: Union[str, Path]):
         raise TypeError(f"Model file {model_path} does not exist.")
 
 
-def _create_config(*, model_path: str, requirements: List[str], dst: str):
+def _create_config(
+    *, model_path: Union[str, Path], requirements: List[str], dst: Union[str, Path]
+) -> None:
     """Write the configuration into a `config.json` file.
 
     Parameters
     ----------
-    model_path : str
+    model_path : str, or Path
         The relative path (from the repo root) to the model file.
 
     requirements : list of str
@@ -78,18 +80,20 @@ def _create_config(*, model_path: str, requirements: List[str], dst: str):
     # so that we don't have to explicitly add keys and they're added as a
     # dictionary if they are not found
     # see: https://stackoverflow.com/a/13151294/2536294
-    def recursively_default_dict():
+    def recursively_default_dict() -> MutableMapping:
         return collections.defaultdict(recursively_default_dict)
 
     config = recursively_default_dict()
-    config["sklearn"]["model"]["file"] = model_path
+    config["sklearn"]["model"]["file"] = str(model_path)
     config["sklearn"]["environment"] = requirements
 
     with open(Path(dst) / "config.json", mode="w") as f:
         json.dump(config, f, sort_keys=True, indent=4)
 
 
-def init(*, model: Union[str, Path], requirements: List[str], dst: Union[str, Path]):
+def init(
+    *, model: Union[str, Path], requirements: List[str], dst: Union[str, Path]
+) -> None:
     """Initialize a scikit-learn based Hugging Face repo.
 
     Given a model pickle and a set of required packages, this function
@@ -112,7 +116,7 @@ def init(*, model: Union[str, Path], requirements: List[str], dst: Union[str, Pa
     None
     """
     dst = Path(dst)
-    if dst.exists() and next(dst.iterdir(), None):
+    if dst.exists() and bool(next(dst.iterdir(), None)):
         raise OSError("None-empty dst path already exists!")
     dst.mkdir(parents=True, exist_ok=True)
 
@@ -122,7 +126,9 @@ def init(*, model: Union[str, Path], requirements: List[str], dst: Union[str, Pa
     _create_config(model_path=model_name, requirements=requirements, dst=dst)
 
 
-def update_env(*, path: Union[str, Path], requirements: List[str] = None):
+def update_env(
+    *, path: Union[str, Path], requirements: List[str] | None = None
+) -> None:
     """Update the environment requirements of a repo.
 
     This function takes the path to the repo, and updates the requirements of
@@ -148,10 +154,10 @@ def push(
     *,
     repo_id: str,
     source: Union[str, Path],
-    token: str = None,
-    commit_message: str = None,
+    token: str | None = None,
+    commit_message: str | None = None,
     create_remote: bool = False,
-):
+) -> None:
     """Pushes the contents of a model repo to Hugging Face Hub.
 
     This function validates the contents of the folder before pushing it to the
@@ -209,7 +215,7 @@ def push(
     )
 
 
-def get_config(path: Union[str, Path]):
+def get_config(path: Union[str, Path]) -> dict[str, Any]:
     """Returns the configuration of a project.
 
     Parameters
@@ -228,7 +234,7 @@ def get_config(path: Union[str, Path]):
     return config
 
 
-def get_requirements(path: Union[str, Path]):
+def get_requirements(path: Union[str, Path]) -> List[str]:
     """Returns the requirements of a project.
 
     Parameters
@@ -251,11 +257,11 @@ def download(
     *,
     repo_id: str,
     dst: Union[str, Path],
-    revision: str = None,
-    token: str = None,
+    revision: str | None = None,
+    token: str | None = None,
     keep_cache: bool = True,
-    **kwargs,
-):
+    **kwargs: Any,
+) -> None:
     """Download a repository into a directory.
 
     The directory needs to be an empty or a non-existing one.
@@ -295,7 +301,7 @@ def download(
     None
     """
     dst = Path(dst)
-    if dst.exists() and next(dst.iterdir(), None):
+    if dst.exists() and bool(next(dst.iterdir(), None)):
         raise OSError("None-empty dst path already exists!")
     dst.rmdir()
 
