@@ -10,7 +10,7 @@ things, gives you the following benefits:
 - Inference API to get model output through REST calls
 - A widget to try the model directly in the browser
 - Metadata tags for better discoverability of the model
-- Collaborating with others on a model
+- Collaborating with others on a model through discussions and pull requests
 - Convenient sharing of models with the community
 
 
