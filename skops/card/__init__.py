@@ -1,3 +1,3 @@
-from ._model_card import create_model_card, evaluate, permutation_importances
+from ._model_card import Card
 
-__all__ = ["create_model_card", "permutation_importances", "evaluate"]
+__all__ = ["Card"]
