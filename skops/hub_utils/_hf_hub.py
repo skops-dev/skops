@@ -127,7 +127,7 @@ def init(
 
 
 def update_env(
-    *, path: Union[str, Path], requirements: List[str] | None = None
+    *, path: Union[str, Path], requirements: Union[List[str], None] = None
 ) -> None:
     """Update the environment requirements of a repo.
 
