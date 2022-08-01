@@ -1,8 +1,8 @@
 """
-scikit-learn models on HuggingFace Hub
---------------------------------------
+scikit-learn models on Hugging Face Hub
+---------------------------------------
 
-This guide demonstrates how you can use this package to create a HuggingFace
+This guide demonstrates how you can use this package to create a Hugging Face
 Hub model repository based on a scikit-learn compatible model, and how to
 fetch scikit-learn compatible models from the Hub and run them locally.
 """
@@ -76,7 +76,11 @@ with open(pkl_name, mode="bw") as f:
 
 local_repo = mkdtemp(prefix="skops-")
 hub_utils.init(
-    model=pkl_name, requirements=[f"scikit-learn={sklearn.__version__}"], dst=local_repo
+    model=pkl_name,
+    requirements=[f"scikit-learn={sklearn.__version__}"],
+    dst=local_repo,
+    task="tabular-classification",
+    data=X_test,
 )
 
 # %%

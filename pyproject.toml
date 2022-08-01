@@ -11,3 +11,18 @@ filterwarnings = [
     "error::DeprecationWarning",
     "error::FutureWarning",
 ]
+markers = [
+    "network: marks tests as requiring internet (deselect with '-m \"not network\"')",
+]
+addopts = "--cov=skops --cov-report=term-missing"
+
+[tool.coverage.run]
+omit = [
+    "skops/**/test_*.py",
+    "skops/_min_dependencies.py",
+]
+
+[tool.mypy]
+exclude = "(\\w+/)*test_\\w+\\.py$"
+ignore_missing_imports = true
+no_implicit_optional = true

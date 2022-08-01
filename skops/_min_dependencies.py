@@ -16,7 +16,8 @@ dependent_packages = {
     "pytest": (PYTEST_MIN_VERSION, "tests", None),
     "pytest-cov": ("2.9.0", "tests", None),
     "flake8": ("3.8.2", "tests", None),
-    "mypy": ("0.770", "tests", None),
+    "types-requests": ("2.28.5", "tests", None),
+    "flaky": ("3.7.0", "tests", None),
     "sphinx": ("3.2.0", "docs", None),
     "sphinx-gallery": ("0.7.0", "docs", None),
     "sphinx-rtd-theme": ("1", "docs", None),
@@ -24,6 +25,7 @@ dependent_packages = {
     "sphinx-prompt": ("1.3.0", "docs", None),
     "matplotlib": ("3.3", "docs", None),
     "pandas": ("1", "docs", None),
+    "typing_extensions": ("3.7", "install", "python_full_version < '3.8'"),
 }
 
 

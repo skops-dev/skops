@@ -1,15 +1,16 @@
+from __future__ import annotations
+
 import copy
 import re
 import shutil
 import tempfile
 from pathlib import Path
-
-
-from modelcards import CardData, ModelCard
+from modelcards import CardData, ModelCard, EvalResult
 import numpy as np
-from modelcards import EvalResult, ModelCard
 from sklearn.inspection import permutation_importance
 from sklearn.metrics import get_scorer
+
+from typing import Any
 from sklearn.utils import estimator_html_repr
 
 import skops
@@ -143,6 +144,7 @@ class Card:
         # construct CardData
         card_data = CardData(**card_data_keys)
         card_data.library_name = "sklearn"
+
 
         # if template path is not given, use default
         if template_sections.get("template_path") is None:

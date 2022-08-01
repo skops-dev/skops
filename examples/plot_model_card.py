@@ -76,7 +76,11 @@ with open(pkl_name, mode="bw") as f:
 local_repo = mkdtemp(prefix="skops-")
 
 hub_utils.init(
-    model=pkl_name, requirements=[f"scikit-learn={sklearn.__version__}"], dst=local_repo
+    model=pkl_name,
+    requirements=[f"scikit-learn={sklearn.__version__}"],
+    dst=local_repo,
+    task="tabular-classification",
+    data=X_test,
 )
 
 # %%
@@ -87,7 +91,6 @@ hub_utils.init(
 # We'll then save the card as `README.md`.
 
 model_card = card.Card(model)
-
 
 
 # %%
@@ -109,18 +112,12 @@ model_description = (
 eval_results = card.evaluate(
     model, X_test, y_test, "r2", "random_type", "dummy_dataset", "tabular-regression"
 )
+
 model_card_authors = "skops_user"
 get_started_code = (
     "import pickle\nwith open(dtc_pkl_filename, 'rb') as file:\nclf = pickle.load(file)"
 )
 citation_bibtex = "bibtex\n@inproceedings{...,year={2020}}"
-model_card.add(
-    citation_bibtex=citation_bibtex,
-    get_started_code=get_started_code,
-    model_card_authors=model_card_authors,
-    limitations=limitations,
-    model_description=model_description,
-)
 model_card.add(
     citation_bibtex=citation_bibtex,
     get_started_code=get_started_code,
@@ -136,7 +133,6 @@ disp.plot()
 disp.figure_.savefig(Path(local_repo) / "confusion_matrix.png")
 
 model_card.add_plot(**{"confusion matrix": "confusion_matrix.png"})
-
 
 # %%
 # Inspecting the model
@@ -167,6 +163,7 @@ plt.savefig("./confusion_matrix.png")
 
 
 # TODO: Solve conflicting UX
+
 
 
 # %%
