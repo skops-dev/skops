@@ -15,11 +15,17 @@ import pickle
 from pathlib import Path
 from tempfile import mkdtemp, mkstemp
 
+import matplotlib.pyplot as plt
 import sklearn
 from sklearn.datasets import load_breast_cancer
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.experimental import enable_halving_search_cv  # noqa
-from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
+from sklearn.metrics import (
+    ConfusionMatrixDisplay,
+    classification_report,
+    confusion_matrix,
+)
+
 from sklearn.model_selection import HalvingGridSearchCV, train_test_split
 
 from skops import card, hub_utils
@@ -35,6 +41,7 @@ X_train, X_test, y_train, y_test = train_test_split(
 )
 print("X's summary: ", X.describe())
 print("y's summary: ", y.describe())
+
 
 # %%
 # Train a Model
@@ -82,6 +89,7 @@ hub_utils.init(
 model_card = card.Card(model)
 
 
+
 # %%
 # Pass information and plots to our model card
 # ============================================
@@ -97,11 +105,22 @@ model_description = (
     " It's trained with Halving Grid Search Cross Validation, with parameter grids on"
     " max_leaf_nodes and max_depth."
 )
+
+eval_results = card.evaluate(
+    model, X_test, y_test, "r2", "random_type", "dummy_dataset", "tabular-regression"
+)
 model_card_authors = "skops_user"
 get_started_code = (
     "import pickle\nwith open(dtc_pkl_filename, 'rb') as file:\nclf = pickle.load(file)"
 )
 citation_bibtex = "bibtex\n@inproceedings{...,year={2020}}"
+model_card.add(
+    citation_bibtex=citation_bibtex,
+    get_started_code=get_started_code,
+    model_card_authors=model_card_authors,
+    limitations=limitations,
+    model_description=model_description,
+)
 model_card.add(
     citation_bibtex=citation_bibtex,
     get_started_code=get_started_code,
@@ -117,6 +136,38 @@ disp.plot()
 disp.figure_.savefig(Path(local_repo) / "confusion_matrix.png")
 
 model_card.add_plot(**{"confusion matrix": "confusion_matrix.png"})
+
+
+# %%
+# Inspecting the model
+# ====================
+# We'll pass permutation importances, confusion matrix and classification report
+# to our model card template. Skops includes a util to calculate and parse
+# permutation importances, we'll use that. For confusion matrix and
+# classification report, we'll use tools from scikit-learn. Additionally, model
+# card template has an extra section for images, so we will use
+# ConfusionMatrixDisplay and put the created plot in that section.
+
+
+predictions = model.predict(X_test)
+permutation_importances = card.permutation_importances(model, X_test, y_test)
+confusion_matrix_arr = confusion_matrix(y_test, predictions, labels=model.classes_)
+clf_report = classification_report(y_test, predictions, labels=model.classes_)
+disp = ConfusionMatrixDisplay(
+    confusion_matrix=confusion_matrix_arr, display_labels=model.classes_
+)
+plt.savefig("./confusion_matrix.png")
+
+
+# %% Additional sections
+# ======================
+# We can introduce introductions on how to use the model to our model card. This
+# section will be formatted as a code. We will also put citation info and name
+# of the author of the model card.
+
+
+# TODO: Solve conflicting UX
+
 
 # %%
 # Save model card

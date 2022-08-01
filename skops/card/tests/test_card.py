@@ -107,3 +107,26 @@ def test_metadata_keys(destination_path, model_card):
     model_card.save(Path(destination_path) / "README.md")
     with open(Path(destination_path) / "README.md", "r") as f:
         assert "tags: dummy" in f.read()
+        
+        
+def test_evaluate():
+    with tempfile.TemporaryDirectory(prefix="skops-test") as dir_path:
+        model, X_test, y_test = fit_model()
+
+        eval_results = evaluate(
+            model,
+            X_test,
+            y_test,
+            "r2",
+            "random_type",
+            "dummy_dataset",
+            "tabular-regression",
+        )
+        # TODO: Change Below
+        card_data = CardData(eval_results=eval_results, model_name="my-cool-model")
+
+        card = create_model_card(model, card_data)
+        card.save(os.path.join(f"{dir_path}", "README.md"))
+        loaded_card = RepoCard.load(os.path.join(f"{dir_path}", "README.md"))
+        assert loaded_card.data.eval_results[0].task_type == "tabular-regression"
+
