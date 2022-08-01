@@ -28,7 +28,7 @@ def _validate_folder(path: Union[str, Path]) -> None:
     """Validate the contents of a folder.
 
     This function checks if the contents of a folder make a valid repo for a
-    scikit-learn based repo on the HuggingFace Hub.
+    scikit-learn based repo on the Hugging Face Hub.
 
     A valid repository is one which is understood by the Hub as well as this
     library to run and use the model. Otherwise anything can be put as a model
@@ -221,10 +221,10 @@ def init(
     ],
     data,
 ) -> None:
-    """Initialize a scikit-learn based HuggingFace repo.
+    """Initialize a scikit-learn based Hugging Face repo.
 
     Given a model pickle and a set of required packages, this function
-    initializes a folder to be a valid HuggingFace scikit-learn based repo.
+    initializes a folder to be a valid Hugging Face scikit-learn based repo.
 
     Parameters
     ----------
@@ -287,7 +287,7 @@ def init(
 
 
 def update_env(
-    *, path: Union[str, Path], requirements: list[str] | None = None
+    *, path: Union[str, Path], requirements: Union[List[str], None] = None
 ) -> None:
     """Update the environment requirements of a repo.
 
@@ -318,7 +318,7 @@ def push(
     commit_message: str | None = None,
     create_remote: bool = False,
 ) -> None:
-    """Pushes the contents of a model repo to HuggingFace Hub.
+    """Pushes the contents of a model repo to Hugging Face Hub.
 
     This function validates the contents of the folder before pushing it to the
     Hub.
@@ -351,7 +351,7 @@ def push(
     Notes
     -----
     This function raises a ``TypeError`` if the contents of the source folder
-    do not make a valid HuggingFace Hub scikit-learn based repo.
+    do not make a valid Hugging Face Hub scikit-learn based repo.
     """
     _validate_folder(path=source)
     client = HfApi()
@@ -394,7 +394,7 @@ def get_config(path: Union[str, Path]) -> dict[str, Any]:
     return config
 
 
-def get_requirements(path: Union[str, Path]) -> list[str]:
+def get_requirements(path: Union[str, Path]) -> List[str]:
     """Returns the requirements of a project.
 
     Parameters
