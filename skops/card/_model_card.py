@@ -65,7 +65,7 @@ class Card:
         self.model = model
         self.hyperparameter_table = self._extract_estimator_config()
         # the spaces in the pipeline breaks markdown, so we replace them
-        self._eval_results = []
+        self._eval_results = []  # type: ignore
         if model_diagram is True:
             self.model_plot: str | None = re.sub(
                 r"\n\s+", "", str(estimator_html_repr(model))
@@ -206,7 +206,7 @@ class Card:
             card_data_keys[key] = template_sections.pop(key, "")
 
         # add evaluation results
-        card_data_keys["eval_results"] = self._eval_results
+        card_data_keys["eval_results"] = self._eval_results  # type: ignore
 
         # construct CardData
         card_data = CardData(**card_data_keys)
