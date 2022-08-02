@@ -10,7 +10,6 @@ profile = "black"
 filterwarnings = [
     "error::DeprecationWarning",
     "error::FutureWarning",
-    "ignore::sklearn.exceptions.ConvergenceWarning",
 ]
 markers = [
     "network: marks tests as requiring internet (deselect with '-m \"not network\"')",
