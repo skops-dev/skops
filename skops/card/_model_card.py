@@ -15,21 +15,24 @@ import skops
 
 class Card:
     """Model card class that will be used to generate model card.
-    This class can be used to write information and plots to model card and save
-    it. This class by default generates an interactive plot of the model and a
-    table of hyperparameters. The slots to be filled are defined in the markdown
-    template.
-    Parameters:
+
+    This class can be used to write information and plots to model card and
+    save it. This class by default generates an interactive plot of the model
+    and a table of hyperparameters. The slots to be filled are defined in the
+    markdown template.
+
+    Parameters
     ----------
     model: estimator object
         Model that will be documented.
     model_diagram: bool, optional
         Set to True if model diagram should be plotted in the card.
+
     Notes
     -----
-    You can pass your own custom template using ``add`` method. You can add
-    plots to the model card template using ``add_plot``. The key you pass to
-    ``add_plot`` will be used for header of the plot.
+    You can pass your own custom template using :meth:`Card.add` method. You
+    can add plots to the model card template using :meth:`Card.add_plot`. The
+    key you pass to :meth:`Card.add_plot` will be used for header of the plot.
 
     Examples
     --------
@@ -71,13 +74,15 @@ class Card:
 
     def add(self, **kwargs: str) -> "Card":
         """Takes values to fill model card template.
-        Parameters:
+
+        Parameters
         ----------
         **kwargs : dict
             Parameters to be set for the model card. These parameters
             need to be sections of the underlying `jinja` template used.
-        Returns:
-        --------
+
+        Returns
+        -------
         self : object
             Card object.
         """
@@ -88,15 +93,16 @@ class Card:
     def add_plot(self, **kwargs: str) -> "Card":
         """Add plots to the model card.
 
-        Parameters:
+        Parameters
         ----------
         **kwargs : dict
             The arguments should be of the form `name=plot_path`, where `name`
             is the name of the plot and `plot_path` is the path to the plot,
             relative to the root of the project. The plots should have already
             been saved under the project's folder.
-        Returns:
-        --------
+
+        Returns
+        -------
         self : object
             Card object.
         """
@@ -107,10 +113,10 @@ class Card:
     def save(self, path: str | Path) -> None:
         """Save the model card.
 
-        This method renders the model card in mardown format and then saves it
+        This method renders the model card in markdown format and then saves it
         as the specified file.
 
-        Parameters:
+        Parameters
         ----------
         path: str, or Path
             filepath to save your card.
