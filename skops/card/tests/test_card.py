@@ -107,3 +107,11 @@ def test_metadata_keys(destination_path, model_card):
     model_card.save(Path(destination_path) / "README.md")
     with open(Path(destination_path) / "README.md", "r") as f:
         assert "tags: dummy" in f.read()
+
+
+def test_evaluate_metric():
+    pass
+
+
+def test_evaluate_list():
+    pass

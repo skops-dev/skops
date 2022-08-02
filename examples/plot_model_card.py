@@ -113,6 +113,14 @@ model_card.add(
     limitations=limitations,
     model_description=model_description,
 )
+model_card.evaluate(
+    X_test,
+    y_test,
+    metric="accuracy",
+    dataset_type="breast_cancer",
+    dataset_name="Breast Cancer",
+    task_type="tabular-classification",
+)
 y_pred = model.predict(X_test)
 cm = confusion_matrix(y_test, y_pred, labels=model.classes_)
 disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=model.classes_)
