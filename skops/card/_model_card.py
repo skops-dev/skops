@@ -48,8 +48,11 @@ class Card:
     >>> X, y = load_iris(return_X_y=True)
     >>> model = LogisticRegression(random_state=0).fit(X, y)
     >>> model_card = card.Card(model)
-    >>> model_card.add(license="mit")  # doctest: +ELLIPSIS
-    <skops.card._model_card.Card object at ...>
+    >>> model_card.add(license="mit")
+    Card(
+      model=LogisticRegression(random_state=0),
+      license='mit',
+    )
     >>> y_pred = model.predict(X)
     >>> cm = confusion_matrix(y, y_pred,labels=model.classes_)
     >>> disp = ConfusionMatrixDisplay(confusion_matrix=cm,
@@ -59,7 +62,11 @@ class Card:
     >>> disp.figure_.savefig("confusion_matrix.png")
     ...
     >>> model_card.add_plot(confusion_matrix="confusion_matrix.png") # doctest: +ELLIPSIS
-    <skops.card._model_card.Card object at ...>
+    Card(
+      model=LogisticRegression(random_state=0),
+      license='mit',
+      confusion_matrix='confusion_matrix.png',
+    )
     >>> model_card.save((Path("save_dir") / "README.md")) # doctest: +ELLIPSIS
     ...
     """
