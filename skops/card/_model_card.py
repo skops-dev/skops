@@ -5,7 +5,7 @@ import re
 import shutil
 import tempfile
 from pathlib import Path
-from reprlib import aRepr
+from reprlib import Repr
 from typing import Any
 
 from modelcards import CardData, ModelCard
@@ -13,7 +13,8 @@ from sklearn.utils import estimator_html_repr
 
 import skops
 
-# aRepr attributes can be used to control the behavior of repr
+# Repr attributes can be used to control the behavior of repr
+aRepr = Repr()
 aRepr.maxother = 79
 aRepr.maxstring = 79
 
