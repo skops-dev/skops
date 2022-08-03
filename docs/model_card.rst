@@ -12,7 +12,7 @@ The metadata part of the file needs to follow the notation `here
 <https://huggingface.co/docs/hub/models-cards#model-card-metadata>`__. It
 includes simple attributes of your models such as the task you're solving,
 dataset you trained the model with, evaluation results and more. The tasks have
-keys, such as ``"tabular-classification"`` or ``"text-regression"``. When model
+keys, such as ``"tabular-classification"`` or ``"text-regression"``. When the model
 is hosted on the Hub, information like task and dataset help your model be
 discovered at the `Hugging Face Hub <https://huggingface.co/models>`__ and the
 evaluation results stored in the metadata is automatically pushed to the
