@@ -90,8 +90,10 @@ print(os.listdir(local_repo))
 # %%
 # Model Card
 # ==========
-# We will now create a model card and save it
-model_card = card.Card(model)
+# We will now create a model card and save it. For more information about how
+# to create a good model card, refer to the :ref:`model card example
+# <sphx_glr_auto_examples_plot_model_card.py>`
+model_card = card.Card(model, metadata=card.metadata_from_config(Path(local_repo)))
 model_card.save(Path(local_repo) / "README.md")
 
 # %%
