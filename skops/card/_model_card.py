@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from modelcards import CardData, ModelCard
+from tabulate import tabulate
 from sklearn.utils import estimator_html_repr
 
 import skops
@@ -61,7 +62,7 @@ class Card:
 
     def __init__(self, model: Any, model_diagram: bool = True) -> None:
         self.model = model
-        self.hyperparameter_table = self._extract_estimator_config()
+        self.hyperparameter_table = self._write_hyperparameters()
         # the spaces in the pipeline breaks markdown, so we replace them
         if model_diagram is True:
             self.model_plot: str | None = re.sub(
@@ -181,17 +182,14 @@ class Card:
 
         card.save(path)
 
-    def _extract_estimator_config(self) -> str:
+    def _write_hyperparameters(self) -> str:
         """Extracts estimator hyperparameters and renders them into a vertical table.
-
         Returns
         -------
         str:
             Markdown table of hyperparameters.
         """
-
         hyperparameter_dict = self.model.get_params(deep=True)
-        table = "| Hyperparameters | Value |\n| :-- | :-- |\n"
-        for hyperparameter, value in hyperparameter_dict.items():
-            table += f"| {hyperparameter} | {value} |\n"
-        return table
+        for k, v in hyperparameter_dict.items():
+            hyperparameter_dict[k] = [v]
+        return tabulate(hyperparameter_dict, headers="keys", tablefmt="github")
