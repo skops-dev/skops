@@ -34,7 +34,7 @@ An example metadata part looks like below:
     - accuracy
     ---
 
-Markdown part does not necessarily need to follow any specification by means of
+The markdown part does not necessarily need to follow any specification by means of
 information passed, which gives the user a lot of flexibility. The markdown part
 of the card is generated from templates with slots that you can inject your
 content in. ``skops`` has a default template called ``default_template.md``.
