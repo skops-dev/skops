@@ -58,8 +58,12 @@ def metadata_from_config(config_path: Union[str, Path]) -> CardData:
         card_data.tags += [task]
 
     example_input = config.get("sklearn", {}).get("example_input", None)
+    # Documentation on what the widget expects:
+    # https://huggingface.co/docs/hub/models-widgets-examples
     if example_input:
-        card_data.widget = {"structuredData": example_input}
+        if "tabular" in task:
+            card_data.widget = {"structuredData": example_input}
+        # TODO: add text data example here.
 
     return card_data
 

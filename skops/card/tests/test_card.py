@@ -1,14 +1,19 @@
 import copy
+import pickle
 import tempfile
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
-from sklearn.linear_model import LinearRegression
+import sklearn
+from huggingface_hub import metadata_load
+from sklearn.datasets import load_iris
+from sklearn.linear_model import LinearRegression, LogisticRegression
 
 import skops
-from skops.card import Card
+from skops import hub_utils
+from skops.card import Card, metadata_from_config
 
 
 def fit_model():
@@ -107,3 +112,35 @@ def test_metadata_keys(destination_path, model_card):
     model_card.save(Path(destination_path) / "README.md")
     with open(Path(destination_path) / "README.md", "r") as f:
         assert "tags: dummy" in f.read()
+
+
+def test_metadata_from_config_tabular_data(destination_path):
+    # test if widget data is correctly set in the README
+    X, y = load_iris(return_X_y=True, as_frame=True)
+    est = LogisticRegression(solver="liblinear").fit(X, y)
+    pkl_file = tempfile.mkstemp(suffix=".pkl", prefix="skops-test")[1]
+    with open(pkl_file, "wb") as f:
+        pickle.dump(est, f)
+    hub_utils.init(
+        model=pkl_file,
+        requirements=[f"scikit-learn=={sklearn.__version__}"],
+        dst=destination_path,
+        task="tabular-classification",
+        data=X,
+    )
+    card = Card(
+        est, model_diagram=True, metadata=metadata_from_config(destination_path)
+    )
+    card.save(Path(destination_path) / "README.md")
+    metadata = metadata_load(local_path=Path(destination_path) / "README.md")
+    assert "widget" in metadata
+
+    expected_data = {
+        "structuredData": {
+            "petal length (cm)": [1.4, 1.4, 1.3],
+            "petal width (cm)": [0.2, 0.2, 0.2],
+            "sepal length (cm)": [5.1, 4.9, 4.7],
+            "sepal width (cm)": [3.5, 3.0, 3.2],
+        }
+    }
+    assert metadata["widget"] == expected_data

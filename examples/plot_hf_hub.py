@@ -109,6 +109,7 @@ token = os.environ["HF_HUB_TOKEN"]
 repo_name = f"hf_hub_example-{uuid4()}"
 user_name = HfApi().whoami(token=token)["name"]
 repo_id = f"{user_name}/{repo_name}"
+print(f"Creating and pushing to repo: {repo_id}")
 
 # Now we can push our files to the repo. The following function creates the
 # remote repository if it doesn't exist; this is controlled via the
