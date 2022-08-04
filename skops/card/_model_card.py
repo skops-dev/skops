@@ -6,7 +6,7 @@ import re
 import shutil
 import tempfile
 from pathlib import Path
-from typing import Any, Union
+from typing import Any, Optional, Union
 
 from modelcards import CardData, ModelCard
 from sklearn.utils import estimator_html_repr
@@ -40,7 +40,7 @@ def metadata_from_config(config_path: Union[str, Path]) -> CardData:
 
     Returns
     -------
-    card_data: ``CardData``
+    card_data: ``modelcards.CardData``
         ``CardData`` object.
     """
     config_path = Path(config_path)
@@ -139,7 +139,10 @@ class Card:
     """
 
     def __init__(
-        self, model: Any, model_diagram: bool = True, metadata: CardData = None
+        self,
+        model: Any,
+        model_diagram: bool = True,
+        metadata: Optional[CardData] = None,
     ) -> None:
         self.model = model
         self._hyperparameter_table = self._extract_estimator_config()

@@ -92,7 +92,11 @@ print(os.listdir(local_repo))
 # ==========
 # We will now create a model card and save it. For more information about how
 # to create a good model card, refer to the :ref:`model card example
-# <sphx_glr_auto_examples_plot_model_card.py>`
+# <sphx_glr_auto_examples_plot_model_card.py>`. The following code uses
+# :func:`~skops.card.metadata_from_config` which creates a minimal metadata
+# object to be included in the metadata section of the model card. The
+# configuration used by this method is stored in the ``config.json`` file which
+# is created by the call to :func:`~skops.hub_utils.init`.
 model_card = card.Card(model, metadata=card.metadata_from_config(Path(local_repo)))
 model_card.save(Path(local_repo) / "README.md")
 
