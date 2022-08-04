@@ -68,9 +68,9 @@ def test_add(destination_path, model_card):
 
 
 def test_template_sections_not_mutated_by_save(destination_path, model_card):
-    template_sections_before = copy.deepcopy(model_card.template_sections)
+    template_sections_before = copy.deepcopy(model_card._template_sections)
     model_card.save(Path(destination_path) / "README.md")
-    template_sections_after = copy.deepcopy(model_card.template_sections)
+    template_sections_after = copy.deepcopy(model_card._template_sections)
     assert template_sections_before == template_sections_after
 
 

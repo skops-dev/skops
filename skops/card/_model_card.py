@@ -25,17 +25,26 @@ class Card:
     ----------
     model: estimator object
         Model that will be documented.
-    model_diagram: bool, optional
+
+    model_diagram: bool, default=True
         Set to True if model diagram should be plotted in the card.
+
+    Attributes
+    ----------
+    model: estimator object
+        The scikit-learn compatible model that will be documented.
 
     Notes
     -----
-    You can pass your own custom template using :meth:`Card.add` method. You
-    can add plots to the model card template using :meth:`Card.add_plot`. The
-    key you pass to :meth:`Card.add_plot` will be used for header of the plot.
+    The contents of the sections of the template can be set using
+    :meth:`Card.add` method. Plots can be added to the model card using
+    :meth:`Card.add_plot`. The key you pass to :meth:`Card.add_plot` will be
+    used as the header of the plot.
 
     Examples
     --------
+    >>> import tempfile
+    >>> from pathlib import Path
     >>> from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
     >>> from sklearn.datasets import load_iris
     >>> from sklearn.linear_model import LogisticRegression
@@ -47,29 +56,31 @@ class Card:
     <skops.card._model_card.Card object at ...>
     >>> y_pred = model.predict(X)
     >>> cm = confusion_matrix(y, y_pred,labels=model.classes_)
-    >>> disp = ConfusionMatrixDisplay(confusion_matrix=cm,
-    ... display_labels=model.classes_)
+    >>> disp = ConfusionMatrixDisplay(
+    ...     confusion_matrix=cm,
+    ...     display_labels=model.classes_
+    ... )
     >>> disp.plot()  # doctest: +ELLIPSIS
     <sklearn.metrics._plot.confusion_matrix.ConfusionMatrixDisplay object at ...>
     >>> disp.figure_.savefig("confusion_matrix.png")
     ...
     >>> model_card.add_plot(confusion_matrix="confusion_matrix.png") # doctest: +ELLIPSIS
     <skops.card._model_card.Card object at ...>
-    >>> model_card.save((Path("save_dir") / "README.md")) # doctest: +ELLIPSIS
-    ...
+    >>> with tempfile.TemporaryDirectory() as tmpdir:
+    ...     model_card.save((Path(tmpdir) / "README.md")) # doctest: +ELLIPSIS
     """
 
     def __init__(self, model: Any, model_diagram: bool = True) -> None:
         self.model = model
-        self.hyperparameter_table = self._extract_estimator_config()
+        self._hyperparameter_table = self._extract_estimator_config()
         # the spaces in the pipeline breaks markdown, so we replace them
         if model_diagram is True:
-            self.model_plot: str | None = re.sub(
+            self._model_plot: str | None = re.sub(
                 r"\n\s+", "", str(estimator_html_repr(model))
             )
         else:
-            self.model_plot = None
-        self.template_sections: dict[str, str] = {}
+            self._model_plot = None
+        self._template_sections: dict[str, str] = {}
         self._figure_paths: dict[str, str] = {}
 
     def add(self, **kwargs: str) -> "Card":
@@ -87,7 +98,7 @@ class Card:
             Card object.
         """
         for section, value in kwargs.items():
-            self.template_sections[section] = value
+            self._template_sections[section] = value
         return self
 
     def add_plot(self, **kwargs: str) -> "Card":
@@ -123,12 +134,12 @@ class Card:
 
         Notes
         -----
-        The keys in model card metadata can be seen
-        [here](https://huggingface.co/docs/hub/models-cards#model-card-metadata).
+        The keys in model card metadata can be seen `here
+        <https://huggingface.co/docs/hub/models-cards#model-card-metadata>`__.
         """
         root = skops.__path__
 
-        template_sections = copy.deepcopy(self.template_sections)
+        template_sections = copy.deepcopy(self._template_sections)
 
         metadata_keys = [
             "language",
@@ -174,8 +185,8 @@ class Card:
 
             card = ModelCard.from_template(
                 card_data=card_data,
-                hyperparameter_table=self.hyperparameter_table,
-                model_plot=self.model_plot,
+                hyperparameter_table=self._hyperparameter_table,
+                model_plot=self._model_plot,
                 **template_sections,
             )
 
