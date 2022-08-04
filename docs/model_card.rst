@@ -22,7 +22,9 @@ model page. An example to task identifier can be ``"tabular-classification"`` or
 ``"text-regression"``.
 
 An example metadata part looks like below:
+
 .. code-block:: yaml
+
     ---
     library_name: sklearn
     tags:
