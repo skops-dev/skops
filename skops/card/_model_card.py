@@ -8,8 +8,8 @@ from pathlib import Path
 from typing import Any
 
 from modelcards import CardData, ModelCard
-from tabulate import tabulate
 from sklearn.utils import estimator_html_repr
+from tabulate import tabulate
 
 import skops
 
@@ -190,6 +190,8 @@ class Card:
             Markdown table of hyperparameters.
         """
         hyperparameter_dict = self.model.get_params(deep=True)
-        for k, v in hyperparameter_dict.items():
-            hyperparameter_dict[k] = [v]
-        return tabulate(hyperparameter_dict, headers="keys", tablefmt="github")
+        return tabulate(
+            [[k, v] for k, v in hyperparameter_dict.items()],
+            headers=["hyperparameter", "value"],
+            tablefmt="github",
+        )
