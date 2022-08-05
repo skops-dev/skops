@@ -79,11 +79,12 @@ hub_utils.init(
 # %%
 # Create a model card
 # ====================
-# We now create a model card.
-# Then, we pass information using ``add()`` and plots using ``add_plot()``.
-# We'll then save the card as `README.md`.
+# We now create a model card, and populate its metadata with information which
+# is already provided in ``config.json``, which itself is created by the call
+# to ``init`` above. Then, we pass information using ``add()`` and plots using
+# ``add_plot()``. We'll then save the card as `README.md`.
 
-model_card = card.Card(model)
+model_card = card.Card(model, metadata=card.metadata_from_config(Path(local_repo)))
 
 
 # %%
@@ -94,7 +95,7 @@ model_card = card.Card(model)
 # have to have a section in our template.
 # We will save the plots, and then pass plot name with path to ``add_inspection``.
 
-license = "mit"
+model_card.metadata.license = "mit"
 limitations = "This model is not ready to be used in production."
 model_description = (
     "This is a HistGradientBoostingClassifier model trained on breast cancer dataset."
