@@ -10,7 +10,7 @@ from typing import Any
 
 from modelcards import CardData, ModelCard
 from sklearn.utils import estimator_html_repr
-from tabulate import tabulate # type: ignore
+from tabulate import tabulate  # type: ignore
 
 import skops
 
