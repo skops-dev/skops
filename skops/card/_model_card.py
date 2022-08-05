@@ -6,12 +6,18 @@ import re
 import shutil
 import tempfile
 from pathlib import Path
+from reprlib import Repr
 from typing import Any, Optional, Union
 
 from modelcards import CardData, ModelCard
 from sklearn.utils import estimator_html_repr
 
 import skops
+
+# Repr attributes can be used to control the behavior of repr
+aRepr = Repr()
+aRepr.maxother = 79
+aRepr.maxstring = 79
 
 
 def metadata_from_config(config_path: Union[str, Path]) -> CardData:
@@ -132,10 +138,13 @@ class Card:
     >>> disp.figure_.savefig("confusion_matrix.png")
     ...
     >>> model_card.add_plot(confusion_matrix="confusion_matrix.png") # doctest: +ELLIPSIS
-    <skops.card._model_card.Card object at ...>
+    Card(
+      model=LogisticRegression(random_state=0),
+      license='mit',
+      confusion_matrix='confusion_matrix.png',
+    )
     >>> with tempfile.TemporaryDirectory() as tmpdir:
     ...     model_card.save((Path(tmpdir) / "README.md")) # doctest: +ELLIPSIS
-    ...
     """
 
     def __init__(
@@ -260,3 +269,44 @@ class Card:
         for hyperparameter, value in hyperparameter_dict.items():
             table += f"| {hyperparameter} | {value} |\n"
         return table
+
+    @staticmethod
+    def _strip_blank(text) -> str:
+        # remove new lines and multiple spaces
+        text = text.replace("\n", " ")
+        text = re.sub(r"\s+", r" ", text)
+        return text
+
+    def __str__(self) -> str:
+        return self.__repr__()
+
+    def __repr__(self) -> str:
+        # create repr for model
+        model = getattr(self, "model", None)
+        if model:
+            model_str = self._strip_blank(repr(model))
+            model_repr = aRepr.repr(f"  model={model_str},").strip('"').strip("'")
+        else:
+            model_repr = None
+
+        template_reprs = []
+        for key, val in self._template_sections.items():
+            val = self._strip_blank(repr(val))
+            template_reprs.append(aRepr.repr(f"  {key}={val},").strip('"').strip("'"))
+        template_repr = "\n".join(template_reprs)
+
+        figure_reprs = []
+        for key, val in self._figure_paths.items():
+            val = self._strip_blank(repr(val))
+            figure_reprs.append(aRepr.repr(f"  {key}={val},").strip('"').strip("'"))
+        figure_repr = "\n".join(figure_reprs)
+
+        complete_repr = "Card(\n"
+        if model_repr:
+            complete_repr += model_repr + "\n"
+        if template_repr:
+            complete_repr += template_repr + "\n"
+        if figure_repr:
+            complete_repr += figure_repr + "\n"
+        complete_repr += ")"
+        return complete_repr

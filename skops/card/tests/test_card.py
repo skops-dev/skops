@@ -144,3 +144,120 @@ def test_metadata_from_config_tabular_data(destination_path):
         }
     }
     assert metadata["widget"] == expected_data
+
+
+class TestCardRepr:
+    """Test __str__ and __repr__ methods of Card, which are identical for now"""
+
+    @pytest.fixture
+    def card(self):
+        model = LinearRegression(fit_intercept=False)
+        card = Card(model=model)
+        card.add(
+            model_description="A description",
+            model_card_authors="Jane Doe",
+        )
+        card.add_plot(
+            roc_curve="ROC_curve.png",
+            confusion_matrix="confusion_matrix.jpg",
+        )
+        return card
+
+    @pytest.mark.parametrize("meth", [repr, str])
+    def test_card_repr(self, card: Card, meth):
+        result = meth(card)
+        expected = (
+            "Card(\n"
+            "  model=LinearRegression(fit_intercept=False),\n"
+            "  model_description='A description',\n"
+            "  model_card_authors='Jane Doe',\n"
+            "  roc_curve='ROC_curve.png',\n"
+            "  confusion_matrix='confusion_matrix.jpg',\n"
+            ")"
+        )
+        assert result == expected
+
+    @pytest.mark.parametrize("meth", [repr, str])
+    def test_very_long_lines_are_shortened(self, card: Card, meth):
+        card.add(my_section="very long line " * 100)
+        result = meth(card)
+        expected = (
+            "Card(\n  model=LinearRegression(fit_intercept=False),\n"
+            "  model_description='A description',\n  model_card_authors='Jane Doe',\n"
+            "  my_section='very long line very lon...line very long line very long line"
+            " ',\n"
+            "  roc_curve='ROC_curve.png',\n"
+            "  confusion_matrix='confusion_matrix.jpg',\n"
+            ")"
+        )
+        assert result == expected
+
+    @pytest.mark.parametrize("meth", [repr, str])
+    def test_without_model_attribute(self, card: Card, meth):
+        del card.model
+        result = meth(card)
+        expected = (
+            "Card(\n"
+            "  model_description='A description',\n"
+            "  model_card_authors='Jane Doe',\n"
+            "  roc_curve='ROC_curve.png',\n"
+            "  confusion_matrix='confusion_matrix.jpg',\n"
+            ")"
+        )
+        assert result == expected
+
+    @pytest.mark.parametrize("meth", [repr, str])
+    def test_no_template_sections(self, card: Card, meth):
+        card._template_sections = {}
+        result = meth(card)
+        expected = (
+            "Card(\n"
+            "  model=LinearRegression(fit_intercept=False),\n"
+            "  roc_curve='ROC_curve.png',\n"
+            "  confusion_matrix='confusion_matrix.jpg',\n"
+            ")"
+        )
+        assert result == expected
+
+    @pytest.mark.parametrize("meth", [repr, str])
+    def test_no_figures(self, card: Card, meth):
+        card._figure_paths = {}
+        result = meth(card)
+        expected = (
+            "Card(\n"
+            "  model=LinearRegression(fit_intercept=False),\n"
+            "  model_description='A description',\n"
+            "  model_card_authors='Jane Doe',\n"
+            ")"
+        )
+        assert result == expected
+
+    @pytest.mark.parametrize("meth", [repr, str])
+    def test_template_section_val_not_str(self, card: Card, meth):
+        card._template_sections["model_description"] = [1, 2, 3]  # type: ignore
+        result = meth(card)
+        expected = (
+            "Card(\n"
+            "  model=LinearRegression(fit_intercept=False),\n"
+            "  model_description=[1, 2, 3],\n"
+            "  model_card_authors='Jane Doe',\n"
+            "  roc_curve='ROC_curve.png',\n"
+            "  confusion_matrix='confusion_matrix.jpg',\n"
+            ")"
+        )
+        assert result == expected
+
+    @pytest.mark.parametrize("meth", [repr, str])
+    def test_figure_path_val_not_str(self, card: Card, meth):
+        card._figure_paths["roc_curve"] = {1: 2}  # type: ignore
+        result = meth(card)
+        expected = (
+            "Card(\n"
+            "  model=LinearRegression(fit_intercept=False),\n"
+            "  model_description='A description',\n"
+            "  model_card_authors='Jane Doe',\n"
+            "  roc_curve={1: 2},\n"
+            "  confusion_matrix='confusion_matrix.jpg',\n"
+            ")"
+        )
+        assert result == expected
