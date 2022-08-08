@@ -130,7 +130,7 @@ class Card:
     >>> model_card = card.Card(model)
     >>> model_card.metadata.license = "mit"
     >>> y_pred = model.predict(X)
-    >>> model_card.evaluate({"accuracy":
+    >>> model_card.evaluate({"accuracy": # doctest: +ELLIPSIS
     ... accuracy_score(y, y_pred), # doctest: +ELLIPSIS
     ... "f1 score": f1_score(y, y_pred, average='micro')}) # doctest: +ELLIPSIS
     >>> cm = confusion_matrix(y, y_pred,labels=model.classes_)
