@@ -140,6 +140,7 @@ class Card:
     >>> model_card.add_plot(confusion_matrix="confusion_matrix.png") # doctest: +ELLIPSIS
     Card(
       model=LogisticRegression(random_state=0),
+      metadata:license=mit,
       confusion_matrix='confusion_matrix.png',
     )
     >>> with tempfile.TemporaryDirectory() as tmpdir:
