@@ -118,8 +118,8 @@ class Card:
 
     Examples
     --------
-    >>> from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix,
-    ... accuracy_score, f1_score
+    >>> from sklearn.metrics import (ConfusionMatrixDisplay, confusion_matrix,
+    ... accuracy_score, f1_score)
     >>> import tempfile
     >>> from pathlib import Path
     >>> from sklearn.datasets import load_iris
