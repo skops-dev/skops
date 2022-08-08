@@ -78,10 +78,10 @@ def metadata_from_config(config_path: Union[str, Path]) -> CardData:
 class Card:
     """Model card class that will be used to generate model card.
 
-    This class can be used to write information and plots to model card and
-    save it. This class by default generates an interactive plot of the model
-    and a table of hyperparameters. The slots to be filled are defined in the
-    markdown template.
+    This class can be used to write information and plots to model card and save
+    it. This class by default generates an interactive plot of the model and a
+    table of hyperparameters. The slots to be filled are defined in the markdown
+    template.
 
     Parameters
     ----------
@@ -130,8 +130,9 @@ class Card:
     >>> model_card = card.Card(model)
     >>> model_card.metadata.license = "mit"
     >>> y_pred = model.predict(X)
-    >>> model_card.evaluate({"accuracy": accuracy_score(y, y_pred), # doctest: +ELLIPSIS
-    ... "f1 score": f1_score(y, y_pred)}) # doctest: +ELLIPSIS
+    >>> model_card.evaluate({"accuracy":
+    ... accuracy_score(y, y_pred, average='micro'), # doctest: +ELLIPSIS
+    ... "f1 score": f1_score(y, y_pred, average='micro')}) # doctest: +ELLIPSIS
     >>> cm = confusion_matrix(y, y_pred,labels=model.classes_)
     >>> disp = ConfusionMatrixDisplay(
     ...     confusion_matrix=cm,
