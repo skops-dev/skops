@@ -55,4 +55,4 @@ The template also contains following sections that are automatically generated b
 - hyperparameter_table: Hyperparameters of the model.
 - model_plot: Plot of the model.
 
-If you want a custom template, you can pass the ``template_path`` with ``add``.
+If you want a custom template, you can pass the ``template_path`` with :meth:`.Card.add`.
