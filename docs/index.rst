@@ -33,6 +33,7 @@ User Guide / API Reference
 
    hf_hub
    modules/classes
+   model_card
 
 
 Indices and tables
