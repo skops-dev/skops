@@ -261,3 +261,34 @@ class TestCardRepr:
             ")"
         )
         assert result == expected
+
+    @pytest.mark.parametrize("meth", [repr, str])
+    def test_with_metadata(self, card: Card, meth):
+        from modelcards import CardData
+
+        metadata = CardData(
+            language="fr",
+            license="bsd",
+            library_name="sklearn",
+            tags=["sklearn", "tabular-classification"],
+            foo={"bar": 123},
+            widget={"something": "very-long"},
+        )
+        card.metadata = metadata
+        expected = (
+            "Card(\n"
+            "  model=LinearRegression(fit_intercept=False),\n"
+            "  metadata:language=fr,\n"
+            "  metadata:license=bsd,\n"
+            "  metadata:library_name=sklearn,\n"
+            "  metadata:tags=['sklearn', 'tabular-classification'],\n"
+            "  metadata:foo={'bar': 123},\n"
+            "  metadata:widget={...},\n"
+            "  model_description='A description',\n"
+            "  model_card_authors='Jane Doe',\n"
+            "  roc_curve='ROC_curve.png',\n"
+            "  confusion_matrix='confusion_matrix.jpg',\n"
+            ")"
+        )
+        result = meth(card)
+        assert result == expected
