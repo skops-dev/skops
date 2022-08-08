@@ -133,6 +133,11 @@ class Card:
     >>> model_card.evaluate({"accuracy": # doctest: +ELLIPSIS
     ... accuracy_score(y, y_pred), # doctest: +ELLIPSIS
     ... "f1 score": f1_score(y, y_pred, average='micro')}) # doctest: +ELLIPSIS
+    Card(
+      model=LogisticRegression(random_state=0),
+      metadata.license=mit,
+    )
+
     >>> cm = confusion_matrix(y, y_pred,labels=model.classes_)
     >>> disp = ConfusionMatrixDisplay(
     ...     confusion_matrix=cm,
