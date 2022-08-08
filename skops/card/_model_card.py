@@ -86,7 +86,7 @@ class Card:
 
     def __init__(self, model: Any, model_diagram: bool = True) -> None:
         self.model = model
-        self._hyperparameter_table = self._write_hyperparameters()
+        self._hyperparameter_table = self._extract_estimator_config()
         # the spaces in the pipeline breaks markdown, so we replace them
         if model_diagram is True:
             self._model_plot: str | None = re.sub(
@@ -206,7 +206,7 @@ class Card:
 
         card.save(path)
 
-    def _write_hyperparameters(self) -> str:
+    def _extract_estimator_config(self) -> str:
         """Extracts estimator hyperparameters and renders them into a vertical table.
         Returns
         -------
@@ -215,7 +215,7 @@ class Card:
         """
         hyperparameter_dict = self.model.get_params(deep=True)
         return tabulate(
-            [[k, v] for k, v in hyperparameter_dict.items()],
+            list(hyperparameter_dict.items()),
             headers=["Hyperparameter", "Value"],
             tablefmt="github",
         )
