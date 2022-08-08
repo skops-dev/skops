@@ -140,7 +140,7 @@ class Card:
     >>> model_card.add_plot(confusion_matrix="confusion_matrix.png") # doctest: +ELLIPSIS
     Card(
       model=LogisticRegression(random_state=0),
-      metadata:license=mit,
+      metadata.license=mit,
       confusion_matrix='confusion_matrix.png',
     )
     >>> with tempfile.TemporaryDirectory() as tmpdir:
@@ -293,11 +293,11 @@ class Card:
         metadata_reprs = []
         for key, val in self.metadata.to_dict().items() if self.metadata else {}:
             if key == "widget":
-                metadata_reprs.append("  metadata:widget={...},")
+                metadata_reprs.append("  metadata.widget={...},")
                 continue
 
             metadata_reprs.append(
-                aRepr.repr(f"  metadata:{key}={val},").strip('"').strip("'")
+                aRepr.repr(f"  metadata.{key}={val},").strip('"').strip("'")
             )
         metadata_repr = "\n".join(metadata_reprs)
 
