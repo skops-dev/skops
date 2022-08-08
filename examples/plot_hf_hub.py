@@ -90,8 +90,14 @@ print(os.listdir(local_repo))
 # %%
 # Model Card
 # ==========
-# We will now create a model card and save it
-model_card = card.Card(model)
+# We will now create a model card and save it. For more information about how
+# to create a good model card, refer to the :ref:`model card example
+# <sphx_glr_auto_examples_plot_model_card.py>`. The following code uses
+# :func:`~skops.card.metadata_from_config` which creates a minimal metadata
+# object to be included in the metadata section of the model card. The
+# configuration used by this method is stored in the ``config.json`` file which
+# is created by the call to :func:`~skops.hub_utils.init`.
+model_card = card.Card(model, metadata=card.metadata_from_config(Path(local_repo)))
 model_card.save(Path(local_repo) / "README.md")
 
 # %%
@@ -107,6 +113,7 @@ token = os.environ["HF_HUB_TOKEN"]
 repo_name = f"hf_hub_example-{uuid4()}"
 user_name = HfApi().whoami(token=token)["name"]
 repo_id = f"{user_name}/{repo_name}"
+print(f"Creating and pushing to repo: {repo_id}")
 
 # Now we can push our files to the repo. The following function creates the
 # remote repository if it doesn't exist; this is controlled via the
