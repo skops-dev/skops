@@ -11,6 +11,7 @@ from typing import Any, Optional, Union
 
 from modelcards import CardData, ModelCard
 from sklearn.utils import estimator_html_repr
+from tabulate import tabulate  # type: ignore
 
 import skops
 
@@ -257,18 +258,17 @@ class Card:
 
     def _extract_estimator_config(self) -> str:
         """Extracts estimator hyperparameters and renders them into a vertical table.
-
         Returns
         -------
         str:
             Markdown table of hyperparameters.
         """
-
         hyperparameter_dict = self.model.get_params(deep=True)
-        table = "| Hyperparameters | Value |\n| :-- | :-- |\n"
-        for hyperparameter, value in hyperparameter_dict.items():
-            table += f"| {hyperparameter} | {value} |\n"
-        return table
+        return tabulate(
+            list(hyperparameter_dict.items()),
+            headers=["Hyperparameter", "Value"],
+            tablefmt="github",
+        )
 
     @staticmethod
     def _strip_blank(text) -> str:
