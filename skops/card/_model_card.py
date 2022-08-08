@@ -248,10 +248,10 @@ class Card:
         root = skops.__path__
 
         # add evaluation results
-        
+
         template_sections = copy.deepcopy(self._template_sections)
         template_sections["eval_results"] = self._eval_results  # type: ignore
-        
+
         # if template path is not given, use default
         if template_sections.get("template_path") is None:
             template_sections["template_path"] = str(

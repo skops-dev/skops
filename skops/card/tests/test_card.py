@@ -120,6 +120,7 @@ def test_evaluate_metric(destination_path, model_card):
     with open(Path(destination_path) / "README.md", "r") as f:
         assert "acc" and "f1" and "0.1" in f.read()
 
+
 def test_metadata_from_config_tabular_data(destination_path):
     # test if widget data is correctly set in the README
     X, y = load_iris(return_X_y=True, as_frame=True)
