@@ -104,7 +104,7 @@ model_description = (
 )
 model_card_authors = "skops_user"
 get_started_code = (
-    "import pickle\nwith open(dtc_pkl_filename, 'rb') as file:\nclf = pickle.load(file)"
+    "import pickle\nwith open(pkl_filename, 'rb') as file:\n    clf = pickle.load(file)"
 )
 citation_bibtex = "bibtex\n@inproceedings{...,year={2020}}"
 model_card.add(

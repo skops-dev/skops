@@ -36,9 +36,8 @@ Use the code below to get started with the model.
 <details>
 <summary> Click to expand </summary>
 
-```
+```python
 {{ get_started_code | default("[More Information Needed]", true)}}
-
 ```
 
 </details>
