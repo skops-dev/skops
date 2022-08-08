@@ -32,8 +32,8 @@ User Guide / API Reference
    :maxdepth: 2
 
    hf_hub
-   modules/classes
    model_card
+   modules/classes
 
 
 Indices and tables
