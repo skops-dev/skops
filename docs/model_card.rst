@@ -1,4 +1,4 @@
-.. _model_cards:
+.. _model_card:
 
 Model Cards for scikit-learn
 ============================
