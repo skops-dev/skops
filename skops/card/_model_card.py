@@ -7,10 +7,9 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-import numpy as np
-from modelcards import CardData, EvalResult, ModelCard
-from sklearn.metrics import get_scorer
+from modelcards import CardData, ModelCard
 from sklearn.utils import estimator_html_repr
+from tabulate import tabulate  # type: ignore
 
 import skops
 
@@ -38,7 +37,8 @@ class Card:
 
     Examples
     --------
-    >>> from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
+    >>> from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix,
+    ... accuracy_score, f1_score
     >>> from sklearn.datasets import load_iris
     >>> from sklearn.linear_model import LogisticRegression
     >>> from skops import card
@@ -48,6 +48,8 @@ class Card:
     >>> model_card.add(license="mit")  # doctest: +ELLIPSIS
     <skops.card._model_card.Card object at ...>
     >>> y_pred = model.predict(X)
+    >>> model_card.evaluate({"accuracy": accuracy_score(y, y_pred), # doctest: +ELLIPSIS
+    ... "f1 score": f1_score(y, y_pred)})
     >>> cm = confusion_matrix(y, y_pred,labels=model.classes_)
     >>> disp = ConfusionMatrixDisplay(confusion_matrix=cm,
     ... display_labels=model.classes_)
@@ -113,60 +115,24 @@ class Card:
             self._figure_paths[plot_name] = plot_path
         return self
 
-    def evaluate(self, X, y, metric, dataset_type, dataset_name, task_type):
+    def evaluate(self, metric_values):
         """Evaluates the model and returns the score and the metric.
+
         Parameters
         ----------
-        X: array-like of shape (n_samples, n_features)
-            Features, note that it should be from a hold-out set.
-        y: array-like of shape (n_samples, n_features)
-            Target column, note that it should be from a hold-out set.
-        metric: scorer, str, or list of such values
-            sklearn metric key or list of sklearn metric keys. See available list of
-            metrics
-            [here](https://scikit-learn.org/stable/modules/model_evaluation.html).
-        dataset_type: str
-            Name of dataset. The dataset name shouldn't contain space or dot, e.g. titanic_data
-        dataset_name: str
-            Pretty name of dataset. Dataset name can contain spaces, e.g. Titanic Data
-        task_type: str
-            Task type. e.g. tabular-classification.
+        metric_values: dict
+        Dictionary of metric values.
+
         Returns
         -------
-            self : object
-                Card object.
+        self : object
+        Card object.
         """
-        metric_values = {}
-        if isinstance(metric, str):
-            scorer = get_scorer(metric)
-            score = scorer(self.model, X, y)
-            if isinstance(score, np.float):
-                metric_values[metric] = float(scorer(self.model, X, y))
-                # TODO: also handle arrays
-            else:
-                raise ValueError("Scorer picked should return float.")
-        elif isinstance(metric, list):
-            for metric_key in metric:
-                scorer = get_scorer(metric_key)
-                score = scorer(self.model, X, y)
-                if isinstance(score, np.float):
-                    metric_values[metric] = float(scorer(self.model, X, y))
-                else:
-                    raise ValueError("Scorer picked should return float.")
-        else:
-            raise ValueError("Metric should be a metric key or list of metric keys.")
-
-        for metric_key, metric_value in metric_values.items():
-            self._eval_results.append(
-                EvalResult(
-                    task_type=task_type,
-                    dataset_type=dataset_type,
-                    dataset_name=dataset_name,
-                    metric_type=metric_key,
-                    metric_value=metric_value,
-                )
-            )
-
+        self._eval_results = tabulate(
+            list(metric_values.items()),
+            headers=["Metric", "Value"],
+            tablefmt="github",
+        )
         return self
 
     def save(self, path: str | Path) -> None:
@@ -206,7 +172,7 @@ class Card:
             card_data_keys[key] = template_sections.pop(key, "")
 
         # add evaluation results
-        card_data_keys["eval_results"] = self._eval_results  # type: ignore
+        template_sections["eval_results"] = self._eval_results  # type: ignore
 
         # construct CardData
         card_data = CardData(**card_data_keys)

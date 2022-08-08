@@ -19,7 +19,12 @@ import sklearn
 from sklearn.datasets import load_breast_cancer
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.experimental import enable_halving_search_cv  # noqa
-from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
+from sklearn.metrics import (
+    ConfusionMatrixDisplay,
+    accuracy_score,
+    confusion_matrix,
+    f1_score,
+)
 from sklearn.model_selection import HalvingGridSearchCV, train_test_split
 
 from skops import card, hub_utils
@@ -113,15 +118,10 @@ model_card.add(
     limitations=limitations,
     model_description=model_description,
 )
-model_card.evaluate(
-    X_test,
-    y_test,
-    metric="accuracy",
-    dataset_type="breast_cancer",
-    dataset_name="Breast Cancer",
-    task_type="tabular-classification",
-)
 y_pred = model.predict(X_test)
+model_card.evaluate(
+    {"accuracy": accuracy_score(y_test, y_pred), "f1 score": f1_score(y_test, y_pred)}
+)
 cm = confusion_matrix(y_test, y_pred, labels=model.classes_)
 disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=model.classes_)
 disp.plot()
