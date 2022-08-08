@@ -140,6 +140,7 @@ class Card:
     >>> model_card.add_plot(confusion_matrix="confusion_matrix.png") # doctest: +ELLIPSIS
     Card(
       model=LogisticRegression(random_state=0),
+      metadata.license=mit,
       confusion_matrix='confusion_matrix.png',
     )
     >>> with tempfile.TemporaryDirectory() as tmpdir:
@@ -288,12 +289,26 @@ class Card:
         else:
             model_repr = None
 
+        # metadata
+        metadata_reprs = []
+        for key, val in self.metadata.to_dict().items() if self.metadata else {}:
+            if key == "widget":
+                metadata_reprs.append("  metadata.widget={...},")
+                continue
+
+            metadata_reprs.append(
+                aRepr.repr(f"  metadata.{key}={val},").strip('"').strip("'")
+            )
+        metadata_repr = "\n".join(metadata_reprs)
+
+        # normal sections
         template_reprs = []
         for key, val in self._template_sections.items():
             val = self._strip_blank(repr(val))
             template_reprs.append(aRepr.repr(f"  {key}={val},").strip('"').strip("'"))
         template_repr = "\n".join(template_reprs)
 
+        # figures
         figure_reprs = []
         for key, val in self._figure_paths.items():
             val = self._strip_blank(repr(val))
@@ -303,6 +318,8 @@ class Card:
         complete_repr = "Card(\n"
         if model_repr:
             complete_repr += model_repr + "\n"
+        if metadata_reprs:
+            complete_repr += metadata_repr + "\n"
         if template_repr:
             complete_repr += template_repr + "\n"
         if figure_repr:
