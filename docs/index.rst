@@ -21,7 +21,9 @@ The following examples are good starting points:
   :ref:`sphx_glr_auto_examples_plot_model_card.py`
 
 In order to better understand the role of each file and their content when
-uploaded to Hugging Face Hub, refer to this :ref:`user guide <hf_hub>`.
+uploaded to Hugging Face Hub, refer to this :ref:`user guide <hf_hub>`. You can
+refer to :ref:`user guide <model_card>` to see how you can leverage model cards
+for documenting your scikit-learn models and enabling reproducibility.
 
 User Guide / API Reference
 ==========================
@@ -29,7 +31,9 @@ User Guide / API Reference
 .. toctree::
    :maxdepth: 2
 
+   installation
    hf_hub
+   model_card
    modules/classes
 
 
