@@ -40,7 +40,7 @@ Installation
 
 You can install this library using:
 
-.. code-block:: sh
+.. code-block:: bash
 
     python -m pip install skops
 
