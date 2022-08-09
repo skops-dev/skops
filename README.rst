@@ -42,7 +42,9 @@ Installation
 
 You can install this library using:
 
-    pip install skops
+.. code-block:: bash
+
+    python -m pip install skops
 
 Bug Reports and Questions
 -------------------------
