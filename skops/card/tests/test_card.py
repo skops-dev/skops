@@ -115,7 +115,8 @@ def test_metadata_keys(destination_path, model_card):
 
 
 def test_add_metrics(destination_path, model_card):
-    model_card.add_metrics({"acc": 0.1, "f1": 0.02})
+    model_card.add_metrics(**{"acc": 0.1})
+    model_card.add_metrics(f1=0.1)
     model_card.save(Path(destination_path) / "README.md")
     with open(Path(destination_path) / "README.md", "r") as f:
         assert "acc" and "f1" and "0.1" in f.read()

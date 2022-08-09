@@ -120,12 +120,8 @@ model_card.add(
     model_description=model_description,
 )
 y_pred = model.predict(X_test)
-model_card.add_metrics(
-    {
-        "accuracy": accuracy_score(y_test, y_pred),
-        "f1 score": f1_score(y_test, y_pred, average="micro"),
-    }
-)
+model_card.add_metrics(accuracy=accuracy_score(y_test, y_pred))
+model_card.add_metrics(**{"f1 score": f1_score(y_test, y_pred, average="micro")})
 cm = confusion_matrix(y_test, y_pred, labels=model.classes_)
 disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=model.classes_)
 disp.plot()

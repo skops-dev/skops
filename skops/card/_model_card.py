@@ -219,21 +219,20 @@ class Card:
             self._figure_paths[plot_name] = plot_path
         return self
 
-    def add_metrics(self, metric_values):
-        """Writes metrics to the model card.
+    def add_metrics(self, **kwargs: str) -> "Card":
+        """Takes metrics and their values to construct a table in the model card.
 
         Parameters
         ----------
-        metric_values: dict
-            Dictionary of metric values.
+        **kwargs : dict
+            Metrics and their values.
 
         Returns
         -------
         self : object
             Card object.
         """
-
-        for metric, value in metric_values.items():
+        for metric, value in kwargs.items():
             self._eval_results[metric] = value
         return self
 
