@@ -6,7 +6,7 @@ Model Cards for scikit-learn
 This library allows you to automatically create model cards for your models,
 which are a short documentation explaining what the model does, how it's
 trained, and its limitations. `Hugging Face Hub <https://huggingface.co/>`__
-expects a ``README.me`` file containing a certain set of metadata at the
+expects a ``README.md`` file containing a certain set of metadata at the
 beginning of it, following with the content of the model card in markdown
 format. The metadata section is used to make models searchable on the Hub, and
 get the inference API and the widgets on the website working.
