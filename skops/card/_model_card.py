@@ -225,7 +225,7 @@ class Card:
         Parameters
         ----------
         metric_values: dict
-        Dictionary of metric values.
+            Dictionary of metric values.
 
         Returns
         -------
