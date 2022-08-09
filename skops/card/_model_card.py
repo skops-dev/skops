@@ -134,7 +134,7 @@ class Card:
     >>> model_card = card.Card(model)
     >>> model_card.metadata.license = "mit"
     >>> y_pred = model.predict(X)
-    >>> model_card.evaluate({"accuracy": # doctest: +ELLIPSIS
+    >>> model_card.add_metrics({"accuracy": # doctest: +ELLIPSIS
     ... accuracy_score(y, y_pred), # doctest: +ELLIPSIS
     ... "f1 score": f1_score(y, y_pred, average='micro')}) # doctest: +ELLIPSIS
     Card(

@@ -120,7 +120,7 @@ model_card.add(
     model_description=model_description,
 )
 y_pred = model.predict(X_test)
-model_card.evaluate(
+model_card.add_metrics(
     {
         "accuracy": accuracy_score(y_test, y_pred),
         "f1 score": f1_score(y_test, y_pred, average="micro"),
