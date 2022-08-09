@@ -230,7 +230,7 @@ class Card:
         Returns
         -------
         self : object
-        Card object.
+            Card object.
         """
         self._eval_results = tabulate(
             list(metric_values.items()),
