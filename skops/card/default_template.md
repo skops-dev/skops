@@ -31,7 +31,9 @@ The model plot is below.
 
 ## Evaluation Results
 
-Below are the evaluation results.
+You can find the details about evaluation process and the evaluation results.
+
+{{ eval_methods }}
 
 {{ eval_results | default("[More Information Needed]", true)}}
 

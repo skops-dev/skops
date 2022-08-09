@@ -170,7 +170,7 @@ class Card:
         self.model = model
         self._hyperparameter_table = self._extract_estimator_config()
         # the spaces in the pipeline breaks markdown, so we replace them
-        self._eval_results = []  # type: ignore
+        self._eval_results = {}  # type: ignore
         if model_diagram is True:
             self._model_plot: str | None = re.sub(
                 r"\n\s+", "", str(estimator_html_repr(model))
@@ -219,8 +219,8 @@ class Card:
             self._figure_paths[plot_name] = plot_path
         return self
 
-    def evaluate(self, metric_values):
-        """Evaluates the model and returns the score and the metric.
+    def add_metrics(self, metric_values):
+        """Writes metrics to the model card.
 
         Parameters
         ----------
@@ -232,11 +232,9 @@ class Card:
         self : object
             Card object.
         """
-        self._eval_results = tabulate(
-            list(metric_values.items()),
-            headers=["Metric", "Value"],
-            tablefmt="github",
-        )
+
+        for metric, value in metric_values.items():
+            self._eval_results[metric] = value
         return self
 
     def save(self, path: str | Path) -> None:
@@ -260,8 +258,11 @@ class Card:
         # add evaluation results
 
         template_sections = copy.deepcopy(self._template_sections)
-        template_sections["eval_results"] = self._eval_results  # type: ignore
-
+        template_sections["eval_results"] = tabulate(
+            list(self._eval_results.items()),
+            headers=["Metric", "Value"],
+            tablefmt="github",
+        )
         # if template path is not given, use default
         if template_sections.get("template_path") is None:
             template_sections["template_path"] = str(
