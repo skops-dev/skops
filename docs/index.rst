@@ -31,6 +31,7 @@ User Guide / API Reference
 .. toctree::
    :maxdepth: 2
 
+   installation
    hf_hub
    model_card
    modules/classes
