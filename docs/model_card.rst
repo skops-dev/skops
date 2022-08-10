@@ -60,7 +60,7 @@ template which includes the following slots for free text sections:
   to train the model.
 - ``"eval_methods"``: Details about evaluation process of the model.
 - ``"eval_results"``: Evaluation results that are later parsed as a table by
-  ``skops``.
+  :class:`skops.card.Card`.
 
 
 The template also contains the following sections that are automatically
