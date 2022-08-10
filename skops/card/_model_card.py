@@ -4,17 +4,25 @@ import copy
 import json
 import re
 import shutil
+import sys
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from reprlib import Repr
-from typing import Any, Optional, Protocol, Union
+from typing import Any, Optional, Union
 
 from modelcards import CardData, ModelCard
 from sklearn.utils import estimator_html_repr
 from tabulate import tabulate  # type: ignore
 
 import skops
+
+if sys.version_info >= (3, 8):
+    # py>=3.8
+    from typing import Protocol
+else:
+    from typing_extensions import Protocol
+
 
 # Repr attributes can be used to control the behavior of repr
 aRepr = Repr()
