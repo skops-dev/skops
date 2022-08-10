@@ -1,4 +1,5 @@
 import copy
+import os
 import pickle
 import tempfile
 from pathlib import Path
@@ -314,7 +315,7 @@ class TestPlotSection:
 
     def test_format_path_is_pathlib(self):
         section = PlotSection(alt_text="some title", path=Path("path") / "plot.png")
-        expected = "![some title](path/plot.png)"
+        expected = f"![some title](path{os.path.sep}plot.png)"
         assert section.format() == expected
 
     @pytest.mark.parametrize("meth", [str, repr])
