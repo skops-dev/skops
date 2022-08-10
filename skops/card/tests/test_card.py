@@ -223,8 +223,8 @@ class TestCardRepr:
         assert result == expected
 
     @pytest.mark.parametrize("meth", [repr, str])
-    def test_no_figures(self, card: Card, meth):
-        card._figure_paths = {}
+    def test_no_extra_sections(self, card: Card, meth):
+        card._extra_sections = {}
         result = meth(card)
         expected = (
             "Card(\n"
@@ -251,8 +251,8 @@ class TestCardRepr:
         assert result == expected
 
     @pytest.mark.parametrize("meth", [repr, str])
-    def test_figure_path_val_not_str(self, card: Card, meth):
-        card._figure_paths["roc_curve"] = {1: 2}  # type: ignore
+    def test_extra_sections_val_not_str(self, card: Card, meth):
+        card._extra_sections["roc_curve"] = {1: 2}  # type: ignore
         result = meth(card)
         expected = (
             "Card(\n"

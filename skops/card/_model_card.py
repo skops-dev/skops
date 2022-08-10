@@ -164,7 +164,7 @@ class Card:
         else:
             self._model_plot = None
         self._template_sections: dict[str, str] = {}
-        self._figure_paths: dict[str, str] = {}
+        self._extra_sections: dict[str, str] = {}
         self.metadata = metadata or CardData()
 
     def add(self, **kwargs: str) -> "Card":
@@ -202,7 +202,7 @@ class Card:
             Card object.
         """
         for plot_name, plot_path in kwargs.items():
-            self._figure_paths[plot_name] = plot_path
+            self._extra_sections[plot_name] = plot_path
         return self
 
     def save(self, path: str | Path) -> None:
@@ -240,12 +240,10 @@ class Card:
             )
             #  create a temporary template with the additional plots
             template_sections["template_path"] = f"{tmpdirname}/temporary_template.md"
-            # add plots at the end of the template
+            # add extra sections at the end of the template
             with open(template_sections["template_path"], "a") as template:
-                for plot in self._figure_paths:
-                    template.write(
-                        f"\n\n{plot}\n" + f"![{plot}]({self._figure_paths[plot]})\n\n"
-                    )
+                for key, val in self._extra_sections.items():
+                    template.write(f"\n\n{key}\n![{key}]({val})\n\n")
 
             card = ModelCard.from_template(
                 card_data=self.metadata,
@@ -310,7 +308,7 @@ class Card:
 
         # figures
         figure_reprs = []
-        for key, val in self._figure_paths.items():
+        for key, val in self._extra_sections.items():
             val = self._strip_blank(repr(val))
             figure_reprs.append(aRepr.repr(f"  {key}={val},").strip('"').strip("'"))
         figure_repr = "\n".join(figure_reprs)
