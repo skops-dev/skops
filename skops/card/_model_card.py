@@ -59,7 +59,7 @@ def metadata_from_config(config_path: Union[str, Path]) -> CardData:
 
     card_data = CardData()
     card_data.library_name = "sklearn"
-    card_data.tags = ["sklearn"]
+    card_data.tags = ["sklearn", "skops"]
     task = config.get("sklearn", {}).get("task", None)
     if task:
         card_data.tags += [task]
