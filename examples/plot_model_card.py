@@ -19,7 +19,12 @@ import sklearn
 from sklearn.datasets import load_breast_cancer
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.experimental import enable_halving_search_cv  # noqa
-from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
+from sklearn.metrics import (
+    ConfusionMatrixDisplay,
+    accuracy_score,
+    confusion_matrix,
+    f1_score,
+)
 from sklearn.model_selection import HalvingGridSearchCV, train_test_split
 
 from skops import card, hub_utils
@@ -115,6 +120,14 @@ model_card.add(
     model_description=model_description,
 )
 y_pred = model.predict(X_test)
+model_card.add(
+    eval_method=(
+        "The model is evaluated using test split, on accuracy and F1-score with macro"
+        " average."
+    )
+)
+model_card.add_metrics(accuracy=accuracy_score(y_test, y_pred))
+model_card.add_metrics(**{"f1 score": f1_score(y_test, y_pred, average="micro")})
 cm = confusion_matrix(y_test, y_pred, labels=model.classes_)
 disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=model.classes_)
 disp.plot()
