@@ -165,9 +165,7 @@ class TestCardRepr:
             roc_curve="ROC_curve.png",
             confusion_matrix="confusion_matrix.jpg",
         )
-        card.add_table(
-            search_results={"split": [1, 2, 3], "score": [4, 5, 6]}
-        )
+        card.add_table(search_results={"split": [1, 2, 3], "score": [4, 5, 6]})
         return card
 
     @pytest.mark.parametrize("meth", [repr, str])
@@ -319,7 +317,7 @@ class TestPlotSection:
         expected = "![some title](path/plot.png)"
         assert section.format() == expected
 
-    @pytest.mark.parametrize('meth', [str, repr])
+    @pytest.mark.parametrize("meth", [str, repr])
     def test_str_and_repr(self, meth):
         section = PlotSection(alt_text="some title", path="path/plot.png")
         expected = "'path/plot.png'"
@@ -356,13 +354,13 @@ class TestTableSection:
 |       3 |       6 |"""
         assert section.format() == expected
 
-    @pytest.mark.parametrize('meth', [str, repr])
+    @pytest.mark.parametrize("meth", [str, repr])
     def test_str_and_repr_table_is_dict(self, table_dict, meth):
         section = TableSection(table=table_dict)
         expected = "Table(3x2)"
         assert meth(section) == expected
 
-    @pytest.mark.parametrize('meth', [str, repr])
+    @pytest.mark.parametrize("meth", [str, repr])
     def test_str_and_repr_table_is_dataframe(self, table_dict, meth):
         pd = pytest.importorskip("pandas")
         df = pd.DataFrame(table_dict)

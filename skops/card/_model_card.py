@@ -64,19 +64,20 @@ class TableSection:
             if nrows == 0:
                 raise ValueError("Empty table added")
 
-
     def format(self) -> str:
         if self._is_pandas_df:
             headers = self.table.columns  # type: ignore
         else:
             headers = self.table.keys()
 
-        table = tabulate(self.table, tablefmt="github", headers=headers, showindex=False)
+        table = tabulate(
+            self.table, tablefmt="github", headers=headers, showindex=False
+        )
         return table
 
     def __repr__(self) -> str:
         if self._is_pandas_df:
-            nrows, ncols = self.table.shape
+            nrows, ncols = self.table.shape  # type: ignore
         else:
             # table cannot be empty, so no checks needed here
             ncols = len(self.table)
@@ -351,7 +352,7 @@ class Card:
             # add extra sections at the end of the template
             with open(template_sections["template_path"], "a") as template:
                 if self._extra_sections:
-                    template.write(f"\n\n# Additional Content\n")
+                    template.write("\n\n# Additional Content\n")
 
                 for key, val in self._extra_sections.items():
                     formatted = val.format()
