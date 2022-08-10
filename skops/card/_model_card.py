@@ -221,7 +221,7 @@ class Card:
         return self
 
     def add_metrics(self, **kwargs: str) -> "Card":
-        """Takes metrics and their values to construct a table in the model card.
+        """Add metric values to the model card.
 
         Parameters
         ----------
