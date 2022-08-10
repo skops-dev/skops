@@ -145,6 +145,9 @@ def test_metadata_from_config_tabular_data(destination_path):
     }
     assert metadata["widget"] == expected_data
 
+    for tag in ["sklearn", "skops", "tabular-classification"]:
+        assert tag in metadata["tags"]
+
 
 class TestCardRepr:
     """Test __str__ and __repr__ methods of Card, which are identical for now"""
