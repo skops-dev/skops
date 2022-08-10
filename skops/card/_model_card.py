@@ -226,7 +226,7 @@ class Card:
         Parameters
         ----------
         **kwargs : dict
-            Metrics and their values.
+            A dictionary of the form `{metric name: metric value}`.
 
         Returns
         -------
