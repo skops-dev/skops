@@ -121,7 +121,9 @@ disp.plot()
 
 disp.figure_.savefig(Path(local_repo) / "confusion_matrix.png")
 
-model_card.add_plot(**{"confusion matrix": "confusion_matrix.png"})
+model_card.add_plot(**{"Confusion matrix": "confusion_matrix.png"})
+
+model_card.add_table(**{"Hyperparameter search results": model.cv_results_})
 
 # %%
 # Save model card

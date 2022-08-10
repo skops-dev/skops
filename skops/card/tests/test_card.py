@@ -14,6 +14,7 @@ from sklearn.linear_model import LinearRegression, LogisticRegression
 import skops
 from skops import hub_utils
 from skops.card import Card, metadata_from_config
+from skops.card._model_card import PlotSection, TableSection
 
 
 def fit_model():
@@ -164,6 +165,9 @@ class TestCardRepr:
             roc_curve="ROC_curve.png",
             confusion_matrix="confusion_matrix.jpg",
         )
+        card.add_table(
+            search_results={"split": [1, 2, 3], "score": [4, 5, 6]}
+        )
         return card
 
     @pytest.mark.parametrize("meth", [repr, str])
@@ -176,6 +180,7 @@ class TestCardRepr:
             "  model_card_authors='Jane Doe',\n"
             "  roc_curve='ROC_curve.png',\n"
             "  confusion_matrix='confusion_matrix.jpg',\n"
+            "  search_results=Table(3x2),\n"
             ")"
         )
         assert result == expected
@@ -191,6 +196,7 @@ class TestCardRepr:
             " ',\n"
             "  roc_curve='ROC_curve.png',\n"
             "  confusion_matrix='confusion_matrix.jpg',\n"
+            "  search_results=Table(3x2),\n"
             ")"
         )
         assert result == expected
@@ -205,6 +211,7 @@ class TestCardRepr:
             "  model_card_authors='Jane Doe',\n"
             "  roc_curve='ROC_curve.png',\n"
             "  confusion_matrix='confusion_matrix.jpg',\n"
+            "  search_results=Table(3x2),\n"
             ")"
         )
         assert result == expected
@@ -218,6 +225,7 @@ class TestCardRepr:
             "  model=LinearRegression(fit_intercept=False),\n"
             "  roc_curve='ROC_curve.png',\n"
             "  confusion_matrix='confusion_matrix.jpg',\n"
+            "  search_results=Table(3x2),\n"
             ")"
         )
         assert result == expected
@@ -246,6 +254,7 @@ class TestCardRepr:
             "  model_card_authors='Jane Doe',\n"
             "  roc_curve='ROC_curve.png',\n"
             "  confusion_matrix='confusion_matrix.jpg',\n"
+            "  search_results=Table(3x2),\n"
             ")"
         )
         assert result == expected
@@ -261,6 +270,7 @@ class TestCardRepr:
             "  model_card_authors='Jane Doe',\n"
             "  roc_curve={1: 2},\n"
             "  confusion_matrix='confusion_matrix.jpg',\n"
+            "  search_results=Table(3x2),\n"
             ")"
         )
         assert result == expected
@@ -291,7 +301,88 @@ class TestCardRepr:
             "  model_card_authors='Jane Doe',\n"
             "  roc_curve='ROC_curve.png',\n"
             "  confusion_matrix='confusion_matrix.jpg',\n"
+            "  search_results=Table(3x2),\n"
             ")"
         )
         result = meth(card)
         assert result == expected
+
+
+class TestPlotSection:
+    def test_format_path_is_str(self):
+        section = PlotSection(alt_text="some title", path="path/plot.png")
+        expected = "![some title](path/plot.png)"
+        assert section.format() == expected
+
+    def test_format_path_is_pathlib(self):
+        section = PlotSection(alt_text="some title", path=Path("path") / "plot.png")
+        expected = "![some title](path/plot.png)"
+        assert section.format() == expected
+
+    @pytest.mark.parametrize('meth', [str, repr])
+    def test_str_and_repr(self, meth):
+        section = PlotSection(alt_text="some title", path="path/plot.png")
+        expected = "'path/plot.png'"
+        assert meth(section) == expected
+
+    def test_str(self):
+        section = PlotSection(alt_text="some title", path="path/plot.png")
+        expected = "'path/plot.png'"
+        assert str(section) == expected
+
+
+class TestTableSection:
+    @pytest.fixture
+    def table_dict(self):
+        return {"split": [1, 2, 3], "score": [4, 5, 6]}
+
+    def test_table_is_dict(self, table_dict):
+        section = TableSection(table=table_dict)
+        expected = """|   split |   score |
+|---------|---------|
+|       1 |       4 |
+|       2 |       5 |
+|       3 |       6 |"""
+        assert section.format() == expected
+
+    def test_table_is_dataframe(self, table_dict):
+        pd = pytest.importorskip("pandas")
+        df = pd.DataFrame(table_dict)
+        section = TableSection(table=df)
+        expected = """|   split |   score |
+|---------|---------|
+|       1 |       4 |
+|       2 |       5 |
+|       3 |       6 |"""
+        assert section.format() == expected
+
+    @pytest.mark.parametrize('meth', [str, repr])
+    def test_str_and_repr_table_is_dict(self, table_dict, meth):
+        section = TableSection(table=table_dict)
+        expected = "Table(3x2)"
+        assert meth(section) == expected
+
+    @pytest.mark.parametrize('meth', [str, repr])
+    def test_str_and_repr_table_is_dataframe(self, table_dict, meth):
+        pd = pytest.importorskip("pandas")
+        df = pd.DataFrame(table_dict)
+        section = TableSection(table=df)
+        expected = "Table(3x2)"
+        assert meth(section) == expected
+
+    def test_raise_error_if_no_cols(self):
+        msg = "Empty table added"
+        with pytest.raises(ValueError, match=msg):
+            TableSection(table={})
+
+    def test_raise_error_if_no_rows(self):
+        msg = "Empty table added"
+        with pytest.raises(ValueError, match=msg):
+            TableSection(table={"col": []})
+
+    def test_raise_error_df_empty(self):
+        pd = pytest.importorskip("pandas")
+        df = pd.DataFrame([])
+        msg = "Empty table added"
+        with pytest.raises(ValueError, match=msg):
+            TableSection(table=df)
