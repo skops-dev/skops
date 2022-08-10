@@ -35,7 +35,12 @@ release = ".".join(parsed_version.base_version.split(".")[:2])
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ["sphinx.ext.autodoc", "numpydoc", "sphinx_gallery.gen_gallery"]
+extensions = [
+    "sphinx.ext.autodoc",
+    "numpydoc",
+    "sphinx_gallery.gen_gallery",
+    "sphinx_issues",
+]
 
 autodoc_default_options = {"members": True, "inherited-members": True}
 autodoc_typehints = "description"
@@ -53,6 +58,11 @@ templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 autosummary_generate = True
+
+# sphinx-issues configuration
+# Path to GitHub repo {group}/{project}
+# (note that `group` is the GitHub user or organization)
+issues_github_path = "skops-dev/skops"
 
 # -- Options for HTML output -------------------------------------------------
 
