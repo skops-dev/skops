@@ -120,6 +120,12 @@ model_card.add(
     model_description=model_description,
 )
 y_pred = model.predict(X_test)
+model_card.add(
+    eval_method=(
+        "The model is evaluated using test split, on accuracy and F1-score with macro"
+        " average."
+    )
+)
 model_card.add_metrics(accuracy=accuracy_score(y_test, y_pred))
 model_card.add_metrics(**{"f1 score": f1_score(y_test, y_pred, average="micro")})
 cm = confusion_matrix(y_test, y_pred, labels=model.classes_)
