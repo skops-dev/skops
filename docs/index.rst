@@ -35,7 +35,7 @@ User Guide / API Reference
    hf_hub
    model_card
    modules/classes
-
+   changes
 
 Indices and tables
 ==================
