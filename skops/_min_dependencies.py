@@ -24,6 +24,7 @@ dependent_packages = {
     "sphinx-rtd-theme": ("1", "docs", None),
     "numpydoc": ("1.0.0", "docs", None),
     "sphinx-prompt": ("1.3.0", "docs", None),
+    "sphinx-issues": ("1.2.0", "docs", None),
     "matplotlib": ("3.3", "docs", None),
     "pandas": ("1", "docs", None),
     "typing_extensions": ("3.7", "install", "python_full_version < '3.8'"),
