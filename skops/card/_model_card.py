@@ -286,9 +286,9 @@ class Card:
 
             search = GridSearchCV(...)
             search.fit(X, y)
-            df = pd.DataFrame(serch.cv_results_)
-            # show only top 10 scores
-            df = df.sort_values(["mean_test_score"], reverse=True).head(10)
+            df = pd.DataFrame(search.cv_results_)
+            # show only top 10 highest scores
+            df = df.sort_values(["mean_test_score"], ascending=False).head(10)
             model_card = skops.card.Card(...)
             model_card.add_table(**{"Hyperparameter search results top 10": df})
 
