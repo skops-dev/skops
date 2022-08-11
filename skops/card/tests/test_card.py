@@ -3,6 +3,7 @@ import os
 import pickle
 import tempfile
 from pathlib import Path
+from unittest.mock import patch
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -386,3 +387,15 @@ class TestTableSection:
         msg = "Empty table added"
         with pytest.raises(ValueError, match=msg):
             TableSection(table=df)
+
+    def test_pandas_not_installed(self, table_dict):
+        # patch import so that it raises an ImportError when trying to import
+        # pandas. This works because pandas is only imported lazily.
+        def mock_import(name, *args, **kwargs):
+            if name == "pandas":
+                raise ImportError
+            return __import__(name, *args, **kwargs)
+
+        with patch("builtins.__import__", side_effect=mock_import):
+            section = TableSection(table=table_dict)
+            assert section._is_pandas_df is False
