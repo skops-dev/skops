@@ -380,22 +380,16 @@ class TestTableSection:
         expected = "Table(3x2)"
         assert meth(section) == expected
 
-    def test_raise_error_if_no_cols(self):
-        msg = "Empty table added"
-        with pytest.raises(ValueError, match=msg):
-            TableSection(table={})
+    @pytest.mark.parametrize("table", [{}, {"col": []}, "pandas"])
+    def test_raise_error_empty_table(self, table):
+        # Test no columns, no rows, empty df
+        if table == "pandas":
+            pd = pytest.importorskip("pandas")
+            table = pd.DataFrame([])
 
-    def test_raise_error_if_no_rows(self):
         msg = "Empty table added"
         with pytest.raises(ValueError, match=msg):
-            TableSection(table={"col": []})
-
-    def test_raise_error_df_empty(self):
-        pd = pytest.importorskip("pandas")
-        df = pd.DataFrame([])
-        msg = "Empty table added"
-        with pytest.raises(ValueError, match=msg):
-            TableSection(table=df)
+            TableSection(table=table)
 
     def test_pandas_not_installed(self, table_dict):
         # patch import so that it raises an ImportError when trying to import
