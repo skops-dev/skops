@@ -23,6 +23,7 @@
     :alt: Black
 
 .. image:: https://raw.githubusercontent.com/skops-dev/skops/main/docs/images/logo.png
+  :width: 500
   :target: https://skops.readthedocs.io/en/latest/
 
 SKOPS
