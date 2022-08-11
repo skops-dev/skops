@@ -238,7 +238,14 @@ class Card:
         return self
 
     def _generate_card(self) -> ModelCard:
-        """TODO"""
+        """Generate the ModelCard object
+
+        Returns
+        -------
+        card : modelcards.ModelCard
+            The final ``ModelCard`` object with all placeholders filled and all
+            extra sections inserted.
+        """
         root = skops.__path__
 
         # add evaluation results
@@ -296,8 +303,15 @@ class Card:
         card = self._generate_card()
         card.save(path)
 
-    def render(self):
-        """TODO"""
+    def render(self) -> str:
+        """Render the final model card as a string.
+
+        Returns
+        -------
+        card : str
+            The rendered model card with all placeholders filled and all extra
+            sections inserted.
+        """
         card = self._generate_card()
         return str(card)
 

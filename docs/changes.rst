@@ -7,6 +7,11 @@ skops Changelog
     :depth: 1
     :local:
 
+v0.2
+----
+
+- Add method :meth:`.Card.render` which returns the model card as a string.
+
 v0.1
 ----
 
