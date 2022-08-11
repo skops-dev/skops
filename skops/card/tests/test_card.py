@@ -231,7 +231,7 @@ class TestCardRepr:
 
     @pytest.mark.parametrize("meth", [repr, str])
     def test_no_extra_sections(self, card: Card, meth):
-        card._extra_sections = {}
+        card._extra_sections = []
         result = meth(card)
         expected = (
             "Card(\n"
@@ -260,16 +260,17 @@ class TestCardRepr:
 
     @pytest.mark.parametrize("meth", [repr, str])
     def test_extra_sections_val_not_str(self, card: Card, meth):
-        card._extra_sections["roc_curve"] = {1: 2}  # type: ignore
+        card._extra_sections.append(("some section", {1: 2}))
         result = meth(card)
         expected = (
             "Card(\n"
             "  model=LinearRegression(fit_intercept=False),\n"
             "  model_description='A description',\n"
             "  model_card_authors='Jane Doe',\n"
-            "  roc_curve={1: 2},\n"
+            "  roc_curve='ROC_curve.png',\n"
             "  confusion_matrix='confusion_matrix.jpg',\n"
             "  search_results=Table(3x2),\n"
+            "  some section={1: 2},\n"
             ")"
         )
         assert result == expected

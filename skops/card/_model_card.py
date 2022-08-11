@@ -4,7 +4,6 @@ import copy
 import json
 import re
 import shutil
-import sys
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -17,26 +16,16 @@ from tabulate import tabulate  # type: ignore
 
 import skops
 
-if sys.version_info >= (3, 8):
-    # py>=3.8
-    from typing import Protocol
-else:
-    from typing_extensions import Protocol
-
-
 # Repr attributes can be used to control the behavior of repr
 aRepr = Repr()
 aRepr.maxother = 79
 aRepr.maxstring = 79
 
 
-class ExtraSection(Protocol):
-    def format(self) -> str:
-        ...
-
-
 @dataclass
 class PlotSection:
+    """Adds a link to a figure to the model card"""
+
     alt_text: str
     path: str | Path
 
@@ -49,6 +38,8 @@ class PlotSection:
 
 @dataclass
 class TableSection:
+    """Adds a table to the model card"""
+
     table: dict["str", list[Any]]
 
     def __post_init__(self) -> None:
@@ -237,7 +228,7 @@ class Card:
         else:
             self._model_plot = None
         self._template_sections: dict[str, str] = {}
-        self._extra_sections: dict[str, ExtraSection] = {}
+        self._extra_sections: list[tuple[str, Any]] = []
         self.metadata = metadata or CardData()
 
     def add(self, **kwargs: str) -> "Card":
@@ -276,7 +267,7 @@ class Card:
         """
         for plot_name, plot_path in kwargs.items():
             section = PlotSection(alt_text=plot_name, path=plot_path)
-            self._extra_sections[plot_name] = section
+            self._extra_sections.append((plot_name, section))
         return self
 
     def add_table(self, **kwargs: dict["str", list[Any]]) -> Card:
@@ -319,7 +310,7 @@ class Card:
         """
         for key, val in kwargs.items():
             section = TableSection(table=val)
-            self._extra_sections[key] = section
+            self._extra_sections.append((key, section))
         return self
 
     def save(self, path: str | Path) -> None:
@@ -362,7 +353,7 @@ class Card:
                 if self._extra_sections:
                     template.write("\n\n# Additional Content\n")
 
-                for key, val in self._extra_sections.items():
+                for key, val in self._extra_sections:
                     formatted = val.format()
                     template.write(f"\n## {key}\n\n{formatted}\n")
 
@@ -429,7 +420,7 @@ class Card:
 
         # figures
         figure_reprs = []
-        for key, val in self._extra_sections.items():
+        for key, val in self._extra_sections:
             val = self._strip_blank(repr(val))
             figure_reprs.append(aRepr.repr(f"  {key}={val},").strip('"').strip("'"))
         figure_repr = "\n".join(figure_reprs)
