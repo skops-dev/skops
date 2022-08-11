@@ -95,8 +95,8 @@ model_card = card.Card(model, metadata=card.metadata_from_config(Path(local_repo
 
 
 # %%
-# Pass information, plots and tables to our model card
-# ====================================================
+# Add information, plots and tables to our model card
+# ===================================================
 # We will pass information to fill our model card.
 # We will add plots to our card, note that these plots don't necessarily
 # have to have a section in our template.
