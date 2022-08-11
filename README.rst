@@ -22,7 +22,7 @@
     :target: https://github.com/psf/black
     :alt: Black
 
-.. image:: https://raw.githubusercontent.com/skops-dev/skops/main/doc/images/logo.png
+.. image:: https://raw.githubusercontent.com/skops-dev/skops/main/docs/images/logo.png
   :target: https://skops.readthedocs.io/en/latest/
 
 SKOPS
