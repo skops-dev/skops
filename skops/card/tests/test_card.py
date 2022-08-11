@@ -42,9 +42,10 @@ def test_save_model_card(destination_path, model_card):
 
 
 def test_hyperparameter_table(destination_path, model_card):
-    model_card.save(Path(destination_path) / "README.md")
-    with open(Path(destination_path) / "README.md", "r") as f:
-        model_card = f.read()
+    model_card = model_card.render()
+    # model_card.save(Path(destination_path) / "README.md")
+    # with open(Path(destination_path) / "README.md", "r") as f:
+    #     model_card = f.read()
     assert "fit_intercept" in model_card
 
 

@@ -237,22 +237,8 @@ class Card:
             self._eval_results[metric] = value
         return self
 
-    def save(self, path: str | Path) -> None:
-        """Save the model card.
-
-        This method renders the model card in markdown format and then saves it
-        as the specified file.
-
-        Parameters
-        ----------
-        path: str, or Path
-            filepath to save your card.
-
-        Notes
-        -----
-        The keys in model card metadata can be seen `here
-        <https://huggingface.co/docs/hub/models-cards#model-card-metadata>`__.
-        """
+    def _generate_card(self) -> ModelCard:
+        """TODO"""
         root = skops.__path__
 
         # add evaluation results
@@ -289,8 +275,31 @@ class Card:
                 model_plot=self._model_plot,
                 **template_sections,
             )
+        return card
 
+    def save(self, path: str | Path) -> None:
+        """Save the model card.
+
+        This method renders the model card in markdown format and then saves it
+        as the specified file.
+
+        Parameters
+        ----------
+        path: str, or Path
+            filepath to save your card.
+
+        Notes
+        -----
+        The keys in model card metadata can be seen `here
+        <https://huggingface.co/docs/hub/models-cards#model-card-metadata>`__.
+        """
+        card = self._generate_card()
         card.save(path)
+
+    def render(self):
+        """TODO"""
+        card = self._generate_card()
+        return str(card)
 
     def _extract_estimator_config(self) -> str:
         """Extracts estimator hyperparameters and renders them into a vertical table.
