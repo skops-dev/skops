@@ -117,6 +117,15 @@ def test_metadata_keys(destination_path, model_card):
         assert "tags: dummy" in f.read()
 
 
+def test_add_metrics(destination_path, model_card):
+    model_card.add_metrics(**{"acc": 0.1})
+    model_card.add_metrics(f1=0.1)
+    model_card.save(Path(destination_path) / "README.md")
+    with open(Path(destination_path) / "README.md", "r") as f:
+        card = f.read()
+        assert ("acc" in card) and ("f1" in card) and ("0.1" in card)
+
+
 def test_metadata_from_config_tabular_data(destination_path):
     # test if widget data is correctly set in the README
     X, y = load_iris(return_X_y=True, as_frame=True)

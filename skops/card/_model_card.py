@@ -142,10 +142,10 @@ def metadata_from_config(config_path: Union[str, Path]) -> CardData:
 class Card:
     """Model card class that will be used to generate model card.
 
-    This class can be used to write information and plots to model card and
-    save it. This class by default generates an interactive plot of the model
-    and a table of hyperparameters. The slots to be filled are defined in the
-    markdown template.
+    This class can be used to write information and plots to model card and save
+    it. This class by default generates an interactive plot of the model and a
+    table of hyperparameters. The slots to be filled are defined in the markdown
+    template.
 
     Parameters
     ----------
@@ -182,9 +182,14 @@ class Card:
 
     Examples
     --------
+    >>> from sklearn.metrics import (
+    ...     ConfusionMatrixDisplay,
+    ...     confusion_matrix,
+    ...     accuracy_score,
+    ...     f1_score
+    ... )
     >>> import tempfile
     >>> from pathlib import Path
-    >>> from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
     >>> from sklearn.datasets import load_iris
     >>> from sklearn.linear_model import LogisticRegression
     >>> from skops import card
@@ -193,6 +198,15 @@ class Card:
     >>> model_card = card.Card(model)
     >>> model_card.metadata.license = "mit"
     >>> y_pred = model.predict(X)
+    >>> model_card.add_metrics(**{
+    ...     "accuracy": accuracy_score(y, y_pred),
+    ...     "f1 score": f1_score(y, y_pred, average="micro"),
+    ... })
+    Card(
+      model=LogisticRegression(random_state=0),
+      metadata.license=mit,
+    )
+
     >>> cm = confusion_matrix(y, y_pred,labels=model.classes_)
     >>> disp = ConfusionMatrixDisplay(
     ...     confusion_matrix=cm,
@@ -221,6 +235,7 @@ class Card:
         self.model = model
         self._hyperparameter_table = self._extract_estimator_config()
         # the spaces in the pipeline breaks markdown, so we replace them
+        self._eval_results = {}  # type: ignore
         if model_diagram is True:
             self._model_plot: str | None = re.sub(
                 r"\n\s+", "", str(estimator_html_repr(model))
@@ -313,6 +328,23 @@ class Card:
             self._extra_sections.append((key, section))
         return self
 
+    def add_metrics(self, **kwargs: str) -> "Card":
+        """Add metric values to the model card.
+
+        Parameters
+        ----------
+        **kwargs : dict
+            A dictionary of the form `{metric name: metric value}`.
+
+        Returns
+        -------
+        self : object
+            Card object.
+        """
+        for metric, value in kwargs.items():
+            self._eval_results[metric] = value
+        return self
+
     def save(self, path: str | Path) -> None:
         """Save the model card.
 
@@ -331,8 +363,14 @@ class Card:
         """
         root = skops.__path__
 
-        template_sections = copy.deepcopy(self._template_sections)
+        # add evaluation results
 
+        template_sections = copy.deepcopy(self._template_sections)
+        template_sections["eval_results"] = tabulate(
+            list(self._eval_results.items()),
+            headers=["Metric", "Value"],
+            tablefmt="github",
+        )
         # if template path is not given, use default
         if template_sections.get("template_path") is None:
             template_sections["template_path"] = str(
