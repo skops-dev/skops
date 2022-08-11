@@ -80,16 +80,18 @@ hub_utils.init(
 # Create a model card
 # ====================
 # We now create a model card, and populate its metadata with information which
-# is already provided in ``config.json``, which itself is created by the call
-# to ``init`` above. Then, we pass information using ``add()`` and plots using
-# ``add_plot()``. We'll then save the card as `README.md`.
+# is already provided in ``config.json``, which itself is created by the call to
+# :func:`.hub_utils.init` above. Then, we pass information using
+# :meth:`.Card.add`, plots using :meth:`.Card.add_plot`, and the hyperparameter
+# search result table using :meth:`.Card.add_table`. We'll then save the card as
+# `README.md`.
 
 model_card = card.Card(model, metadata=card.metadata_from_config(Path(local_repo)))
 
 
 # %%
-# Pass information and plots to our model card
-# ============================================
+# Pass information, plots and tables to our model card
+# ====================================================
 # We will pass information to fill our model card.
 # We will add plots to our card, note that these plots don't necessarily
 # have to have a section in our template.
