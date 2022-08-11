@@ -5,6 +5,7 @@ import json
 import re
 import shutil
 import tempfile
+from dataclasses import dataclass
 from pathlib import Path
 from reprlib import Repr
 from typing import Any, Optional, Union
@@ -19,6 +20,69 @@ import skops
 aRepr = Repr()
 aRepr.maxother = 79
 aRepr.maxstring = 79
+
+
+@dataclass
+class PlotSection:
+    """Adds a link to a figure to the model card"""
+
+    alt_text: str
+    path: str | Path
+
+    def format(self) -> str:
+        return f"![{self.alt_text}]({self.path})"
+
+    def __repr__(self) -> str:
+        return repr(self.path)
+
+
+@dataclass
+class TableSection:
+    """Adds a table to the model card"""
+
+    table: dict["str", list[Any]]
+
+    def __post_init__(self) -> None:
+        try:
+            import pandas as pd
+
+            self._is_pandas_df = isinstance(self.table, pd.DataFrame)
+        except ImportError:
+            self._is_pandas_df = False
+
+        if self._is_pandas_df:
+            if self.table.empty:  # type: ignore
+                raise ValueError("Empty table added")
+        else:
+            ncols = len(self.table)
+            if ncols == 0:
+                raise ValueError("Empty table added")
+
+            key = next(iter(self.table.keys()))
+            nrows = len(self.table[key])
+            if nrows == 0:
+                raise ValueError("Empty table added")
+
+    def format(self) -> str:
+        if self._is_pandas_df:
+            headers = self.table.columns  # type: ignore
+        else:
+            headers = self.table.keys()
+
+        table = tabulate(
+            self.table, tablefmt="github", headers=headers, showindex=False
+        )
+        return table
+
+    def __repr__(self) -> str:
+        if self._is_pandas_df:
+            nrows, ncols = self.table.shape  # type: ignore
+        else:
+            # table cannot be empty, so no checks needed here
+            ncols = len(self.table)
+            key = next(iter(self.table.keys()))
+            nrows = len(self.table[key])
+        return f"Table({nrows}x{ncols})"
 
 
 def metadata_from_config(config_path: Union[str, Path]) -> CardData:
@@ -179,7 +243,7 @@ class Card:
         else:
             self._model_plot = None
         self._template_sections: dict[str, str] = {}
-        self._extra_sections: dict[str, str] = {}
+        self._extra_sections: list[tuple[str, Any]] = []
         self.metadata = metadata or CardData()
 
     def add(self, **kwargs: str) -> "Card":
@@ -217,7 +281,51 @@ class Card:
             Card object.
         """
         for plot_name, plot_path in kwargs.items():
-            self._extra_sections[plot_name] = plot_path
+            section = PlotSection(alt_text=plot_name, path=plot_path)
+            self._extra_sections.append((plot_name, section))
+        return self
+
+    def add_table(self, **kwargs: dict["str", list[Any]]) -> Card:
+        """Add a table to the model card.
+
+        Add a table to the model card. This can be especially useful when you
+        using cross validation with sklearn. E.g. you can directly pass the
+        result from calling ``cross_validate`` or the ``cv_results_`` attribute
+        from any of the hyperparameter searches, such as ``GridSearchCV``.
+
+        Morevoer, you can pass any pandas ``DataFrame`` to this method and it
+        will be rendered in the model card. You may consider selecting only a
+        part of the table if it's too big:
+
+        .. code:: python
+
+            search = GridSearchCV(...)
+            search.fit(X, y)
+            df = pd.DataFrame(search.cv_results_)
+            # show only top 10 highest scores
+            df = df.sort_values(["mean_test_score"], ascending=False).head(10)
+            model_card = skops.card.Card(...)
+            model_card.add_table(**{"Hyperparameter search results top 10": df})
+
+        Parameters
+        ----------
+        **kwargs : dict
+            The keys should be strings, which will be used as the section
+            headers, and the values should be tables. Tables can be either dicts
+            with the key being strings that represent the column name, and the
+            values being lists that represent the entries for each row.
+            Alternatively, the table can be a pandas ``DataFrame``. The table
+            must not be empty.
+
+        Returns
+        -------
+        self : object
+            Card object.
+
+        """
+        for key, val in kwargs.items():
+            section = TableSection(table=val)
+            self._extra_sections.append((key, section))
         return self
 
     def add_metrics(self, **kwargs: str) -> "Card":
@@ -273,8 +381,12 @@ class Card:
             template_sections["template_path"] = f"{tmpdirname}/temporary_template.md"
             # add extra sections at the end of the template
             with open(template_sections["template_path"], "a") as template:
-                for key, val in self._extra_sections.items():
-                    template.write(f"\n\n{key}\n![{key}]({val})\n\n")
+                if self._extra_sections:
+                    template.write("\n\n# Additional Content\n")
+
+                for key, val in self._extra_sections:
+                    formatted = val.format()
+                    template.write(f"\n## {key}\n\n{formatted}\n")
 
             card = ModelCard.from_template(
                 card_data=self.metadata,
@@ -369,7 +481,7 @@ class Card:
 
         # figures
         figure_reprs = []
-        for key, val in self._extra_sections.items():
+        for key, val in self._extra_sections:
             val = self._strip_blank(repr(val))
             figure_reprs.append(aRepr.repr(f"  {key}={val},").strip('"').strip("'"))
         figure_repr = "\n".join(figure_reprs)

@@ -9,7 +9,8 @@ skops Changelog
 
 v0.2
 ----
-
+- Tables, e.g. cross-validation results, can now be added to model cards using
+  the :meth:`.Card.add_table` method. :pr:`90` by :user:`Benjamin Bossan <BenjaminBossan>`
 - Add method :meth:`.Card.render` which returns the model card as a string.
 
 v0.1
