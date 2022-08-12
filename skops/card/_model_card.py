@@ -95,7 +95,7 @@ def metadata_from_config(config_path: Union[str, Path]) -> CardData:
 
     This method populates the following attributes of the instance:
 
-    - ``library_name``: It needs to be ``sklearn`` for scikit-learn
+    - ``library_name``: It needs to be ``"sklearn"`` for scikit-learn
         compatible models.
     - ``tags``: Set to a list, containing ``"sklearn"`` and the task of the
         model. You can then add more tags to this list.
@@ -206,7 +206,6 @@ class Card:
       model=LogisticRegression(random_state=0),
       metadata.license=mit,
     )
-
     >>> cm = confusion_matrix(y, y_pred,labels=model.classes_)
     >>> disp = ConfusionMatrixDisplay(
     ...     confusion_matrix=cm,
@@ -290,12 +289,13 @@ class Card:
 
         Add a table to the model card. This can be especially useful when you
         using cross validation with sklearn. E.g. you can directly pass the
-        result from calling ``cross_validate`` or the ``cv_results_`` attribute
-        from any of the hyperparameter searches, such as ``GridSearchCV``.
+        result from calling :func:`sklearn.model_selection.cross_validate` or
+        the ``cv_results_`` attribute from any of the hyperparameter searches,
+        such as :class:`sklearn.model_selection.GridSearchCV`.
 
-        Morevoer, you can pass any pandas ``DataFrame`` to this method and it
-        will be rendered in the model card. You may consider selecting only a
-        part of the table if it's too big:
+        Morevoer, you can pass any pandas :class:`pandas.DataFrame` to this
+        method and it will be rendered in the model card. You may consider
+        selecting only a part of the table if it's too big:
 
         .. code:: python
 
@@ -314,8 +314,8 @@ class Card:
             headers, and the values should be tables. Tables can be either dicts
             with the key being strings that represent the column name, and the
             values being lists that represent the entries for each row.
-            Alternatively, the table can be a pandas ``DataFrame``. The table
-            must not be empty.
+            Alternatively, the table can be a :class:`pandas.DataFrame`. The
+            table must not be empty.
 
         Returns
         -------
@@ -405,7 +405,7 @@ class Card:
         Parameters
         ----------
         path: str, or Path
-            filepath to save your card.
+            Filepath to save your card.
 
         Notes
         -----
@@ -429,6 +429,7 @@ class Card:
 
     def _extract_estimator_config(self) -> str:
         """Extracts estimator hyperparameters and renders them into a vertical table.
+
         Returns
         -------
         str:

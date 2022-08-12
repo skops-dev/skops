@@ -52,7 +52,7 @@ template which includes the following slots for free text sections:
   domains if relevant.
 - ``"get_started_code"``: Code the user can run to load and use the model.
 - ``"model_card_authors"``: Authors of the model card. This section includes
-  authors of the model card, while ``citation_bibtex`` includes citations
+  authors of the model card, while ``"citation_bibtex"`` includes citations
   related to the model if relevant.
 - ``"model_card_contact"``: Contact information of people whom can be reached
   out, in case of questions about the model or the model card.
