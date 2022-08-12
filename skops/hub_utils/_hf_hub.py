@@ -41,6 +41,11 @@ def _validate_folder(path: Union[str, Path]) -> None:
     path: str or Path
         The location of the repo.
 
+    Raises
+    ------
+    TypeError
+        Raised when the passed path is invalid.
+
     Returns
     -------
     None
@@ -82,7 +87,7 @@ def _get_example_input(data):
     Returns
     -------
     example_input: dict of lists
-        The example input of the model as accepted by HuggingFace's backend.
+        The example input of the model as accepted by Hugging Face's backend.
     """
     try:
         import pandas as pd
@@ -147,7 +152,7 @@ def _create_config(
     ],
     data,
 ) -> None:
-    """Write the configuration into a `config.json` file.
+    """Write the configuration into a ``config.json`` file.
 
     Parameters
     ----------
@@ -223,7 +228,7 @@ def init(
 ) -> None:
     """Initialize a scikit-learn based Hugging Face repo.
 
-    Given a model pickle and a set of required packages, this function
+    Given a pickled model and a set of required packages, this function
     initializes a folder to be a valid Hugging Face scikit-learn based repo.
 
     Parameters
@@ -255,10 +260,10 @@ def init(
 
         The first 3 input values are used as example inputs.
 
-        If ``task`` is ``tabular-classification`` or ``tabular-regression``,
-        the data needs to be a ``pandas.DataFrame`` or a ``numpy.ndarray``. If
-        ``task`` is ``text-classification`` or ``text-regression``, the data
-        needs to be a ``list`` of strings.
+        If ``task`` is ``"tabular-classification"`` or ``"tabular-regression"``,
+        the data needs to be a :class:`pandas.DataFrame` or a
+        :class:`numpy.ndarray`. If ``task`` is ``"text-classification"`` or
+        ``"text-regression"``, the data needs to be a ``list`` of strings.
 
     Returns
     -------
@@ -332,7 +337,7 @@ def push(
         A folder where the contents of the model repo are located.
 
     token: str, optional
-        A token to push to the hub. If not provided, the user should be already
+        A token to push to the Hub. If not provided, the user should be already
         logged in using ``huggingface-cli login``.
 
     commit_message: str, optional
@@ -348,10 +353,11 @@ def push(
     -------
     None
 
-    Notes
-    -----
-    This function raises a ``TypeError`` if the contents of the source folder
-    do not make a valid Hugging Face Hub scikit-learn based repo.
+    Raises
+    ------
+    TypeError
+        This function raises a ``TypeError`` if the contents of the source
+        folder do not make a valid Hugging Face Hub scikit-learn based repo.
     """
     _validate_folder(path=source)
     client = HfApi()
@@ -454,7 +460,8 @@ def download(
         newer versions of them.
 
     kwargs: dict
-        Other parameters to be passed to ``huggingface_hub.snapshot_download``.
+        Other parameters to be passed to
+        :func:`huggingface_hub.snapshot_download`.
 
     Returns
     -------

@@ -22,7 +22,7 @@ have on the Hub:
 - ``config.json``: contains the configuration needed to run the model.
 - The persisted model file. There are no constraints on the name of the file
   and the name is configured in ``config.json``. The file needs to be loadable
-  by ``joblib`` or ``pickle``.
+  by :func:`joblib.load` or :func:`pickle.load`.
 
 There are certain requirements in terms of information about the model for the
 Hub to be able to load and run the model. For scikit-learn compatible models,

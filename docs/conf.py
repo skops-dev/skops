@@ -40,10 +40,11 @@ extensions = [
     "numpydoc",
     "sphinx_gallery.gen_gallery",
     "sphinx_issues",
+    "sphinx.ext.intersphinx",  # link to other documentations, e.g. sklearn
 ]
 
 autodoc_default_options = {"members": True, "inherited-members": True}
-autodoc_typehints = "description"
+autodoc_typehints = "none"
 
 sphinx_gallery_conf = {
     "examples_dirs": "../examples",  # path to your example scripts
@@ -79,4 +80,15 @@ html_static_path = ["_static"]
 html_logo = "images/logo.png"
 html_theme_options = {
     "logo_only": True,
+}
+
+# See:
+# https://www.sphinx-doc.org/en/master/usage/extensions/intersphinx.html#confval-intersphinx_mapping
+intersphinx_mapping = {
+    "python": ("https://docs.python.org/3", None),
+    "numpy": ("https://docs.scipy.org/doc/numpy/", None),
+    "sklearn": ("https://scikit-learn.org/stable/", None),
+    "pandas": ("https://pandas.pydata.org/docs/", None),
+    "joblib": ("https://joblib.readthedocs.io/en/latest/", None),
+    "huggingface_hub": ("https://huggingface.co/docs/huggingface_hub/main/en", None),
 }
