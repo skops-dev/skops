@@ -4,6 +4,7 @@ import pickle
 import shutil
 import tempfile
 from pathlib import Path
+from unittest.mock import patch
 from uuid import uuid4
 
 import numpy as np
@@ -310,3 +311,26 @@ def test_get_column_names():
     expected_columns = [f"column{x}" for x in range(10)]
     X_df = pd.DataFrame(X_array, columns=expected_columns)
     assert _get_column_names(X_df) == expected_columns
+
+
+@pytest.fixture
+def pandas_not_installed():
+    # patch import so that it raises an ImportError when trying to import
+    # pandas. This works because pandas is only imported lazily.
+    def mock_import(name, *args, **kwargs):
+        if name == "pandas":
+            raise ImportError
+        return __import__(name, *args, **kwargs)
+
+    with patch("builtins.__import__", side_effect=mock_import):
+        yield
+
+
+def test_get_example_input_pandas_not_installed(pandas_not_installed):
+    # test that function does not raise when pandas import fails
+    _get_example_input(np.ones((5, 10)))
+
+
+def test_get_column_names_pandas_not_installed(pandas_not_installed):
+    # test that function does not raise when pandas import fails
+    _get_column_names(np.ones((5, 10)))
