@@ -20,6 +20,7 @@ addopts = "--cov=skops --cov-report=term-missing"
 omit = [
     "skops/**/test_*.py",
     "skops/_min_dependencies.py",
+    "skops/conftest.py",
 ]
 
 [tool.mypy]
