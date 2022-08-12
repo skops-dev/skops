@@ -310,3 +310,17 @@ def test_get_column_names():
     expected_columns = [f"column{x}" for x in range(10)]
     X_df = pd.DataFrame(X_array, columns=expected_columns)
     assert _get_column_names(X_df) == expected_columns
+
+
+def test_get_example_input_pandas_not_installed(pandas_not_installed):
+    # use pandas_not_installed fixture from conftest.py to pretend that pandas
+    # is not installed and check that the function does not raise when pandas
+    # import fails
+    _get_example_input(np.ones((5, 10)))
+
+
+def test_get_column_names_pandas_not_installed(pandas_not_installed):
+    # use pandas_not_installed fixture from conftest.py to pretend that pandas
+    # is not installed and check that the function does not raise when pandas
+    # import fails
+    _get_column_names(np.ones((5, 10)))
