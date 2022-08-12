@@ -6,8 +6,13 @@ API Reference
 
 This is the class and function reference of skops.
 
-:mod:`skops.hf_hub`: HuggingFace Hub Integration
-================================================
+:mod:`skops.hf_hub`: Hugging Face Hub Integration
+=================================================
 
-.. automodule:: skops.hf_hub
+.. automodule:: skops.hub_utils
+    :members:
+
+:mod:`skops.card`: Model Card Utilities
+=======================================
+.. automodule:: skops.card
     :members:

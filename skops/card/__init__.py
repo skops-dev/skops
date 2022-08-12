@@ -1,3 +1,3 @@
-from ._model_card import create_model_card
+from ._model_card import Card, metadata_from_config
 
-__all__ = ["create_model_card"]
+__all__ = ["Card", "metadata_from_config"]

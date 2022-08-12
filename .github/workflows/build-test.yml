@@ -32,7 +32,7 @@ jobs:
     - name: Install dependencies
       run: |
         pip install .[docs,tests]
-        pip install black=="22.6.0" isort=="5.10.1"
+        pip install black=="22.6.0" isort=="5.10.1" mypy=="0.971"
         python --version
         pip --version
         pip list
@@ -55,6 +55,9 @@ jobs:
         SUPER_SECRET: ${{ secrets.HF_HUB_TOKEN }}
       run: |
         python -m pytest -s --cov=skops --doctest-modules skops/
+
+    - name: Mypy
+      run: mypy --config-file pyproject.toml skops
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v2
