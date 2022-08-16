@@ -345,21 +345,14 @@ class Card:
             self._eval_results[metric] = value
         return self
 
-    def save(self, path: str | Path) -> None:
-        """Save the model card.
+    def _generate_card(self) -> ModelCard:
+        """Generate the ModelCard object
 
-        This method renders the model card in markdown format and then saves it
-        as the specified file.
-
-        Parameters
-        ----------
-        path: str, or Path
-            Filepath to save your card.
-
-        Notes
-        -----
-        The keys in model card metadata can be seen `here
-        <https://huggingface.co/docs/hub/models-cards#model-card-metadata>`__.
+        Returns
+        -------
+        card : modelcards.ModelCard
+            The final ``ModelCard`` object with all placeholders filled and all
+            extra sections inserted.
         """
         root = skops.__path__
 
@@ -401,8 +394,38 @@ class Card:
                 model_plot=self._model_plot,
                 **template_sections,
             )
+        return card
 
+    def save(self, path: str | Path) -> None:
+        """Save the model card.
+
+        This method renders the model card in markdown format and then saves it
+        as the specified file.
+
+        Parameters
+        ----------
+        path: str, or Path
+            Filepath to save your card.
+
+        Notes
+        -----
+        The keys in model card metadata can be seen `here
+        <https://huggingface.co/docs/hub/models-cards#model-card-metadata>`__.
+        """
+        card = self._generate_card()
         card.save(path)
+
+    def render(self) -> str:
+        """Render the final model card as a string.
+
+        Returns
+        -------
+        card : str
+            The rendered model card with all placeholders filled and all extra
+            sections inserted.
+        """
+        card = self._generate_card()
+        return str(card)
 
     def _extract_estimator_config(self) -> str:
         """Extracts estimator hyperparameters and renders them into a vertical table.
