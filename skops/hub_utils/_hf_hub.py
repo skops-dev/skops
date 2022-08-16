@@ -279,16 +279,20 @@ def init(
         )
     dst.mkdir(parents=True, exist_ok=True)
 
-    shutil.copy2(src=model, dst=dst)
+    try:
+        shutil.copy2(src=model, dst=dst)
 
-    model_name = Path(model).name
-    _create_config(
-        model_path=model_name,
-        requirements=requirements,
-        dst=dst,
-        task=task,
-        data=data,
-    )
+        model_name = Path(model).name
+        _create_config(
+            model_path=model_name,
+            requirements=requirements,
+            dst=dst,
+            task=task,
+            data=data,
+        )
+    except Exception:
+        shutil.rmtree(dst)
+        raise
 
 
 def update_env(

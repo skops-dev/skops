@@ -183,6 +183,28 @@ def test_create_config_invalid_text_data(temp_path):
         )
 
 
+def test_atomic_init(classifier_pickle, temp_path):
+    with pytest.raises(ValueError):
+        # this fails since we're passing an invalid task.
+        init(
+            model=classifier_pickle,
+            requirements=["scikit-learn"],
+            dst=temp_path,
+            task="tabular-classification",
+            data="invalid",
+        )
+
+    # this passes even though the above init has failed once, on the same
+    # destination path.
+    init(
+        model=classifier_pickle,
+        requirements=["scikit-learn"],
+        dst=temp_path,
+        task="tabular-classification",
+        data=iris.data,
+    )
+
+
 def test_init_invalid_task(classifier_pickle, temp_path):
     with pytest.raises(
         ValueError, match="Task invalid not supported. Supported tasks are"
