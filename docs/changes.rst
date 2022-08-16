@@ -9,12 +9,12 @@ skops Changelog
     :depth: 1
     :local:
 
-
 v0.2
 ----
 - Tables, e.g. cross-validation results, can now be added to model cards using
   the :meth:`.Card.add_table` method. :pr:`90` by `Benjamin Bossan`_.
-
+- Add method :meth:`.Card.render` which returns the model card as a string.
+  :pr:`94` by `Benjamin Bossan`_.
 - Make :meth:`skops.hub_utils.init` atomic. Now it doesn't leave a trace on the
   filesystem if it fails for some reason. :pr:`60` by `Adrin Jalali`_`
 

@@ -3,7 +3,6 @@ import os
 import pickle
 import tempfile
 from pathlib import Path
-from unittest.mock import patch
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -45,34 +44,24 @@ def test_save_model_card(destination_path, model_card):
 
 
 def test_hyperparameter_table(destination_path, model_card):
-    model_card.save(Path(destination_path) / "README.md")
-    with open(Path(destination_path) / "README.md", "r") as f:
-        model_card = f.read()
+    model_card = model_card.render()
     assert "fit_intercept" in model_card
 
 
 def test_plot_model(destination_path, model_card):
-    model_card.save(Path(destination_path) / "README.md")
-    with open(Path(destination_path) / "README.md", "r") as f:
-        model_card = f.read()
-        assert "<style>" in model_card
+    model_card = model_card.render()
+    assert "<style>" in model_card
 
 
 def test_plot_model_false(destination_path, model_card):
     model = fit_model()
-    model_card = Card(model, model_diagram=False)
-    model_card.save(Path(destination_path) / "README.md")
-    with open(Path(destination_path) / "README.md", "r") as f:
-        model_card = f.read()
-        assert "<style>" not in model_card
+    model_card = Card(model, model_diagram=False).render()
+    assert "<style>" not in model_card
 
 
 def test_add(destination_path, model_card):
-    model_card.add(model_description="sklearn FTW")
-    model_card.save(Path(destination_path) / "README.md")
-    with open(Path(destination_path) / "README.md", "r") as f:
-        model_card = f.read()
-        assert "sklearn FTW" in model_card
+    model_card = model_card.add(model_description="sklearn FTW").render()
+    assert "sklearn FTW" in model_card
 
 
 def test_template_sections_not_mutated_by_save(destination_path, model_card):
@@ -85,11 +74,8 @@ def test_template_sections_not_mutated_by_save(destination_path, model_card):
 def test_add_plot(destination_path, model_card):
     plt.plot([4, 5, 6, 7])
     plt.savefig(Path(destination_path) / "fig1.png")
-    model_card.add_plot(fig1="fig1.png")
-    model_card.save(Path(destination_path) / "README.md")
-    with open(Path(destination_path) / "README.md", "r") as f:
-        model_card = f.read()
-        assert "![fig1](fig1.png)" in model_card
+    model_card = model_card.add_plot(fig1="fig1.png").render()
+    assert "![fig1](fig1.png)" in model_card
 
 
 def test_temporary_plot(destination_path, model_card):
@@ -112,18 +98,15 @@ def test_temporary_plot(destination_path, model_card):
 def test_metadata_keys(destination_path, model_card):
     # test if the metadata is added on top of the card
     model_card.metadata.tags = "dummy"
-    model_card.save(Path(destination_path) / "README.md")
-    with open(Path(destination_path) / "README.md", "r") as f:
-        assert "tags: dummy" in f.read()
+    model_card = model_card.render()
+    assert "tags: dummy" in model_card
 
 
 def test_add_metrics(destination_path, model_card):
     model_card.add_metrics(**{"acc": 0.1})
     model_card.add_metrics(f1=0.1)
-    model_card.save(Path(destination_path) / "README.md")
-    with open(Path(destination_path) / "README.md", "r") as f:
-        card = f.read()
-        assert ("acc" in card) and ("f1" in card) and ("0.1" in card)
+    card = model_card.render()
+    assert ("acc" in card) and ("f1" in card) and ("0.1" in card)
 
 
 def test_metadata_from_config_tabular_data(destination_path):
@@ -391,14 +374,8 @@ class TestTableSection:
         with pytest.raises(ValueError, match=msg):
             TableSection(table=table)
 
-    def test_pandas_not_installed(self, table_dict):
-        # patch import so that it raises an ImportError when trying to import
-        # pandas. This works because pandas is only imported lazily.
-        def mock_import(name, *args, **kwargs):
-            if name == "pandas":
-                raise ImportError
-            return __import__(name, *args, **kwargs)
-
-        with patch("builtins.__import__", side_effect=mock_import):
-            section = TableSection(table=table_dict)
-            assert section._is_pandas_df is False
+    def test_pandas_not_installed(self, table_dict, pandas_not_installed):
+        # use pandas_not_installed fixture from conftest.py to pretend that
+        # pandas is not installed
+        section = TableSection(table=table_dict)
+        assert section._is_pandas_df is False
