@@ -190,8 +190,8 @@ def test_atomic_init(classifier_pickle, temp_path):
             model=classifier_pickle,
             requirements=["scikit-learn"],
             dst=temp_path,
-            task="invalid",
-            data=iris.data,
+            task="tabular-classification",
+            data="invalid",
         )
 
     # this passes even though the above init has failed once, on the same
