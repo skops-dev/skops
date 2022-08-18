@@ -160,7 +160,7 @@ clf_report = classification_report(
 # the correct format. This requires removing the "accuracy", which was added
 # above anyway.
 del clf_report["accuracy"]
-clf_report = pd.DataFrame(clf_report).T
+clf_report = pd.DataFrame(clf_report).T.reset_index()
 model_card.add_table(
     **{
         "Hyperparameter search results": cv_results,
