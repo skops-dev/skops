@@ -157,11 +157,14 @@ clf_report = classification_report(
     y_test, y_pred, output_dict=True, target_names=["malignant", "benign"]
 )
 # The classification report has to be transformed into a DataFrame first to have
-# the correct format.
+# the correct format. This requires removing the "accuracy", which was added
+# above anyway.
+del clf_report["accuracy"]
+clf_report = pd.DataFrame(clf_report).T
 model_card.add_table(
     **{
         "Hyperparameter search results": cv_results,
-        "Classification report": pd.DataFrame(clf_report),
+        "Classification report": clf_report,
     }
 )
 
