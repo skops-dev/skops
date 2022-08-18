@@ -15,6 +15,7 @@ import pickle
 from pathlib import Path
 from tempfile import mkdtemp, mkstemp
 
+import pandas as pd
 import sklearn
 from sklearn.datasets import load_breast_cancer
 from sklearn.ensemble import HistGradientBoostingClassifier
@@ -22,6 +23,7 @@ from sklearn.experimental import enable_halving_search_cv  # noqa
 from sklearn.metrics import (
     ConfusionMatrixDisplay,
     accuracy_score,
+    classification_report,
     confusion_matrix,
     f1_score,
 )
@@ -86,21 +88,17 @@ hub_utils.init(
 # ====================
 # We now create a model card, and populate its metadata with information which
 # is already provided in ``config.json``, which itself is created by the call to
-# :func:`.hub_utils.init` above. Then, we pass information using
-# :meth:`.Card.add`, plots using :meth:`.Card.add_plot`, and the hyperparameter
-# search result table using :meth:`.Card.add_table`. We'll then save the card as
-# `README.md`.
+# :func:`.hub_utils.init` above. We will see below how we can populate the model
+# card with useful information.
 
 model_card = card.Card(model, metadata=card.metadata_from_config(Path(local_repo)))
 
-
 # %%
-# Add information, plots and tables to our model card
-# ===================================================
-# We will pass information to fill our model card.
-# We will add plots to our card, note that these plots don't necessarily
-# have to have a section in our template.
-# We will save the plots, and then pass plot name with path to ``add_inspection``.
+# Add more information
+# ====================
+# So far, the model card does not tell viewers a lot about the model. Therefore,
+# we add more information about the model, like a description and what its
+# license is.
 
 model_card.metadata.license = "mit"
 limitations = "This model is not ready to be used in production."
@@ -121,28 +119,58 @@ model_card.add(
     limitations=limitations,
     model_description=model_description,
 )
+
+# %%
+# Add plots, metrics, and tables to our model card
+# ================================================
+# Furthermore, to better understand the model performance, we should evaluate it
+# on certain metrics and add those evaluations to the model card. In this
+# particular example, we want to calculate the accuracy and the F1 score. We
+# calculate those using sklearn and then add them to the model card by calling
+# :meth:`.Card.add_metrics`. But this is not all, we can also add matplotlib
+# figures to the model card, e.g. a plot of the confusion matrix. To achieve
+# this, we create the plot using sklearn, save it locally, and then add it using
+# :meth:`.Card.add_plot` method. Finally, we can also add some useful tables to
+# the model card, e.g. the results from the grid search and the classification
+# report. Those can be added using :meth:`.Card.add_table`
+
 y_pred = model.predict(X_test)
-model_card.add(
-    eval_method=(
-        "The model is evaluated using test split, on accuracy and F1-score with macro"
-        " average."
-    )
+eval_descr = (
+    "The model is evaluated on test data using accuracy and F1-score with macro"
+    " average."
 )
-model_card.add_metrics(accuracy=accuracy_score(y_test, y_pred))
-model_card.add_metrics(**{"f1 score": f1_score(y_test, y_pred, average="micro")})
+model_card.add(eval_method=eval_descr)
+
+accuracy = accuracy_score(y_test, y_pred)
+f1 = f1_score(y_test, y_pred, average="micro")
+model_card.add_metrics(**{"accuracy": accuracy, "f1 score": f1})
+
 cm = confusion_matrix(y_test, y_pred, labels=model.classes_)
 disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=model.classes_)
 disp.plot()
 
 disp.figure_.savefig(Path(local_repo) / "confusion_matrix.png")
-
 model_card.add_plot(**{"Confusion matrix": "confusion_matrix.png"})
 
-model_card.add_table(**{"Hyperparameter search results": model.cv_results_})
+cv_results = model.cv_results_
+clf_report = classification_report(
+    y_test, y_pred, output_dict=True, target_names=["malignant", "benign"]
+)
+# The classification report has to be transformed into a DataFrame first to have
+# the correct format. This requires removing the "accuracy", which was added
+# above anyway.
+del clf_report["accuracy"]
+clf_report = pd.DataFrame(clf_report).T.reset_index()
+model_card.add_table(
+    **{
+        "Hyperparameter search results": cv_results,
+        "Classification report": clf_report,
+    }
+)
 
 # %%
 # Save model card
 # ===============
-# We can simply save our model card by providing a path to ``save()``
+# We can simply save our model card by providing a path to :meth:`.Card.save`.
 
 model_card.save(Path(local_repo) / "README.md")
