@@ -22,15 +22,23 @@ aRepr.maxother = 79
 aRepr.maxstring = 79
 
 
+def wrap_as_details(text: str, details_tag: bool) -> str:
+    if not details_tag:
+        return text
+    return f"<details>\n<summary> Click to expand </summary>\n\n{text}\n\n</details>"
+
+
 @dataclass
 class PlotSection:
     """Adds a link to a figure to the model card"""
 
     alt_text: str
     path: str | Path
+    details_tag: bool = False
 
     def format(self) -> str:
-        return f"![{self.alt_text}]({self.path})"
+        text = f"![{self.alt_text}]({self.path})"
+        return wrap_as_details(text, details_tag=self.details_tag)
 
     def __repr__(self) -> str:
         return repr(self.path)
@@ -41,6 +49,7 @@ class TableSection:
     """Adds a table to the model card"""
 
     table: dict["str", list[Any]]
+    details_tag: bool = False
 
     def __post_init__(self) -> None:
         try:
@@ -72,7 +81,7 @@ class TableSection:
         table = tabulate(
             self.table, tablefmt="github", headers=headers, showindex=False
         )
-        return table
+        return wrap_as_details(table, details_tag=self.details_tag)
 
     def __repr__(self) -> str:
         if self._is_pandas_df:
@@ -263,11 +272,13 @@ class Card:
             self._template_sections[section] = value
         return self
 
-    def add_plot(self, **kwargs: str) -> "Card":
+    def add_plot(self, details_tag=False, **kwargs: str) -> "Card":
         """Add plots to the model card.
 
         Parameters
         ----------
+        details_tag: bool TODO
+
         **kwargs : dict
             The arguments should be of the form `name=plot_path`, where `name`
             is the name of the plot and `plot_path` is the path to the plot,
@@ -280,11 +291,15 @@ class Card:
             Card object.
         """
         for plot_name, plot_path in kwargs.items():
-            section = PlotSection(alt_text=plot_name, path=plot_path)
+            section = PlotSection(
+                alt_text=plot_name, path=plot_path, details_tag=details_tag
+            )
             self._extra_sections.append((plot_name, section))
         return self
 
-    def add_table(self, **kwargs: dict["str", list[Any]]) -> Card:
+    def add_table(
+        self, details_tag: bool = False, **kwargs: dict["str", list[Any]]
+    ) -> Card:
         """Add a table to the model card.
 
         Add a table to the model card. This can be especially useful when you
@@ -309,6 +324,8 @@ class Card:
 
         Parameters
         ----------
+        details_tag: bool TODO
+
         **kwargs : dict
             The keys should be strings, which will be used as the section
             headers, and the values should be tables. Tables can be either dicts
@@ -324,7 +341,7 @@ class Card:
 
         """
         for key, val in kwargs.items():
-            section = TableSection(table=val)
+            section = TableSection(table=val, details_tag=details_tag)
             self._extra_sections.append((key, section))
         return self
 

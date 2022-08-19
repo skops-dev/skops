@@ -162,10 +162,11 @@ clf_report = classification_report(
 del clf_report["accuracy"]
 clf_report = pd.DataFrame(clf_report).T.reset_index()
 model_card.add_table(
+    details_tag=True,
     **{
         "Hyperparameter search results": cv_results,
         "Classification report": clf_report,
-    }
+    },
 )
 
 # %%

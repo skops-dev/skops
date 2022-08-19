@@ -323,6 +323,17 @@ class TestPlotSection:
         expected = "'path/plot.png'"
         assert str(section) == expected
 
+    @pytest.mark.parametrize("details_tag", [True, False])
+    def test_details_tag(self, details_tag):
+        section = PlotSection(
+            alt_text="some title", path="path/plot.png", details_tag=details_tag
+        )
+        output = section.format()
+        if details_tag:
+            assert "<details>" in output
+        else:
+            assert "<details>" not in output
+
 
 class TestTableSection:
     @pytest.fixture
@@ -379,3 +390,12 @@ class TestTableSection:
         # pandas is not installed
         section = TableSection(table=table_dict)
         assert section._is_pandas_df is False
+
+    @pytest.mark.parametrize("details_tag", [True, False])
+    def test_details_tag(self, table_dict, details_tag):
+        section = TableSection(table=table_dict, details_tag=details_tag)
+        output = section.format()
+        if details_tag:
+            assert "<details>" in output
+        else:
+            assert "<details>" not in output
