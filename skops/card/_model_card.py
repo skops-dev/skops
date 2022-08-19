@@ -277,7 +277,11 @@ class Card:
 
         Parameters
         ----------
-        details_tag: bool TODO
+        details_tag: bool (default=False)
+            If set to ``True``, the plot will be enclosed in a ``details`` tag.
+            That means the content is folded by default and users have to click
+            to show the content. This option is useful if the added plot is
+            large.
 
         **kwargs : dict
             The arguments should be of the form `name=plot_path`, where `name`
@@ -324,7 +328,11 @@ class Card:
 
         Parameters
         ----------
-        details_tag: bool TODO
+        details_tag: bool (default=False)
+            If set to ``True``, the table will be enclosed in a ``details`` tag.
+            That means the content is folded by default and users have to click
+            to show the content. This option is useful if the added table is
+            large.
 
         **kwargs : dict
             The keys should be strings, which will be used as the section
