@@ -29,6 +29,14 @@ The model plot is below.
 
 {{ model_plot }}
 
+## Evaluation Results
+
+You can find the details about evaluation process and the evaluation results.
+
+{{ eval_methods }}
+
+{{ eval_results | default("[More Information Needed]", true)}}
+
 # How to Get Started with the Model
 
 Use the code below to get started with the model.
@@ -36,9 +44,8 @@ Use the code below to get started with the model.
 <details>
 <summary> Click to expand </summary>
 
-```
+```python
 {{ get_started_code | default("[More Information Needed]", true)}}
-
 ```
 
 </details>
@@ -62,5 +69,6 @@ You can contact the model card authors through following channels:
 Below you can find information related to citation.
 
 **BibTeX:**
-
+```
 {{ citation_bibtex | default("[More Information Needed]", true)}}
+```

@@ -11,4 +11,19 @@ filterwarnings = [
     "error::DeprecationWarning",
     "error::FutureWarning",
 ]
-addopts = "--doctest-modules"
+markers = [
+    "network: marks tests as requiring internet (deselect with '-m \"not network\"')",
+]
+addopts = "--cov=skops --cov-report=term-missing --doctest-modules"
+
+[tool.coverage.run]
+omit = [
+    "skops/**/test_*.py",
+    "skops/_min_dependencies.py",
+    "skops/conftest.py",
+]
+
+[tool.mypy]
+exclude = "(\\w+/)*test_\\w+\\.py$"
+ignore_missing_imports = true
+no_implicit_optional = true

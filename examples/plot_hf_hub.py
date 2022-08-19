@@ -1,8 +1,8 @@
 """
-scikit-learn models on HuggingFace Hub
---------------------------------------
+scikit-learn models on Hugging Face Hub
+---------------------------------------
 
-This guide demonstrates how you can use this package to create a HuggingFace
+This guide demonstrates how you can use this package to create a Hugging Face
 Hub model repository based on a scikit-learn compatible model, and how to
 fetch scikit-learn compatible models from the Hub and run them locally.
 """
@@ -15,12 +15,12 @@ fetch scikit-learn compatible models from the Hub and run them locally.
 import json
 import os
 import pickle
+from pathlib import Path
 from tempfile import mkdtemp, mkstemp
 from uuid import uuid4
 
 import sklearn
 from huggingface_hub import HfApi
-from modelcards import CardData
 from sklearn.datasets import load_breast_cancer
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.experimental import enable_halving_search_cv  # noqa
@@ -76,7 +76,11 @@ with open(pkl_name, mode="bw") as f:
 
 local_repo = mkdtemp(prefix="skops-")
 hub_utils.init(
-    model=pkl_name, requirements=[f"scikit-learn={sklearn.__version__}"], dst=local_repo
+    model=pkl_name,
+    requirements=[f"scikit-learn={sklearn.__version__}"],
+    dst=local_repo,
+    task="tabular-classification",
+    data=X_test,
 )
 
 # %%
@@ -86,9 +90,15 @@ print(os.listdir(local_repo))
 # %%
 # Model Card
 # ==========
-card_data = CardData(tags=["tabular-classification"])
-model_card = card.create_model_card(model, card_data)
-model_card.save(os.path.join(f"{local_repo}", "README.md"))
+# We will now create a model card and save it. For more information about how
+# to create a good model card, refer to the :ref:`model card example
+# <sphx_glr_auto_examples_plot_model_card.py>`. The following code uses
+# :func:`~skops.card.metadata_from_config` which creates a minimal metadata
+# object to be included in the metadata section of the model card. The
+# configuration used by this method is stored in the ``config.json`` file which
+# is created by the call to :func:`~skops.hub_utils.init`.
+model_card = card.Card(model, metadata=card.metadata_from_config(Path(local_repo)))
+model_card.save(Path(local_repo) / "README.md")
 
 # %%
 # Push to Hub
@@ -103,6 +113,7 @@ token = os.environ["HF_HUB_TOKEN"]
 repo_name = f"hf_hub_example-{uuid4()}"
 user_name = HfApi().whoami(token=token)["name"]
 repo_id = f"{user_name}/{repo_name}"
+print(f"Creating and pushing to repo: {repo_id}")
 
 # Now we can push our files to the repo. The following function creates the
 # remote repository if it doesn't exist; this is controlled via the

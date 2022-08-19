@@ -2,22 +2,33 @@
 This module contains utilities to push a model to the hub and pull from the
 hub.
 """
+from __future__ import annotations
 
 import collections
 import json
 import shutil
 from pathlib import Path
-from typing import List, Union
+from typing import Any, List, MutableMapping, Union
 
+import numpy as np
 from huggingface_hub import HfApi, snapshot_download
 from requests import HTTPError
 
+from ..utils.fixes import Literal
 
-def _validate_folder(path: Union[str, Path]):
+SUPPORTED_TASKS = [
+    "tabular-classification",
+    "tabular-regression",
+    "text-classification",
+    "text-regression",
+]
+
+
+def _validate_folder(path: Union[str, Path]) -> None:
     """Validate the contents of a folder.
 
     This function checks if the contents of a folder make a valid repo for a
-    scikit-learn based repo on the HuggingFace Hub.
+    scikit-learn based repo on the Hugging Face Hub.
 
     A valid repository is one which is understood by the Hub as well as this
     library to run and use the model. Otherwise anything can be put as a model
@@ -29,6 +40,11 @@ def _validate_folder(path: Union[str, Path]):
     ----------
     path: str or Path
         The location of the repo.
+
+    Raises
+    ------
+    TypeError
+        Raised when the passed path is invalid.
 
     Returns
     -------
@@ -56,12 +72,91 @@ def _validate_folder(path: Union[str, Path]):
         raise TypeError(f"Model file {model_path} does not exist.")
 
 
-def _create_config(*, model_path: str, requirements: List[str], dst: str):
-    """Write the configuration into a `config.json` file.
+def _get_example_input(data):
+    """Returns the example input of a model.
+
+    The input is converted into a dictionary which is then stored in the config
+    file.
 
     Parameters
     ----------
-    model_path : str
+    data: array-like
+        The input needs to be either a ``pandas.DataFrame`` or a
+        ``numpy.ndarray``. The first 3 rows are used as example input.
+
+    Returns
+    -------
+    example_input: dict of lists
+        The example input of the model as accepted by Hugging Face's backend.
+    """
+    try:
+        import pandas as pd
+
+        if isinstance(data, pd.DataFrame):
+            return {x: data[x][:3].to_list() for x in data.columns}
+    except ImportError:
+        # pandas is not installed, the data cannot be a pandas DataFrame
+        pass
+
+    # here we convert the first three rows of the numpy array to a dict of lists
+    # to be stored in the config file
+    if isinstance(data, np.ndarray):
+        return {f"x{x}": data[:3, x].tolist() for x in range(data.shape[1])}
+
+    raise ValueError("The data is not a pandas.DataFrame or a numpy.ndarray.")
+
+
+def _get_column_names(data):
+    """Returns the column names of the input.
+
+    If data is a ``numpy.ndarray``, column names are assumed to be ``x0`` to
+    ``xn-1``, where ``n`` is the number of columns.
+
+    Parameters
+    ----------
+    data: pandas.DataFrame or numpy.ndarray
+        The data whose columns names are to be returned.
+
+    Returns
+    -------
+    columns: list of tuples
+        A list of strings. Each string is a column name.
+    """
+    try:
+        import pandas as pd
+
+        if isinstance(data, pd.DataFrame):
+            return list(data.columns)
+    except ImportError:
+        # pandas is not installed, the data cannot be a pandas DataFrame
+        pass
+
+    # TODO: this is going to fail for Structured Arrays. We can add support for
+    # them later if we see need for it.
+    if isinstance(data, np.ndarray):
+        return [f"x{x}" for x in range(data.shape[1])]
+
+    raise ValueError("The data is not a pandas.DataFrame or a numpy.ndarray.")
+
+
+def _create_config(
+    *,
+    model_path: Union[str, Path],
+    requirements: List[str],
+    dst: Union[str, Path],
+    task: Literal[
+        "tabular-classification",
+        "tabular-regression",
+        "text-classification",
+        "text-regression",
+    ],
+    data,
+) -> None:
+    """Write the configuration into a ``config.json`` file.
+
+    Parameters
+    ----------
+    model_path : str, or Path
         The relative path (from the repo root) to the model file.
 
     requirements : list of str
@@ -71,6 +166,25 @@ def _create_config(*, model_path: str, requirements: List[str], dst: str):
     dst : str, or Path
         The path to an existing folder where the config file should be created.
 
+    task: "tabular-classification", "tabular-regression",
+    "text-classification", /
+            or "text-regression"
+        The task of the model, which determines the input and output type of
+        the model. It can be one of: ``tabular-classification``,
+        ``tabular-regression``, ``text-classification``, ``text-regression``.
+
+    data: array-like
+        The input to the model. This is used for two purposes:
+
+            1. Save an example input to the model, which is used by
+               HuggingFace's backend and shown in the widget of the model's
+               page.
+            2. Store the columns and their order of the input, which is used by
+               HuggingFace's backend to pass the data in the right form to the
+               model.
+
+        The first 3 input values are used as example inputs.
+
     Returns
     -------
     None
@@ -78,22 +192,44 @@ def _create_config(*, model_path: str, requirements: List[str], dst: str):
     # so that we don't have to explicitly add keys and they're added as a
     # dictionary if they are not found
     # see: https://stackoverflow.com/a/13151294/2536294
-    def recursively_default_dict():
+    def recursively_default_dict() -> MutableMapping:
         return collections.defaultdict(recursively_default_dict)
 
     config = recursively_default_dict()
-    config["sklearn"]["model"]["file"] = model_path
+    config["sklearn"]["model"]["file"] = str(model_path)
     config["sklearn"]["environment"] = requirements
+    config["sklearn"]["task"] = task
+
+    if "tabular" in task:
+        config["sklearn"]["example_input"] = _get_example_input(data)
+        config["sklearn"]["columns"] = _get_column_names(data)
+    elif "text" in task:
+        if isinstance(data, list) and all(isinstance(x, str) for x in data):
+            config["sklearn"]["example_input"] = {"data": data[:3]}
+        else:
+            raise ValueError("The data needs to be a list of strings.")
 
     with open(Path(dst) / "config.json", mode="w") as f:
         json.dump(config, f, sort_keys=True, indent=4)
 
 
-def init(*, model: Union[str, Path], requirements: List[str], dst: Union[str, Path]):
-    """Initialize a scikit-learn based HuggingFace repo.
+def init(
+    *,
+    model: Union[str, Path],
+    requirements: List[str],
+    dst: Union[str, Path],
+    task: Literal[
+        "tabular-classification",
+        "tabular-regression",
+        "text-classification",
+        "text-regression",
+    ],
+    data,
+) -> None:
+    """Initialize a scikit-learn based Hugging Face repo.
 
-    Given a model pickle and a set of required packages, this function
-    initializes a folder to be a valid HuggingFace scikit-learn based repo.
+    Given a pickled model and a set of required packages, this function
+    initializes a folder to be a valid Hugging Face scikit-learn based repo.
 
     Parameters
     ----------
@@ -107,22 +243,61 @@ def init(*, model: Union[str, Path], requirements: List[str], dst: Union[str, Pa
     dst: str, or Path
         The path to a non-existing or empty folder which is to be initialized.
 
+    task: str
+        The task of the model, which determines the input and output type of
+        the model. It can be one of: ``tabular-classification``,
+        ``tabular-regression``, ``text-classification``, ``text-regression``.
+
+    data: array-like
+        The input to the model. This is used for two purposes:
+
+            1. Save an example input to the model, which is used by
+               HuggingFace's backend and shown in the widget of the model's
+               page.
+            2. Store the columns and their order of the input, which is used by
+               HuggingFace's backend to pass the data in the right form to the
+               model.
+
+        The first 3 input values are used as example inputs.
+
+        If ``task`` is ``"tabular-classification"`` or ``"tabular-regression"``,
+        the data needs to be a :class:`pandas.DataFrame` or a
+        :class:`numpy.ndarray`. If ``task`` is ``"text-classification"`` or
+        ``"text-regression"``, the data needs to be a ``list`` of strings.
+
     Returns
     -------
     None
     """
     dst = Path(dst)
-    if dst.exists() and next(dst.iterdir(), None):
+    if dst.exists() and bool(next(dst.iterdir(), None)):
         raise OSError("None-empty dst path already exists!")
+
+    if task not in SUPPORTED_TASKS:
+        raise ValueError(
+            f"Task {task} not supported. Supported tasks are: {SUPPORTED_TASKS}"
+        )
     dst.mkdir(parents=True, exist_ok=True)
 
-    shutil.copy2(src=model, dst=dst)
+    try:
+        shutil.copy2(src=model, dst=dst)
 
-    model_name = Path(model).name
-    _create_config(model_path=model_name, requirements=requirements, dst=dst)
+        model_name = Path(model).name
+        _create_config(
+            model_path=model_name,
+            requirements=requirements,
+            dst=dst,
+            task=task,
+            data=data,
+        )
+    except Exception:
+        shutil.rmtree(dst)
+        raise
 
 
-def update_env(*, path: Union[str, Path], requirements: List[str] = None):
+def update_env(
+    *, path: Union[str, Path], requirements: Union[List[str], None] = None
+) -> None:
     """Update the environment requirements of a repo.
 
     This function takes the path to the repo, and updates the requirements of
@@ -148,11 +323,11 @@ def push(
     *,
     repo_id: str,
     source: Union[str, Path],
-    token: str = None,
-    commit_message: str = None,
+    token: str | None = None,
+    commit_message: str | None = None,
     create_remote: bool = False,
-):
-    """Pushes the contents of a model repo to HuggingFace Hub.
+) -> None:
+    """Pushes the contents of a model repo to Hugging Face Hub.
 
     This function validates the contents of the folder before pushing it to the
     Hub.
@@ -166,7 +341,7 @@ def push(
         A folder where the contents of the model repo are located.
 
     token: str, optional
-        A token to push to the hub. If not provided, the user should be already
+        A token to push to the Hub. If not provided, the user should be already
         logged in using ``huggingface-cli login``.
 
     commit_message: str, optional
@@ -182,10 +357,11 @@ def push(
     -------
     None
 
-    Notes
-    -----
-    This function raises a ``TypeError`` if the contents of the source folder
-    do not make a valid HuggingFace Hub scikit-learn based repo.
+    Raises
+    ------
+    TypeError
+        This function raises a ``TypeError`` if the contents of the source
+        folder do not make a valid Hugging Face Hub scikit-learn based repo.
     """
     _validate_folder(path=source)
     client = HfApi()
@@ -209,13 +385,13 @@ def push(
     )
 
 
-def get_config(path: Union[str, Path]):
+def get_config(path: Union[str, Path]) -> dict[str, Any]:
     """Returns the configuration of a project.
 
     Parameters
     ----------
     path: str
-        The path to the director holding the project and its ``config.json``
+        The path to the directory holding the project and its ``config.json``
         configuration file.
 
     Returns
@@ -228,7 +404,7 @@ def get_config(path: Union[str, Path]):
     return config
 
 
-def get_requirements(path: Union[str, Path]):
+def get_requirements(path: Union[str, Path]) -> List[str]:
     """Returns the requirements of a project.
 
     Parameters
@@ -251,11 +427,11 @@ def download(
     *,
     repo_id: str,
     dst: Union[str, Path],
-    revision: str = None,
-    token: str = None,
+    revision: str | None = None,
+    token: str | None = None,
     keep_cache: bool = True,
-    **kwargs,
-):
+    **kwargs: Any,
+) -> None:
     """Download a repository into a directory.
 
     The directory needs to be an empty or a non-existing one.
@@ -288,14 +464,15 @@ def download(
         newer versions of them.
 
     kwargs: dict
-        Other parameters to be passed to ``huggingface_hub.snapshot_download``.
+        Other parameters to be passed to
+        :func:`huggingface_hub.snapshot_download`.
 
     Returns
     -------
     None
     """
     dst = Path(dst)
-    if dst.exists() and next(dst.iterdir(), None):
+    if dst.exists() and bool(next(dst.iterdir(), None)):
         raise OSError("None-empty dst path already exists!")
     dst.rmdir()
 
