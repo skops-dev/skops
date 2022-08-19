@@ -16,7 +16,10 @@ v0.2
 - Add method :meth:`.Card.render` which returns the model card as a string.
   :pr:`94` by `Benjamin Bossan`_.
 - Make :meth:`skops.hub_utils.init` atomic. Now it doesn't leave a trace on the
-  filesystem if it fails for some reason. :pr:`60` by `Adrin Jalali`_`
+  filesystem if it fails for some reason. :pr:`60` by `Adrin Jalali`_
+- When adding figures or tables, it's now possible to set ``details_tag=True``
+  to render the content inside a details tag (i.e. folded). :pr:`108` by
+  `Benjamin Bossan`_.
 
 v0.1
 ----
