@@ -14,7 +14,7 @@ filterwarnings = [
 markers = [
     "network: marks tests as requiring internet (deselect with '-m \"not network\"')",
 ]
-addopts = "--cov=skops --cov-report=term-missing"
+addopts = "--cov=skops --cov-report=term-missing --doctest-modules"
 
 [tool.coverage.run]
 omit = [

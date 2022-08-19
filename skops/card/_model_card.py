@@ -194,7 +194,7 @@ class Card:
     >>> from sklearn.linear_model import LogisticRegression
     >>> from skops import card
     >>> X, y = load_iris(return_X_y=True)
-    >>> model = LogisticRegression(random_state=0).fit(X, y)
+    >>> model = LogisticRegression(solver="liblinear", random_state=0).fit(X, y)
     >>> model_card = card.Card(model)
     >>> model_card.metadata.license = "mit"
     >>> y_pred = model.predict(X)
@@ -203,7 +203,7 @@ class Card:
     ...     "f1 score": f1_score(y, y_pred, average="micro"),
     ... })
     Card(
-      model=LogisticRegression(random_state=0),
+      model=LogisticRegression(random_state=0, solver='liblinear'),
       metadata.license=mit,
     )
     >>> cm = confusion_matrix(y, y_pred,labels=model.classes_)
@@ -211,18 +211,18 @@ class Card:
     ...     confusion_matrix=cm,
     ...     display_labels=model.classes_
     ... )
-    >>> disp.plot()  # doctest: +ELLIPSIS
+    >>> disp.plot()
     <sklearn.metrics._plot.confusion_matrix.ConfusionMatrixDisplay object at ...>
     >>> disp.figure_.savefig("confusion_matrix.png")
     ...
-    >>> model_card.add_plot(confusion_matrix="confusion_matrix.png") # doctest: +ELLIPSIS
+    >>> model_card.add_plot(confusion_matrix="confusion_matrix.png")
     Card(
-      model=LogisticRegression(random_state=0),
+      model=LogisticRegression(random_state=0, solver='liblinear'),
       metadata.license=mit,
       confusion_matrix='confusion_matrix.png',
     )
     >>> with tempfile.TemporaryDirectory() as tmpdir:
-    ...     model_card.save((Path(tmpdir) / "README.md")) # doctest: +ELLIPSIS
+    ...     model_card.save((Path(tmpdir) / "README.md"))
     """
 
     def __init__(
