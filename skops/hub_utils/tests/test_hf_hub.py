@@ -1,6 +1,7 @@
 import json
 import os
 import pickle
+import re
 import shutil
 import tempfile
 import warnings
@@ -269,7 +270,7 @@ def test_model_file_does_not_exist_raises(repo_path, config_json):
     shutil.rmtree(dir_path)
     version = metadata.version("scikit-learn")
 
-    msg = f"Model file at '{model_path}' does not exist"
+    msg = re.escape(f"Model file at '{model_path}' does not exist")
     with pytest.raises(OSError, match=msg):
         init(
             model=model_path,
