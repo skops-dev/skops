@@ -270,7 +270,7 @@ def test_model_file_does_not_exist_raises(repo_path, config_json):
     shutil.rmtree(dir_path)
     version = metadata.version("scikit-learn")
 
-    msg = re.escape(f"Model file at '{model_path}' does not exist")
+    msg = re.escape(f"Model file '{model_path}' does not exist.")
     with pytest.raises(OSError, match=msg):
         init(
             model=model_path,
@@ -301,7 +301,7 @@ def test_init_empty_model_file_warns(repo_path, config_json):
             data=iris.data,
         )
         assert len(rec) == 1
-        assert rec[0].message.args[0] == f"Model file at '{model_path}' is empty"
+        assert rec[0].message.args[0] == f"Model file '{model_path}' is empty."
     path_unlink(model_path, missing_ok=True)
 
 
