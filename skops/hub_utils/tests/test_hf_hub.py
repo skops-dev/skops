@@ -315,11 +315,16 @@ def test_push_download(
 @pytest.mark.network
 @flaky(max_runs=3)
 @pytest.mark.parametrize(
-    "model_func, data", [(get_classifier, iris), (get_regressor, diabetes)]
+    "model_func, data, task",
+    [
+        (get_classifier, iris, "tabular-classification"),
+        (get_regressor, diabetes, "tabular-regression"),
+    ],
 )
 def test_inference(
     model_func,
     data,
+    task,
     repo_path,
     destination_path,
 ):
@@ -337,7 +342,7 @@ def test_inference(
         model=model_path,
         requirements=[f'scikit-learn="{version}"'],
         dst=destination_path,
-        task="tabular-classification",
+        task=task,
         data=data.data,
     )
 
