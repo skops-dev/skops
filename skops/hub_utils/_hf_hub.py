@@ -234,7 +234,7 @@ def _check_model_file(path: str | Path) -> Path:
       If the model file does not exist.
     """
     if not os.path.exists(path):
-        raise OSError(f"Model file at '{path}' does not exist")
+        raise OSError(f"Model file '{path}' does not exist.")
 
     if os.path.getsize(path) == 0:
         warnings.warn(f"Model file at '{path}' is empty")
