@@ -22,15 +22,23 @@ aRepr.maxother = 79
 aRepr.maxstring = 79
 
 
+def wrap_as_details(text: str, folded: bool) -> str:
+    if not folded:
+        return text
+    return f"<details>\n<summary> Click to expand </summary>\n\n{text}\n\n</details>"
+
+
 @dataclass
 class PlotSection:
     """Adds a link to a figure to the model card"""
 
     alt_text: str
     path: str | Path
+    folded: bool = False
 
     def format(self) -> str:
-        return f"![{self.alt_text}]({self.path})"
+        text = f"![{self.alt_text}]({self.path})"
+        return wrap_as_details(text, folded=self.folded)
 
     def __repr__(self) -> str:
         return repr(self.path)
@@ -41,6 +49,7 @@ class TableSection:
     """Adds a table to the model card"""
 
     table: dict["str", list[Any]]
+    folded: bool = False
 
     def __post_init__(self) -> None:
         try:
@@ -72,7 +81,7 @@ class TableSection:
         table = tabulate(
             self.table, tablefmt="github", headers=headers, showindex=False
         )
-        return table
+        return wrap_as_details(table, folded=self.folded)
 
     def __repr__(self) -> str:
         if self._is_pandas_df:
@@ -263,11 +272,17 @@ class Card:
             self._template_sections[section] = value
         return self
 
-    def add_plot(self, **kwargs: str) -> "Card":
+    def add_plot(self, folded=False, **kwargs: str) -> "Card":
         """Add plots to the model card.
 
         Parameters
         ----------
+        folded: bool (default=False)
+            If set to ``True``, the plot will be enclosed in a ``details`` tag.
+            That means the content is folded by default and users have to click
+            to show the content. This option is useful if the added plot is
+            large.
+
         **kwargs : dict
             The arguments should be of the form `name=plot_path`, where `name`
             is the name of the plot and `plot_path` is the path to the plot,
@@ -280,11 +295,11 @@ class Card:
             Card object.
         """
         for plot_name, plot_path in kwargs.items():
-            section = PlotSection(alt_text=plot_name, path=plot_path)
+            section = PlotSection(alt_text=plot_name, path=plot_path, folded=folded)
             self._extra_sections.append((plot_name, section))
         return self
 
-    def add_table(self, **kwargs: dict["str", list[Any]]) -> Card:
+    def add_table(self, folded: bool = False, **kwargs: dict["str", list[Any]]) -> Card:
         """Add a table to the model card.
 
         Add a table to the model card. This can be especially useful when you
@@ -309,6 +324,12 @@ class Card:
 
         Parameters
         ----------
+        folded: bool (default=False)
+            If set to ``True``, the table will be enclosed in a ``details`` tag.
+            That means the content is folded by default and users have to click
+            to show the content. This option is useful if the added table is
+            large.
+
         **kwargs : dict
             The keys should be strings, which will be used as the section
             headers, and the values should be tables. Tables can be either dicts
@@ -324,7 +345,7 @@ class Card:
 
         """
         for key, val in kwargs.items():
-            section = TableSection(table=val)
+            section = TableSection(table=val, folded=folded)
             self._extra_sections.append((key, section))
         return self
 

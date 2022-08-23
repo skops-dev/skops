@@ -323,6 +323,17 @@ class TestPlotSection:
         expected = "'path/plot.png'"
         assert str(section) == expected
 
+    @pytest.mark.parametrize("folded", [True, False])
+    def test_folded(self, folded):
+        section = PlotSection(
+            alt_text="some title", path="path/plot.png", folded=folded
+        )
+        output = section.format()
+        if folded:
+            assert "<details>" in output
+        else:
+            assert "<details>" not in output
+
 
 class TestTableSection:
     @pytest.fixture
@@ -379,3 +390,12 @@ class TestTableSection:
         # pandas is not installed
         section = TableSection(table=table_dict)
         assert section._is_pandas_df is False
+
+    @pytest.mark.parametrize("folded", [True, False])
+    def test_folded(self, table_dict, folded):
+        section = TableSection(table=table_dict, folded=folded)
+        output = section.format()
+        if folded:
+            assert "<details>" in output
+        else:
+            assert "<details>" not in output
