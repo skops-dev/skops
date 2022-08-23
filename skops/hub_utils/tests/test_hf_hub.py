@@ -11,10 +11,18 @@ import pandas as pd
 import pytest
 from flaky import flaky
 from huggingface_hub import HfApi
-from sklearn.datasets import load_iris
-from sklearn.linear_model import LogisticRegression
+from sklearn.datasets import load_diabetes, load_iris
+from sklearn.linear_model import LinearRegression, LogisticRegression
 
-from skops.hub_utils import download, get_config, get_requirements, init, push
+from skops import card
+from skops.hub_utils import (
+    download,
+    get_config,
+    get_output,
+    get_requirements,
+    init,
+    push,
+)
 from skops.hub_utils._hf_hub import (
     _create_config,
     _get_column_names,
@@ -25,6 +33,7 @@ from skops.hub_utils.tests.common import HF_HUB_TOKEN
 from skops.utils.fixes import metadata, path_unlink
 
 iris = load_iris(as_frame=True, return_X_y=False)
+diabetes = load_diabetes(as_frame=True, return_X_y=False)
 
 
 @pytest.fixture
@@ -45,12 +54,22 @@ def destination_path():
         yield Path(dir_path)
 
 
+def get_classifier():
+    X, y = iris.data, iris.target
+    clf = LogisticRegression(solver="newton-cg").fit(X, y)
+    return clf
+
+
+def get_regressor():
+    X, y = diabetes.data, diabetes.target
+    model = LinearRegression().fit(X, y)
+    return model
+
+
 @pytest.fixture(scope="session")
 def classifier_pickle(repo_path):
     # Create a simple pickle file for the purpose of testing
-    X, y = iris.data, iris.target
-    clf = LogisticRegression(solver="newton-cg")
-    clf.fit(X, y)
+    clf = get_classifier()
     path = repo_path / "model.pickle"
 
     try:
@@ -291,6 +310,60 @@ def test_push_download(
             assert set(copy_files) == set(files)
     finally:
         client.delete_repo(repo_id=repo_id, token=HF_HUB_TOKEN)
+
+
+@pytest.mark.network
+@flaky(max_runs=3)
+@pytest.mark.parametrize(
+    "model_func, data", [(get_classifier, iris), (get_regressor, diabetes)]
+)
+def test_inference(
+    model_func,
+    data,
+    repo_path,
+    destination_path,
+):
+    # test inference backend for classifier and regressor models.
+    client = HfApi()
+
+    model = model_func()
+    model_path = repo_path / "model.pickle"
+
+    with open(model_path, "wb") as f:
+        pickle.dump(model, f)
+
+    version = metadata.version("scikit-learn")
+    init(
+        model=model_path,
+        requirements=[f'scikit-learn="{version}"'],
+        dst=destination_path,
+        task="tabular-classification",
+        data=data.data,
+    )
+
+    # a model card is needed for inference engine to work.
+    model_card = card.Card(
+        model, metadata=card.metadata_from_config(Path(destination_path))
+    )
+    model_card.save(Path(destination_path) / "README.md")
+
+    user = client.whoami(token=HF_HUB_TOKEN)["name"]
+    repo_id = f"{user}/test-{uuid4()}"
+
+    push(
+        repo_id=repo_id,
+        source=destination_path,
+        token=HF_HUB_TOKEN,
+        commit_message="test message",
+        create_remote=True,
+    )
+
+    output = get_output(repo_id, data=data.data.head(5), token=HF_HUB_TOKEN)
+    assert all(output == data.target[:5])
+
+    # cleanup
+    client.delete_repo(repo_id=repo_id, token=HF_HUB_TOKEN)
+    path_unlink(model_path, missing_ok=True)
 
 
 def test_get_config(repo_path):
