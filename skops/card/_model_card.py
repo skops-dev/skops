@@ -22,8 +22,8 @@ aRepr.maxother = 79
 aRepr.maxstring = 79
 
 
-def wrap_as_details(text: str, details_tag: bool) -> str:
-    if not details_tag:
+def wrap_as_details(text: str, folded: bool) -> str:
+    if not folded:
         return text
     return f"<details>\n<summary> Click to expand </summary>\n\n{text}\n\n</details>"
 
@@ -34,11 +34,11 @@ class PlotSection:
 
     alt_text: str
     path: str | Path
-    details_tag: bool = False
+    folded: bool = False
 
     def format(self) -> str:
         text = f"![{self.alt_text}]({self.path})"
-        return wrap_as_details(text, details_tag=self.details_tag)
+        return wrap_as_details(text, folded=self.folded)
 
     def __repr__(self) -> str:
         return repr(self.path)
@@ -49,7 +49,7 @@ class TableSection:
     """Adds a table to the model card"""
 
     table: dict["str", list[Any]]
-    details_tag: bool = False
+    folded: bool = False
 
     def __post_init__(self) -> None:
         try:
@@ -81,7 +81,7 @@ class TableSection:
         table = tabulate(
             self.table, tablefmt="github", headers=headers, showindex=False
         )
-        return wrap_as_details(table, details_tag=self.details_tag)
+        return wrap_as_details(table, folded=self.folded)
 
     def __repr__(self) -> str:
         if self._is_pandas_df:
@@ -272,12 +272,12 @@ class Card:
             self._template_sections[section] = value
         return self
 
-    def add_plot(self, details_tag=False, **kwargs: str) -> "Card":
+    def add_plot(self, folded=False, **kwargs: str) -> "Card":
         """Add plots to the model card.
 
         Parameters
         ----------
-        details_tag: bool (default=False)
+        folded: bool (default=False)
             If set to ``True``, the plot will be enclosed in a ``details`` tag.
             That means the content is folded by default and users have to click
             to show the content. This option is useful if the added plot is
@@ -295,15 +295,11 @@ class Card:
             Card object.
         """
         for plot_name, plot_path in kwargs.items():
-            section = PlotSection(
-                alt_text=plot_name, path=plot_path, details_tag=details_tag
-            )
+            section = PlotSection(alt_text=plot_name, path=plot_path, folded=folded)
             self._extra_sections.append((plot_name, section))
         return self
 
-    def add_table(
-        self, details_tag: bool = False, **kwargs: dict["str", list[Any]]
-    ) -> Card:
+    def add_table(self, folded: bool = False, **kwargs: dict["str", list[Any]]) -> Card:
         """Add a table to the model card.
 
         Add a table to the model card. This can be especially useful when you
@@ -328,7 +324,7 @@ class Card:
 
         Parameters
         ----------
-        details_tag: bool (default=False)
+        folded: bool (default=False)
             If set to ``True``, the table will be enclosed in a ``details`` tag.
             That means the content is folded by default and users have to click
             to show the content. This option is useful if the added table is
@@ -349,7 +345,7 @@ class Card:
 
         """
         for key, val in kwargs.items():
-            section = TableSection(table=val, details_tag=details_tag)
+            section = TableSection(table=val, folded=folded)
             self._extra_sections.append((key, section))
         return self
 
