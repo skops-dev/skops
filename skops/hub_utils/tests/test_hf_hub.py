@@ -320,6 +320,7 @@ def test_push_download(
         (get_classifier, iris, "tabular-classification"),
         (get_regressor, diabetes, "tabular-regression"),
     ],
+    ids=["classifier", "regressor"],
 )
 def test_inference(
     model_func,
@@ -363,8 +364,10 @@ def test_inference(
         create_remote=True,
     )
 
-    output = get_output(repo_id, data=data.data.head(5), token=HF_HUB_TOKEN)
-    assert all(output == data.target[:5])
+    X_test = data.data.head(5)
+    y_pred = model.predict(X_test)
+    output = get_output(repo_id, data=X_test, token=HF_HUB_TOKEN)
+    assert np.allclose(output, y_pred)
 
     # cleanup
     client.delete_repo(repo_id=repo_id, token=HF_HUB_TOKEN)
