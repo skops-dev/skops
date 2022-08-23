@@ -1,8 +1,10 @@
 import json
 import os
 import pickle
+import re
 import shutil
 import tempfile
+import warnings
 from pathlib import Path
 from uuid import uuid4
 
@@ -242,6 +244,65 @@ def test_init(classifier_pickle, config_json):
             task="tabular-classification",
             data=iris.data,
         )
+
+
+def test_init_no_warning_or_error(classifier_pickle, config_json):
+    # for the happy path, there should be no warning
+    dir_path = tempfile.mkdtemp()
+    shutil.rmtree(dir_path)
+    version = metadata.version("scikit-learn")
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        init(
+            model=classifier_pickle,
+            requirements=[f'scikit-learn="{version}"'],
+            dst=dir_path,
+            task="tabular-classification",
+            data=iris.data,
+        )
+
+
+def test_model_file_does_not_exist_raises(repo_path, config_json):
+    # when the model file does not exist, raise an OSError
+    model_path = repo_path / "foobar.pickle"
+    dir_path = tempfile.mkdtemp()
+    shutil.rmtree(dir_path)
+    version = metadata.version("scikit-learn")
+
+    msg = re.escape(f"Model file '{model_path}' does not exist.")
+    with pytest.raises(OSError, match=msg):
+        init(
+            model=model_path,
+            requirements=[f'scikit-learn="{version}"'],
+            dst=dir_path,
+            task="tabular-classification",
+            data=iris.data,
+        )
+    path_unlink(model_path, missing_ok=True)
+
+
+def test_init_empty_model_file_warns(repo_path, config_json):
+    # when model file is empty, warn users
+    model_path = repo_path / "foobar.pickle"
+    with open(model_path, "wb"):
+        pass
+
+    dir_path = tempfile.mkdtemp()
+    shutil.rmtree(dir_path)
+    version = metadata.version("scikit-learn")
+
+    with pytest.warns() as rec:
+        init(
+            model=model_path,
+            requirements=[f'scikit-learn="{version}"'],
+            dst=dir_path,
+            task="tabular-classification",
+            data=iris.data,
+        )
+        assert len(rec) == 1
+        assert rec[0].message.args[0] == f"Model file '{model_path}' is empty."
+    path_unlink(model_path, missing_ok=True)
 
 
 @pytest.mark.network

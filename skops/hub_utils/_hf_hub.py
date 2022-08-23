@@ -6,7 +6,9 @@ from __future__ import annotations
 
 import collections
 import json
+import os
 import shutil
+import warnings
 from pathlib import Path
 from typing import Any, List, MutableMapping, Union
 
@@ -213,6 +215,33 @@ def _create_config(
         json.dump(config, f, sort_keys=True, indent=4)
 
 
+def _check_model_file(path: str | Path) -> Path:
+    """Perform sanity checks on the model file
+
+    Parameters
+    ----------
+    path : str or Path
+      The model path
+
+    Returns
+    -------
+    path : Path
+      The model path as a  ``pathlib.Path``.
+
+    Raises
+    ------
+    OSError
+      If the model file does not exist.
+    """
+    if not os.path.exists(path):
+        raise OSError(f"Model file '{path}' does not exist.")
+
+    if os.path.getsize(path) == 0:
+        warnings.warn(f"Model file '{path}' is empty.")
+
+    return Path(path)
+
+
 def init(
     *,
     model: Union[str, Path],
@@ -277,12 +306,15 @@ def init(
         raise ValueError(
             f"Task {task} not supported. Supported tasks are: {SUPPORTED_TASKS}"
         )
+
+    model = _check_model_file(model)
+
     dst.mkdir(parents=True, exist_ok=True)
 
     try:
         shutil.copy2(src=model, dst=dst)
 
-        model_name = Path(model).name
+        model_name = model.name
         _create_config(
             model_path=model_name,
             requirements=requirements,
