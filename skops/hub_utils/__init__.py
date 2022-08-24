@@ -1,7 +1,7 @@
 from ._hf_hub import (
     download,
     get_config,
-    get_output,
+    get_model_output,
     get_requirements,
     init,
     push,
@@ -15,5 +15,5 @@ __all__ = [
     "get_config",
     "get_requirements",
     "download",
-    "get_output",
+    "get_model_output",
 ]

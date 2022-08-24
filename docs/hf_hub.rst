@@ -77,3 +77,21 @@ The key ``sklearn`` includes the following sub-keys:
 
 You almost never need to create or touch this file manually, and it's created
 when you call :func:`skops.hub_utils.init`.
+
+.. _hf_hub_inference:
+
+Inference without Downloading the Models
+----------------------------------------
+
+You can use the Hugging Face Hub's inference API to get model output without
+downloading the models. The :func:`skops.hub_utils.get_model_output` function
+returns the model output for a given input. It can be used as::
+
+    import skops.hub_utils as hub_utils
+    import pandas as pd
+    data = pd.DataFrame(...)
+    # Load the model from the Hub
+    res = hub_utils.get_model_output("USER/MODEL_ID", data)
+
+In the above code snippet, ``res`` will be a :class:`numpy.ndarray` containing
+the model's output.

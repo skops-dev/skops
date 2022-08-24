@@ -484,8 +484,10 @@ def download(
         shutil.rmtree(path=cached_folder)
 
 
-def get_output(repo_id: str, data: Any, token: Optional[str] = None) -> Any:
+def get_model_output(repo_id: str, data: Any, token: Optional[str] = None) -> Any:
     """Returns the output of the model using Hugging Face Hub's inference API.
+
+    See the :ref:`User Guide <hf_hub_inference>` for more details.
 
     Parameters
     ----------
@@ -494,11 +496,25 @@ def get_output(repo_id: str, data: Any, token: Optional[str] = None) -> Any:
         ``OWNER/REPO_NAME``.
 
     data: Any
-        The input to be given to the model.
+        The input to be given to the model. This can be a
+        :class:`pandas.DataFrame` or a :class:`numpy.ndarray`. If possible, you
+        should always pass a :class:`pandas.DataFrame` with correct column
+        names.
 
     token: str, optional
         The token to be used to call the inference API. Only required if the
         repository is private.
+
+    Returns
+    -------
+    output: numpy.ndarray
+        The output of the model.
+
+    Notes
+    -----
+    If there are warnings or exceptions during inference, this function raises
+    a :class:`RuntimeError` including the original errors and warnings
+    returned from the server.
     """
     model_info = HfApi().model_info(repo_id=repo_id, token=token)
     if not model_info.pipeline_tag:
