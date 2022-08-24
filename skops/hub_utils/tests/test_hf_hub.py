@@ -18,7 +18,7 @@ from skops import card
 from skops.hub_utils import (
     download,
     get_config,
-    get_output,
+    get_model_output,
     get_requirements,
     init,
     push,
@@ -366,7 +366,7 @@ def test_inference(
 
     X_test = data.data.head(5)
     y_pred = model.predict(X_test)
-    output = get_output(repo_id, data=X_test, token=HF_HUB_TOKEN)
+    output = get_model_output(repo_id, data=X_test, token=HF_HUB_TOKEN)
     assert np.allclose(output, y_pred)
 
     # cleanup
