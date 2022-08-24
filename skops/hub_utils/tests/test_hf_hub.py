@@ -367,11 +367,12 @@ def test_inference(
     X_test = data.data.head(5)
     y_pred = model.predict(X_test)
     output = get_model_output(repo_id, data=X_test, token=HF_HUB_TOKEN)
-    assert np.allclose(output, y_pred)
 
     # cleanup
     client.delete_repo(repo_id=repo_id, token=HF_HUB_TOKEN)
     path_unlink(model_path, missing_ok=True)
+
+    assert np.allclose(output, y_pred)
 
 
 def test_get_config(repo_path):
