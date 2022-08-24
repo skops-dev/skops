@@ -10,10 +10,10 @@ import os
 import shutil
 import warnings
 from pathlib import Path
-from typing import Any, List, MutableMapping, Union
+from typing import Any, List, MutableMapping, Optional, Union
 
 import numpy as np
-from huggingface_hub import HfApi, snapshot_download
+from huggingface_hub import HfApi, InferenceApi, snapshot_download
 from requests import HTTPError
 
 from ..utils.fixes import Literal
@@ -514,3 +514,61 @@ def download(
     shutil.copytree(cached_folder, dst)
     if not keep_cache:
         shutil.rmtree(path=cached_folder)
+
+
+def get_model_output(repo_id: str, data: Any, token: Optional[str] = None) -> Any:
+    """Returns the output of the model using Hugging Face Hub's inference API.
+
+    See the :ref:`User Guide <hf_hub_inference>` for more details.
+
+    Parameters
+    ----------
+    repo_id: str
+        The ID of the Hugging Face Hub repository in the form of
+        ``OWNER/REPO_NAME``.
+
+    data: Any
+        The input to be given to the model. This can be a
+        :class:`pandas.DataFrame` or a :class:`numpy.ndarray`. If possible, you
+        should always pass a :class:`pandas.DataFrame` with correct column
+        names.
+
+    token: str, optional
+        The token to be used to call the inference API. Only required if the
+        repository is private.
+
+    Returns
+    -------
+    output: numpy.ndarray
+        The output of the model.
+
+    Notes
+    -----
+    If there are warnings or exceptions during inference, this function raises
+    a :class:`RuntimeError` including the original errors and warnings
+    returned from the server.
+    """
+    model_info = HfApi().model_info(repo_id=repo_id, token=token)
+    if not model_info.pipeline_tag:
+        raise ValueError(
+            f"Repo {repo_id} has no pipeline tag. You should set a valid 'task' in"
+            " config.json and README.md files. This is automatically done for you if"
+            " you pass a valid task to the skops.hub_utils.init() and"
+            " skops.card.metadata_from_util() functions to generate those files."
+        )
+
+    try:
+        inputs = {"data": data.to_dict(orient="list")}
+    except AttributeError:
+        # the input is not a pandas DataFrame
+        inputs = {f"x{i}": data[:, i] for i in range(data.shape[1])}
+        inputs = {"data": inputs}
+
+    res = InferenceApi(repo_id=repo_id, task=model_info.pipeline_tag, token=token)(
+        inputs=inputs
+    )
+
+    if isinstance(res, list):
+        return np.array(res)
+    else:
+        raise RuntimeError(f"There were errors or warnings during inference: {res}")
