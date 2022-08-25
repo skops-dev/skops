@@ -84,12 +84,15 @@ Releases are created using `manual GitHub workflows
 As a maintainer, follow these steps:
 
 1. Check and update the ``CHANGES.md``
-2. Create a new branch with the name "0.version.X", e.g. "0.2.X". This branch
-   will have all tags for all releases under 0.2.
+2. For a major release, create a new branch with the name "0.version.X", e.g.
+   "0.2.X". This branch will have all tags for all releases under 0.2.
 3. Bump the version defined in ``skops/__init__.py``
 4. Git grep for any TODO's that need fixing before the release (e.g.
    deprecations)
 5. Create a PR with all the changes and have it reviewed and merged
+6. Create a tag with the format "v0.version", e.g. "v0.2", and push it to the
+   remote repository. Use this tag for releasing the package. If there is a
+   minor release under the same branch, it would be "v0.2.1" for example.
 6. Use the `GitHub action
    <https://github.com/skops-dev/skops/actions/workflows/publish-pypi.yml>`__ to
    create a new release on **TestPyPI**. Check it for correctness `on test.pypi
