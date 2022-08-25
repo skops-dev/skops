@@ -83,11 +83,12 @@ Releases are created using `manual GitHub workflows
 <https://docs.github.com/en/actions/managing-workflow-runs/manually-running-a-workflow>`_.
 As a maintainer, follow these steps:
 
-1. Create a new branch
-2. Bump the version defined in ``skops/__init__.py``
-3. Git grep for any TODO's that need fixing before the release (e.g.
+1. Check and update the ``CHANGES.md``
+2. Create a new branch with the name "0.version.X", e.g. "0.2.X". This branch
+   will have all tags for all releases under 0.2.
+3. Bump the version defined in ``skops/__init__.py``
+4. Git grep for any TODO's that need fixing before the release (e.g.
    deprecations)
-4. Update the ``CHANGES.md``
 5. Create a PR with all the changes and have it reviewed and merged
 6. Use the `GitHub action
    <https://github.com/skops-dev/skops/actions/workflows/publish-pypi.yml>`__ to
@@ -102,4 +103,5 @@ As a maintainer, follow these steps:
 9. Update the patch version of the package to a new dev version, e.g. from
    ``v0.3.0`` to ``v0.3.dev1``
 10. Check that the new stable branch of documentation was built correctly on
-    `readthedocs <https://readthedocs.org/projects/skops/builds/>`_
+    `readthedocs <https://readthedocs.org/projects/skops/builds/>`_, and make
+    sure all relevant releases are *active*.
