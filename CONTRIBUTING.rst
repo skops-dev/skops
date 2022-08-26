@@ -93,18 +93,18 @@ As a maintainer, follow these steps:
 6. Create a tag with the format "v0.version", e.g. "v0.2", and push it to the
    remote repository. Use this tag for releasing the package. If there is a
    minor release under the same branch, it would be "v0.2.1" for example.
-6. Use the `GitHub action
+7. Use the `GitHub action
    <https://github.com/skops-dev/skops/actions/workflows/publish-pypi.yml>`__ to
    create a new release on **TestPyPI**. Check it for correctness `on test.pypi
    <https://test.pypi.org/project/skops/>`_.
-7. Use the `GitHub action
+8. Use the `GitHub action
    <https://github.com/skops-dev/skops/actions/workflows/publish-pypi.yml>`__ to
    create a new release on **PyPI**. Check it for correctness `pypi
    <https://pypi.org/project/skops/>`_.
-8. Create a `new release <https://github.com/skops-dev/skops/releases>`_ on
+9. Create a `new release <https://github.com/skops-dev/skops/releases>`_ on
    GitHub
-9. Update the patch version of the package to a new dev version, e.g. from
+10. Update the patch version of the package to a new dev version, e.g. from
    ``v0.3.0`` to ``v0.3.dev1``
-10. Check that the new stable branch of documentation was built correctly on
+11. Check that the new stable branch of documentation was built correctly on
     `readthedocs <https://readthedocs.org/projects/skops/builds/>`_, and make
     sure all relevant releases are *active*.
