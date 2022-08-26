@@ -83,7 +83,7 @@ Releases are created using `manual GitHub workflows
 <https://docs.github.com/en/actions/managing-workflow-runs/manually-running-a-workflow>`_.
 As a maintainer, follow these steps:
 
-1. Check and update the ``CHANGES.md``
+1. Check and update the ``docs/changes.rst``
 2. For a major release, create a new branch with the name "0.version.X", e.g.
    "0.2.X". This branch will have all tags for all releases under 0.2.
 3. Bump the version defined in ``skops/__init__.py``
