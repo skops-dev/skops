@@ -88,7 +88,13 @@ As a maintainer, follow these steps:
    "0.2.X". This branch will have all tags for all releases under 0.2.
 3. Bump the version defined in ``skops/__init__.py``
 4. Git grep for any TODO's that need fixing before the release (e.g.
-   deprecations)
+   deprecations). You can do this, for example by:
+
+   .. code:: bash
+
+      git grep -n TODO
+
+
 5. Create a PR with all the changes and have it reviewed and merged
 6. Create a tag with the format "v0.version", e.g. "v0.2", and push it to the
    remote repository. Use this tag for releasing the package. If there is a
