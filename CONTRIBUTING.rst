@@ -83,23 +83,34 @@ Releases are created using `manual GitHub workflows
 <https://docs.github.com/en/actions/managing-workflow-runs/manually-running-a-workflow>`_.
 As a maintainer, follow these steps:
 
-1. Create a new branch
-2. Bump the version defined in ``skops/__init__.py``
-3. Git grep for any TODO's that need fixing before the release (e.g.
-   deprecations)
-4. Update the ``CHANGES.md``
+1. Check and update the ``docs/changes.rst``
+2. For a major release, create a new branch with the name "0.version.X", e.g.
+   "0.2.X". This branch will have all tags for all releases under 0.2.
+3. Bump the version defined in ``skops/__init__.py``
+4. Git grep for any TODO's that need fixing before the release (e.g.
+   deprecations). You can do this, for example by:
+
+   .. code:: bash
+
+      git grep -n TODO
+
+
 5. Create a PR with all the changes and have it reviewed and merged
-6. Use the `GitHub action
+6. Create a tag with the format "v0.version", e.g. "v0.2", and push it to the
+   remote repository. Use this tag for releasing the package. If there is a
+   minor release under the same branch, it would be "v0.2.1" for example.
+7. Use the `GitHub action
    <https://github.com/skops-dev/skops/actions/workflows/publish-pypi.yml>`__ to
    create a new release on **TestPyPI**. Check it for correctness `on test.pypi
    <https://test.pypi.org/project/skops/>`_.
-7. Use the `GitHub action
+8. Use the `GitHub action
    <https://github.com/skops-dev/skops/actions/workflows/publish-pypi.yml>`__ to
    create a new release on **PyPI**. Check it for correctness `pypi
    <https://pypi.org/project/skops/>`_.
-8. Create a `new release <https://github.com/skops-dev/skops/releases>`_ on
+9. Create a `new release <https://github.com/skops-dev/skops/releases>`_ on
    GitHub
-9. Update the patch version of the package to a new dev version, e.g. from
+10. Update the patch version of the package to a new dev version, e.g. from
    ``v0.3.0`` to ``v0.3.dev1``
-10. Check that the new stable branch of documentation was built correctly on
-    `readthedocs <https://readthedocs.org/projects/skops/builds/>`_
+11. Check that the new stable branch of documentation was built correctly on
+    `readthedocs <https://readthedocs.org/projects/skops/builds/>`_, and make
+    sure all relevant releases are *active*.
