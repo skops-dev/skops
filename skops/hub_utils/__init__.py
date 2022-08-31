@@ -1,4 +1,5 @@
 from ._hf_hub import (
+    add_files,
     download,
     get_config,
     get_model_output,
@@ -9,11 +10,12 @@ from ._hf_hub import (
 )
 
 __all__ = [
-    "init",
-    "update_env",
-    "push",
+    "add_files",
+    "download",
     "get_config",
     "get_requirements",
-    "download",
     "get_model_output",
+    "init",
+    "push",
+    "update_env",
 ]

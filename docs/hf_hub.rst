@@ -78,6 +78,20 @@ The key ``sklearn`` includes the following sub-keys:
 You almost never need to create or touch this file manually, and it's created
 when you call :func:`skops.hub_utils.init`.
 
+It is recommended to include the script itself that creates the whole output in
+the upload. This way, the results are easily reproducible for others. To achieve
+this, call :func:`skops.hub_utils.add_files`:
+
+.. code:: python
+
+    # contents of train.py
+    ...
+    hub_utils.init(model, dst=local_repo)
+    hub_utils.add_files([__file__], dst=local_repo)  # adds train.py to repo
+    hub_utils.push(...)
+
+You may of course add more files if they're useful.
+
 .. _hf_hub_inference:
 
 Inference without Downloading the Models

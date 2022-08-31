@@ -9,6 +9,7 @@ import json
 import os
 import shutil
 import warnings
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, List, MutableMapping, Optional, Union
 
@@ -325,6 +326,65 @@ def init(
     except Exception:
         shutil.rmtree(dst)
         raise
+
+
+def add_files(files: Sequence[str | Path], dst: str | Path) -> None:
+    """Add files to initialized repo.
+
+    After having called :func:`.hub_utils.init`, use this function to add
+    arbitrary files to be uploaded in addition to the model and model card.
+
+    In particular, it can be useful to upload the script itself that produces
+    those artifacts by calling ``hub_utils.add_files([__file__], dst=...)``.
+
+    Parameters
+    ----------
+    files : list of str or Path
+        The files to be added. If a file by that name already exists at target
+        location, it will be skipped.
+
+    dst : str or Path
+        Path to the initialized repo, same as used during
+        :func:`.hub_utils.init`.
+
+    Raises
+    ------
+    FileNotFoundError
+        When the target folder or the files to be added are not found.
+
+    TypeError
+        When the files are not passed correctly.
+
+    """
+    dst = Path(dst)
+    # check dst exists
+    if not dst.exists():
+        msg = f"Could not find '{dst}', did you run 'skops.hub_utils.init' first?"
+        raise FileNotFoundError(msg)
+
+    # validate input types
+    if isinstance(files, (str, Path)):
+        msg = (
+            "First argument must be a sequence of str or Path, got "
+            f"{type(files)} instead."
+        )
+        raise TypeError(msg)
+
+    src_files = [Path(file) for file in files]
+    # check that files exist
+    for file in src_files:
+        if not file.exists():
+            msg = f"File '{file}' could not be found."
+            raise FileNotFoundError(msg)
+
+    dst_files = [dst / Path(file).name for file in files]
+    for src_file, dst_file in zip(src_files, dst_files):
+        if dst_file.exists():
+            msg = f"File '{src_file.name}' already found at '{dst}', skipping."
+            warnings.warn(msg)
+            continue
+
+        shutil.copy2(src_file, dst_file)
 
 
 def update_env(

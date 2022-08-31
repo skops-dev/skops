@@ -18,6 +18,7 @@ from sklearn.linear_model import LinearRegression, LogisticRegression
 
 from skops import card
 from skops.hub_utils import (
+    add_files,
     download,
     get_config,
     get_model_output,
@@ -489,3 +490,93 @@ def test_get_column_names_pandas_not_installed(pandas_not_installed):
     # is not installed and check that the function does not raise when pandas
     # import fails
     _get_column_names(np.ones((5, 10)))
+
+
+class TestAddFiles:
+    @pytest.fixture
+    def init_path(self, classifier_pickle, config_json):
+        # create temporary directory
+        dir_path = tempfile.mkdtemp()
+        shutil.rmtree(dir_path)
+
+        version = metadata.version("scikit-learn")
+        init(
+            model=classifier_pickle,
+            requirements=[f'scikit-learn="{version}"'],
+            dst=dir_path,
+            task="tabular-classification",
+            data=iris.data,
+        )
+        yield dir_path
+
+    @pytest.fixture
+    def some_file_0(self, temp_path):
+        filename = Path(temp_path) / "file0.txt"
+        with open(filename, "w") as f:
+            f.write("")
+        yield filename
+
+    @pytest.fixture
+    def some_file_1(self, temp_path):
+        filename = Path(temp_path) / "file0.txt"
+        with open(filename, "w") as f:
+            f.write("")
+        yield filename
+
+    def test_adding_one_file_path(self, init_path, some_file_0):
+        add_files([some_file_0], dst=init_path)
+        assert os.path.exists(Path(init_path) / some_file_0.name)
+
+    def test_adding_two_file_paths(self, init_path, some_file_0, some_file_1):
+        add_files([some_file_0, some_file_1], dst=init_path)
+        assert os.path.exists(Path(init_path) / some_file_0.name)
+        assert os.path.exists(Path(init_path) / some_file_1.name)
+
+    def test_adding_one_file_str(self, init_path, some_file_0):
+        add_files([str(some_file_0)], dst=init_path)
+        assert os.path.exists(Path(init_path) / some_file_0.name)
+
+    def test_adding_two_files_str(self, init_path, some_file_0, some_file_1):
+        add_files([str(some_file_0), str(some_file_1)], dst=init_path)
+        assert os.path.exists(Path(init_path) / some_file_0.name)
+        assert os.path.exists(Path(init_path) / some_file_1.name)
+
+    def test_adding_str_and_path(self, init_path, some_file_0, some_file_1):
+        add_files([str(some_file_0), some_file_1], dst=init_path)
+        assert os.path.exists(Path(init_path) / some_file_0.name)
+        assert os.path.exists(Path(init_path) / some_file_1.name)
+
+    def test_adding_no_sequence_raises(self, init_path, some_file_0):
+        msg = "First argument must be a sequence of str or Path, got"
+        with pytest.raises(TypeError, match=msg):
+            # try adding Path
+            add_files(some_file_0, dst=init_path)
+
+        with pytest.raises(TypeError, match=msg):
+            # try adding str
+            add_files(str(some_file_0), dst=init_path)
+
+    def test_dst_does_not_exist_raises(self, some_file_0):
+        dst = tempfile.mkdtemp()
+        shutil.rmtree(dst)
+        msg = f"Could not find '{dst}', did you run 'skops.hub_utils.init' first?"
+        with pytest.raises(FileNotFoundError, match=msg):
+            add_files([some_file_0], dst=dst)
+
+    def test_file_does_not_exist_raises(self, init_path, some_file_0):
+        non_existing_file = "foobar.baz"
+        msg = "File 'foobar.baz' could not be found."
+        with pytest.raises(FileNotFoundError, match=msg):
+            add_files([some_file_0, non_existing_file], dst=init_path)
+
+    def test_adding_existing_file_warns_and_skips(self, init_path, some_file_0):
+        # first time around no warning
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            add_files([some_file_0], dst=init_path)
+
+        with pytest.warns() as rec:
+            add_files([some_file_0], dst=init_path)
+            assert len(rec) == 1
+            msg = f"File '{some_file_0.name}' already found at '{init_path}', skipping."
+            assert rec[0].message.args[0] == msg
