@@ -48,13 +48,7 @@ jobs:
       env:
         SUPER_SECRET: ${{ secrets.HF_HUB_TOKEN }}
       run: |
-        python -m pytest -s --cov=skops --cov-report=xml -v skops/
-
-    - name: Doc Tests
-      env:
-        SUPER_SECRET: ${{ secrets.HF_HUB_TOKEN }}
-      run: |
-        python -m pytest -s --cov=skops --doctest-modules skops/
+        python -m pytest -s --cov=skops --cov-report=xml --doctest-modules -v skops/
 
     - name: Mypy
       run: mypy --config-file pyproject.toml skops
