@@ -556,7 +556,7 @@ class TestAddFiles:
         assert os.path.exists(Path(init_path) / some_file_1.name)
 
     def test_adding_no_sequence_raises(self, init_path, some_file_0):
-        msg = "First argument must be a sequence of str or Path, got"
+        msg = re.escape("First argument must be a sequence of str or Path, got")
         with pytest.raises(TypeError, match=msg):
             # try adding Path
             add_files(some_file_0, dst=init_path)
@@ -568,13 +568,15 @@ class TestAddFiles:
     def test_dst_does_not_exist_raises(self, some_file_0):
         dst = tempfile.mkdtemp()
         shutil.rmtree(dst)
-        msg = f"Could not find '{dst}', did you run 'skops.hub_utils.init' first?"
+        msg = re.escape(
+            "Could not find '{dst}', did you run 'skops.hub_utils.init' first?"
+        )
         with pytest.raises(FileNotFoundError, match=msg):
             add_files([some_file_0], dst=dst)
 
     def test_file_does_not_exist_raises(self, init_path, some_file_0):
         non_existing_file = "foobar.baz"
-        msg = "File 'foobar.baz' could not be found."
+        msg = re.escape("File 'foobar.baz' could not be found.")
         with pytest.raises(FileNotFoundError, match=msg):
             add_files([some_file_0, non_existing_file], dst=init_path)
 
@@ -587,5 +589,7 @@ class TestAddFiles:
         with pytest.warns() as rec:
             add_files([some_file_0], dst=init_path)
             assert len(rec) == 1
-            msg = f"File '{some_file_0.name}' already found at '{init_path}', skipping."
+            msg = re.escape(
+                f"File '{some_file_0.name}' already found at '{init_path}', skipping."
+            )
             assert rec[0].message.args[0] == msg
