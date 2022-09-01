@@ -374,6 +374,14 @@ def test_push_download(
         client.delete_repo(repo_id=repo_id, token=HF_HUB_TOKEN)
 
 
+@pytest.fixture
+def repo_path_for_inference():
+    # Create a separate path for test_inference so that the test does not have
+    # any side-effect on existing tests
+    with tempfile.TemporaryDirectory(prefix="skops-test-sample-repo") as repo_path:
+        yield Path(repo_path)
+
+
 @pytest.mark.network
 @flaky(max_runs=3)
 @pytest.mark.parametrize(
@@ -388,12 +396,13 @@ def test_inference(
     model_func,
     data,
     task,
-    repo_path,
+    repo_path_for_inference,
     destination_path,
 ):
     # test inference backend for classifier and regressor models.
     client = HfApi()
 
+    repo_path = repo_path_for_inference
     model = model_func()
     model_path = repo_path / "model.pickle"
 
@@ -518,7 +527,7 @@ class TestAddFiles:
 
     @pytest.fixture
     def some_file_1(self, temp_path):
-        filename = Path(temp_path) / "file0.txt"
+        filename = Path(temp_path) / "file1.txt"
         with open(filename, "w") as f:
             f.write("")
         yield filename
