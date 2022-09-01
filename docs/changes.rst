@@ -11,7 +11,7 @@ skops Changelog
 
 v0.3
 ----
-- Utility to function to add arbitrary files to be uploaded to the hub by using
+- Utility function to add arbitrary files to be uploaded to the hub by using
   :func:`.hub_utils.add_files`. :pr:`123` by `Benjamin Bossan`_.
 
 v0.2
