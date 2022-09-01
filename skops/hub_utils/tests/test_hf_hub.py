@@ -533,37 +533,27 @@ class TestAddFiles:
         yield filename
 
     def test_adding_one_file_path(self, init_path, some_file_0):
-        add_files([some_file_0], dst=init_path)
+        add_files(some_file_0, dst=init_path)
         assert os.path.exists(Path(init_path) / some_file_0.name)
 
     def test_adding_two_file_paths(self, init_path, some_file_0, some_file_1):
-        add_files([some_file_0, some_file_1], dst=init_path)
+        add_files(some_file_0, some_file_1, dst=init_path)
         assert os.path.exists(Path(init_path) / some_file_0.name)
         assert os.path.exists(Path(init_path) / some_file_1.name)
 
     def test_adding_one_file_str(self, init_path, some_file_0):
-        add_files([str(some_file_0)], dst=init_path)
+        add_files(str(some_file_0), dst=init_path)
         assert os.path.exists(Path(init_path) / some_file_0.name)
 
     def test_adding_two_files_str(self, init_path, some_file_0, some_file_1):
-        add_files([str(some_file_0), str(some_file_1)], dst=init_path)
+        add_files(str(some_file_0), str(some_file_1), dst=init_path)
         assert os.path.exists(Path(init_path) / some_file_0.name)
         assert os.path.exists(Path(init_path) / some_file_1.name)
 
     def test_adding_str_and_path(self, init_path, some_file_0, some_file_1):
-        add_files([str(some_file_0), some_file_1], dst=init_path)
+        add_files(str(some_file_0), some_file_1, dst=init_path)
         assert os.path.exists(Path(init_path) / some_file_0.name)
         assert os.path.exists(Path(init_path) / some_file_1.name)
-
-    def test_adding_no_sequence_raises(self, init_path, some_file_0):
-        msg = "First argument must be a sequence of str or Path, got"
-        with pytest.raises(TypeError, match=msg):
-            # try adding Path
-            add_files(some_file_0, dst=init_path)
-
-        with pytest.raises(TypeError, match=msg):
-            # try adding str
-            add_files(str(some_file_0), dst=init_path)
 
     def test_dst_does_not_exist_raises(self, some_file_0):
         dst = tempfile.mkdtemp()
@@ -573,22 +563,26 @@ class TestAddFiles:
             r"\'skops.hub_utils.init\' first\?"
         )
         with pytest.raises(FileNotFoundError, match=msg):
-            add_files([some_file_0], dst=dst)
+            add_files(some_file_0, dst=dst)
 
     def test_file_does_not_exist_raises(self, init_path, some_file_0):
         non_existing_file = "foobar.baz"
         msg = r"File \'foobar.baz\' could not be found."
         with pytest.raises(FileNotFoundError, match=msg):
-            add_files([some_file_0, non_existing_file], dst=init_path)
+            add_files(some_file_0, non_existing_file, dst=init_path)
 
-    def test_adding_existing_file_warns_and_skips(self, init_path, some_file_0):
+    def test_adding_existing_file_works(self, init_path, some_file_0):
+        add_files(some_file_0, dst=init_path)
+        assert os.path.exists(Path(init_path) / some_file_0.name)
+        add_files(some_file_0, dst=init_path)
+        assert os.path.exists(Path(init_path) / some_file_0.name)
+
+    def test_adding_existing_file_exist_not_ok_raises(self, init_path, some_file_0):
         # first time around no warning
         with warnings.catch_warnings():
             warnings.simplefilter("error")
-            add_files([some_file_0], dst=init_path)
+            add_files(some_file_0, dst=init_path, exist_ok=False)
 
-        with pytest.warns() as rec:
-            add_files([some_file_0], dst=init_path)
-            assert len(rec) == 1
-            msg = f"File '{some_file_0.name}' already found at '{init_path}', skipping."
-            assert rec[0].message.args[0] == msg
+        msg = f"File '{some_file_0.name}' already found at '{init_path}'."
+        with pytest.raises(FileExistsError, match=msg):
+            add_files(some_file_0, dst=init_path, exist_ok=False)

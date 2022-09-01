@@ -9,7 +9,6 @@ import json
 import os
 import shutil
 import warnings
-from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, List, MutableMapping, Optional, Union
 
@@ -328,7 +327,7 @@ def init(
         raise
 
 
-def add_files(files: Sequence[str | Path], dst: str | Path) -> None:
+def add_files(*files: str | Path, dst: str | Path, exist_ok: bool = True) -> None:
     """Add files to initialized repo.
 
     After having called :func:`.hub_utils.init`, use this function to add
@@ -339,7 +338,7 @@ def add_files(files: Sequence[str | Path], dst: str | Path) -> None:
 
     Parameters
     ----------
-    files : list of str or Path
+    *files : str or Path
         The files to be added. If a file by that name already exists at target
         location, it will be skipped.
 
@@ -347,13 +346,18 @@ def add_files(files: Sequence[str | Path], dst: str | Path) -> None:
         Path to the initialized repo, same as used during
         :func:`.hub_utils.init`.
 
+    exist_ok : bool (default=True)
+        Whether it's okay or not to add a file that already exists. If it's
+        okay, override the file, otherwise raise a ``FileExistsError``.
+
     Raises
     ------
     FileNotFoundError
         When the target folder or the files to be added are not found.
 
-    TypeError
-        When the files are not passed correctly.
+    FileExistsError
+        When a file is added that already exists at the target location and
+        ``exist_ok=False``.
 
     """
     dst = Path(dst)
@@ -362,16 +366,8 @@ def add_files(files: Sequence[str | Path], dst: str | Path) -> None:
         msg = f"Could not find '{dst}', did you run 'skops.hub_utils.init' first?"
         raise FileNotFoundError(msg)
 
-    # validate input types
-    if isinstance(files, (str, Path)):
-        msg = (
-            "First argument must be a sequence of str or Path, got "
-            f"{type(files)} instead."
-        )
-        raise TypeError(msg)
-
     src_files = [Path(file) for file in files]
-    # check that files exist
+    # check that source files exist
     for file in src_files:
         if not file.exists():
             msg = f"File '{file}' could not be found."
@@ -379,10 +375,10 @@ def add_files(files: Sequence[str | Path], dst: str | Path) -> None:
 
     dst_files = [dst / Path(file).name for file in files]
     for src_file, dst_file in zip(src_files, dst_files):
-        if dst_file.exists():
-            msg = f"File '{src_file.name}' already found at '{dst}', skipping."
-            warnings.warn(msg)
-            continue
+        # check if target file already exists
+        if dst_file.exists() and not exist_ok:
+            msg = f"File '{src_file.name}' already found at '{dst}'."
+            raise FileExistsError(msg)
 
         shutil.copy2(src_file, dst_file)
 

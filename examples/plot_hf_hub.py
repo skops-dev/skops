@@ -84,7 +84,7 @@ hub_utils.init(
 )
 if "__file__" in locals():  # __file__ not defined during docs built
     # Add this script itself to the files to be uploaded for reproducibility
-    hub_utils.add_files([__file__], dst=local_repo)
+    hub_utils.add_files(__file__, dst=local_repo)
 
 # %%
 # We can no see what the contents of the created local repo are:

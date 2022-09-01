@@ -87,7 +87,7 @@ this, call :func:`skops.hub_utils.add_files`:
     # contents of train.py
     ...
     hub_utils.init(model, dst=local_repo)
-    hub_utils.add_files([__file__], dst=local_repo)  # adds train.py to repo
+    hub_utils.add_files(__file__, dst=local_repo)  # adds train.py to repo
     hub_utils.push(...)
 
 You may of course add more files if they're useful.
