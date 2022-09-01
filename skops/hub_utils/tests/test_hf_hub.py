@@ -583,6 +583,9 @@ class TestAddFiles:
             warnings.simplefilter("error")
             add_files(some_file_0, dst=init_path, exist_ok=False)
 
-        msg = f"File '{some_file_0.name}' already found at '{init_path}'."
+        msg = (
+            f"File '{re.escape(some_file_0.name)}' already found "
+            f"at '{re.escape(init_path)}'."
+        )
         with pytest.raises(FileExistsError, match=msg):
             add_files(some_file_0, dst=init_path, exist_ok=False)
