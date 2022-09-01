@@ -569,7 +569,7 @@ class TestAddFiles:
         dst = tempfile.mkdtemp()
         shutil.rmtree(dst)
         msg = (
-            rf"Could not find \'{re.esacape(dst)}\', did you run "
+            rf"Could not find \'{re.escape(dst)}\', did you run "
             r"\'skops.hub_utils.init\' first\?"
         )
         with pytest.raises(FileNotFoundError, match=msg):
