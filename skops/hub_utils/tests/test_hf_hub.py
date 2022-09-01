@@ -568,13 +568,13 @@ class TestAddFiles:
     def test_dst_does_not_exist_raises(self, some_file_0):
         dst = tempfile.mkdtemp()
         shutil.rmtree(dst)
-        msg = rf"Could not find '{dst}', did you run 'skops.hub_utils.init' first\?"
+        msg = rf"Could not find \'{dst}\', did you run \'skops.hub_utils.init\' first\?"
         with pytest.raises(FileNotFoundError, match=msg):
             add_files([some_file_0], dst=dst)
 
     def test_file_does_not_exist_raises(self, init_path, some_file_0):
         non_existing_file = "foobar.baz"
-        msg = "File 'foobar.baz' could not be found."
+        msg = r"File \'foobar.baz\' could not be found."
         with pytest.raises(FileNotFoundError, match=msg):
             add_files([some_file_0, non_existing_file], dst=init_path)
 
