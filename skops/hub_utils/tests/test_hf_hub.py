@@ -571,13 +571,13 @@ class TestAddFiles:
         with pytest.raises(FileNotFoundError, match=msg):
             add_files(some_file_0, non_existing_file, dst=init_path)
 
-    def test_adding_existing_file_works(self, init_path, some_file_0):
+    def test_adding_existing_file_works_if_exist_ok(self, init_path, some_file_0):
         add_files(some_file_0, dst=init_path)
         assert os.path.exists(Path(init_path) / some_file_0.name)
-        add_files(some_file_0, dst=init_path)
+        add_files(some_file_0, dst=init_path, exist_ok=True)
         assert os.path.exists(Path(init_path) / some_file_0.name)
 
-    def test_adding_existing_file_exist_not_ok_raises(self, init_path, some_file_0):
+    def test_adding_existing_file_raises(self, init_path, some_file_0):
         # first time around no warning
         with warnings.catch_warnings():
             warnings.simplefilter("error")
@@ -588,4 +588,4 @@ class TestAddFiles:
             f"at '{re.escape(init_path)}'."
         )
         with pytest.raises(FileExistsError, match=msg):
-            add_files(some_file_0, dst=init_path, exist_ok=False)
+            add_files(some_file_0, dst=init_path)

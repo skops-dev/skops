@@ -327,7 +327,7 @@ def init(
         raise
 
 
-def add_files(*files: str | Path, dst: str | Path, exist_ok: bool = True) -> None:
+def add_files(*files: str | Path, dst: str | Path, exist_ok: bool = False) -> None:
     """Add files to initialized repo.
 
     After having called :func:`.hub_utils.init`, use this function to add
@@ -345,7 +345,7 @@ def add_files(*files: str | Path, dst: str | Path, exist_ok: bool = True) -> Non
         Path to the initialized repo, same as used during
         :func:`.hub_utils.init`.
 
-    exist_ok : bool (default=True)
+    exist_ok : bool (default=False)
         Whether it's okay or not to add a file that already exists. If
         ``True``, override the files, otherwise raise a ``FileExistsError``.
 
