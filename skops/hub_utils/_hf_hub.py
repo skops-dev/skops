@@ -339,8 +339,7 @@ def add_files(*files: str | Path, dst: str | Path, exist_ok: bool = True) -> Non
     Parameters
     ----------
     *files : str or Path
-        The files to be added. If a file by that name already exists at target
-        location, it will be skipped.
+        The files to be added.
 
     dst : str or Path
         Path to the initialized repo, same as used during
