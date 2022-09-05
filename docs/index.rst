@@ -19,7 +19,7 @@ The following examples are good starting points:
   :ref:`sphx_glr_auto_examples_plot_hf_hub.py`
 - How to create a model card for your scikit-learn based model:
   :ref:`sphx_glr_auto_examples_plot_model_card.py`
-- How to make the best of skops with text classification task:
+- A text classification example, and its integration with the hub:
   :ref:`sphx_glr_auto_examples_plot_text_classification.py`
 
 In order to better understand the role of each file and their content when
