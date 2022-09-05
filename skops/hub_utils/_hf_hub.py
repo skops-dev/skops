@@ -346,8 +346,8 @@ def add_files(*files: str | Path, dst: str | Path, exist_ok: bool = True) -> Non
         :func:`.hub_utils.init`.
 
     exist_ok : bool (default=True)
-        Whether it's okay or not to add a file that already exists. If it's
-        okay, override the file, otherwise raise a ``FileExistsError``.
+        Whether it's okay or not to add a file that already exists. If
+        ``True``, override the files, otherwise raise a ``FileExistsError``.
 
     Raises
     ------
