@@ -441,7 +441,8 @@ def test_inference(
         token=HF_HUB_TOKEN,
         commit_message="test message",
         create_remote=True,
-        private=True,
+        # api-inference doesn't support private repos for community projects.
+        private=False,
     )
 
     X_test = data.data.head(5)
