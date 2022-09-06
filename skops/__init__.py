@@ -31,3 +31,5 @@ if __SKOPS_SETUP__:
     sys.stderr.write("Partial import of the library during the build process.\n")
     # We are not importing the rest of the library during the build
     # process, as it may not be compiled yet or cause immature import
+
+from ._persist import load, save  # noqa: F401
