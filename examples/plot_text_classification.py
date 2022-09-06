@@ -1,6 +1,6 @@
 """
-scikit-learn model cards
---------------------------------------
+Text Classification with scikit-learn
+-------------------------------------
 
 This guide demonstrates how you can make the best of this package to host text
 classification models.
