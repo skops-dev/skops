@@ -134,7 +134,7 @@ hub_utils.push(
 # Once uploaded, other users can download and use it, unless you make the repo
 # private. Given a repository's name, here's how one can download it:
 repo_copy = mkdtemp(prefix="skops")
-hub_utils.download(repo_id=repo_id, dst=repo_copy)
+hub_utils.download(repo_id=repo_id, dst=repo_copy, token=token)
 print(os.listdir(repo_copy))
 
 
