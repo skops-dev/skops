@@ -108,13 +108,9 @@ model_description = (
     " max_leaf_nodes and max_depth."
 )
 model_card_authors = "skops_user"
-get_started_code = (
-    "import pickle\nwith open(pkl_filename, 'rb') as file:\n    clf = pickle.load(file)"
-)
 citation_bibtex = "bibtex\n@inproceedings{...,year={2020}}"
 model_card.add(
     citation_bibtex=citation_bibtex,
-    get_started_code=get_started_code,
     model_card_authors=model_card_authors,
     limitations=limitations,
     model_description=model_description,
