@@ -32,26 +32,22 @@ from sklearn.pipeline import Pipeline
 
 from skops import card, hub_utils
 
-# %% Data
-# ====
-# We will use 20 newsgroups dataset from sklearn. We will define categories of
-# this dataset ourselves as targets are integers.
+# %%
+# Data
+# =======
+# We will use 20 newsgroups dataset from sklearn.
 
-categories = ["alt.atheism", "soc.religion.christian", "comp.graphics", "sci.med"]
-twenty_train = fetch_20newsgroups(
-    subset="train", categories=categories, shuffle=True, random_state=42
-)
+twenty_train = fetch_20newsgroups(subset="train", shuffle=True, random_state=42)
 
-twenty_validation = fetch_20newsgroups(
-    subset="test", categories=categories, shuffle=True, random_state=42
-)
+twenty_validation = fetch_20newsgroups(subset="test", shuffle=True, random_state=42)
 
 X_train, X_test, y_train, y_test = train_test_split(
     twenty_train.data, twenty_train.target, test_size=0.3, random_state=42
 )
 
-# %% Train a Model
-# =============
+# %%
+# Train a Model
+# ================
 # To train a model, we need to convert our data first to vectors. We will use
 # CountVectorizer and TFIDFVectorizer in our pipeline. We will fit a Multinomial
 # Naive Bayes model with the outputs of the vectorization.
@@ -66,16 +62,22 @@ model = Pipeline(
 
 model.fit(X_train, y_train)
 
-# %% Inference
-# =============
+# %%
+# Inference
+# ============
 # Let's see if the model works.
 
-docs_new = ["Statistical machine learning is the best."]
+docs_new = [
+    "A graphics processing unit is a specialized electronic circuit designed to"
+    " manipulate and alter memory to accelerate the creation of images in a frame"
+    " buffer intended for output to a display device.."
+]
 predicted = model.predict(docs_new)
 print(twenty_train.target_names[predicted[0]])
 
-# %% Initialize a repository to save our files in
-# ============================================
+# %%
+# Initialize a repository to save our files in
+# ===============================================
 # We will now initialize a repository and save our model
 _, pkl_name = mkstemp(prefix="skops-", suffix=".pkl")
 
@@ -92,8 +94,9 @@ hub_utils.init(
     data=X_test,
 )
 
-# %% Create a model card
-# ====================
+# %%
+# Create a model card
+# ======================
 # We now create a model card, and populate its metadata with information which
 # is already provided in ``config.json``, which itself is created by the call to
 # :func:`.hub_utils.init` above. We will see below how we can populate the model
@@ -101,8 +104,9 @@ hub_utils.init(
 
 model_card = card.Card(model, metadata=card.metadata_from_config(Path(local_repo)))
 
-# %% Add more information
-# ====================
+# %%
+# Add more information
+# =======================
 # So far, the model card does not tell viewers a lot about the model. Therefore,
 # we add more information about the model, like a description and what its
 # license is.
@@ -126,9 +130,10 @@ model_card.add(
     model_description=model_description,
 )
 
-# %% Add plots, metrics, and tables to our model card
-# ================================================
-# We will evaluate our model
+# %%
+# Add plots, metrics, and tables to our model card
+# ===================================================
+# We will now evaluate our model and add our findings to the model card.
 
 y_pred = model.predict(X_test)
 eval_descr = (
@@ -149,7 +154,7 @@ disp.figure_.savefig(Path(local_repo) / "confusion_matrix.png")
 model_card.add_plot(**{"Confusion matrix": "confusion_matrix.png"})
 
 clf_report = classification_report(
-    y_test, y_pred, output_dict=True, target_names=categories
+    y_test, y_pred, output_dict=True, target_names=twenty_train.target_names
 )
 # The classification report has to be transformed into a DataFrame first to have
 # the correct format. This requires removing the "accuracy", which was added
@@ -159,12 +164,13 @@ clf_report = pd.DataFrame(clf_report).T.reset_index()
 model_card.add_table(
     folded=True,
     **{
-        "Classification report": clf_report,
+        "Classification Report": clf_report,
     },
 )
 
-# %% Save model card
-# ===============
+# %%
+# Save model card
+# ==================
 # We can simply save our model card by providing a path to :meth:`.Card.save`.
 
 model_card.save(Path(local_repo) / "README.md")
