@@ -18,6 +18,7 @@ from sklearn.linear_model import LinearRegression, LogisticRegression
 
 from skops import card
 from skops.hub_utils import (
+    add_files,
     download,
     get_config,
     get_model_output,
@@ -373,6 +374,14 @@ def test_push_download(
         client.delete_repo(repo_id=repo_id, token=HF_HUB_TOKEN)
 
 
+@pytest.fixture
+def repo_path_for_inference():
+    # Create a separate path for test_inference so that the test does not have
+    # any side-effect on existing tests
+    with tempfile.TemporaryDirectory(prefix="skops-test-sample-repo") as repo_path:
+        yield Path(repo_path)
+
+
 @pytest.mark.network
 @flaky(max_runs=3)
 @pytest.mark.parametrize(
@@ -387,12 +396,13 @@ def test_inference(
     model_func,
     data,
     task,
-    repo_path,
+    repo_path_for_inference,
     destination_path,
 ):
     # test inference backend for classifier and regressor models.
     client = HfApi()
 
+    repo_path = repo_path_for_inference
     model = model_func()
     model_path = repo_path / "model.pickle"
 
@@ -489,3 +499,93 @@ def test_get_column_names_pandas_not_installed(pandas_not_installed):
     # is not installed and check that the function does not raise when pandas
     # import fails
     _get_column_names(np.ones((5, 10)))
+
+
+class TestAddFiles:
+    @pytest.fixture
+    def init_path(self, classifier_pickle, config_json):
+        # create temporary directory
+        dir_path = tempfile.mkdtemp()
+        shutil.rmtree(dir_path)
+
+        version = metadata.version("scikit-learn")
+        init(
+            model=classifier_pickle,
+            requirements=[f'scikit-learn="{version}"'],
+            dst=dir_path,
+            task="tabular-classification",
+            data=iris.data,
+        )
+        yield dir_path
+
+    @pytest.fixture
+    def some_file_0(self, temp_path):
+        filename = Path(temp_path) / "file0.txt"
+        with open(filename, "w") as f:
+            f.write("")
+        yield filename
+
+    @pytest.fixture
+    def some_file_1(self, temp_path):
+        filename = Path(temp_path) / "file1.txt"
+        with open(filename, "w") as f:
+            f.write("")
+        yield filename
+
+    def test_adding_one_file_path(self, init_path, some_file_0):
+        add_files(some_file_0, dst=init_path)
+        assert os.path.exists(Path(init_path) / some_file_0.name)
+
+    def test_adding_two_file_paths(self, init_path, some_file_0, some_file_1):
+        add_files(some_file_0, some_file_1, dst=init_path)
+        assert os.path.exists(Path(init_path) / some_file_0.name)
+        assert os.path.exists(Path(init_path) / some_file_1.name)
+
+    def test_adding_one_file_str(self, init_path, some_file_0):
+        add_files(str(some_file_0), dst=init_path)
+        assert os.path.exists(Path(init_path) / some_file_0.name)
+
+    def test_adding_two_files_str(self, init_path, some_file_0, some_file_1):
+        add_files(str(some_file_0), str(some_file_1), dst=init_path)
+        assert os.path.exists(Path(init_path) / some_file_0.name)
+        assert os.path.exists(Path(init_path) / some_file_1.name)
+
+    def test_adding_str_and_path(self, init_path, some_file_0, some_file_1):
+        add_files(str(some_file_0), some_file_1, dst=init_path)
+        assert os.path.exists(Path(init_path) / some_file_0.name)
+        assert os.path.exists(Path(init_path) / some_file_1.name)
+
+    def test_dst_does_not_exist_raises(self, some_file_0):
+        dst = tempfile.mkdtemp()
+        shutil.rmtree(dst)
+        msg = (
+            rf"Could not find \'{re.escape(dst)}\', did you run "
+            r"\'skops.hub_utils.init\' first\?"
+        )
+        with pytest.raises(FileNotFoundError, match=msg):
+            add_files(some_file_0, dst=dst)
+
+    def test_file_does_not_exist_raises(self, init_path, some_file_0):
+        non_existing_file = "foobar.baz"
+        msg = r"File \'foobar.baz\' could not be found."
+        with pytest.raises(FileNotFoundError, match=msg):
+            add_files(some_file_0, non_existing_file, dst=init_path)
+
+    def test_adding_existing_file_works_if_exist_ok(self, init_path, some_file_0):
+        add_files(some_file_0, dst=init_path)
+        assert os.path.exists(Path(init_path) / some_file_0.name)
+        add_files(some_file_0, dst=init_path, exist_ok=True)
+        assert os.path.exists(Path(init_path) / some_file_0.name)
+
+    def test_adding_existing_file_raises(self, init_path, some_file_0):
+        # first time around no warning
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            add_files(some_file_0, dst=init_path, exist_ok=False)
+
+        msg = (
+            f"File '{re.escape(some_file_0.name)}' already found "
+            f"at '{re.escape(init_path)}'."
+        )
+        with pytest.raises(FileExistsError, match=msg):
+            add_files(some_file_0, dst=init_path)
