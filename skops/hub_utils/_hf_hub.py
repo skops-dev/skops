@@ -615,6 +615,9 @@ def get_model_output(repo_id: str, data: Any, token: Optional[str] = None) -> An
     If there are warnings or exceptions during inference, this function raises
     a :class:`RuntimeError` including the original errors and warnings
     returned from the server.
+
+    Also note that if the model repo is private, the inference API would not be
+    available.
     """
     model_info = HfApi().model_info(repo_id=repo_id, token=token)
     if not model_info.pipeline_tag:

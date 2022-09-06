@@ -118,9 +118,13 @@ user_name = HfApi().whoami(token=token)["name"]
 repo_id = f"{user_name}/{repo_name}"
 print(f"Creating and pushing to repo: {repo_id}")
 
+# %%
 # Now we can push our files to the repo. The following function creates the
 # remote repository if it doesn't exist; this is controlled via the
-# ``create_remote`` argument.
+# ``create_remote`` argument. Note that here we're setting ``private=True``,
+# which means only people with the right permissions would see the model. Set
+# ``private=False`` to make it visible to the public.
+
 hub_utils.push(
     repo_id=repo_id,
     source=local_repo,
