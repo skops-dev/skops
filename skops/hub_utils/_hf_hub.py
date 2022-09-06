@@ -327,6 +327,61 @@ def init(
         raise
 
 
+def add_files(*files: str | Path, dst: str | Path, exist_ok: bool = False) -> None:
+    """Add files to initialized repo.
+
+    After having called :func:`.hub_utils.init`, use this function to add
+    arbitrary files to be uploaded in addition to the model and model card.
+
+    In particular, it can be useful to upload the script itself that produces
+    those artifacts by calling ``hub_utils.add_files([__file__], dst=...)``.
+
+    Parameters
+    ----------
+    *files : str or Path
+        The files to be added.
+
+    dst : str or Path
+        Path to the initialized repo, same as used during
+        :func:`.hub_utils.init`.
+
+    exist_ok : bool (default=False)
+        Whether it's okay or not to add a file that already exists. If
+        ``True``, override the files, otherwise raise a ``FileExistsError``.
+
+    Raises
+    ------
+    FileNotFoundError
+        When the target folder or the files to be added are not found.
+
+    FileExistsError
+        When a file is added that already exists at the target location and
+        ``exist_ok=False``.
+
+    """
+    dst = Path(dst)
+    # check dst exists
+    if not dst.exists():
+        msg = f"Could not find '{dst}', did you run 'skops.hub_utils.init' first?"
+        raise FileNotFoundError(msg)
+
+    src_files = [Path(file) for file in files]
+    # check that source files exist
+    for file in src_files:
+        if not file.exists():
+            msg = f"File '{file}' could not be found."
+            raise FileNotFoundError(msg)
+
+    dst_files = [dst / Path(file).name for file in files]
+    for src_file, dst_file in zip(src_files, dst_files):
+        # check if target file already exists
+        if dst_file.exists() and not exist_ok:
+            msg = f"File '{src_file.name}' already found at '{dst}'."
+            raise FileExistsError(msg)
+
+        shutil.copy2(src_file, dst_file)
+
+
 def update_env(
     *, path: Union[str, Path], requirements: Union[List[str], None] = None
 ) -> None:
