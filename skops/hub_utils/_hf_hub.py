@@ -442,7 +442,7 @@ def push(
 
     private: bool, default=None
         Whether the remote repository should be public or private. If ``True``
-        of ``False`` is passed, this method will set the private/public status
+        or ``False`` is passed, this method will set the private/public status
         of the remote repository, regardless of it already existing or not. If
         ``None``, no change is applied.
 
