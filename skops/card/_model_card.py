@@ -136,7 +136,7 @@ def metadata_from_config(config_path: Union[str, Path]) -> CardData:
     task = config.get("sklearn", {}).get("task", None)
     if task:
         card_data.tags += [task]
-
+    card_data.model_file = config.get("sklearn", {}).get("model", {}).get("file")
     example_input = config.get("sklearn", {}).get("example_input", None)
     # Documentation on what the widget expects:
     # https://huggingface.co/docs/hub/models-widgets-examples
@@ -380,6 +380,13 @@ class Card:
         # add evaluation results
 
         template_sections = copy.deepcopy(self._template_sections)
+        if self.metadata:
+            model_file = self.metadata.to_dict().get("model_file", None)
+            if model_file:
+                template_sections["get_started_code"] = (
+                    f"import pickle\nwith open({model_file}, 'rb') as file:\n    clf ="
+                    " pickle.load(file)"
+                )
         template_sections["eval_results"] = tabulate(
             list(self._eval_results.items()),
             headers=["Metric", "Value"],

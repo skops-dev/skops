@@ -33,6 +33,26 @@ def model_card(model_diagram=True):
 
 
 @pytest.fixture
+def model_card_metadata_from_config(destination_path):
+    X, y = load_iris(return_X_y=True, as_frame=True)
+    est = LogisticRegression(solver="liblinear").fit(X, y)
+    pkl_file = tempfile.mkstemp(suffix=".pkl", prefix="skops-test")[1]
+    with open(pkl_file, "wb") as f:
+        pickle.dump(est, f)
+    hub_utils.init(
+        model=pkl_file,
+        requirements=[f"scikit-learn=={sklearn.__version__}"],
+        dst=destination_path,
+        task="tabular-classification",
+        data=X,
+    )
+    card = Card(
+        est, model_diagram=True, metadata=metadata_from_config(destination_path)
+    )
+    yield card
+
+
+@pytest.fixture
 def destination_path():
     with tempfile.TemporaryDirectory(prefix="skops-test") as dir_path:
         yield Path(dir_path)
@@ -109,24 +129,20 @@ def test_add_metrics(destination_path, model_card):
     assert ("acc" in card) and ("f1" in card) and ("0.1" in card)
 
 
-def test_metadata_from_config_tabular_data(destination_path):
+def test_code_autogeneration(destination_path, model_card_metadata_from_config):
+    # test if getting started code is automatically generated
+    model_card_metadata_from_config.save(Path(destination_path) / "README.md")
+    metadata = metadata_load(local_path=Path(destination_path) / "README.md")
+    filename = metadata["model_file"]
+    with open(Path(destination_path) / "README.md") as f:
+        assert f"with open({filename}, 'rb')" in f.read()
+
+
+def test_metadata_from_config_tabular_data(
+    model_card_metadata_from_config, destination_path
+):
     # test if widget data is correctly set in the README
-    X, y = load_iris(return_X_y=True, as_frame=True)
-    est = LogisticRegression(solver="liblinear").fit(X, y)
-    pkl_file = tempfile.mkstemp(suffix=".pkl", prefix="skops-test")[1]
-    with open(pkl_file, "wb") as f:
-        pickle.dump(est, f)
-    hub_utils.init(
-        model=pkl_file,
-        requirements=[f"scikit-learn=={sklearn.__version__}"],
-        dst=destination_path,
-        task="tabular-classification",
-        data=X,
-    )
-    card = Card(
-        est, model_diagram=True, metadata=metadata_from_config(destination_path)
-    )
-    card.save(Path(destination_path) / "README.md")
+    model_card_metadata_from_config.save(Path(destination_path) / "README.md")
     metadata = metadata_load(local_path=Path(destination_path) / "README.md")
     assert "widget" in metadata
 
