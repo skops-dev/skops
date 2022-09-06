@@ -13,6 +13,9 @@ v0.3
 ----
 - Utility function to add arbitrary files to be uploaded to the hub by using
   :func:`.hub_utils.add_files`. :pr:`123` by `Benjamin Bossan`_.
+- Add ``private`` as an optional argument to :meth:`.hub_utils.push` to
+  optionally set the visibility status of a repo when pushing to the hub.
+  :pr:`130` by `Adrin Jalali`_.
 
 v0.2
 ----
@@ -24,6 +27,9 @@ v0.2
   filesystem if it fails for some reason. :pr:`60` by `Adrin Jalali`_
 - When adding figures or tables, it's now possible to set ``folded=True`` to
   render the content inside a details tag. :pr:`108` by `Benjamin Bossan`_.
+- Add :meth:`skops.hub_utils.get_model_output` to get the model's output using
+  The Hugging Face Hub's inference API, and return an array with the outputs.
+  :pr:`105` by `Adrin Jalali`_.
 
 v0.1
 ----

@@ -446,6 +446,8 @@ def push(
         of the remote repository, regardless of it already existing or not. If
         ``None``, no change is applied.
 
+        .. versionadded:: 0.3
+
     Returns
     -------
     None
