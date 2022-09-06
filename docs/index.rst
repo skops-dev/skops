@@ -16,7 +16,9 @@ find the source code and the development discussions on `Github
 The following examples are good starting points:
 
 - How to create and initialize a scikit-learn model repo:
-  :ref:`sphx_glr_auto_examples_plot_hf_hub.py`
+  :ref:`sphx_glr_auto_examples_plot_hf_hub.py`. You can see all the models
+  uploaded to the Hugging Face Hub using this library `here
+  <https://huggingface.co/models?other=skops>`_.
 - How to create a model card for your scikit-learn based model:
   :ref:`sphx_glr_auto_examples_plot_model_card.py`
 

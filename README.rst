@@ -38,7 +38,9 @@ download or load the model.
 
 - ``skops.hub_utils``: tools to create a model repository to be stored on
   `Hugging Face Hub <https://hf.co/models>`__, mainly through
-  ``skops.hub_utils.init`` and ``skops.hub_utils.push``.
+  ``skops.hub_utils.init`` and ``skops.hub_utils.push``. You can see all the
+  models uploaded to the hub using this library `here
+  <https://huggingface.co/models?other=skops>`_`
 - ``skops.card``: tools to create a model card explaining what the model does
   and how it should be used. The model card can then be stored as the
   ``README.md`` file on the Hugging Face Hub, with pre-populated metadata to

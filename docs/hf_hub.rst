@@ -13,6 +13,8 @@ things, gives you the following benefits:
 - Collaborating with others on a model through discussions and pull requests
 - Convenient sharing of models with the community
 
+You can see all the models uploaded to the Hugging Face Hub using this library
+`here <https://huggingface.co/models?other=skops>`_`
 
 In terms of files, there are three which a scikit-learn model repo needs to
 have on the Hub:
