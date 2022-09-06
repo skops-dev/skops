@@ -13,6 +13,7 @@ import pandas as pd
 import pytest
 from flaky import flaky
 from huggingface_hub import HfApi
+from huggingface_hub.utils import RepositoryNotFoundError
 from sklearn.datasets import load_diabetes, load_iris
 from sklearn.linear_model import LinearRegression, LogisticRegression
 
@@ -356,10 +357,17 @@ def test_push_download(
         token=HF_HUB_TOKEN,
         commit_message="test message",
         create_remote=True,
+        private=True,
     )
 
+    with pytest.raises(
+        RepositoryNotFoundError,
+        match="If the repo is private, make sure you are authenticated.",
+    ):
+        download(repo_id=repo_id, dst="/tmp/test")
+
     with pytest.raises(OSError, match="None-empty dst path already exists!"):
-        download(repo_id=repo_id, dst=destination_path)
+        download(repo_id=repo_id, dst=destination_path, token=HF_HUB_TOKEN)
 
     files = client.list_repo_files(repo_id=repo_id, token=HF_HUB_TOKEN)
     for f_name in [classifier_pickle.name, config_json.name]:
@@ -433,6 +441,7 @@ def test_inference(
         token=HF_HUB_TOKEN,
         commit_message="test message",
         create_remote=True,
+        private=True,
     )
 
     X_test = data.data.head(5)

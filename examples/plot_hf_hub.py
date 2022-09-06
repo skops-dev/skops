@@ -127,6 +127,7 @@ hub_utils.push(
     token=token,
     commit_message="pushing files to the repo from the example!",
     create_remote=True,
+    private=True,
 )
 
 # %%
