@@ -1,20 +1,29 @@
+from __future__ import annotations
+
 import importlib
 import inspect
 import io
 import json
 import shutil
 import tempfile
+from functools import partial
 from pathlib import Path
+from types import FunctionType
 from uuid import uuid4
 from zipfile import ZipFile
 
 import numpy as np
 from sklearn.base import BaseEstimator
+from sklearn.pipeline import FeatureUnion, Pipeline
+
+
+def _import_obj(module, cls_or_func):
+    return getattr(importlib.import_module(module), cls_or_func)
 
 
 def gettype(state):
     if "__module__" in state and "__class__" in state:
-        return getattr(importlib.import_module(state["__module__"]), state["__class__"])
+        return _import_obj(state["__module__"], state["__class__"])
     return None
 
 
@@ -39,6 +48,36 @@ def BaseEstimator_get_instance(state, src):
     state.pop("__class__")
     state.pop("__module__")
     instance = cls()
+    for key, value in state.items():
+        if isinstance(value, dict):
+            setattr(instance, key, get_instance_method(value)(value, src))
+        else:
+            setattr(instance, key, json.loads(value))
+    return instance
+
+
+def Pipeline_get_instance(state, src):
+    cls = gettype(state)
+    state.pop("__class__")
+    state.pop("__module__")
+    steps = state.pop("steps")
+    steps = get_instance_method(steps)(steps, src)
+    instance = cls(steps)
+    for key, value in state.items():
+        if isinstance(value, dict):
+            setattr(instance, key, get_instance_method(value)(value, src))
+        else:
+            setattr(instance, key, json.loads(value))
+    return instance
+
+
+def FeatureUnion_get_instance(state, src):
+    cls = gettype(state)
+    state.pop("__class__")
+    state.pop("__module__")
+    transformer_list = state.pop("transformer_list")
+    steps = get_instance_method(transformer_list)(transformer_list, src)
+    instance = cls(steps)
     for key, value in state.items():
         if isinstance(value, dict):
             setattr(instance, key, get_instance_method(value)(value, src))
@@ -107,17 +146,99 @@ def dict_get_instance(state, src):
     return content
 
 
+def list_get_state(obj, dst):
+    res = {
+        "__class__": obj.__class__.__name__,
+        "__module__": inspect.getmodule(type(obj)).__name__,
+    }
+    content = []
+    for value in obj:
+        try:
+            content.append(get_state_method(value)(value, dst))
+        except TypeError:
+            content.append(json.dumps(value))
+    res["content"] = content
+    return res
+
+
+def list_get_instance(state, src):
+    state.pop("__class__")
+    state.pop("__module__")
+    content = []
+    for value in state["content"]:
+        if gettype(value):
+            content.append(get_instance_method(value)(value, src))
+        else:
+            content.append(json.loads(value))
+    return content
+
+
+def tuple_get_state(obj, dst):
+    res = {
+        "__class__": obj.__class__.__name__,
+        "__module__": inspect.getmodule(type(obj)).__name__,
+    }
+    content = ()
+    for value in obj:
+        try:
+            content += (get_state_method(value)(value, dst),)
+        except TypeError:
+            content += (json.dumps(value),)
+    res["content"] = content
+    return res
+
+
+def tuple_get_instance(state, src):
+    state.pop("__class__")
+    state.pop("__module__")
+    content = ()
+    for value in state["content"]:
+        if gettype(value):
+            content += (get_instance_method(value)(value, src),)
+        else:
+            content += (json.loads(value),)
+    return content
+
+
+def function_get_state(obj, dst):
+    if isinstance(obj, partial):
+        raise TypeError("partial function are not supported yet")
+    res = {
+        "__class__": obj.__class__.__name__,
+        "__module__": inspect.getmodule(type(obj)).__name__,
+        "__content__": obj.__name__,
+    }
+    return res
+
+
+def function_get_instance(obj, src):
+    loaded = _import_obj(obj["__module__"], obj["__content__"])
+    return loaded
+
+
 # A dictionary mapping types to their corresponding persistance method.
 GET_STATE_METHODS = {
     BaseEstimator: BaseEstimator_get_state,
+    FunctionType: function_get_state,
+    np.ufunc: function_get_state,
     np.ndarray: ndarray_get_state,
+    np.generic: ndarray_get_state,
     dict: dict_get_state,
+    list: list_get_state,
+    tuple: tuple_get_state,
 }
 
 SET_STATE_METHODS = {
+    Pipeline: Pipeline_get_instance,
+    FeatureUnion: FeatureUnion_get_instance,
     BaseEstimator: BaseEstimator_get_instance,
+    FunctionType: function_get_instance,
+    np.ufunc: function_get_instance,
     np.ndarray: ndarray_get_instance,
+    np.generic: ndarray_get_instance,
     dict: dict_get_instance,
+    list: list_get_instance,
+    tuple: tuple_get_instance,
 }
 
 
@@ -133,15 +254,15 @@ def get_state_method(obj):
 
 
 def get_instance_method(state):
-    cls = gettype(state)
-    for cls in cls.mro():
+    cls_ = gettype(state)
+    for cls in cls_.mro():
         if cls in SET_STATE_METHODS:
             return SET_STATE_METHODS[cls]
 
     raise TypeError(f"Can't deserialize {type(state)}")
 
 
-def save(file, obj):
+def save(obj, file):
     with tempfile.TemporaryDirectory() as dst:
         with open(Path(dst) / "schema.json", "w") as f:
             json.dump(get_state_method(obj)(obj, dst), f)
@@ -157,4 +278,3 @@ def load(file):
     input_zip = ZipFile(file)
     schema = input_zip.read("schema.json")
     return get_instance_method(json.loads(schema))(json.loads(schema), input_zip)
-    # return {name: input_zip.read(name) for name in input_zip.namelist()}
