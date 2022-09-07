@@ -24,7 +24,6 @@ from sklearn.utils.estimator_checks import (
     _enforce_estimator_tags_y,
     _get_check_estimator_ids,
 )
-from sklearn.utils.validation import has_fit_parameter
 
 from skops import load, save
 
@@ -342,10 +341,7 @@ def test_can_persist_fitted(estimator, request):
     y = _enforce_estimator_tags_y(estimator, y)
 
     with warnings.catch_warnings():
-        if has_fit_parameter(estimator, "sample_weight"):
-            estimator.fit(X, y=y, sample_weight=None)
-        else:
-            estimator.fit(X, y=y)
+        estimator.fit(X, y=y)
 
     loaded = save_load_round(estimator)
 
