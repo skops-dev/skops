@@ -47,6 +47,11 @@ ESTIMATORS_TO_IGNORE = [
     "BaggingRegressor",
     "Birch",
     "BisectingKMeans",
+    # CalibratedClassifierCV: It's not technically broken but the equality check
+    # of the sklearn.calibration._CalibratedClassifier attribute fails. If it
+    # were a BaseEstimator, we would be good. Alternatively, we have to special
+    # case this type when equality checking
+    "CalibratedClassifierCV",
     "CCA",
     "ClassifierChain",
     "CountVectorizer",
@@ -67,6 +72,10 @@ ESTIMATORS_TO_IGNORE = [
     "GenericUnivariateSelect",
     "GradientBoostingClassifier",
     "GradientBoostingRegressor",
+    # GraphicalLassoCV fails because it has an
+    # sklearn.covariance._graph_lasso._DictWithDeprecatedKeys attribute that is
+    # converted into a regular dict
+    "GraphicalLassoCV",
     "HashingVectorizer",
     "HistGradientBoostingClassifier",
     "HistGradientBoostingRegressor",
@@ -90,6 +99,9 @@ ESTIMATORS_TO_IGNORE = [
     "LassoLarsIC",
     "LatentDirichletAllocation",
     "LocallyLinearEmbedding",
+    # LogisticRegressionCV fails because it stores a dict with ints as keys, but
+    # the json roundtrip results in the keys being strings
+    "LogisticRegressionCV",
     "MLPClassifier",
     "MLPRegressor",
     "MiniBatchDictionaryLearning",
@@ -196,10 +208,19 @@ def _tested_estimators(type_filter=None):
     )
 
 
-def assert_params_equal(est1, est2):
-    # helper function to compare estimator params
-    params1 = est1.get_params()
-    params2 = est2.get_params()
+def _assert_vals_equal(val1, val2):
+    if isinstance(val1, BaseEstimator):
+        assert_params_equal(val1.get_params(), val2.get_params())
+    elif isinstance(val1, (np.ndarray, np.generic)):
+        assert np.allclose(val1, val2)
+    elif isinstance(val1, float) and np.isnan(val1):
+        assert np.isnan(val2)
+    else:
+        assert val1 == val2
+
+
+def assert_params_equal(params1, params2):
+    # helper function to compare estimator dictionaries of parameters
     assert len(params1) == len(params2)
     assert set(params1.keys()) == set(params2.keys())
     for key in params1:
@@ -209,14 +230,29 @@ def assert_params_equal(est1, est2):
 
         val1, val2 = params1[key], params2[key]
         assert type(val1) == type(val2)
-        if isinstance(val1, BaseEstimator):
+
+        if isinstance(val1, (tuple, list)):
+            assert len(val1) == len(val2)
+            for subval1, subval2 in zip(val1, val2):
+                _assert_vals_equal(subval1, subval2)
+        elif isinstance(val1, dict):
             assert_params_equal(val1, val2)
-        elif isinstance(val1, (np.ndarray, np.generic)):
-            assert np.allclose(val1, val2)
-        elif isinstance(val1, float) and np.isnan(val1):
-            assert np.isnan(val2)
         else:
-            assert val1 == val2
+            _assert_vals_equal(val1, val2)
+
+
+def _get_learned_attrs(estimator):
+    # Find the learned attributes like "coefs_"
+    attrs = {}
+    for key in estimator.__dict__:
+        if key.startswith("_") or not key.endswith("_"):
+            continue
+
+        val = getattr(estimator, key)
+        if isinstance(val, property):
+            continue
+        attrs[key] = val
+    return attrs
 
 
 @pytest.mark.parametrize(
@@ -228,7 +264,7 @@ def test_can_persist_non_fitted(estimator, request):
         pytest.skip()
 
     loaded = save_load_round(estimator)
-    assert_params_equal(estimator, loaded)
+    assert_params_equal(estimator.get_params(), loaded.get_params())
 
 
 @pytest.mark.parametrize(
@@ -271,6 +307,11 @@ def test_can_persist_fitted(estimator, request):
         estimator.fit(X, y=y)
 
     loaded = save_load_round(estimator)
+    # check that params and learned attributes are equal
+    assert_params_equal(estimator.get_params(), loaded.get_params())
+    attrs_est = _get_learned_attrs(estimator)
+    attrs_loaded = _get_learned_attrs(loaded)
+    assert_params_equal(attrs_est, attrs_loaded)
 
     for method in [
         "predict",

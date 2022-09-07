@@ -104,8 +104,15 @@ def ndarray_get_state(obj, dst):
 
 def ndarray_get_instance(state, src):
     if state["type"] == "numpy":
-        return np.load(io.BytesIO(src.read(state["file"])), allow_pickle=False)
-    return np.array(json.loads(src.read(state["file"])))
+        val = np.load(io.BytesIO(src.read(state["file"])), allow_pickle=False)
+        # Coerce type, because it may not be conserved by np.save/load. E.g. a
+        # scalar will be loaded as a 0-dim array.
+        if state["__class__"] != "ndarray":
+            cls = _import_obj(state["__module__"], state["__class__"])
+            val = cls(val)
+    else:
+        val = np.array(json.loads(src.read(state["file"])))
+    return val
 
 
 def dict_get_state(obj, dst):
