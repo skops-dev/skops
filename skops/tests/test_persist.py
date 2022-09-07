@@ -31,6 +31,8 @@ EXPLICIT_TESTS = [
     "SparseCoder",
 ]
 
+# These estimators fail in our tests, we should fix them one by one, by
+# removing them from this list, and fixing the error.
 ESTIMATORS_TO_IGNORE = [
     "ARDRegression",
     "AdaBoostClassifier",
@@ -228,7 +230,7 @@ def assert_params_equal(est1, est2):
         if isinstance(val1, BaseEstimator):
             assert_params_equal(val1, val2)
         elif isinstance(val1, (np.ndarray, np.generic)):
-            assert np.all_close(val1, val2)
+            assert np.allclose(val1, val2)
         else:
             assert val1 == val2
 
@@ -261,13 +263,13 @@ def test_can_persist_fitted(estimator):
     X = np.array(
         [
             [1, 3],
-            [1, 3],
-            [1, 3],
-            [1, 3],
+            [1, 4],
+            [1, 5],
+            [1, 6],
             [2, 1],
-            [2, 1],
-            [2, 1],
-            [2, 1],
+            [2, 2],
+            [2, 3],
+            [2, 4],
             [3, 3],
             [3, 3],
             [3, 3],
