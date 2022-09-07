@@ -4,6 +4,10 @@ import warnings
 import numpy as np
 import pytest
 from sklearn.base import BaseEstimator
+from sklearn.datasets import load_iris
+from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import FeatureUnion, Pipeline
+from sklearn.preprocessing import MinMaxScaler, PolynomialFeatures, StandardScaler
 from sklearn.utils import all_estimators
 from sklearn.utils._testing import (
     SkipTest,
@@ -202,6 +206,14 @@ ESTIMATORS_TO_IGNORE = [
 ]
 
 
+def save_load_round(estimator):
+    # save and then load the model, and return the loaded model.
+    _, f_name = tempfile.mkstemp(prefix="skops-", suffix=".skops")
+    save(file=f_name, obj=estimator)
+    loaded = load(file=f_name)
+    return loaded
+
+
 def _tested_estimators(type_filter=None):
     for name, Estimator in all_estimators(type_filter=type_filter):
         try:
@@ -235,6 +247,20 @@ def assert_params_equal(est1, est2):
             assert val1 == val2
 
 
+def _test_outputs(est1, est2, X):
+    # Test if the outputs of the predict/transform methods of the two
+    # estimators are close.
+    for method in ["predict", "predict_proba", "decision_function", "transform"]:
+        err_msg = (
+            f"{est1.__class__.__name__}.{method}() doesn't produce the same"
+            " results after loading the persisted model."
+        )
+        if hasattr(est1, method):
+            X_pred1 = getattr(est1, method)(X)
+            X_pred2 = getattr(est2, method)(X)
+            assert_allclose_dense_sparse(X_pred1, X_pred2, err_msg=err_msg)
+
+
 @pytest.mark.parametrize(
     "estimator", _tested_estimators(), ids=_get_check_estimator_ids
 )
@@ -243,9 +269,7 @@ def test_can_persist_non_fitted(estimator):
     if estimator.__class__.__name__ in ESTIMATORS_TO_IGNORE:
         pytest.skip()
 
-    _, f_name = tempfile.mkstemp(prefix="skops-", suffix=".skops")
-    save(file=f_name, obj=estimator)
-    loaded = load(file=f_name)
+    loaded = save_load_round(estimator)
     assert_params_equal(estimator, loaded)
 
 
@@ -288,16 +312,30 @@ def test_can_persist_fitted(estimator):
     with warnings.catch_warnings():
         estimator.fit(X, y=y, sample_weight=None)
 
-    _, f_name = tempfile.mkstemp(prefix="skops-", suffix=".skops")
-    save(file=f_name, obj=estimator)
-    loaded = load(file=f_name)
+    loaded = save_load_round(estimator)
+    _test_outputs(estimator, loaded, X)
 
-    for method in ["predict", "predict_proba", "decision_function", "transform"]:
-        err_msg = (
-            f"{estimator.__class__.__name__}.{method}() doesn't produce the same"
-            " results after loading the persisted model."
-        )
-        if hasattr(estimator, method):
-            X_pred1 = getattr(estimator, method)(X)
-            X_pred2 = getattr(loaded, method)(X)
-            assert_allclose_dense_sparse(X_pred1, X_pred2, err_msg=err_msg)
+
+def test_pipeline_feature_union():
+    # test with FeatureUnion and Pipeline combined and nested.
+
+    X, y = load_iris(return_X_y=True, as_frame=True)
+    # black doesn't format the following section well, so we're turning it off.
+    # fmt: off
+    pipeline = Pipeline([
+        ("features", FeatureUnion([
+            ("scaler", StandardScaler()),
+            ("scaled-poly", Pipeline([
+                ("polys", FeatureUnion([
+                    ("poly1", PolynomialFeatures()),
+                    ("poly2", PolynomialFeatures(degree=3, include_bias=False))
+                ])),
+                ("scale", MinMaxScaler()),
+            ])),
+        ])),
+        ("clf", LogisticRegression(random_state=0, solver="liblinear")),
+    ])
+    # fmt: on
+    pipeline.fit(X, y)
+    loaded = save_load_round(pipeline)
+    _test_outputs(pipeline, loaded, X)
