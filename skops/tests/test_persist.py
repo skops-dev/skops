@@ -31,11 +31,9 @@ from skops import load, save
 # automatically create an instance of them.
 EXPLICIT_TESTS = [
     "ColumnTransformer",
-    "FeatureUnion",
     "GridSearchCV",
     "HalvingGridSearchCV",
     "HalvingRandomSearchCV",
-    "Pipeline",
     "RandomizedSearchCV",
     "SparseCoder",
 ]
