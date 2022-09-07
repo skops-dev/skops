@@ -48,7 +48,6 @@ ESTIMATORS_TO_IGNORE = [
     "Birch",
     "BisectingKMeans",
     "CCA",
-    "CalibratedClassifierCV",
     "ClassifierChain",
     "CountVectorizer",
     "DecisionTreeClassifier",
