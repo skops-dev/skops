@@ -14,7 +14,6 @@ from zipfile import ZipFile
 
 import numpy as np
 from sklearn.base import BaseEstimator
-from sklearn.pipeline import FeatureUnion, Pipeline
 
 
 def _import_obj(module, cls_or_func):
@@ -47,37 +46,15 @@ def BaseEstimator_get_instance(state, src):
     cls = gettype(state)
     state.pop("__class__")
     state.pop("__module__")
-    instance = cls()
-    for key, value in state.items():
-        if isinstance(value, dict):
-            setattr(instance, key, get_instance_method(value)(value, src))
-        else:
-            setattr(instance, key, json.loads(value))
-    return instance
 
+    required_parameters = getattr(cls, "_required_parameters", [])
+    params = {}
+    for param in required_parameters:
+        param_ = state.pop(param)
+        params[param] = get_instance_method(param_)(param_, src)
 
-def Pipeline_get_instance(state, src):
-    cls = gettype(state)
-    state.pop("__class__")
-    state.pop("__module__")
-    steps = state.pop("steps")
-    steps = get_instance_method(steps)(steps, src)
-    instance = cls(steps)
-    for key, value in state.items():
-        if isinstance(value, dict):
-            setattr(instance, key, get_instance_method(value)(value, src))
-        else:
-            setattr(instance, key, json.loads(value))
-    return instance
+    instance = cls(**params)
 
-
-def FeatureUnion_get_instance(state, src):
-    cls = gettype(state)
-    state.pop("__class__")
-    state.pop("__module__")
-    transformer_list = state.pop("transformer_list")
-    steps = get_instance_method(transformer_list)(transformer_list, src)
-    instance = cls(steps)
     for key, value in state.items():
         if isinstance(value, dict):
             setattr(instance, key, get_instance_method(value)(value, src))
@@ -229,8 +206,6 @@ GET_STATE_METHODS = {
 }
 
 SET_STATE_METHODS = {
-    Pipeline: Pipeline_get_instance,
-    FeatureUnion: FeatureUnion_get_instance,
     BaseEstimator: BaseEstimator_get_instance,
     FunctionType: function_get_instance,
     np.ufunc: function_get_instance,
