@@ -3,11 +3,16 @@ import warnings
 
 import numpy as np
 import pytest
+from scipy import special
 from sklearn.base import BaseEstimator
-from sklearn.datasets import load_iris
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import FeatureUnion, Pipeline
-from sklearn.preprocessing import MinMaxScaler, PolynomialFeatures, StandardScaler
+from sklearn.preprocessing import (
+    FunctionTransformer,
+    MinMaxScaler,
+    PolynomialFeatures,
+    StandardScaler,
+)
 from sklearn.utils import all_estimators
 from sklearn.utils._testing import (
     SkipTest,
@@ -19,6 +24,7 @@ from sklearn.utils.estimator_checks import (
     _enforce_estimator_tags_y,
     _get_check_estimator_ids,
 )
+from sklearn.utils.validation import has_fit_parameter
 
 from skops import load, save
 
@@ -225,6 +231,36 @@ def _tested_estimators(type_filter=None):
 
         yield estimator
 
+    # nested Pipeline & FeatureUnion
+    # fmt: off
+    yield Pipeline([
+        ("features", FeatureUnion([
+            ("scaler", StandardScaler()),
+            ("scaled-poly", Pipeline([
+                ("polys", FeatureUnion([
+                    ("poly1", PolynomialFeatures()),
+                    ("poly2", PolynomialFeatures(degree=3, include_bias=False))
+                ])),
+                ("scale", MinMaxScaler()),
+            ])),
+        ])),
+        ("clf", LogisticRegression(random_state=0, solver="liblinear")),
+    ])
+    # fmt: on
+
+    # FunctionTransformer with numpy functions
+    yield FunctionTransformer(
+        func=np.sqrt,
+        inverse_func=np.square,
+    )
+
+    # FunctionTransformer with scipy functions - problem is that they look like
+    # numpy ufuncs
+    yield FunctionTransformer(
+        func=special.erf,
+        inverse_func=special.erfinv,
+    )
+
 
 def assert_params_equal(est1, est2):
     # helper function to compare estimator params
@@ -243,31 +279,23 @@ def assert_params_equal(est1, est2):
             assert_params_equal(val1, val2)
         elif isinstance(val1, (np.ndarray, np.generic)):
             assert np.allclose(val1, val2)
+        elif isinstance(val1, float) and np.isnan(val1):
+            assert np.isnan(val2)
         else:
             assert val1 == val2
-
-
-def _test_outputs(est1, est2, X):
-    # Test if the outputs of the predict/transform methods of the two
-    # estimators are close.
-    for method in ["predict", "predict_proba", "decision_function", "transform"]:
-        err_msg = (
-            f"{est1.__class__.__name__}.{method}() doesn't produce the same"
-            " results after loading the persisted model."
-        )
-        if hasattr(est1, method):
-            X_pred1 = getattr(est1, method)(X)
-            X_pred2 = getattr(est2, method)(X)
-            assert_allclose_dense_sparse(X_pred1, X_pred2, err_msg=err_msg)
 
 
 @pytest.mark.parametrize(
     "estimator", _tested_estimators(), ids=_get_check_estimator_ids
 )
-def test_can_persist_non_fitted(estimator):
+def test_can_persist_non_fitted(estimator, request):
     """Check that non-fitted estimators can be persisted."""
     if estimator.__class__.__name__ in ESTIMATORS_TO_IGNORE:
-        pytest.skip()
+        request.applymarker(
+            pytest.mark.xfail(
+                run=False, strict=True, reason="TODO this estimator does not pass yet"
+            )
+        )
 
     loaded = save_load_round(estimator)
     assert_params_equal(estimator, loaded)
@@ -276,10 +304,14 @@ def test_can_persist_non_fitted(estimator):
 @pytest.mark.parametrize(
     "estimator", _tested_estimators(), ids=_get_check_estimator_ids
 )
-def test_can_persist_fitted(estimator):
+def test_can_persist_fitted(estimator, request):
     """Check that fitted estimators can be persisted and return the right results."""
     if estimator.__class__.__name__ in ESTIMATORS_TO_IGNORE:
-        pytest.skip()
+        request.applymarker(
+            pytest.mark.xfail(
+                run=False, strict=True, reason="TODO this estimator does not pass yet"
+            )
+        )
 
     set_random_state(estimator, random_state=0)
 
@@ -310,32 +342,25 @@ def test_can_persist_fitted(estimator):
     y = _enforce_estimator_tags_y(estimator, y)
 
     with warnings.catch_warnings():
-        estimator.fit(X, y=y, sample_weight=None)
+        if has_fit_parameter(estimator, "sample_weight"):
+            estimator.fit(X, y=y, sample_weight=None)
+        else:
+            estimator.fit(X, y=y)
 
     loaded = save_load_round(estimator)
-    _test_outputs(estimator, loaded, X)
 
-
-def test_pipeline_feature_union():
-    # test with FeatureUnion and Pipeline combined and nested.
-
-    X, y = load_iris(return_X_y=True, as_frame=True)
-    # black doesn't format the following section well, so we're turning it off.
-    # fmt: off
-    pipeline = Pipeline([
-        ("features", FeatureUnion([
-            ("scaler", StandardScaler()),
-            ("scaled-poly", Pipeline([
-                ("polys", FeatureUnion([
-                    ("poly1", PolynomialFeatures()),
-                    ("poly2", PolynomialFeatures(degree=3, include_bias=False))
-                ])),
-                ("scale", MinMaxScaler()),
-            ])),
-        ])),
-        ("clf", LogisticRegression(random_state=0, solver="liblinear")),
-    ])
-    # fmt: on
-    pipeline.fit(X, y)
-    loaded = save_load_round(pipeline)
-    _test_outputs(pipeline, loaded, X)
+    for method in [
+        "predict",
+        "predict_proba",
+        "decision_function",
+        "transform",
+        "predict_log_proba",
+    ]:
+        err_msg = (
+            f"{estimator.__class__.__name__}.{method}() doesn't produce the same"
+            " results after loading the persisted model."
+        )
+        if hasattr(estimator, method):
+            X_pred1 = getattr(estimator, method)(X)
+            X_pred2 = getattr(loaded, method)(X)
+            assert_allclose_dense_sparse(X_pred1, X_pred2, err_msg=err_msg)
