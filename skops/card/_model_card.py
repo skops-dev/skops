@@ -381,7 +381,7 @@ class Card:
 
         template_sections = copy.deepcopy(self._template_sections)
         if self.metadata:
-            model_file = self.metadata.to_dict().get("model_file", None)
+            model_file = self.metadata.to_dict().get("model_file")
             if model_file:
                 template_sections["get_started_code"] = (
                     f"import pickle\nwith open({model_file}, 'rb') as file:\n    clf ="
