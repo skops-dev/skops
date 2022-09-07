@@ -288,11 +288,7 @@ def assert_params_equal(est1, est2):
 def test_can_persist_non_fitted(estimator, request):
     """Check that non-fitted estimators can be persisted."""
     if estimator.__class__.__name__ in ESTIMATORS_TO_IGNORE:
-        request.applymarker(
-            pytest.mark.xfail(
-                run=False, strict=True, reason="TODO this estimator does not pass yet"
-            )
-        )
+        pytest.skip()
 
     loaded = save_load_round(estimator)
     assert_params_equal(estimator, loaded)
@@ -304,11 +300,7 @@ def test_can_persist_non_fitted(estimator, request):
 def test_can_persist_fitted(estimator, request):
     """Check that fitted estimators can be persisted and return the right results."""
     if estimator.__class__.__name__ in ESTIMATORS_TO_IGNORE:
-        request.applymarker(
-            pytest.mark.xfail(
-                run=False, strict=True, reason="TODO this estimator does not pass yet"
-            )
-        )
+        pytest.skip()
 
     set_random_state(estimator, random_state=0)
 
