@@ -14,7 +14,6 @@ from typing import Any, List, MutableMapping, Optional, Union
 
 import numpy as np
 from huggingface_hub import HfApi, InferenceApi, snapshot_download
-from requests import HTTPError
 
 from ..utils.fixes import Literal
 
@@ -413,6 +412,7 @@ def push(
     token: str | None = None,
     commit_message: str | None = None,
     create_remote: bool = False,
+    private: bool | None = None,
 ) -> None:
     """Pushes the contents of a model repo to Hugging Face Hub.
 
@@ -434,11 +434,19 @@ def push(
     commit_message: str, optional
         The commit message to be used when pushing to the repo.
 
-    create_remote: bool, optional
+    create_remote: bool, default=False
         Whether to create the remote repository if it doesn't exist. If the
         remote repository doesn't exist and this parameter is ``False``, it
         raises an error. Otherwise it checks if the remote repository exists,
         and would create it if it doesn't.
+
+    private: bool, default=None
+        Whether the remote repository should be public or private. If ``True``
+        or ``False`` is passed, this method will set the private/public status
+        of the remote repository, regardless of it already existing or not. If
+        ``None``, no change is applied.
+
+        .. versionadded:: 0.3
 
     Returns
     -------
@@ -454,10 +462,12 @@ def push(
     client = HfApi()
 
     if create_remote:
-        try:
-            client.model_info(repo_id=repo_id, token=token)
-        except HTTPError:
-            client.create_repo(repo_id=repo_id, token=token, repo_type="model")
+        client.create_repo(
+            repo_id=repo_id, token=token, repo_type="model", exist_ok=True
+        )
+
+    if private is not None:
+        client.update_repo_visibility(repo_id=repo_id, private=private, token=token)
 
     client.upload_folder(
         repo_id=repo_id,
@@ -561,7 +571,10 @@ def download(
     dst = Path(dst)
     if dst.exists() and bool(next(dst.iterdir(), None)):
         raise OSError("None-empty dst path already exists!")
-    dst.rmdir()
+
+    # remove the folder only if it's empty and it exists
+    if dst.exists():
+        dst.rmdir()
 
     cached_folder = snapshot_download(
         repo_id=repo_id, revision=revision, use_auth_token=token, **kwargs
@@ -602,6 +615,9 @@ def get_model_output(repo_id: str, data: Any, token: Optional[str] = None) -> An
     If there are warnings or exceptions during inference, this function raises
     a :class:`RuntimeError` including the original errors and warnings
     returned from the server.
+
+    Also note that if the model repo is private, the inference API would not be
+    available.
     """
     model_info = HfApi().model_info(repo_id=repo_id, token=token)
     if not model_info.pipeline_tag:

@@ -20,7 +20,7 @@ jobs:
         python: ["3.7", "3.8", "3.9", "3.10"]
 
     # Timeout: https://stackoverflow.com/a/59076067/4521646
-    timeout-minutes: 60
+    timeout-minutes: 15
 
     steps:
     - uses: actions/checkout@v3
