@@ -246,7 +246,7 @@ def assert_params_equal(est1, est2):
         if isinstance(val1, BaseEstimator):
             assert_params_equal(val1, val2)
         elif isinstance(val1, (np.ndarray, np.generic)):
-            assert np.all_close(val1, val2)
+            assert np.allclose(val1, val2)
         elif isinstance(val1, float) and np.isnan(val1):
             assert np.isnan(val2)
         else:
