@@ -3,7 +3,16 @@ import warnings
 
 import numpy as np
 import pytest
+from scipy import special
 from sklearn.base import BaseEstimator
+from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import FeatureUnion, Pipeline
+from sklearn.preprocessing import (
+    FunctionTransformer,
+    MinMaxScaler,
+    PolynomialFeatures,
+    StandardScaler,
+)
 from sklearn.utils import all_estimators
 from sklearn.utils._testing import (
     SkipTest,
@@ -15,6 +24,7 @@ from sklearn.utils.estimator_checks import (
     _enforce_estimator_tags_y,
     _get_check_estimator_ids,
 )
+from sklearn.utils.validation import has_fit_parameter
 
 from skops import load, save
 
@@ -31,173 +41,151 @@ EXPLICIT_TESTS = [
     "SparseCoder",
 ]
 
-ESTIMATORS_TO_IGNORE = [
-    "ARDRegression",
-    "AdaBoostClassifier",
-    "AdaBoostRegressor",
-    "AdditiveChi2Sampler",
-    "AffinityPropagation",
-    "AgglomerativeClustering",
-    "BaggingClassifier",
-    "BaggingRegressor",
-    "BayesianGaussianMixture",
-    "BernoulliRBM",
-    "Binarizer",
-    "Birch",
-    "BisectingKMeans",
-    "CCA",
-    "CalibratedClassifierCV",
-    "ClassifierChain",
-    "CountVectorizer",
-    "DecisionTreeClassifier",
-    "DecisionTreeRegressor",
-    "DictVectorizer",
-    "DictionaryLearning",
-    "EllipticEnvelope",
-    "EmpiricalCovariance",
-    "ExtraTreeClassifier",
-    "ExtraTreeRegressor",
-    "ExtraTreesClassifier",
-    "ExtraTreesRegressor",
-    "FactorAnalysis",
-    "FastICA",
-    "FeatureAgglomeration",
-    "FeatureHasher",
-    "FunctionTransformer",
-    "GammaRegressor",
-    "GaussianMixture",
-    "GaussianProcessClassifier",
-    "GaussianProcessRegressor",
-    "GaussianRandomProjection",
-    "GenericUnivariateSelect",
-    "GradientBoostingClassifier",
-    "GradientBoostingRegressor",
-    "GraphicalLasso",
-    "GraphicalLassoCV",
-    "HashingVectorizer",
-    "HistGradientBoostingClassifier",
-    "HistGradientBoostingRegressor",
-    "IncrementalPCA",
-    "IsolationForest",
-    "Isomap",
-    "IsotonicRegression",
-    "IterativeImputer",
-    "KBinsDiscretizer",
-    "KNNImputer",
-    "KNeighborsClassifier",
-    "KNeighborsRegressor",
-    "KNeighborsTransformer",
-    "KernelCenterer",
-    "KernelDensity",
-    "KernelPCA",
-    "KernelRidge",
-    "LabelBinarizer",
-    "LabelEncoder",
-    "LabelPropagation",
-    "LabelSpreading",
-    "Lars",
-    "LarsCV",
-    "LassoLars",
-    "LassoLarsCV",
-    "LassoLarsIC",
-    "LatentDirichletAllocation",
-    "LedoitWolf",
-    "LinearDiscriminantAnalysis",
-    "LocalOutlierFactor",
-    "LocallyLinearEmbedding",
-    "MDS",
-    "MLPClassifier",
-    "MLPRegressor",
-    "MaxAbsScaler",
-    "MeanShift",
-    "MinCovDet",
-    "MinMaxScaler",
-    "MiniBatchDictionaryLearning",
-    "MiniBatchNMF",
-    "MiniBatchSparsePCA",
-    "MissingIndicator",
-    "MultiLabelBinarizer",
-    "MultiOutputClassifier",
-    "MultiOutputRegressor",
-    "MultiTaskElasticNet",
-    "MultiTaskElasticNetCV",
-    "MultiTaskLasso",
-    "MultiTaskLassoCV",
-    "NMF",
-    "NearestCentroid",
-    "NearestNeighbors",
-    "NeighborhoodComponentsAnalysis",
-    "Normalizer",
-    "Nystroem",
-    "OAS",
-    "OPTICS",
-    "OneHotEncoder",
-    "OneVsOneClassifier",
-    "OneVsRestClassifier",
-    "OrdinalEncoder",
-    "OrthogonalMatchingPursuit",
-    "OrthogonalMatchingPursuitCV",
-    "OutputCodeClassifier",
-    "PCA",
-    "PLSCanonical",
-    "PLSRegression",
-    "PLSSVD",
-    "PassiveAggressiveClassifier",
-    "PassiveAggressiveRegressor",
-    "PatchExtractor",
-    "Perceptron",
-    "PoissonRegressor",
-    "PolynomialCountSketch",
-    "PolynomialFeatures",
-    "PowerTransformer",
-    "QuadraticDiscriminantAnalysis",
-    "QuantileRegressor",
-    "QuantileTransformer",
-    "RBFSampler",
-    "RFE",
-    "RFECV",
-    "RadiusNeighborsClassifier",
-    "RadiusNeighborsRegressor",
-    "RadiusNeighborsTransformer",
-    "RandomForestClassifier",
-    "RandomForestRegressor",
-    "RandomTreesEmbedding",
-    "RegressorChain",
-    "Ridge",
-    "RidgeClassifier",
-    "RobustScaler",
-    "SGDClassifier",
-    "SGDOneClassSVM",
-    "SelectFdr",
-    "SelectFpr",
-    "SelectFromModel",
-    "SelectFwe",
-    "SelectKBest",
-    "SelectPercentile",
-    "SelfTrainingClassifier",
-    "SequentialFeatureSelector",
-    "ShrunkCovariance",
-    "SimpleImputer",
-    "SkewedChi2Sampler",
-    "SparsePCA",
-    "SparseRandomProjection",
-    "SpectralBiclustering",
-    "SpectralClustering",
-    "SpectralCoclustering",
-    "SpectralEmbedding",
-    "SplineTransformer",
-    "StackingClassifier",
-    "StackingRegressor",
-    "TSNE",
-    "TfidfTransformer",
-    "TfidfVectorizer",
-    "TheilSenRegressor",
-    "TruncatedSVD",
-    "TweedieRegressor",
-    "VarianceThreshold",
-    "VotingClassifier",
-    "VotingRegressor",
-]
+
+ESTIMATORS_EXPECTED_TO_FAIL_NON_FITTED = {
+    "ClassifierChain(base_estimator=LogisticRegression(C=1))",
+    "CountVectorizer()",
+    "DictVectorizer()",
+    "FeatureAgglomeration()",
+    "FeatureHasher()",
+    "FunctionTransformer(func=<ufunc'erf'>,inverse_func=<ufunc'erfinv'>)",
+    "GenericUnivariateSelect()",
+    "HashingVectorizer()",
+    "Lars()",
+    "LarsCV()",
+    "LassoLars()",
+    "LassoLarsCV()",
+    "LassoLarsIC()",
+    "MultiOutputClassifier(estimator=LogisticRegression(C=1))",
+    "MultiOutputRegressor(estimator=Ridge())",
+    "OneHotEncoder()",
+    "OneVsOneClassifier(estimator=LogisticRegression(C=1))",
+    "OneVsRestClassifier(estimator=LogisticRegression(C=1))",
+    "OrdinalEncoder()",
+    "OutputCodeClassifier(estimator=LogisticRegression(C=1))",
+    "RFE(estimator=LogisticRegression(C=1))",
+    "RFECV(estimator=LogisticRegression(C=1))",
+    "RegressorChain(base_estimator=Ridge())",
+    "SelectFdr()",
+    "SelectFpr()",
+    "SelectFromModel(estimator=SGDRegressor(random_state=0))",
+    "SelectFwe()",
+    "SelectKBest()",
+    "SelectPercentile()",
+    "SelfTrainingClassifier(base_estimator=LogisticRegression(C=1))",
+    "SequentialFeatureSelector(estimator=LogisticRegression(C=1))",
+    "StackingClassifier(estimators=[('est1',LogisticRegression(C=0.1)),('est2',LogisticRegression(C=1))])",  # noqa: E501
+    "StackingRegressor(estimators=[('est1',Ridge(alpha=0.1)),('est2',Ridge(alpha=1))])",
+    "TfidfVectorizer()",
+    "VotingClassifier(estimators=[('est1',LogisticRegression(C=0.1)),('est2',LogisticRegression(C=1))])",  # noqa: E501
+    "VotingRegressor(estimators=[('est1',Ridge(alpha=0.1)),('est2',Ridge(alpha=1))])",
+}
+
+ESTIMATORS_EXPECTED_TO_FAIL_FITTED = {
+    "AdaBoostClassifier()",
+    "AdaBoostRegressor()",
+    "BaggingClassifier()",
+    "BaggingRegressor()",
+    "Birch()",
+    "BisectingKMeans()",
+    "CCA()",
+    "CalibratedClassifierCV(base_estimator=LogisticRegression(C=1))",
+    "ClassifierChain(base_estimator=LogisticRegression(C=1))",
+    "CountVectorizer()",
+    "DecisionTreeClassifier()",
+    "DecisionTreeRegressor()",
+    "DictVectorizer()",
+    "ExtraTreeClassifier()",
+    "ExtraTreeRegressor()",
+    "ExtraTreesClassifier()",
+    "ExtraTreesRegressor()",
+    "FastICA()",
+    "FeatureAgglomeration()",
+    "FeatureHasher()",
+    "FunctionTransformer(func=<ufunc'erf'>,inverse_func=<ufunc'erfinv'>)",
+    "GammaRegressor()",
+    "GaussianProcessClassifier()",
+    "GaussianProcessRegressor()",
+    "GaussianRandomProjection()",
+    "GenericUnivariateSelect()",
+    "GradientBoostingClassifier()",
+    "GradientBoostingRegressor()",
+    "HashingVectorizer()",
+    "HistGradientBoostingClassifier()",
+    "HistGradientBoostingRegressor()",
+    "IsolationForest()",
+    "Isomap()",
+    "IsotonicRegression()",
+    "IterativeImputer()",
+    "KBinsDiscretizer()",
+    "KNeighborsClassifier()",
+    "KNeighborsRegressor()",
+    "KNeighborsTransformer()",
+    "KernelCenterer()",
+    "KernelDensity()",
+    "LabelBinarizer()",
+    "LabelEncoder()",
+    "Lars()",
+    "LarsCV()",
+    "LassoLars()",
+    "LassoLarsCV()",
+    "LassoLarsIC()",
+    "LatentDirichletAllocation()",
+    "LocallyLinearEmbedding()",
+    "MLPClassifier()",
+    "MLPRegressor()",
+    "MiniBatchDictionaryLearning()",
+    "MultiLabelBinarizer()",
+    "MultiOutputClassifier(estimator=LogisticRegression(C=1))",
+    "MultiOutputRegressor(estimator=Ridge())",
+    "NearestNeighbors()",
+    "NeighborhoodComponentsAnalysis()",
+    "OneHotEncoder()",
+    "OneVsOneClassifier(estimator=LogisticRegression(C=1))",
+    "OneVsRestClassifier(estimator=LogisticRegression(C=1))",
+    "OrdinalEncoder()",
+    "OrthogonalMatchingPursuit()",
+    "OrthogonalMatchingPursuitCV()",
+    "OutputCodeClassifier(estimator=LogisticRegression(C=1))",
+    "PLSCanonical()",
+    "PLSRegression()",
+    "PLSSVD()",
+    "PassiveAggressiveClassifier()",
+    "PatchExtractor()",
+    "Perceptron()",
+    "PoissonRegressor()",
+    "RFE(estimator=LogisticRegression(C=1))",
+    "RFECV(estimator=LogisticRegression(C=1))",
+    "RadiusNeighborsClassifier()",
+    "RadiusNeighborsRegressor()",
+    "RadiusNeighborsTransformer()",
+    "RandomForestClassifier()",
+    "RandomForestRegressor()",
+    "RandomTreesEmbedding()",
+    "RegressorChain(base_estimator=Ridge())",
+    "SGDClassifier()",
+    "SGDOneClassSVM()",
+    "SelectFdr()",
+    "SelectFpr()",
+    "SelectFromModel(estimator=SGDRegressor(random_state=0))",
+    "SelectFwe()",
+    "SelectKBest()",
+    "SelectPercentile()",
+    "SelfTrainingClassifier(base_estimator=LogisticRegression(C=1))",
+    "SequentialFeatureSelector(estimator=LogisticRegression(C=1))",
+    "SparseRandomProjection()",
+    "SpectralBiclustering()",
+    "SpectralEmbedding()",
+    "SplineTransformer()",
+    "StackingClassifier(estimators=[('est1',LogisticRegression(C=0.1)),('est2',LogisticRegression(C=1))])",  # noqa: E501
+    "StackingRegressor(estimators=[('est1',Ridge(alpha=0.1)),('est2',Ridge(alpha=1))])",
+    "TSNE()",
+    "TfidfTransformer()",
+    "TfidfVectorizer()",
+    "TweedieRegressor()",
+    "VotingClassifier(estimators=[('est1',LogisticRegression(C=0.1)),('est2',LogisticRegression(C=1))])",  # noqa: E501
+    "VotingRegressor(estimators=[('est1',Ridge(alpha=0.1)),('est2',Ridge(alpha=1))])",
+}
 
 
 def _tested_estimators(type_filter=None):
@@ -210,6 +198,36 @@ def _tested_estimators(type_filter=None):
             continue
 
         yield estimator
+
+    # nested Pipeline & FeatureUnion
+    # fmt: off
+    yield Pipeline([
+        ("features", FeatureUnion([
+            ("scaler", StandardScaler()),
+            ("scaled-poly", Pipeline([
+                ("polys", FeatureUnion([
+                    ("poly1", PolynomialFeatures()),
+                    ("poly2", PolynomialFeatures(degree=3, include_bias=False))
+                ])),
+                ("scale", MinMaxScaler()),
+            ])),
+        ])),
+        ("clf", LogisticRegression(random_state=0, solver="liblinear")),
+    ])
+    # fmt: on
+
+    # FunctionTransformer with numpy functions
+    yield FunctionTransformer(
+        func=np.sqrt,
+        inverse_func=np.square,
+    )
+
+    # FunctionTransformer with scipy functions - problem is that they look like
+    # numpy ufuncs
+    yield FunctionTransformer(
+        func=special.erf,
+        inverse_func=special.erfinv,
+    )
 
 
 def assert_params_equal(est1, est2):
@@ -229,6 +247,8 @@ def assert_params_equal(est1, est2):
             assert_params_equal(val1, val2)
         elif isinstance(val1, (np.ndarray, np.generic)):
             assert np.all_close(val1, val2)
+        elif isinstance(val1, float) and np.isnan(val1):
+            assert np.isnan(val2)
         else:
             assert val1 == val2
 
@@ -236,10 +256,14 @@ def assert_params_equal(est1, est2):
 @pytest.mark.parametrize(
     "estimator", _tested_estimators(), ids=_get_check_estimator_ids
 )
-def test_can_persist_non_fitted(estimator):
+def test_can_persist_non_fitted(estimator, request):
     """Check that non-fitted estimators can be persisted."""
-    if estimator.__class__.__name__ in ESTIMATORS_TO_IGNORE:
-        pytest.skip()
+    if _get_check_estimator_ids(estimator) in ESTIMATORS_EXPECTED_TO_FAIL_NON_FITTED:
+        request.applymarker(
+            pytest.mark.xfail(
+                run=False, strict=True, reason="TODO this estimator does not pass yet"
+            )
+        )
 
     _, f_name = tempfile.mkstemp(prefix="skops-", suffix=".skops")
     save(file=f_name, obj=estimator)
@@ -250,10 +274,14 @@ def test_can_persist_non_fitted(estimator):
 @pytest.mark.parametrize(
     "estimator", _tested_estimators(), ids=_get_check_estimator_ids
 )
-def test_can_persist_fitted(estimator):
+def test_can_persist_fitted(estimator, request):
     """Check that fitted estimators can be persisted and return the right results."""
-    if estimator.__class__.__name__ in ESTIMATORS_TO_IGNORE:
-        pytest.skip()
+    if _get_check_estimator_ids(estimator) in ESTIMATORS_EXPECTED_TO_FAIL_FITTED:
+        request.applymarker(
+            pytest.mark.xfail(
+                run=False, strict=True, reason="TODO this estimator does not pass yet"
+            )
+        )
 
     set_random_state(estimator, random_state=0)
 
@@ -284,13 +312,22 @@ def test_can_persist_fitted(estimator):
     y = _enforce_estimator_tags_y(estimator, y)
 
     with warnings.catch_warnings():
-        estimator.fit(X, y=y, sample_weight=None)
+        if has_fit_parameter(estimator, "sample_weight"):
+            estimator.fit(X, y=y, sample_weight=None)
+        else:
+            estimator.fit(X, y=y)
 
     _, f_name = tempfile.mkstemp(prefix="skops-", suffix=".skops")
     save(file=f_name, obj=estimator)
     loaded = load(file=f_name)
 
-    for method in ["predict", "predict_proba", "decision_function", "transform"]:
+    for method in [
+        "predict",
+        "predict_proba",
+        "decision_function",
+        "transform",
+        "predict_log_proba",
+    ]:
         err_msg = (
             f"{estimator.__class__.__name__}.{method}() doesn't produce the same"
             " results after loading the persisted model."
