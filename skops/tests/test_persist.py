@@ -18,11 +18,194 @@ from sklearn.utils.estimator_checks import (
 
 from skops import load, save
 
+# list of estimators for which we need to write tests since we can't
+# automatically create an instance of them.
+EXPLICIT_TESTS = [
+    "ColumnTransformer",
+    "FeatureUnion",
+    "GridSearchCV",
+    "HalvingGridSearchCV",
+    "HalvingRandomSearchCV",
+    "Pipeline",
+    "RandomizedSearchCV",
+    "SparseCoder",
+]
 
-def tested_estimators(type_filter=None):
+ESTIMATORS_TO_IGNORE = [
+    "ARDRegression",
+    "AdaBoostClassifier",
+    "AdaBoostRegressor",
+    "AdditiveChi2Sampler",
+    "AffinityPropagation",
+    "AgglomerativeClustering",
+    "BaggingClassifier",
+    "BaggingRegressor",
+    "BayesianGaussianMixture",
+    "BernoulliRBM",
+    "Binarizer",
+    "Birch",
+    "BisectingKMeans",
+    "CCA",
+    "CalibratedClassifierCV",
+    "ClassifierChain",
+    "CountVectorizer",
+    "DecisionTreeClassifier",
+    "DecisionTreeRegressor",
+    "DictVectorizer",
+    "DictionaryLearning",
+    "EllipticEnvelope",
+    "EmpiricalCovariance",
+    "ExtraTreeClassifier",
+    "ExtraTreeRegressor",
+    "ExtraTreesClassifier",
+    "ExtraTreesRegressor",
+    "FactorAnalysis",
+    "FastICA",
+    "FeatureAgglomeration",
+    "FeatureHasher",
+    "FunctionTransformer",
+    "GammaRegressor",
+    "GaussianMixture",
+    "GaussianProcessClassifier",
+    "GaussianProcessRegressor",
+    "GaussianRandomProjection",
+    "GenericUnivariateSelect",
+    "GradientBoostingClassifier",
+    "GradientBoostingRegressor",
+    "GraphicalLasso",
+    "GraphicalLassoCV",
+    "HashingVectorizer",
+    "HistGradientBoostingClassifier",
+    "HistGradientBoostingRegressor",
+    "IncrementalPCA",
+    "IsolationForest",
+    "Isomap",
+    "IsotonicRegression",
+    "IterativeImputer",
+    "KBinsDiscretizer",
+    "KNNImputer",
+    "KNeighborsClassifier",
+    "KNeighborsRegressor",
+    "KNeighborsTransformer",
+    "KernelCenterer",
+    "KernelDensity",
+    "KernelPCA",
+    "KernelRidge",
+    "LabelBinarizer",
+    "LabelEncoder",
+    "LabelPropagation",
+    "LabelSpreading",
+    "Lars",
+    "LarsCV",
+    "LassoLars",
+    "LassoLarsCV",
+    "LassoLarsIC",
+    "LatentDirichletAllocation",
+    "LedoitWolf",
+    "LinearDiscriminantAnalysis",
+    "LocalOutlierFactor",
+    "LocallyLinearEmbedding",
+    "MDS",
+    "MLPClassifier",
+    "MLPRegressor",
+    "MaxAbsScaler",
+    "MeanShift",
+    "MinCovDet",
+    "MinMaxScaler",
+    "MiniBatchDictionaryLearning",
+    "MiniBatchNMF",
+    "MiniBatchSparsePCA",
+    "MissingIndicator",
+    "MultiLabelBinarizer",
+    "MultiOutputClassifier",
+    "MultiOutputRegressor",
+    "MultiTaskElasticNet",
+    "MultiTaskElasticNetCV",
+    "MultiTaskLasso",
+    "MultiTaskLassoCV",
+    "NMF",
+    "NearestCentroid",
+    "NearestNeighbors",
+    "NeighborhoodComponentsAnalysis",
+    "Normalizer",
+    "Nystroem",
+    "OAS",
+    "OPTICS",
+    "OneHotEncoder",
+    "OneVsOneClassifier",
+    "OneVsRestClassifier",
+    "OrdinalEncoder",
+    "OrthogonalMatchingPursuit",
+    "OrthogonalMatchingPursuitCV",
+    "OutputCodeClassifier",
+    "PCA",
+    "PLSCanonical",
+    "PLSRegression",
+    "PLSSVD",
+    "PassiveAggressiveClassifier",
+    "PassiveAggressiveRegressor",
+    "PatchExtractor",
+    "Perceptron",
+    "PoissonRegressor",
+    "PolynomialCountSketch",
+    "PolynomialFeatures",
+    "PowerTransformer",
+    "QuadraticDiscriminantAnalysis",
+    "QuantileRegressor",
+    "QuantileTransformer",
+    "RBFSampler",
+    "RFE",
+    "RFECV",
+    "RadiusNeighborsClassifier",
+    "RadiusNeighborsRegressor",
+    "RadiusNeighborsTransformer",
+    "RandomForestClassifier",
+    "RandomForestRegressor",
+    "RandomTreesEmbedding",
+    "RegressorChain",
+    "Ridge",
+    "RidgeClassifier",
+    "RobustScaler",
+    "SGDClassifier",
+    "SGDOneClassSVM",
+    "SelectFdr",
+    "SelectFpr",
+    "SelectFromModel",
+    "SelectFwe",
+    "SelectKBest",
+    "SelectPercentile",
+    "SelfTrainingClassifier",
+    "SequentialFeatureSelector",
+    "ShrunkCovariance",
+    "SimpleImputer",
+    "SkewedChi2Sampler",
+    "SparsePCA",
+    "SparseRandomProjection",
+    "SpectralBiclustering",
+    "SpectralClustering",
+    "SpectralCoclustering",
+    "SpectralEmbedding",
+    "SplineTransformer",
+    "StackingClassifier",
+    "StackingRegressor",
+    "TSNE",
+    "TfidfTransformer",
+    "TfidfVectorizer",
+    "TheilSenRegressor",
+    "TruncatedSVD",
+    "TweedieRegressor",
+    "VarianceThreshold",
+    "VotingClassifier",
+    "VotingRegressor",
+]
+
+
+def _tested_estimators(type_filter=None):
     for name, Estimator in all_estimators(type_filter=type_filter):
         try:
-            estimator = _construct_instance(Estimator)
+            # suppress warnings here for skipped estimators.
+            with warnings.catch_warnings():
+                estimator = _construct_instance(Estimator)
         except SkipTest:
             continue
 
@@ -50,18 +233,28 @@ def assert_params_equal(est1, est2):
             assert val1 == val2
 
 
-@pytest.mark.parametrize("estimator", tested_estimators(), ids=_get_check_estimator_ids)
+@pytest.mark.parametrize(
+    "estimator", _tested_estimators(), ids=_get_check_estimator_ids
+)
 def test_can_persist_non_fitted(estimator):
     """Check that non-fitted estimators can be persisted."""
+    if estimator.__class__.__name__ in ESTIMATORS_TO_IGNORE:
+        pytest.skip()
+
     _, f_name = tempfile.mkstemp(prefix="skops-", suffix=".skops")
     save(file=f_name, obj=estimator)
     loaded = load(file=f_name)
     assert_params_equal(estimator, loaded)
 
 
-@pytest.mark.parametrize("estimator", tested_estimators(), ids=_get_check_estimator_ids)
+@pytest.mark.parametrize(
+    "estimator", _tested_estimators(), ids=_get_check_estimator_ids
+)
 def test_can_persist_fitted(estimator):
     """Check that fitted estimators can be persisted and return the right results."""
+    if estimator.__class__.__name__ in ESTIMATORS_TO_IGNORE:
+        pytest.skip()
+
     set_random_state(estimator, random_state=0)
 
     # TODO: make this a parameter and test with sparse data
