@@ -2,8 +2,9 @@
 Text Classification with scikit-learn
 -------------------------------------
 
-This guide demonstrates how you can make the best of this package to host text
-classification models.
+This example shows how you can create a Hugging Face Hub compatible repo for a
+text classification task using scikit-learn. We also show how you can generate
+a model card for the model and the task at hand.
 """
 
 # %%
