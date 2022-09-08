@@ -135,7 +135,7 @@ def test_code_autogeneration(destination_path, model_card_metadata_from_config):
     metadata = metadata_load(local_path=Path(destination_path) / "README.md")
     filename = metadata["model_file"]
     with open(Path(destination_path) / "README.md") as f:
-        assert f"with open({filename}, 'rb')" in f.read()
+        assert f"joblib.load({filename})" in f.read()
 
 
 def test_metadata_from_config_tabular_data(
