@@ -145,6 +145,7 @@ ESTIMATORS_TO_IGNORE = [
     "SparseRandomProjection",
     "SpectralBiclustering",
     "SpectralEmbedding",
+    "SimpleImputer",
     "SplineTransformer",
     "StackingClassifier",
     "StackingRegressor",
