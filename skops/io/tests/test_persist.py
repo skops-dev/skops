@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 from scipy import special
 from sklearn.base import BaseEstimator
+from sklearn.datasets import make_classification
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import FeatureUnion, Pipeline
 from sklearn.preprocessing import (
@@ -284,29 +285,11 @@ def test_can_persist_fitted(estimator, request):
     set_random_state(estimator, random_state=0)
 
     # TODO: make this a parameter and test with sparse data
-    X = np.array(
-        [
-            [1, 3],
-            [1, 4],
-            [1, 5],
-            [1, 6],
-            [2, 1],
-            [2, 2],
-            [2, 3],
-            [2, 4],
-            [3, 3],
-            [3, 3],
-            [3, 3],
-            [3, 3],
-            [4, 1],
-            [4, 1],
-            [4, 1],
-            [4, 1],
-        ],
-        dtype=np.float64,
-    )
-    y = np.array([1, 1, 1, 1, 2, 2, 2, 2, 1, 1, 1, 1, 2, 2, 2, 2], dtype=int)
-
+    # TODO: try with pandas.DataFrame as well
+    # This data can be used for a regression model as well.
+    X, y = make_classification(n_samples=50)
+    # Some models require positive X
+    X = np.abs(X)
     y = _enforce_estimator_tags_y(estimator, y)
 
     with warnings.catch_warnings():
