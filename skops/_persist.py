@@ -266,7 +266,7 @@ def get_instance_method(state):
 def save(obj, file):
     with tempfile.TemporaryDirectory() as dst:
         with open(Path(dst) / "schema.json", "w") as f:
-            json.dump(get_state_method(obj)(obj, dst), f)
+            json.dump(get_state_method(obj)(obj, dst), f, indent=2)
 
         # we use the zip format since tarfile can be exploited to create files
         # outside of the destination directory:
