@@ -384,8 +384,11 @@ class Card:
             model_file = self.metadata.to_dict().get("model_file", None)
             if model_file:
                 template_sections["get_started_code"] = (
-                    f"import pickle\nwith open({model_file}, 'rb') as file:\n    clf ="
-                    " pickle.load(file)"
+                    "import joblib\nimport json\nimport pandas as pd\nclf ="
+                    f' joblib.load({model_file})\nwith open("config.json") as f:\n   '
+                    " config ="
+                    " json.load(f)\n"
+                    'clf.predict(pd.DataFrame.from_dict(config["sklearn"]["example_input"]))'
                 )
         template_sections["eval_results"] = tabulate(
             list(self._eval_results.items()),
