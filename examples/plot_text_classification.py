@@ -35,7 +35,7 @@ from skops import card, hub_utils
 
 # %%
 # Data
-# =======
+# ====
 # We will use 20 newsgroups dataset from sklearn.
 
 twenty_train = fetch_20newsgroups(subset="train", shuffle=True, random_state=42)
@@ -48,7 +48,7 @@ X_train, X_test, y_train, y_test = train_test_split(
 
 # %%
 # Train a Model
-# ================
+# =============
 # To train a model, we need to convert our data first to vectors. We will use
 # CountVectorizer in our pipeline. We will fit a Multinomial
 # Naive Bayes model with the outputs of the vectorization.
@@ -64,7 +64,7 @@ model.fit(X_train, y_train)
 
 # %%
 # Inference
-# ============
+# =========
 # Let's see if the model works.
 
 docs_new = [
@@ -77,7 +77,7 @@ print(twenty_train.target[predicted[0]])
 
 # %%
 # Initialize a repository to save our files in
-# ===============================================
+# ============================================
 # We will now initialize a repository and save our model
 _, pkl_name = mkstemp(prefix="skops-", suffix=".pkl")
 
@@ -96,7 +96,7 @@ hub_utils.init(
 
 # %%
 # Create a model card
-# ======================
+# ===================
 # We now create a model card, and populate its metadata with information which
 # is already provided in ``config.json``, which itself is created by the call to
 # :func:`.hub_utils.init` above. We will see below how we can populate the model
@@ -106,7 +106,7 @@ model_card = card.Card(model, metadata=card.metadata_from_config(Path(local_repo
 
 # %%
 # Add more information
-# =======================
+# ====================
 # So far, the model card does not tell viewers a lot about the model. Therefore,
 # we add more information about the model, like a description and what its
 # license is.
@@ -132,7 +132,7 @@ model_card.add(
 
 # %%
 # Add plots, metrics, and tables to our model card
-# ===================================================
+# ================================================
 # We will now evaluate our model and add our findings to the model card.
 
 y_pred = model.predict(X_test)
@@ -170,7 +170,7 @@ model_card.add_table(
 
 # %%
 # Save model card
-# ==================
+# ================
 # We can simply save our model card by providing a path to :meth:`.Card.save`.
 # The model hasn't been pushed to Hugging Face Hub yet, if you want to see how
 # to push your models please refer to
