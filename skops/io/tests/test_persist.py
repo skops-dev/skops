@@ -6,6 +6,7 @@ import pytest
 from scipy import special
 from sklearn.base import BaseEstimator
 from sklearn.datasets import make_classification
+from sklearn.exceptions import SkipTestWarning
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import FeatureUnion, Pipeline
 from sklearn.preprocessing import (
@@ -173,6 +174,11 @@ def _tested_estimators(type_filter=None):
         try:
             # suppress warnings here for skipped estimators.
             with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore",
+                    category=SkipTestWarning,
+                    message="Can't instantiate estimator",
+                )
                 estimator = _construct_instance(Estimator)
         except SkipTest:
             continue
@@ -293,6 +299,7 @@ def test_can_persist_fitted(estimator, request):
     y = _enforce_estimator_tags_y(estimator, y)
 
     with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", module="sklearn")
         estimator.fit(X, y=y)
 
     loaded = save_load_round(estimator)
