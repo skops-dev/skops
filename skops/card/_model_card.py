@@ -136,7 +136,7 @@ def metadata_from_config(config_path: Union[str, Path]) -> CardData:
     task = config.get("sklearn", {}).get("task", None)
     if task:
         card_data.tags += [task]
-
+    card_data.model_file = config.get("sklearn", {}).get("model", {}).get("file")
     example_input = config.get("sklearn", {}).get("example_input", None)
     # Documentation on what the widget expects:
     # https://huggingface.co/docs/hub/models-widgets-examples
@@ -380,6 +380,16 @@ class Card:
         # add evaluation results
 
         template_sections = copy.deepcopy(self._template_sections)
+        if self.metadata:
+            model_file = self.metadata.to_dict().get("model_file")
+            if model_file:
+                template_sections["get_started_code"] = (
+                    "import joblib\nimport json\nimport pandas as pd\nclf ="
+                    f' joblib.load({model_file})\nwith open("config.json") as f:\n   '
+                    " config ="
+                    " json.load(f)\n"
+                    'clf.predict(pd.DataFrame.from_dict(config["sklearn"]["example_input"]))'
+                )
         template_sections["eval_results"] = tabulate(
             list(self._eval_results.items()),
             headers=["Metric", "Value"],
