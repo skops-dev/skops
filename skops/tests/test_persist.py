@@ -225,12 +225,17 @@ def assert_params_equal(params1, params2):
     assert len(params1) == len(params2)
     assert set(params1.keys()) == set(params2.keys())
     for key in params1:
-        if key.endswith("steps") or key.endswith("transformer_list"):
-            # TODO: anything smarter?
-            continue
-
         val1, val2 = params1[key], params2[key]
         assert type(val1) == type(val2)
+
+        if (
+            (key == "steps")
+            or (key == "transformer_list")
+            or key.endswith("__steps")
+            or key.endswith("__transformer_list")
+        ):
+            # we deal with a pipeline or feature union
+            val1, val2 = dict(val1), dict(val2)
 
         if isinstance(val1, (tuple, list)):
             assert len(val1) == len(val2)
