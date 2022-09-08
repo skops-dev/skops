@@ -36,7 +36,8 @@ from skops import card, hub_utils
 # %%
 # Data
 # ====
-# We will use 20 newsgroups dataset from sklearn.
+# We will use 20 newsgroups dataset from sklearn. The dataset has curated
+# news on 20 topics. It has a training and a test split.
 
 twenty_train = fetch_20newsgroups(subset="train", shuffle=True, random_state=42)
 
