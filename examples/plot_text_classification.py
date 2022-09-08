@@ -19,7 +19,7 @@ from tempfile import mkdtemp, mkstemp
 import pandas as pd
 import sklearn
 from sklearn.datasets import fetch_20newsgroups
-from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
+from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics import (
     ConfusionMatrixDisplay,
     accuracy_score,
@@ -50,13 +50,12 @@ X_train, X_test, y_train, y_test = train_test_split(
 # Train a Model
 # ================
 # To train a model, we need to convert our data first to vectors. We will use
-# CountVectorizer and TFIDFVectorizer in our pipeline. We will fit a Multinomial
+# CountVectorizer in our pipeline. We will fit a Multinomial
 # Naive Bayes model with the outputs of the vectorization.
 
 model = Pipeline(
     [
-        ("vect", CountVectorizer()),
-        ("tfidf", TfidfTransformer()),
+        ("count", CountVectorizer()),
         ("clf", MultinomialNB()),
     ]
 )
@@ -74,7 +73,7 @@ docs_new = [
     " buffer intended for output to a display device.."
 ]
 predicted = model.predict(docs_new)
-print(twenty_train.target_names[predicted[0]])
+print(twenty_train.target[predicted[0]])
 
 # %%
 # Initialize a repository to save our files in
@@ -116,7 +115,7 @@ model_card.metadata.license = "mit"
 limitations = "This model is not ready to be used in production."
 model_description = (
     "This is a Multinomial Naive Bayes model trained on 20 news groups dataset."
-    "Count vectorizer and TFIDF vectorizer are used for vectorization."
+    "Count vectorizer is used for vectorization."
 )
 model_card_authors = "skops_user"
 get_started_code = (
@@ -173,5 +172,8 @@ model_card.add_table(
 # Save model card
 # ==================
 # We can simply save our model card by providing a path to :meth:`.Card.save`.
+# The model hasn't been pushed to Hugging Face Hub yet, if you want to see how
+# to push your models please refer to
+# :ref:`this example <sphx_glr_auto_examples_plot_hf_hub.py>`.
 
 model_card.save(Path(local_repo) / "README.md")
