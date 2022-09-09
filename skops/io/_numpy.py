@@ -6,9 +6,11 @@ from uuid import uuid4
 
 import numpy as np
 
-from ._utils import _import_obj
+from ._utils import _import_obj, get_instance, get_state
 
 
+@get_state.register(np.generic)
+@get_state.register(np.ndarray)
 def ndarray_get_state(obj, dst):
     res = {
         "__class__": obj.__class__.__name__,
@@ -33,6 +35,8 @@ def ndarray_get_state(obj, dst):
     return res
 
 
+@get_instance.register(np.generic)
+@get_instance.register(np.ndarray)
 def ndarray_get_instance(state, src):
     if state["type"] == "numpy":
         val = np.load(io.BytesIO(src.read(state["file"])), allow_pickle=False)
@@ -44,23 +48,3 @@ def ndarray_get_instance(state, src):
     else:
         val = np.array(json.loads(src.read(state["file"])))
     return val
-
-
-def get_state_methods():
-    from ._general import function_get_state
-
-    return {
-        np.ufunc: function_get_state,
-        np.ndarray: ndarray_get_state,
-        np.generic: ndarray_get_state,
-    }
-
-
-def get_instance_methods():
-    from ._general import function_get_instance
-
-    return {
-        np.ufunc: function_get_instance,
-        np.ndarray: ndarray_get_instance,
-        np.generic: ndarray_get_instance,
-    }
