@@ -98,15 +98,14 @@ def tuple_get_instance(state, src):
     return content
 
 
-@get_state.register(np.ufunc)
 @get_state.register(FunctionType)
 def function_get_state(obj, dst):
     if isinstance(obj, partial):
         raise TypeError("partial function are not supported yet")
     res = {
         "__class__": obj.__class__.__name__,
-        "__module__": inspect.getmodule(type(obj)).__name__,
-        "__content__": obj.__name__,
+        "__module__": inspect.getmodule(obj).__name__,
+        "content": obj.__name__,
     }
     return res
 
@@ -114,5 +113,26 @@ def function_get_state(obj, dst):
 @get_instance.register(np.ufunc)
 @get_instance.register(FunctionType)
 def function_get_instance(obj, src):
-    loaded = _import_obj(obj["__module__"], obj["__content__"])
+    loaded = _import_obj(obj["__module__"], obj["content"])
+    return loaded
+
+
+@get_state.register(type)
+def type_get_state(obj, dst):
+    # To serialize a type, we first need to set the metadata to tell that it's
+    # a type, then store the type's info itself in the content field.
+    res = {
+        "__class__": obj.__class__.__name__,
+        "__module__": inspect.getmodule(type(obj)).__name__,
+        "content": {
+            "__class__": obj.__name__,
+            "__module__": inspect.getmodule(obj).__name__,
+        },
+    }
+    return res
+
+
+@get_instance.register(type)
+def type_get_instance(obj, src):
+    loaded = _import_obj(obj["content"]["__module__"], obj["content"]["__class__"])
     return loaded

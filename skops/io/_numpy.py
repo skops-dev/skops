@@ -1,6 +1,7 @@
 import inspect
 import io
 import json
+from functools import partial
 from pathlib import Path
 from uuid import uuid4
 
@@ -48,3 +49,18 @@ def ndarray_get_instance(state, src):
     else:
         val = np.array(json.loads(src.read(state["file"])))
     return val
+
+
+# For numpy.ufunc we need to get the type from the type's module, but for other
+# functions we get it from objet's module directly. Therefore sett a especial
+# get_state method for them here. The load is the same as other functions.
+@get_state.register(np.ufunc)
+def ufunc_get_state(obj, dst):
+    if isinstance(obj, partial):
+        raise TypeError("partial function are not supported yet")
+    res = {
+        "__class__": obj.__class__.__name__,
+        "__module__": inspect.getmodule(type(obj)).__name__,
+        "content": obj.__name__,
+    }
+    return res

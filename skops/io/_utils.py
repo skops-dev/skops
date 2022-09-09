@@ -1,5 +1,6 @@
 import importlib
 from functools import _find_impl, get_cache_token, update_wrapper  # type: ignore
+from types import FunctionType
 
 from skops.utils.fixes import GenericAlias
 
@@ -135,6 +136,10 @@ def _import_obj(module, cls_or_func, package=None):
 
 def gettype(state):
     if "__module__" in state and "__class__" in state:
+        if state["__class__"] == "function":
+            # This special case is due to how functions are serialized. We
+            # could try to change it.
+            return FunctionType
         return _import_obj(state["__module__"], state["__class__"])
     return None
 
