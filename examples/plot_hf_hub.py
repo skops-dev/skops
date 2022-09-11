@@ -21,6 +21,7 @@ from uuid import uuid4
 
 import sklearn
 from huggingface_hub import HfApi
+import gradio as gr
 from sklearn.datasets import load_breast_cancer
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.experimental import enable_halving_search_cv  # noqa
@@ -161,6 +162,15 @@ print(json.dumps(hub_utils.get_config(path=repo_copy), indent=2))
 # current environment and updates the requirements accordingly.
 
 hub_utils.update_env(path=local_repo, requirements=["scikit-learn"])
+
+# %%
+# ``gradio`` is a python library that lets you create interfaces on your model.
+# It is integrated with skops, so you can load an interface with only one line
+# of code like below. You can further customize your UI, add description, title,
+# and more. For more information, please refer to documentation of ``gradio``.
+
+gr.Interface.load(f"huggingface/{repo_id}").launch()
+
 
 # %%
 # Delete Repository
