@@ -167,7 +167,8 @@ hub_utils.update_env(path=local_repo, requirements=["scikit-learn"])
 # ``gradio`` is a python library that lets you create interfaces on your model.
 # It is integrated with skops, so you can load an interface with only one line
 # of code like below. You can further customize your UI, add description, title,
-# and more. For more information, please refer to documentation of ``gradio``.
+# and more. You can later share your application on Hugging Face Spaces.
+# For more information, please refer to documentation of ``gradio``.
 
 gr.Interface.load(f"huggingface/{repo_id}").launch()
 
