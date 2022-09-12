@@ -4,19 +4,13 @@ from types import FunctionType
 
 import numpy as np
 
-from ._utils import (
-    _import_obj,
-    get_instance,
-    get_state,
-    try_get_instance,
-    try_get_state,
-)
+from ._utils import _import_obj, get_module, try_get_instance, try_get_state
 
 
 def dict_get_state(obj, dst):
     res = {
         "__class__": obj.__class__.__name__,
-        "__module__": inspect.getmodule(type(obj)).__name__,
+        "__module__": get_module(type(obj)),
     }
     content = {}
     for key, value in obj.items():
@@ -40,7 +34,7 @@ def dict_get_instance(state, src):
 def list_get_state(obj, dst):
     res = {
         "__class__": obj.__class__.__name__,
-        "__module__": inspect.getmodule(type(obj)).__name__,
+        "__module__": get_module(type(obj)),
     }
     content = []
     for value in obj:
@@ -61,7 +55,7 @@ def list_get_instance(state, src):
 def tuple_get_state(obj, dst):
     res = {
         "__class__": obj.__class__.__name__,
-        "__module__": inspect.getmodule(type(obj)).__name__,
+        "__module__": get_module(type(obj)),
     }
     content = ()
     for value in obj:
@@ -100,10 +94,10 @@ def type_get_state(obj, dst):
     # a type, then store the type's info itself in the content field.
     res = {
         "__class__": obj.__class__.__name__,
-        "__module__": inspect.getmodule(type(obj)).__name__,
+        "__module__": get_module(type(obj)),
         "content": {
             "__class__": obj.__name__,
-            "__module__": inspect.getmodule(obj).__name__,
+            "__module__": get_module(obj),
         },
     }
     return res

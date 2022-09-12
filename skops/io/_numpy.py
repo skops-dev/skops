@@ -1,4 +1,3 @@
-import inspect
 import io
 import json
 from functools import partial
@@ -8,13 +7,13 @@ from uuid import uuid4
 import numpy as np
 
 from ._general import function_get_instance
-from ._utils import _import_obj
+from ._utils import _import_obj, get_module
 
 
 def ndarray_get_state(obj, dst):
     res = {
         "__class__": obj.__class__.__name__,
-        "__module__": inspect.getmodule(type(obj)).__name__,
+        "__module__": get_module(type(obj)),
     }
 
     try:
@@ -56,7 +55,7 @@ def ufunc_get_state(obj, dst):
         raise TypeError("partial function are not supported yet")
     res = {
         "__class__": obj.__class__.__name__,
-        "__module__": inspect.getmodule(type(obj)).__name__,
+        "__module__": get_module(obj),
         "content": obj.__name__,
     }
     return res
