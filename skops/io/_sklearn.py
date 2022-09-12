@@ -95,7 +95,7 @@ def reduce_get_state(obj, dst):
     elif hasattr(obj, "__getstate__"):
         attrs = obj.__getstate__()
     else:
-        attrs = obj.__dir__
+        attrs = obj.__dict__
 
     content = {}
     for key, value in attrs.items():

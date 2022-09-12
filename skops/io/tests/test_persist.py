@@ -266,16 +266,11 @@ def test_can_persist_fitted(estimator):
 
 
 # TODO: remove this, Adrin uses this for debugging.
-# from sklearn.experimental import enable_iterative_imputer
-# from sklearn.impute import IterativeImputer
+# from sklearn.linear_model import PoissonRegressor
 
-# SINGLE_CLASS = IterativeImputer
+# SINGLE_CLASS = PoissonRegressor
 
 # estimator = _construct_instance(SINGLE_CLASS)
-# estimator = FunctionTransformer(
-#     func=special.erf,
-#     inverse_func=special.erfinv,
-# )
 # loaded = save_load_round(estimator)
 # assert_params_equal(estimator.get_params(), loaded.get_params())
 
