@@ -7,11 +7,10 @@ from uuid import uuid4
 
 import numpy as np
 
-from ._utils import _import_obj, get_instance, get_state
+from ._general import function_get_instance
+from ._utils import _import_obj
 
 
-@get_state.register(np.generic)
-@get_state.register(np.ndarray)
 def ndarray_get_state(obj, dst):
     res = {
         "__class__": obj.__class__.__name__,
@@ -36,8 +35,6 @@ def ndarray_get_state(obj, dst):
     return res
 
 
-@get_instance.register(np.generic)
-@get_instance.register(np.ndarray)
 def ndarray_get_instance(state, src):
     if state["type"] == "numpy":
         val = np.load(io.BytesIO(src.read(state["file"])), allow_pickle=False)
@@ -54,7 +51,6 @@ def ndarray_get_instance(state, src):
 # For numpy.ufunc we need to get the type from the type's module, but for other
 # functions we get it from objet's module directly. Therefore sett a especial
 # get_state method for them here. The load is the same as other functions.
-@get_state.register(np.ufunc)
 def ufunc_get_state(obj, dst):
     if isinstance(obj, partial):
         raise TypeError("partial function are not supported yet")
@@ -64,3 +60,17 @@ def ufunc_get_state(obj, dst):
         "content": obj.__name__,
     }
     return res
+
+
+# tuples of type and function that gets the state of that type
+GET_STATE_DISPATCH_FUNCTIONS = [
+    (np.generic, ndarray_get_state),
+    (np.ndarray, ndarray_get_state),
+    (np.ufunc, ufunc_get_state),
+]
+# tuples of type and function that creates the instance of that type
+GET_INSTANCE_DISPATCH_FUNCTIONS = [
+    (np.generic, ndarray_get_instance),
+    (np.ndarray, ndarray_get_instance),
+    (np.ufunc, function_get_instance),
+]
