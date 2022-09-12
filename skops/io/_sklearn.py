@@ -4,20 +4,29 @@ import json
 from sklearn.base import BaseEstimator
 from sklearn.calibration import _CalibratedClassifier
 from sklearn.tree._tree import Tree
+from sklearn.utils import Bunch
 
-from ._utils import _get_instance, _get_state, get_instance, get_state, gettype
+from ._general import dict_get_instance
+from ._utils import (
+    _get_instance,
+    _get_state,
+    get_instance,
+    get_module,
+    get_state,
+    gettype,
+)
 
 
 def BaseEstimator_get_state(obj, dst):
     res = {
         "__class__": obj.__class__.__name__,
-        "__module__": inspect.getmodule(type(obj)).__name__,
+        "__module__": get_module(type(obj)),
     }
 
     if hasattr(obj, "__getstate__"):
         attrs = obj.__getstate__()
     else:
-        attrs = obj.__dir__
+        attrs = obj.__dict__
 
     content = {}
     for key, value in attrs.items():
@@ -129,6 +138,12 @@ def Tree_get_instance(state, src):
     return reduce_get_instance(state, src, Tree)
 
 
+def bunch_get_instance(state, src):
+    # Bunch is just a wrapper for dict
+    content = dict_get_instance(state, src)
+    return Bunch(**content)
+
+
 # tuples of type and function that gets the state of that type
 GET_STATE_DISPATCH_FUNCTIONS = [
     (Tree, reduce_get_state),
@@ -138,6 +153,7 @@ GET_STATE_DISPATCH_FUNCTIONS = [
 # tuples of type and function that creates the instance of that type
 GET_INSTANCE_DISPATCH_FUNCTIONS = [
     (Tree, Tree_get_instance),
+    (Bunch, bunch_get_instance),
     (_CalibratedClassifier, BaseEstimator_get_instance),
     (BaseEstimator, BaseEstimator_get_instance),
 ]

@@ -11,7 +11,7 @@ from ._utils import get_instance, get_state
 
 # We load the dispatch functions from the corresponding modules and register
 # them.
-modules = ["._general", "._numpy", "._sklearn"]
+modules = ["._general", "._numpy", "._scipy", "._sklearn"]
 for module_name in modules:
     # register exposed functions for get_state and get_instance
     module = importlib.import_module(module_name, package="skops.io")

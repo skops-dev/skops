@@ -1,4 +1,5 @@
 import importlib
+import inspect
 import json  # type: ignore
 from functools import _find_impl, get_cache_token, update_wrapper  # type: ignore
 from types import FunctionType
@@ -143,6 +144,32 @@ def gettype(state):
             return FunctionType
         return _import_obj(state["__module__"], state["__class__"])
     return None
+
+
+def get_module(obj):
+    """Find module for given object
+
+    Parameters
+    ----------
+    obj: Any
+       Object whose module is requested.
+
+    Returns
+    -------
+    name: str
+        Name of the module.
+
+    Raises
+    ------
+    ModuleNotFoundError
+        If the module for that object cannot be found.
+
+    """
+    module = inspect.getmodule(obj)
+    if module is None:
+        raise ModuleNotFoundError(f"No module found for type {type(obj)}")
+
+    return module.__name__
 
 
 @singledispatch
