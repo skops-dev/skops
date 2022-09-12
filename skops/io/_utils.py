@@ -155,7 +155,7 @@ def get_instance(obj):
     raise TypeError(f"Creating an instance of type {type(obj)} is not supported yet")
 
 
-def try_get_state(value, dst):
+def _get_state(value, dst):
     # This is a helper function to try to get the state of an object. If it
     # fails with `get_state`, we try with json.dumps, if that fails, we raise
     # the original error alongside the json error.
@@ -168,9 +168,12 @@ def try_get_state(value, dst):
             raise e1 from e2
 
 
-def try_get_instance(value, src):
+def _get_instance(value, src):
     # This is a helper function to try to get the state of an object. If
     # `gettype` fails, we load with `json`.
+    if value is None:
+        return None
+
     if gettype(value):
         return get_instance(value, src)
 

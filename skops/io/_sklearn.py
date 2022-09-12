@@ -5,7 +5,7 @@ from sklearn.base import BaseEstimator
 from sklearn.calibration import _CalibratedClassifier
 from sklearn.tree._tree import Tree
 
-from ._utils import get_instance, get_state, gettype, try_get_state
+from ._utils import _get_instance, _get_state, get_instance, get_state, gettype
 
 
 def BaseEstimator_get_state(obj, dst):
@@ -19,42 +19,11 @@ def BaseEstimator_get_state(obj, dst):
     else:
         attrs = obj.__dir__
 
-    reduce = False
-    if hasattr(obj, "__reduce__"):
-        # We get the output of __reduce__ and use it to reconstruct the object.
-        # This is very insecure by itself, since the constructor can be `eval`
-        # and the args can be an arbitrary code. Therefore we should never load
-        # it unless the user explicitly allows it.
-        #
-        # We can/should also look into removing __reduce__ from scikit-learn,
-        # and that is not impossible. Most objects which use this don't really
-        # need it.
-        #
-        # More info on __reduce__:
-        # https://docs.python.org/3/library/pickle.html#object.__reduce__
-        #
-        # Crucially, this makes Tree object to be serializable.
-        reduce = obj.__reduce__()
-        if inspect.getmodule(reduce[0]) != inspect.getmodule(type(obj)):
-            # only use reduce if the constructor is in the same module as the
-            # object.
-            reduce = False
-
-    if reduce is not False:
-        res["__reduce__"] = {}
-        res["__reduce__"]["constructor"] = get_state(reduce[0], dst)
-        res["__reduce__"]["args"] = get_state(reduce[1], dst)
-
-        if len(reduce) == 3:
-            # reduce includes what's needed for __getstate__ and we overwrite
-            # what we had before
-            attrs = reduce[2]
-
     content = {}
     for key, value in attrs.items():
         if isinstance(getattr(type(obj), key, None), property):
             continue
-        content[key] = try_get_state(value, dst)
+        content[key] = _get_state(value, dst)
 
     res["content"] = content
 
@@ -66,18 +35,77 @@ def BaseEstimator_get_instance(state, src):
     state.pop("__class__")
     state.pop("__module__")
 
-    if "__reduce__" in state:
-        # If the state has a "__reduce__" key, it includes the method which
-        # creates the object, and the args which should be passed to it.
-        reduce = state.pop("__reduce__")
-        constructor = get_instance(reduce["constructor"], src)
-        args = get_instance(reduce["args"], src)
-        instance = constructor(*args)
+    # Instead of simply constructing the instance, we use __new__, which
+    # bypasses the __init__, and then we set the attributes. This solves
+    # the issue of required init arguments.
+    instance = cls.__new__(cls)
+
+    content = state["content"]
+    attrs = {}
+    for key, value in content.items():
+        attrs[key] = _get_instance(value, src)
+
+    if hasattr(instance, "__setstate__"):
+        instance.__setstate__(attrs)
     else:
-        # Instead of simply constructing the instance, we use __new__, which
-        # bypasses the __init__, and then we set the attributes. This solves
-        # the issue of required init arguments.
-        instance = cls.__new__(cls)
+        instance.__dict__.update(attrs)
+
+    return instance
+
+
+def reduce_get_state(obj, dst):
+    # This method is for objects for which we have to use the __reduce__
+    # method to get the state.
+    res = {
+        "__class__": obj.__class__.__name__,
+        "__module__": inspect.getmodule(type(obj)).__name__,
+    }
+
+    # We get the output of __reduce__ and use it to reconstruct the object.
+    # For security reasons, we don't save the constructor object returned by
+    # __reduce__, and instead use the pre-defined constructor for the object
+    # that we know. This avoids having a function such as `eval()` as the
+    # "constructor", abused by attackers.
+    #
+    # We can/should also look into removing __reduce__ from scikit-learn,
+    # and that is not impossible. Most objects which use this don't really
+    # need it.
+    #
+    # More info on __reduce__:
+    # https://docs.python.org/3/library/pickle.html#object.__reduce__
+    #
+    # As a good example, this makes Tree object to be serializable.
+    reduce = obj.__reduce__()
+    res["__reduce__"] = {}
+    res["__reduce__"]["args"] = get_state(reduce[1], dst)
+
+    if len(reduce) == 3:
+        # reduce includes what's needed for __getstate__ and we don't need to
+        # call __getstate__ directly.
+        attrs = reduce[2]
+    elif hasattr(obj, "__getstate__"):
+        attrs = obj.__getstate__()
+    else:
+        attrs = obj.__dir__
+
+    content = {}
+    for key, value in attrs.items():
+        if isinstance(getattr(type(obj), key, None), property):
+            continue
+        content[key] = _get_state(value, dst)
+
+    res["content"] = content
+
+    return res
+
+
+def reduce_get_instance(state, src, constructor):
+    state.pop("__class__")
+    state.pop("__module__")
+
+    reduce = state.pop("__reduce__")
+    args = get_instance(reduce["args"], src)
+    instance = constructor(*args)
 
     content = state["content"]
     attrs = {}
@@ -97,15 +125,19 @@ def BaseEstimator_get_instance(state, src):
     return instance
 
 
+def Tree_get_instance(state, src):
+    return reduce_get_instance(state, src, Tree)
+
+
 # tuples of type and function that gets the state of that type
 GET_STATE_DISPATCH_FUNCTIONS = [
-    (Tree, BaseEstimator_get_state),
+    (Tree, reduce_get_state),
     (_CalibratedClassifier, BaseEstimator_get_state),
     (BaseEstimator, BaseEstimator_get_state),
 ]
 # tuples of type and function that creates the instance of that type
 GET_INSTANCE_DISPATCH_FUNCTIONS = [
-    (Tree, BaseEstimator_get_instance),
+    (Tree, Tree_get_instance),
     (_CalibratedClassifier, BaseEstimator_get_instance),
     (BaseEstimator, BaseEstimator_get_instance),
 ]

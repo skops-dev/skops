@@ -4,13 +4,7 @@ from types import FunctionType
 
 import numpy as np
 
-from ._utils import (
-    _import_obj,
-    get_instance,
-    get_state,
-    try_get_instance,
-    try_get_state,
-)
+from ._utils import _get_instance, _get_state, _import_obj
 
 
 def dict_get_state(obj, dst):
@@ -23,7 +17,7 @@ def dict_get_state(obj, dst):
         if np.isscalar(key) and hasattr(key, "item"):
             # convert numpy value to python object
             key = key.item()
-        content[key] = try_get_state(value, dst)
+        content[key] = _get_state(value, dst)
     res["content"] = content
     return res
 
@@ -33,7 +27,7 @@ def dict_get_instance(state, src):
     state.pop("__module__")
     content = {}
     for key, value in state["content"].items():
-        content[key] = try_get_instance(value, src)
+        content[key] = _get_instance(value, src)
     return content
 
 
@@ -44,7 +38,7 @@ def list_get_state(obj, dst):
     }
     content = []
     for value in obj:
-        content.append(try_get_state(value, dst))
+        content.append(_get_state(value, dst))
     res["content"] = content
     return res
 
@@ -54,7 +48,7 @@ def list_get_instance(state, src):
     state.pop("__module__")
     content = []
     for value in state["content"]:
-        content.append(try_get_instance(value, src))
+        content.append(_get_instance(value, src))
     return content
 
 
@@ -65,7 +59,7 @@ def tuple_get_state(obj, dst):
     }
     content = ()
     for value in obj:
-        content += (try_get_state(value, dst),)
+        content += (_get_state(value, dst),)
     res["content"] = content
     return res
 
@@ -75,7 +69,7 @@ def tuple_get_instance(state, src):
     state.pop("__module__")
     content = ()
     for value in state["content"]:
-        content += (try_get_instance(value, src),)
+        content += (_get_instance(value, src),)
     return content
 
 
