@@ -8,9 +8,6 @@ from sklearn.tree._tree import Tree
 from ._utils import get_instance, get_state, gettype
 
 
-@get_state.register(Tree)
-@get_state.register(_CalibratedClassifier)
-@get_state.register(BaseEstimator)
 def BaseEstimator_get_state(obj, dst):
     res = {
         "__class__": obj.__class__.__name__,
@@ -67,9 +64,6 @@ def BaseEstimator_get_state(obj, dst):
     return res
 
 
-@get_instance.register(Tree)
-@get_instance.register(_CalibratedClassifier)
-@get_instance.register(BaseEstimator)
 def BaseEstimator_get_instance(state, src):
     cls = gettype(state)
     state.pop("__class__")
@@ -104,3 +98,17 @@ def BaseEstimator_get_instance(state, src):
         instance.__dict__.update(attrs)
 
     return instance
+
+
+# tuples of type and function that gets the state of that type
+GET_STATE_DISPATCH_FUNCTIONS = [
+    (Tree, BaseEstimator_get_state),
+    (_CalibratedClassifier, BaseEstimator_get_state),
+    (BaseEstimator, BaseEstimator_get_state),
+]
+# tuples of type and function that creates the instance of that type
+GET_INSTANCE_DISPATCH_FUNCTIONS = [
+    (Tree, BaseEstimator_get_instance),
+    (_CalibratedClassifier, BaseEstimator_get_instance),
+    (BaseEstimator, BaseEstimator_get_instance),
+]
