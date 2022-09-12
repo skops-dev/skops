@@ -1,4 +1,5 @@
 import importlib
+import json  # type: ignore
 from functools import _find_impl, get_cache_token, update_wrapper  # type: ignore
 from types import FunctionType
 
@@ -152,3 +153,25 @@ def get_state(obj, dst):
 @singledispatch
 def get_instance(obj):
     raise TypeError(f"Creating an instance of type {type(obj)} is not supported yet")
+
+
+def try_get_state(value, dst):
+    # This is a helper function to try to get the state of an object. If it
+    # fails with `get_state`, we try with json.dumps, if that fails, we raise
+    # the original error alongside the json error.
+    try:
+        return get_state(value, dst)
+    except TypeError as e1:
+        try:
+            return json.dumps(value)
+        except Exception as e2:
+            raise e1 from e2
+
+
+def try_get_instance(value, src):
+    # This is a helper function to try to get the state of an object. If
+    # `gettype` fails, we load with `json`.
+    if gettype(value):
+        return get_instance(value, src)
+
+    return json.loads(value)

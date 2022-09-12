@@ -1,11 +1,16 @@
 import inspect
-import json
 from functools import partial
 from types import FunctionType
 
 import numpy as np
 
-from ._utils import _import_obj, get_instance, get_state, gettype
+from ._utils import (
+    _import_obj,
+    get_instance,
+    get_state,
+    try_get_instance,
+    try_get_state,
+)
 
 
 @get_state.register(dict)
@@ -19,10 +24,7 @@ def dict_get_state(obj, dst):
         if np.isscalar(key) and hasattr(key, "item"):
             # convert numpy value to python object
             key = key.item()
-        try:
-            content[key] = get_state(value, dst)
-        except TypeError:
-            content[key] = json.dumps(value)
+        content[key] = try_get_state(value, dst)
     res["content"] = content
     return res
 
@@ -33,10 +35,7 @@ def dict_get_instance(state, src):
     state.pop("__module__")
     content = {}
     for key, value in state["content"].items():
-        if isinstance(value, dict):
-            content[key] = get_instance(value, src)
-        else:
-            content[key] = json.loads(value)
+        content[key] = try_get_instance(value, src)
     return content
 
 
@@ -48,10 +47,7 @@ def list_get_state(obj, dst):
     }
     content = []
     for value in obj:
-        try:
-            content.append(get_state(value, dst))
-        except TypeError:
-            content.append(json.dumps(value))
+        content.append(try_get_state(value, dst))
     res["content"] = content
     return res
 
@@ -62,10 +58,7 @@ def list_get_instance(state, src):
     state.pop("__module__")
     content = []
     for value in state["content"]:
-        if gettype(value):
-            content.append(get_instance(value, src))
-        else:
-            content.append(json.loads(value))
+        content.append(try_get_instance(value, src))
     return content
 
 
@@ -77,10 +70,7 @@ def tuple_get_state(obj, dst):
     }
     content = ()
     for value in obj:
-        try:
-            content += (get_state(value, dst),)
-        except TypeError:
-            content += (json.dumps(value),)
+        content += (try_get_state(value, dst),)
     res["content"] = content
     return res
 
@@ -91,10 +81,7 @@ def tuple_get_instance(state, src):
     state.pop("__module__")
     content = ()
     for value in state["content"]:
-        if gettype(value):
-            content += (get_instance(value, src),)
-        else:
-            content += (json.loads(value),)
+        content += (try_get_instance(value, src),)
     return content
 
 

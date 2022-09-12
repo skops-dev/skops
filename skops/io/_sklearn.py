@@ -5,7 +5,7 @@ from sklearn.base import BaseEstimator
 from sklearn.calibration import _CalibratedClassifier
 from sklearn.tree._tree import Tree
 
-from ._utils import get_instance, get_state, gettype
+from ._utils import get_instance, get_state, gettype, try_get_state
 
 
 @get_state.register(Tree)
@@ -57,10 +57,7 @@ def BaseEstimator_get_state(obj, dst):
     for key, value in attrs.items():
         if isinstance(getattr(type(obj), key, None), property):
             continue
-        try:
-            content[key] = get_state(value, dst)
-        except TypeError:
-            content[key] = json.dumps(value)
+        content[key] = try_get_state(value, dst)
 
     res["content"] = content
 
