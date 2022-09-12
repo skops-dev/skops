@@ -1,6 +1,8 @@
 import inspect
-import json
 
+from sklearn._loss._loss import CyLossFunction
+from sklearn._loss.link import BaseLink, Interval
+from sklearn._loss.loss import BaseLoss
 from sklearn.base import BaseEstimator
 from sklearn.calibration import _CalibratedClassifier
 from sklearn.tree._tree import Tree
@@ -17,7 +19,7 @@ from ._utils import (
 )
 
 
-def BaseEstimator_get_state(obj, dst):
+def generic_get_state(obj, dst):
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
@@ -25,8 +27,10 @@ def BaseEstimator_get_state(obj, dst):
 
     if hasattr(obj, "__getstate__"):
         attrs = obj.__getstate__()
-    else:
+    elif hasattr(obj, "__dict__"):
         attrs = obj.__dict__
+    else:
+        return res
 
     content = {}
     for key, value in attrs.items():
@@ -39,7 +43,7 @@ def BaseEstimator_get_state(obj, dst):
     return res
 
 
-def BaseEstimator_get_instance(state, src):
+def generic_get_instance(state, src):
     cls = gettype(state)
     state.pop("__class__")
     state.pop("__module__")
@@ -49,7 +53,10 @@ def BaseEstimator_get_instance(state, src):
     # the issue of required init arguments.
     instance = cls.__new__(cls)
 
-    content = state["content"]
+    content = state.get("content", {})
+    if not len(content):
+        return instance
+
     attrs = {}
     for key, value in content.items():
         attrs[key] = _get_instance(value, src)
@@ -119,12 +126,7 @@ def reduce_get_instance(state, src, constructor):
     content = state["content"]
     attrs = {}
     for key, value in content.items():
-        if value is None:
-            attrs[key] = None
-        elif isinstance(value, dict):
-            attrs[key] = get_instance(value, src)
-        else:
-            attrs[key] = json.loads(value)
+        attrs[key] = _get_instance(value, src)
 
     if hasattr(instance, "__setstate__"):
         instance.__setstate__(attrs)
@@ -147,13 +149,21 @@ def bunch_get_instance(state, src):
 # tuples of type and function that gets the state of that type
 GET_STATE_DISPATCH_FUNCTIONS = [
     (Tree, reduce_get_state),
-    (_CalibratedClassifier, BaseEstimator_get_state),
-    (BaseEstimator, BaseEstimator_get_state),
+    (_CalibratedClassifier, generic_get_state),
+    (BaseEstimator, generic_get_state),
+    (BaseLoss, generic_get_state),
+    (CyLossFunction, generic_get_state),
+    (BaseLink, generic_get_state),
+    (Interval, generic_get_state),
 ]
 # tuples of type and function that creates the instance of that type
 GET_INSTANCE_DISPATCH_FUNCTIONS = [
     (Tree, Tree_get_instance),
     (Bunch, bunch_get_instance),
-    (_CalibratedClassifier, BaseEstimator_get_instance),
-    (BaseEstimator, BaseEstimator_get_instance),
+    (_CalibratedClassifier, generic_get_instance),
+    (BaseEstimator, generic_get_instance),
+    (BaseLoss, generic_get_instance),
+    (CyLossFunction, generic_get_instance),
+    (BaseLink, generic_get_instance),
+    (Interval, generic_get_instance),
 ]
