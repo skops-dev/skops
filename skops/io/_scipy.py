@@ -1,3 +1,4 @@
+import io
 from pathlib import Path
 from uuid import uuid4
 
@@ -12,8 +13,8 @@ def sparse_matrix_get_state(obj, dst):
         "__module__": get_module(type(obj)),
     }
 
-    f_name = Path(dst) / f"{uuid4()}.npz"
-    save_npz(f_name, obj)
+    f_name = f"{uuid4()}.npz"
+    save_npz(Path(dst) / f_name, obj)
     res["type"] = "scipy"
     res["file"] = f_name
 
@@ -28,7 +29,7 @@ def sparse_matrix_get_instance(state, src):
 
     # scipy load_npz uses numpy.save with allow_pickle=False under the hood, so
     # we're safe using it
-    val = load_npz(state["file"])
+    val = load_npz(io.BytesIO(src.read(state["file"])))
     return val
 
 
