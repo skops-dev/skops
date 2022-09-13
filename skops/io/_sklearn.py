@@ -1,6 +1,7 @@
 import inspect
 import json
 
+from sklearn.covariance._graph_lasso import _DictWithDeprecatedKeys
 from sklearn.linear_model._sgd_fast import (
     EpsilonInsensitive,
     Hinge,
@@ -15,7 +16,7 @@ from sklearn.linear_model._sgd_fast import (
 from sklearn.tree._tree import Tree
 from sklearn.utils import Bunch
 
-from ._general import dict_get_instance
+from ._general import dict_get_instance, dict_get_state
 from ._utils import (
     _get_instance,
     _get_state,
@@ -186,10 +187,36 @@ def bunch_get_instance(state, src):
     return Bunch(**content)
 
 
+def _DictWithDeprecatedKeys_get_state(obj, dst):
+    res = {
+        "__class__": obj.__class__.__name__,
+        "__module__": get_module(type(obj)),
+    }
+    content = {}
+    content["main"] = dict_get_state(obj, dst)
+    content["_deprecated_key_to_new_key"] = dict_get_state(
+        obj._deprecated_key_to_new_key, dst
+    )
+    res["content"] = content
+    return res
+
+
+def _DictWithDeprecatedKeys_get_instance(state, src):
+    # _DictWithDeprecatedKeys is just a wrapper for dict
+    content = dict_get_instance(state["content"]["main"], src)
+    deprecated_key_to_new_key = dict_get_instance(
+        state["content"]["_deprecated_key_to_new_key"], src
+    )
+    res = _DictWithDeprecatedKeys(**content)
+    res._deprecated_key_to_new_key = deprecated_key_to_new_key
+    return res
+
+
 # tuples of type and function that gets the state of that type
 GET_STATE_DISPATCH_FUNCTIONS = [
     (LossFunction, reduce_get_state),
     (Tree, reduce_get_state),
+    (_DictWithDeprecatedKeys, _DictWithDeprecatedKeys_get_state),
     (object, generic_get_state),
 ]
 # tuples of type and function that creates the instance of that type
@@ -197,5 +224,6 @@ GET_INSTANCE_DISPATCH_FUNCTIONS = [
     (LossFunction, sgd_loss_get_instance),
     (Tree, Tree_get_instance),
     (Bunch, bunch_get_instance),
+    (_DictWithDeprecatedKeys, _DictWithDeprecatedKeys_get_instance),
     (object, generic_get_instance),
 ]

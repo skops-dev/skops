@@ -211,7 +211,10 @@ def assert_params_equal(params1, params2):
     assert len(params1) == len(params2)
     assert set(params1.keys()) == set(params2.keys())
     for key in params1:
-        val1, val2 = params1[key], params2[key]
+        with warnings.catch_warnings():
+            # this is to silence the deprecation warning from _DictWithDeprecatedKeys
+            warnings.filterwarnings("ignore", category=FutureWarning, module="sklearn")
+            val1, val2 = params1[key], params2[key]
         assert type(val1) == type(val2)
 
         if _is_steps_like(val1):
@@ -424,7 +427,7 @@ def test_cross_validator(cv):
 
 # TODO: remove this, Adrin uses this for debugging.
 if __name__ == "__main__":
-    from sklearn.linear_model import SGDClassifier as SINGLE_CLASS
+    from sklearn.covariance import GraphicalLassoCV as SINGLE_CLASS
 
     estimator = _construct_instance(SINGLE_CLASS)
     loaded = save_load_round(estimator)
