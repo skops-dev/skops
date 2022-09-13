@@ -1,3 +1,4 @@
+from pathlib import Path
 from uuid import uuid4
 
 from scipy.sparse import load_npz, save_npz, spmatrix
@@ -11,7 +12,7 @@ def sparse_matrix_get_state(obj, dst):
         "__module__": get_module(type(obj)),
     }
 
-    f_name = f"{uuid4()}.npz"
+    f_name = Path(obj) / f"{uuid4()}.npz"
     save_npz(f_name, obj)
     res["type"] = "scipy"
     res["file"] = f_name
