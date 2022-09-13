@@ -8,7 +8,7 @@ import numpy as np
 
 from ._general import function_get_instance
 from ._persist import get_instance, get_state
-from ._utils import _import_obj, get_module
+from ._utils import _import_obj, get_module, whichmodule
 
 
 def ndarray_get_state(obj, dst):
@@ -97,9 +97,12 @@ def ufunc_get_state(obj, dst):
     if isinstance(obj, partial):
         raise TypeError("partial function are not supported yet")
     res = {
-        "__class__": obj.__class__.__name__,
-        "__module__": get_module(type(obj)),
-        "content": obj.__name__,
+        "__class__": obj.__class__.__name__,  # ufunc
+        "__module__": get_module(type(obj)),  # numpy
+        "content": {
+            "module_path": whichmodule(obj, obj.__name__),
+            "function": obj.__name__,
+        },
     }
     return res
 

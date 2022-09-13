@@ -1,6 +1,7 @@
 import importlib
 import inspect
 import json  # type: ignore
+import sys  # type: ignore
 from functools import _find_impl, get_cache_token, update_wrapper  # type: ignore
 from types import FunctionType
 
@@ -130,6 +131,51 @@ def singledispatch(func):
     update_wrapper(wrapper, func)
     return wrapper
 # fmt: on
+
+
+# The following two functions are copied from cpython's pickle.py file.
+# ---------------------------------------------------------------------
+def _getattribute(obj, name):
+    for subpath in name.split("."):
+        if subpath == "<locals>":
+            raise AttributeError(
+                "Can't get local attribute {!r} on {!r}".format(name, obj)
+            )
+        try:
+            parent = obj
+            obj = getattr(obj, subpath)
+        except AttributeError:
+            raise AttributeError(
+                "Can't get attribute {!r} on {!r}".format(name, obj)
+            ) from None
+    return obj, parent
+
+
+# This function is particularly used to detect the path of functions such as
+# ufuncs. It returns the full path, instead of returning the module name.
+def whichmodule(obj, name):
+    """Find the module an object belong to."""
+    module_name = getattr(obj, "__module__", None)
+    if module_name is not None:
+        return module_name
+    # Protect the iteration by using a list copy of sys.modules against dynamic
+    # modules that trigger imports of other modules upon calls to getattr.
+    for module_name, module in sys.modules.copy().items():
+        if (
+            module_name == "__main__"
+            or module_name == "__mp_main__"  # bpo-42406
+            or module is None
+        ):
+            continue
+        try:
+            if _getattribute(module, name)[0] is obj:
+                return module_name
+        except AttributeError:
+            pass
+    return "__main__"
+
+
+# ---------------------------------------------------------------------
 
 
 def _import_obj(module, cls_or_func, package=None):

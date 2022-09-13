@@ -393,6 +393,10 @@ if __name__ == "__main__":
     SINGLE_CLASS = DictVectorizer
 
     estimator = _construct_instance(SINGLE_CLASS)
+    estimator = FunctionTransformer(
+        func=np.sqrt,
+        inverse_func=np.square,
+    )
     loaded = save_load_round(estimator)
     assert_params_equal(estimator.get_params(), loaded.get_params())
 
