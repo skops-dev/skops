@@ -74,6 +74,13 @@ def _tested_estimators(type_filter=None):
                     message="Can't instantiate estimator",
                 )
                 estimator = _construct_instance(Estimator)
+                # with the kind of data we pass, it needs to be 1 for the few
+                # estimators which have this.
+                if "n_components" in estimator.get_params():
+                    estimator.set_params(n_components=1)
+                    # Then n_best needs to be <= n_components
+                    if "n_best" in estimator.get_params():
+                        estimator.set_params(n_best=1)
         except SkipTest:
             continue
 
@@ -388,37 +395,21 @@ def test_cross_validator(cv):
 
 # TODO: remove this, Adrin uses this for debugging.
 if __name__ == "__main__":
-    from sklearn.feature_extraction import DictVectorizer
-
-    SINGLE_CLASS = DictVectorizer
+    from sklearn.cross_decomposition import CCA as SINGLE_CLASS
 
     estimator = _construct_instance(SINGLE_CLASS)
-    estimator = FunctionTransformer(
-        func=np.sqrt,
-        inverse_func=np.square,
-    )
     loaded = save_load_round(estimator)
     assert_params_equal(estimator.get_params(), loaded.get_params())
 
     set_random_state(estimator, random_state=0)
 
-    # TODO: make this a parameter and test with sparse data
-    # TODO: try with pandas.DataFrame as well
-    # This data can be used for a regression model as well.
-    X, y = make_classification(n_samples=50)
-    tags = _safe_tags(estimator)
-    if "2darray" in tags["X_types"]:
-        # Some models require positive X
-        X = np.abs(X)
-    elif "dict" in tags["X_types"]:
-        X = [{"foo": 1, "bar": 2}, {"foo": 3, "baz": 1}]
-    else:
-        raise ValueError(f"Unsupported X type for estimator: {tags['X_types']}")
-    y = _enforce_estimator_tags_y(estimator, y)
-
+    X, y = get_input(estimator)
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", module="sklearn")
-        estimator.fit(X, y)
+        if y is not None:
+            estimator.fit(X, y)
+        else:
+            estimator.fit(X)
 
     loaded = save_load_round(estimator)
     # check that params and learned attributes are equal
