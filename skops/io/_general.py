@@ -1,4 +1,3 @@
-import inspect
 from functools import partial
 from types import FunctionType
 
@@ -78,7 +77,7 @@ def function_get_state(obj, dst):
         raise TypeError("partial function are not supported yet")
     res = {
         "__class__": obj.__class__.__name__,
-        "__module__": inspect.getmodule(obj).__name__,
+        "__module__": get_module(obj),
         "content": obj.__name__,
     }
     return res
