@@ -264,6 +264,10 @@ def get_input(estimator):
     X, y = make_classification(n_samples=50)
     y = _enforce_estimator_tags_y(estimator, y)
     tags = _safe_tags(estimator)
+
+    if tags["pairwise"] is True:
+        return np.random.rand(20, 20), None
+
     if "2darray" in tags["X_types"]:
         # Some models require positive X
         return np.abs(X), y
