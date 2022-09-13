@@ -148,7 +148,7 @@ def _assert_vals_equal(val1, val2):
         if len(val1.dtype) == 0:
             # simple comparison of arrays with simple dtypes, almost all arrays
             # are of this sort.
-            assert np.allclose(val1, val2)
+            np.testing.assert_array_equal(val1, val2)
         elif len(val1.shape) == 1:
             # comparing arrays with structured dtypes, but they have to be 1D
             # arrays. This is what we get from the Tree's state.
