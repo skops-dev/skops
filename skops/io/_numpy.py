@@ -55,7 +55,7 @@ def ufunc_get_state(obj, dst):
         raise TypeError("partial function are not supported yet")
     res = {
         "__class__": obj.__class__.__name__,
-        "__module__": get_module(obj),
+        "__module__": get_module(type(obj)),
         "content": obj.__name__,
     }
     return res
