@@ -107,11 +107,31 @@ def ufunc_get_state(obj, dst):
     return res
 
 
+def dtype_get_state(obj, dst):
+    # we use numpy's internal save mechanism to store the dtype by
+    # saving/loading an empty array with that dtype.
+    tmp = np.ndarray(0, dtype=obj)
+    res = {
+        "__class__": "dtype",
+        "__module__": "numpy",
+        "content": ndarray_get_state(tmp, dst),
+    }
+    return res
+
+
+def dtype_get_instance(state, src):
+    # we use numpy's internal save mechanism to store the dtype by
+    # saving/loading an empty array with that dtype.
+    tmp = ndarray_get_instance(state["content"], src)
+    return tmp.dtype
+
+
 # tuples of type and function that gets the state of that type
 GET_STATE_DISPATCH_FUNCTIONS = [
     (np.generic, ndarray_get_state),
     (np.ndarray, ndarray_get_state),
     (np.ufunc, ufunc_get_state),
+    (np.dtype, dtype_get_state),
     (np.random.RandomState, random_state_get_state),
     (np.random.Generator, random_generator_get_state),
 ]
@@ -120,6 +140,7 @@ GET_INSTANCE_DISPATCH_FUNCTIONS = [
     (np.generic, ndarray_get_instance),
     (np.ndarray, ndarray_get_instance),
     (np.ufunc, function_get_instance),
+    (np.dtype, dtype_get_instance),
     (np.random.RandomState, random_state_get_instance),
     (np.random.Generator, random_generator_get_instance),
 ]
