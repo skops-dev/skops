@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 from scipy import sparse, special
 from sklearn.base import BaseEstimator
-from sklearn.datasets import make_classification
+from sklearn.datasets import load_sample_images, make_classification
 from sklearn.exceptions import SkipTestWarning
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import FeatureUnion, Pipeline
@@ -17,6 +17,7 @@ from sklearn.preprocessing import (
     StandardScaler,
 )
 from sklearn.utils import all_estimators
+from sklearn.utils._tags import _safe_tags
 from sklearn.utils._testing import (
     SkipTest,
     assert_allclose_dense_sparse,
@@ -221,6 +222,49 @@ def test_can_persist_non_fitted(estimator):
     assert_params_equal(estimator.get_params(), loaded.get_params())
 
 
+def get_input(estimator):
+    # Return a valid input for estimator.fit
+
+    # TODO: make this a parameter and test with sparse data
+    # TODO: try with pandas.DataFrame as well
+    # This data can be used for a regression model as well.
+    X, y = make_classification(n_samples=50)
+    y = _enforce_estimator_tags_y(estimator, y)
+    tags = _safe_tags(estimator)
+    if "2darray" in tags["X_types"]:
+        # Some models require positive X
+        return np.abs(X), y
+
+    if "1darray" in tags["X_types"]:
+        return X[:, 0], y
+
+    if "3darray" in tags["X_types"]:
+        return load_sample_images().images[1], None
+
+    if "1dlabels" in tags["X_types"]:
+        # model only expects y
+        return y, None
+
+    if "2dlabels" in tags["X_types"]:
+        return [(1, 2), (3,)], None
+
+    if "categorical" in tags["X_types"]:
+        return [["Male", 1], ["Female", 3], ["Female", 2]], None
+
+    if "dict" in tags["X_types"]:
+        return [{"foo": 1, "bar": 2}, {"foo": 3, "baz": 1}], None
+
+    if "string" in tags["X_types"]:
+        return [
+            "This is the first document.",
+            "This document is the second document.",
+            "And this is the third one.",
+            "Is this the first document?",
+        ], None
+
+    raise ValueError(f"Unsupported X type for estimator: {tags['X_types']}")
+
+
 @pytest.mark.parametrize(
     "estimator", _tested_estimators(), ids=_get_check_estimator_ids
 )
@@ -231,17 +275,13 @@ def test_can_persist_fitted(estimator):
 
     set_random_state(estimator, random_state=0)
 
-    # TODO: make this a parameter and test with sparse data
-    # TODO: try with pandas.DataFrame as well
-    # This data can be used for a regression model as well.
-    X, y = make_classification(n_samples=50)
-    # Some models require positive X
-    X = np.abs(X)
-    y = _enforce_estimator_tags_y(estimator, y)
-
+    X, y = get_input(estimator)
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", module="sklearn")
-        estimator.fit(X, y)
+        if y is not None:
+            estimator.fit(X, y)
+        else:
+            estimator.fit(X)
 
     loaded = save_load_round(estimator)
     # check that params and learned attributes are equal
@@ -269,9 +309,9 @@ def test_can_persist_fitted(estimator):
 
 # TODO: remove this, Adrin uses this for debugging.
 if __name__ == "__main__":
-    from sklearn.cross_decomposition import PLSRegression
+    from sklearn.feature_extraction import DictVectorizer
 
-    SINGLE_CLASS = PLSRegression
+    SINGLE_CLASS = DictVectorizer
 
     estimator = _construct_instance(SINGLE_CLASS)
     loaded = save_load_round(estimator)
@@ -283,8 +323,14 @@ if __name__ == "__main__":
     # TODO: try with pandas.DataFrame as well
     # This data can be used for a regression model as well.
     X, y = make_classification(n_samples=50)
-    # Some models require positive X
-    X = np.abs(X)
+    tags = _safe_tags(estimator)
+    if "2darray" in tags["X_types"]:
+        # Some models require positive X
+        X = np.abs(X)
+    elif "dict" in tags["X_types"]:
+        X = [{"foo": 1, "bar": 2}, {"foo": 3, "baz": 1}]
+    else:
+        raise ValueError(f"Unsupported X type for estimator: {tags['X_types']}")
     y = _enforce_estimator_tags_y(estimator, y)
 
     with warnings.catch_warnings():
