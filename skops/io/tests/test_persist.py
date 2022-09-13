@@ -420,7 +420,7 @@ def test_cross_validator(cv):
 
 # TODO: remove this, Adrin uses this for debugging.
 if __name__ == "__main__":
-    from sklearn.cross_decomposition import CCA as SINGLE_CLASS
+    from sklearn.linear_model import SGDClassifier as SINGLE_CLASS
 
     estimator = _construct_instance(SINGLE_CLASS)
     loaded = save_load_round(estimator)

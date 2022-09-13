@@ -1,6 +1,17 @@
 import inspect
 import json
 
+from sklearn.linear_model._sgd_fast import (
+    EpsilonInsensitive,
+    Hinge,
+    Huber,
+    Log,
+    LossFunction,
+    ModifiedHuber,
+    SquaredEpsilonInsensitive,
+    SquaredHinge,
+    SquaredLoss,
+)
 from sklearn.tree._tree import Tree
 from sklearn.utils import Bunch
 
@@ -13,6 +24,17 @@ from ._utils import (
     get_state,
     gettype,
 )
+
+ALLOWED_SGD_LOSSES = {
+    ModifiedHuber,
+    Hinge,
+    SquaredHinge,
+    Log,
+    SquaredLoss,
+    Huber,
+    EpsilonInsensitive,
+    SquaredEpsilonInsensitive,
+}
 
 
 def generic_get_state(obj, dst):
@@ -107,8 +129,10 @@ def reduce_get_state(obj, dst):
         attrs = reduce[2]
     elif hasattr(obj, "__getstate__"):
         attrs = obj.__getstate__()
-    else:
+    elif hasattr(obj, "__dict__"):
         attrs = obj.__dict__
+    else:
+        return res
 
     content = {}
     for key, value in attrs.items():
@@ -129,6 +153,9 @@ def reduce_get_instance(state, src, constructor):
     args = get_instance(reduce["args"], src)
     instance = constructor(*args)
 
+    if "content" not in state:
+        return instance
+
     content = state["content"]
     attrs = {}
     for key, value in content.items():
@@ -146,6 +173,13 @@ def Tree_get_instance(state, src):
     return reduce_get_instance(state, src, Tree)
 
 
+def sgd_loss_get_instance(state, src):
+    cls = gettype(state)
+    if cls not in ALLOWED_SGD_LOSSES:
+        raise TypeError(f"Expected LossFunction, got {cls}")
+    return reduce_get_instance(state, src, cls)
+
+
 def bunch_get_instance(state, src):
     # Bunch is just a wrapper for dict
     content = dict_get_instance(state, src)
@@ -154,11 +188,13 @@ def bunch_get_instance(state, src):
 
 # tuples of type and function that gets the state of that type
 GET_STATE_DISPATCH_FUNCTIONS = [
+    (LossFunction, reduce_get_state),
     (Tree, reduce_get_state),
     (object, generic_get_state),
 ]
 # tuples of type and function that creates the instance of that type
 GET_INSTANCE_DISPATCH_FUNCTIONS = [
+    (LossFunction, sgd_loss_get_instance),
     (Tree, Tree_get_instance),
     (Bunch, bunch_get_instance),
     (object, generic_get_instance),
