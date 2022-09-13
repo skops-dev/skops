@@ -7,6 +7,7 @@ from uuid import uuid4
 import numpy as np
 
 from ._general import function_get_instance
+from ._persist import get_instance, get_state
 from ._utils import _import_obj, get_module
 
 
@@ -47,6 +48,48 @@ def ndarray_get_instance(state, src):
     return val
 
 
+def random_state_get_state(obj, dst):
+    content = get_state(obj.get_state(legacy=False), dst)
+    res = {
+        "__class__": obj.__class__.__name__,
+        "__module__": get_module(type(obj)),
+        "type": "numpy",
+        "content": content,
+    }
+    return res
+
+
+def random_state_get_instance(state, src):
+    cls = _import_obj(state["__module__"], state["__class__"])
+    random_state = cls()
+    content = get_instance(state["content"], src)
+    random_state.set_state(content)
+    return random_state
+
+
+def random_generator_get_state(obj, dst):
+    bit_generator_state = obj.bit_generator.state
+    res = {
+        "__class__": obj.__class__.__name__,
+        "__module__": get_module(type(obj)),
+        "type": "numpy",
+        "content": {"bit_generator": bit_generator_state},
+    }
+    return res
+
+
+def random_generator_get_instance(state, src):
+    # first restore the state of the bit generator
+    bit_generator_state = state["content"]["bit_generator"]
+    bit_generator = _import_obj("numpy.random", bit_generator_state["bit_generator"])()
+    bit_generator.state = bit_generator_state
+
+    # next create the generator instance
+    cls = _import_obj(state["__module__"], state["__class__"])
+    random_generator = cls(bit_generator=bit_generator)
+    return random_generator
+
+
 # For numpy.ufunc we need to get the type from the type's module, but for other
 # functions we get it from objet's module directly. Therefore sett a especial
 # get_state method for them here. The load is the same as other functions.
@@ -66,10 +109,14 @@ GET_STATE_DISPATCH_FUNCTIONS = [
     (np.generic, ndarray_get_state),
     (np.ndarray, ndarray_get_state),
     (np.ufunc, ufunc_get_state),
+    (np.random.RandomState, random_state_get_state),
+    (np.random.Generator, random_generator_get_state),
 ]
 # tuples of type and function that creates the instance of that type
 GET_INSTANCE_DISPATCH_FUNCTIONS = [
     (np.generic, ndarray_get_instance),
     (np.ndarray, ndarray_get_instance),
     (np.ufunc, function_get_instance),
+    (np.random.RandomState, random_state_get_instance),
+    (np.random.Generator, random_generator_get_instance),
 ]

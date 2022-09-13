@@ -9,6 +9,7 @@ from sklearn.base import BaseEstimator
 from sklearn.datasets import load_sample_images, make_classification
 from sklearn.exceptions import SkipTestWarning
 from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import KFold, ShuffleSplit, StratifiedGroupKFold, check_cv
 from sklearn.pipeline import FeatureUnion, Pipeline
 from sklearn.preprocessing import (
     FunctionTransformer,
@@ -16,7 +17,7 @@ from sklearn.preprocessing import (
     PolynomialFeatures,
     StandardScaler,
 )
-from sklearn.utils import all_estimators
+from sklearn.utils import all_estimators, check_random_state
 from sklearn.utils._tags import _safe_tags
 from sklearn.utils._testing import (
     SkipTest,
@@ -305,6 +306,84 @@ def test_can_persist_fitted(estimator):
             X_pred1 = getattr(estimator, method)(X)
             X_pred2 = getattr(loaded, method)(X)
             assert_allclose_dense_sparse(X_pred1, X_pred2, err_msg=err_msg)
+
+
+class RandomStateEstimator(BaseEstimator):
+    def __init__(self, random_state=None):
+        self.random_state = random_state
+
+    def fit(self, X, y, **fit_params):
+        if isinstance(self.random_state, np.random.Generator):
+            # forwards compatibility with np.random.Generator
+            self.random_state_ = self.random_state
+        else:
+            self.random_state_ = check_random_state(self.random_state)
+        return self
+
+
+@pytest.mark.parametrize(
+    "random_state",
+    [
+        None,
+        0,
+        np.random.RandomState(42),
+        np.random.default_rng(),
+        np.random.Generator(np.random.PCG64DXSM(seed=123)),
+    ],
+)
+def test_random_state(random_state):
+    # Numpy random Generators
+    # (https://numpy.org/doc/stable/reference/random/generator.html) are not
+    # supported by sklearn yet but will be in the future, thus they're tested
+    # here
+    est = RandomStateEstimator(random_state=random_state).fit(None, None)
+    est.random_state_.random(123)  # move RNG forwards
+
+    loaded = save_load_round(est)
+    rand_floats_expected = est.random_state_.random(100)
+    rand_floats_loaded = loaded.random_state_.random(100)
+    np.testing.assert_equal(rand_floats_loaded, rand_floats_expected)
+
+
+class CVEstimator(BaseEstimator):
+    def __init__(self, cv=None):
+        self.cv = cv
+
+    def fit(self, X, y, **fit_params):
+        self.cv_ = check_cv(self.cv)
+        return self
+
+    def split(self, X, **kwargs):
+        return list(self.cv_.split(X, **kwargs))
+
+
+@pytest.mark.parametrize(
+    "cv",
+    [
+        None,
+        3,
+        KFold(4),
+        StratifiedGroupKFold(5, shuffle=True, random_state=42),
+        ShuffleSplit(6, random_state=np.random.RandomState(123)),
+    ],
+)
+def test_cross_validator(cv):
+    est = CVEstimator(cv=cv).fit(None, None)
+    loaded = save_load_round(est)
+    X, y = make_classification(n_samples=50)
+
+    kwargs = {}
+    name = est.cv_.__class__.__name__.lower()
+    if "stratified" in name:
+        kwargs["y"] = y
+    if "group" in name:
+        kwargs["groups"] = np.random.randint(0, 5, size=len(y))
+
+    splits_est = est.split(X, **kwargs)
+    splits_loaded = loaded.split(X, **kwargs)
+    assert len(splits_est) == len(splits_loaded)
+    for split_est, split_loaded in zip(splits_est, splits_loaded):
+        np.testing.assert_equal(split_est, split_loaded)
 
 
 # TODO: remove this, Adrin uses this for debugging.
