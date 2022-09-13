@@ -1,10 +1,6 @@
 import inspect
+import json
 
-from sklearn._loss._loss import CyLossFunction
-from sklearn._loss.link import BaseLink, Interval
-from sklearn._loss.loss import BaseLoss
-from sklearn.base import BaseEstimator
-from sklearn.calibration import _CalibratedClassifier
 from sklearn.tree._tree import Tree
 from sklearn.utils import Bunch
 
@@ -20,6 +16,11 @@ from ._utils import (
 
 
 def generic_get_state(obj, dst):
+    try:
+        return json.dumps(obj)
+    except Exception:
+        pass
+
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
@@ -44,6 +45,11 @@ def generic_get_state(obj, dst):
 
 
 def generic_get_instance(state, src):
+    try:
+        return json.loads(state)
+    except Exception:
+        pass
+
     cls = gettype(state)
     state.pop("__class__")
     state.pop("__module__")
@@ -149,21 +155,11 @@ def bunch_get_instance(state, src):
 # tuples of type and function that gets the state of that type
 GET_STATE_DISPATCH_FUNCTIONS = [
     (Tree, reduce_get_state),
-    (_CalibratedClassifier, generic_get_state),
-    (BaseEstimator, generic_get_state),
-    (BaseLoss, generic_get_state),
-    (CyLossFunction, generic_get_state),
-    (BaseLink, generic_get_state),
-    (Interval, generic_get_state),
+    (object, generic_get_state),
 ]
 # tuples of type and function that creates the instance of that type
 GET_INSTANCE_DISPATCH_FUNCTIONS = [
     (Tree, Tree_get_instance),
     (Bunch, bunch_get_instance),
-    (_CalibratedClassifier, generic_get_instance),
-    (BaseEstimator, generic_get_instance),
-    (BaseLoss, generic_get_instance),
-    (CyLossFunction, generic_get_instance),
-    (BaseLink, generic_get_instance),
-    (Interval, generic_get_instance),
+    (object, generic_get_instance),
 ]
