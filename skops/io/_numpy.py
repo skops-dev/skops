@@ -1,5 +1,4 @@
 import io
-import json
 from functools import partial
 from pathlib import Path
 from uuid import uuid4
@@ -24,13 +23,14 @@ def ndarray_get_state(obj, dst):
             res["type"] = "numpy"
             res["file"] = f_name
     except ValueError:
-        # object arrays cannot be saved with allow_pickle=False, therefore we
-        # convert them to a list and store them as a json file.
-        f_name = f"{uuid4()}.json"
-        with open(Path(dst) / f_name, "w") as f:
-            f.write(json.dumps(obj.tolist()))
+        # Object arrays cannot be saved with allow_pickle=False, therefore we
+        # convert them to a list and recursively call get_state on it.
+        if obj.dtype == object:
+            obj = get_state(obj.tolist(), dst)
+            res["content"] = obj["content"]
             res["type"] = "json"
-            res["file"] = f_name
+        else:
+            raise TypeError(f"numpy arrays of dtype {obj.dtype} are not supported yet")
 
     return res
 
@@ -44,7 +44,7 @@ def ndarray_get_instance(state, src):
             cls = _import_obj(state["__module__"], state["__class__"])
             val = cls(val)
     else:
-        val = np.array(json.loads(src.read(state["file"])))
+        val = np.array([get_instance(s, src) for s in state["content"]])
     return val
 
 

@@ -145,6 +145,21 @@ def _is_steps_like(obj):
     return True
 
 
+def _assert_generic_objects_equal(val1, val2):
+    if isinstance(val1, (list, tuple, np.ndarray)):
+        assert len(val1) == len(val2)
+        for subval1, subval2 in zip(val1, val2):
+            _assert_generic_objects_equal(subval1, subval2)
+            return
+
+    assert type(val1) == type(val2)
+    if hasattr(val1, "__dict__"):
+        assert_params_equal(val1.__dict__, val2.__dict__)
+    else:
+        # not a normal Python class, could be e.g. a Cython class
+        assert val1.__reduce__() == val2.__reduce__()
+
+
 def _assert_vals_equal(val1, val2):
     if hasattr(val1, "__getstate__"):
         # This includes BaseEstimator since they implement __getstate__ and
@@ -154,9 +169,15 @@ def _assert_vals_equal(val1, val2):
         assert sparse.issparse(val2) and ((val1 - val2).nnz == 0)
     elif isinstance(val1, (np.ndarray, np.generic)):
         if len(val1.dtype) == 0:
-            # simple comparison of arrays with simple dtypes, almost all arrays
-            # are of this sort.
-            np.testing.assert_array_equal(val1, val2)
+            if val1.dtype == object:
+                assert val2.dtype == object
+                assert val1.shape == val2.shape
+                for subval1, subval2 in zip(val1, val2):
+                    _assert_generic_objects_equal(subval1, subval2)
+            else:
+                # simple comparison of arrays with simple dtypes, almost all
+                # arrays are of this sort.
+                np.testing.assert_array_equal(val1, val2)
         elif len(val1.shape) == 1:
             # comparing arrays with structured dtypes, but they have to be 1D
             # arrays. This is what we get from the Tree's state.
@@ -177,8 +198,12 @@ def _assert_vals_equal(val1, val2):
             _assert_vals_equal(val1[key], val2[key])
     elif hasattr(val1, "__dict__") and hasattr(val2, "__dict__"):
         _assert_vals_equal(val1.__dict__, val2.__dict__)
-    else:
+    elif isinstance(val1, np.ufunc):
         assert val1 == val2
+    elif val1.__class__.__module__ == "builtins":
+        assert val1 == val2
+    else:
+        _assert_generic_objects_equal(val1, val2)
 
 
 def assert_params_equal(params1, params2):
