@@ -39,7 +39,11 @@ ALLOWED_SGD_LOSSES = {
 
 
 def generic_get_state(obj, dst):
+    # This method is for objects which can either be persisted with json, or
+    # the ones for which we can get/set attributes through
+    # __getstate__/__setstate__ or reading/writing to __dict__.
     try:
+        # if we can simply use json, then we're done.
         return json.dumps(obj)
     except Exception:
         pass
@@ -49,6 +53,8 @@ def generic_get_state(obj, dst):
         "__module__": get_module(type(obj)),
     }
 
+    # __getstate__ takes priority over __dict__, and if non exist, we only save
+    # the type of the object, and loading would mean instantiating the object.
     if hasattr(obj, "__getstate__"):
         attrs = obj.__getstate__()
     elif hasattr(obj, "__dict__"):
