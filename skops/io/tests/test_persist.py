@@ -224,11 +224,24 @@ def _assert_generic_objects_equal(val1, val2):
         assert val1.__reduce__() == val2.__reduce__()
 
 
+def _assert_tuples_equal(val1, val2):
+    assert len(val1) == len(val2)
+    for subval1, subval2 in zip(val1, val2):
+        _assert_vals_equal(subval1, subval2)
+
+
 def _assert_vals_equal(val1, val2):
     if hasattr(val1, "__getstate__"):
         # This includes BaseEstimator since they implement __getstate__ and
         # that returns the parameters as well.
-        assert_params_equal(val1.__getstate__(), val2.__getstate__())
+        #
+        # Some objects return a tuple of parameters, others a dict.
+        state1 = val1.__getstate__()
+        state2 = val2.__getstate__()
+        if isinstance(state1, tuple):
+            _assert_tuples_equal(state1, state2)
+        else:
+            assert_params_equal(val1.__getstate__(), val2.__getstate__())
     elif sparse.issparse(val1):
         assert sparse.issparse(val2) and ((val1 - val2).nnz == 0)
     elif isinstance(val1, (np.ndarray, np.generic)):

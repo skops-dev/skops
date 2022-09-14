@@ -35,6 +35,24 @@ def ndarray_get_state(obj, dst):
     return res
 
 
+def maskedarray_get_state(obj, dst):
+    res = {
+        "__class__": obj.__class__.__name__,
+        "__module__": get_module(type(obj)),
+        "content": {
+            "data": get_state(obj.data, dst),
+            "mask": get_state(obj.mask, dst),
+        },
+    }
+    return res
+
+
+def maskedarray_get_instance(state, src):
+    data = get_instance(state["content"]["data"], src)
+    mask = get_instance(state["content"]["mask"], src)
+    return np.ma.MaskedArray(data, mask)
+
+
 def ndarray_get_instance(state, src):
     if state["type"] == "numpy":
         val = np.load(io.BytesIO(src.read(state["file"])), allow_pickle=False)
@@ -139,6 +157,7 @@ def dtype_get_instance(state, src):
 GET_STATE_DISPATCH_FUNCTIONS = [
     (np.generic, ndarray_get_state),
     (np.ndarray, ndarray_get_state),
+    (np.ma.MaskedArray, maskedarray_get_state),
     (np.ufunc, ufunc_get_state),
     (np.dtype, dtype_get_state),
     (np.random.RandomState, random_state_get_state),
@@ -148,6 +167,7 @@ GET_STATE_DISPATCH_FUNCTIONS = [
 GET_INSTANCE_DISPATCH_FUNCTIONS = [
     (np.generic, ndarray_get_instance),
     (np.ndarray, ndarray_get_instance),
+    (np.ma.MaskedArray, maskedarray_get_instance),
     (np.ufunc, function_get_instance),
     (np.dtype, dtype_get_instance),
     (np.random.RandomState, random_state_get_instance),
