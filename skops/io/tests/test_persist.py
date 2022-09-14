@@ -153,6 +153,10 @@ def _is_steps_like(obj):
 
 
 def _assert_generic_objects_equal(val1, val2):
+    def _is_builtin(val):
+        # Check if value is a builtin type
+        return getattr(getattr(val, "__class__", {}), "__module__", None) == "builtins"
+
     if isinstance(val1, (list, tuple, np.ndarray)):
         assert len(val1) == len(val2)
         for subval1, subval2 in zip(val1, val2):
@@ -162,6 +166,8 @@ def _assert_generic_objects_equal(val1, val2):
     assert type(val1) == type(val2)
     if hasattr(val1, "__dict__"):
         assert_params_equal(val1.__dict__, val2.__dict__)
+    elif _is_builtin(val1):
+        assert val1 == val2
     else:
         # not a normal Python class, could be e.g. a Cython class
         assert val1.__reduce__() == val2.__reduce__()
@@ -435,7 +441,7 @@ def test_cross_validator(cv):
 # TODO: remove this, Adrin uses this for debugging.
 if __name__ == "__main__":
     from sklearn.experimental import enable_iterative_imputer  # noqa
-    from sklearn.preprocessing import KBinsDiscretizer as SINGLE_CLASS
+    from sklearn.preprocessing import OneHotEncoder as SINGLE_CLASS
 
     estimator = _construct_instance(SINGLE_CLASS)
     loaded = save_load_round(estimator)
