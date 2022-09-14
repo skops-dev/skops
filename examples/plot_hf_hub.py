@@ -21,7 +21,6 @@ from uuid import uuid4
 
 import sklearn
 from huggingface_hub import HfApi
-import gradio as gr
 from sklearn.datasets import load_breast_cancer
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.experimental import enable_halving_search_cv  # noqa
