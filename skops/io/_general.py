@@ -3,7 +3,7 @@ from types import FunctionType
 
 import numpy as np
 
-from ._utils import _get_instance, _get_state, _import_obj, get_module, whichmodule
+from ._utils import _get_instance, _get_state, _import_obj, get_module
 
 
 def dict_get_state(obj, dst):
@@ -79,7 +79,7 @@ def function_get_state(obj, dst):
         "__class__": obj.__class__.__name__,
         "__module__": get_module(obj),
         "content": {
-            "module_path": whichmodule(obj, obj.__name__),
+            "module_path": get_module(obj),
             "function": obj.__name__,
         },
     }

@@ -7,7 +7,7 @@ import numpy as np
 
 from ._general import function_get_instance
 from ._persist import get_instance, get_state
-from ._utils import _import_obj, get_module, whichmodule
+from ._utils import _import_obj, get_module
 
 
 def ndarray_get_state(obj, dst):
@@ -100,7 +100,7 @@ def ufunc_get_state(obj, dst):
         "__class__": obj.__class__.__name__,  # ufunc
         "__module__": get_module(type(obj)),  # numpy
         "content": {
-            "module_path": whichmodule(obj, obj.__name__),
+            "module_path": get_module(obj),
             "function": obj.__name__,
         },
     }

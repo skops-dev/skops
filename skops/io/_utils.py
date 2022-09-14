@@ -1,5 +1,4 @@
 import importlib
-import inspect
 import json  # type: ignore
 import sys  # type: ignore
 from functools import _find_impl, get_cache_token, update_wrapper  # type: ignore
@@ -195,6 +194,8 @@ def gettype(state):
 def get_module(obj):
     """Find module for given object
 
+    If the module cannot be identified, it's assumed to be "__main__".
+
     Parameters
     ----------
     obj: Any
@@ -205,17 +206,8 @@ def get_module(obj):
     name: str
         Name of the module.
 
-    Raises
-    ------
-    ModuleNotFoundError
-        If the module for that object cannot be found.
-
     """
-    module = inspect.getmodule(obj)
-    if module is None:
-        raise ModuleNotFoundError(f"No module found for type {type(obj)}")
-
-    return module.__name__
+    return whichmodule(obj, obj.__name__)
 
 
 @singledispatch
