@@ -210,8 +210,7 @@ def _create_config(
         else:
             raise ValueError("The data needs to be a list of strings.")
 
-    with open(Path(dst) / "config.json", mode="w") as f:
-        json.dump(config, f, sort_keys=True, indent=4)
+    dump_json(Path(dst) / "config.json", config)
 
 
 def _check_model_file(path: str | Path) -> Path:
@@ -381,6 +380,11 @@ def add_files(*files: str | Path, dst: str | Path, exist_ok: bool = False) -> No
         shutil.copy2(src_file, dst_file)
 
 
+def dump_json(path, content):
+    with open(Path(path), mode="w") as f:
+        json.dump(content, f, sort_keys=True, indent=4)
+
+
 def update_env(
     *, path: Union[str, Path], requirements: Union[List[str], None] = None
 ) -> None:
@@ -398,9 +402,6 @@ def update_env(
         The list of required packages for the model. If none is passed, the
         list of existing requirements is used and their versions are updated.
 
-    Returns
-    -------
-    None
     """
 
     with open(Path(path) / "config.json") as f:
@@ -408,8 +409,7 @@ def update_env(
 
     config["sklearn"]["environment"] = requirements
 
-    with open(Path(path) / "config.json", mode="w") as f:
-        json.dump(config, f, sort_keys=True, indent=4)
+    dump_json(Path(path) / "config.json", config)
 
 
 def push(
