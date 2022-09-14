@@ -1,20 +1,36 @@
+import json
 import tempfile
 import warnings
+from collections import Counter
 from functools import partial
 from pathlib import Path
+from zipfile import ZipFile
 
 import numpy as np
 import pytest
 from scipy import sparse, special
 from sklearn.base import BaseEstimator
+from sklearn.compose import ColumnTransformer
 from sklearn.datasets import load_sample_images, make_classification
+from sklearn.decomposition import SparseCoder
 from sklearn.exceptions import SkipTestWarning
+from sklearn.experimental import enable_halving_search_cv  # noqa
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import KFold, ShuffleSplit, StratifiedGroupKFold, check_cv
+from sklearn.model_selection import (
+    GridSearchCV,
+    HalvingGridSearchCV,
+    HalvingRandomSearchCV,
+    KFold,
+    RandomizedSearchCV,
+    ShuffleSplit,
+    StratifiedGroupKFold,
+    check_cv,
+)
 from sklearn.pipeline import FeatureUnion, Pipeline
 from sklearn.preprocessing import (
     FunctionTransformer,
     MinMaxScaler,
+    Normalizer,
     PolynomialFeatures,
     StandardScaler,
 )
@@ -31,19 +47,13 @@ from sklearn.utils.estimator_checks import (
     _get_check_estimator_ids,
 )
 
+import skops
 from skops.io import load, save
 from skops.utils.fixes import path_unlink
 
-# list of estimators for which we need to write tests since we can't
-# automatically create an instance of them.
-EXPLICIT_TESTS = [
-    "ColumnTransformer",
-    "GridSearchCV",
-    "HalvingGridSearchCV",
-    "HalvingRandomSearchCV",
-    "RandomizedSearchCV",
-    "SparseCoder",
-]
+# Default settings for X
+N_SAMPLES = 50
+N_FEATURES = 20
 
 # These estimators fail in our tests, we should fix them one by one, by
 # removing them from this list, and fixing the error.
@@ -124,6 +134,44 @@ def _tested_estimators(type_filter=None):
     yield FunctionTransformer(
         func=partial(np.add, 10),
         inverse_func=partial(np.add, -10),
+    )
+
+    yield ColumnTransformer(
+        [
+            ("norm1", Normalizer(norm="l1"), [0]),
+            ("norm2", Normalizer(norm="l1"), [1, 2]),
+            ("norm3", Normalizer(norm="l1"), [True] + (N_FEATURES - 1) * [False]),
+            ("norm4", Normalizer(norm="l1"), np.array([1, 2])),
+            ("norm5", Normalizer(norm="l1"), slice(3)),
+            ("norm6", Normalizer(norm="l1"), slice(-10, -3, 2)),
+        ],
+    )
+
+    yield GridSearchCV(
+        LogisticRegression(random_state=0, solver="liblinear"),
+        {"C": [1, 2, 3, 4, 5]},
+    )
+
+    yield HalvingGridSearchCV(
+        LogisticRegression(random_state=0, solver="liblinear"),
+        {"C": [1, 2, 3, 4, 5]},
+    )
+
+    yield HalvingRandomSearchCV(
+        LogisticRegression(random_state=0, solver="liblinear"),
+        {"C": [1, 2, 3, 4, 5]},
+    )
+
+    yield RandomizedSearchCV(
+        LogisticRegression(random_state=0, solver="liblinear"),
+        {"C": [1, 2, 3, 4, 5]},
+        n_iter=3,
+    )
+
+    dictionary = np.random.randint(-2, 3, size=(5, N_FEATURES)).astype(float)
+    yield SparseCoder(
+        dictionary=dictionary,
+        transform_algorithm="lasso_lars",
     )
 
 
@@ -266,12 +314,14 @@ def get_input(estimator):
     # TODO: make this a parameter and test with sparse data
     # TODO: try with pandas.DataFrame as well
     # This data can be used for a regression model as well.
-    X, y = make_classification(n_samples=50)
+    X, y = make_classification(
+        n_samples=N_SAMPLES, n_features=N_FEATURES, random_state=0
+    )
     y = _enforce_estimator_tags_y(estimator, y)
     tags = _safe_tags(estimator)
 
     if tags["pairwise"] is True:
-        return np.random.rand(20, 20), None
+        return np.random.rand(N_FEATURES, N_FEATURES), None
 
     if "2darray" in tags["X_types"]:
         # Some models require positive X
@@ -318,12 +368,14 @@ def test_can_persist_fitted(estimator):
     set_random_state(estimator, random_state=0)
 
     X, y = get_input(estimator)
-    with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", module="sklearn")
-        if y is not None:
-            estimator.fit(X, y)
-        else:
-            estimator.fit(X)
+    tags = _safe_tags(estimator)
+    if tags.get("requires_fit", True):
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", module="sklearn")
+            if y is not None:
+                estimator.fit(X, y)
+            else:
+                estimator.fit(X)
 
     loaded = save_load_round(estimator)
     assert_params_equal(estimator.__dict__, loaded.__dict__)
@@ -407,7 +459,9 @@ class CVEstimator(BaseEstimator):
 def test_cross_validator(cv):
     est = CVEstimator(cv=cv).fit(None, None)
     loaded = save_load_round(est)
-    X, y = make_classification(n_samples=50)
+    X, y = make_classification(
+        n_samples=N_SAMPLES, n_features=N_FEATURES, random_state=0
+    )
 
     kwargs = {}
     name = est.cv_.__class__.__name__.lower()
@@ -421,6 +475,73 @@ def test_cross_validator(cv):
     assert len(splits_est) == len(splits_loaded)
     for split_est, split_loaded in zip(splits_est, splits_loaded):
         np.testing.assert_equal(split_est, split_loaded)
+
+
+def test_metainfo():
+    class MyEstimator(BaseEstimator):
+        """Estimator with attributes of different supported types"""
+
+        def fit(self, X, y=None, **fit_params):
+            self.builtin_ = [1, 2, 3]
+            self.stdlib_ = Counter([10, 20, 20, 30, 30, 30])
+            self.numpy_ = np.arange(5)
+            self.sparse_ = sparse.csr_matrix([[0, 1], [1, 0]])
+            self.sklearn_ = LogisticRegression()
+            # create a nested data structure to check if that works too
+            self.nested_ = {
+                "builtin_": self.builtin_,
+                "stdlib_": self.stdlib_,
+                "numpy_": self.numpy_,
+                "sparse_": self.sparse_,
+                "sklearn_": self.sklearn_,
+            }
+            return self
+
+    # safe and load the schema
+    estimator = MyEstimator().fit(None)
+    _, f_name = tempfile.mkstemp(prefix="skops-", suffix=".skops")
+    save(file=f_name, obj=estimator)
+    schema = json.loads(ZipFile(f_name).read("schema.json"))
+
+    # check some schema metainfo
+    assert schema["protocol"] == skops.io._persist.PROTOCOL
+    assert schema["_skops_version"] == skops.__version__
+
+    # additionally, check following metainfo: class, module, and version
+    expected = {
+        "builtin_": {
+            "__class__": "list",
+            "__module__": "builtins",
+        },
+        "stdlib_": {
+            "__class__": "Counter",
+            "__module__": "collections",
+        },
+        "numpy_": {
+            "__class__": "ndarray",
+            "__module__": "numpy",
+        },
+        "sparse_": {
+            "__class__": "csr_matrix",
+            "__module__": "scipy.sparse",
+        },
+        "sklearn_": {
+            "__class__": "LogisticRegression",
+            "__module__": "sklearn.linear_model",
+        },
+    }
+    # check both the top level state and the nested state
+    states = schema["content"], schema["content"]["nested_"]["content"]
+    for key, val_expected in expected.items():
+        for state in states:
+            val_state = state[key]
+            # check presence of "content"/"file" but not exact values
+            assert ("content" in val_state) or ("file" in val_state)
+            assert val_state["__class__"] == val_expected["__class__"]
+            # We don't want to compare full module structures, because they can
+            # change across versions, e.g. 'scipy.sparse.csr' moving to
+            # 'scipy.sparse._csr'.
+            assert val_state["__module__"].startswith(val_expected["__module__"])
 
 
 # TODO: remove this, Adrin uses this for debugging.
