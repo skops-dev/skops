@@ -245,20 +245,6 @@ def assert_params_equal(params1, params2):
             _assert_vals_equal(val1, val2)
 
 
-def _get_learned_attrs(estimator):
-    # Find the learned attributes like "coefs_"
-    attrs = {}
-    for key in estimator.__dict__:
-        if key.startswith("_") or not key.endswith("_"):
-            continue
-
-        val = getattr(estimator, key)
-        if isinstance(val, property):
-            continue
-        attrs[key] = val
-    return attrs
-
-
 @pytest.mark.parametrize(
     "estimator", _tested_estimators(), ids=_get_check_estimator_ids
 )
@@ -337,11 +323,7 @@ def test_can_persist_fitted(estimator):
             estimator.fit(X)
 
     loaded = save_load_round(estimator)
-    # check that params and learned attributes are equal
-    assert_params_equal(estimator.get_params(), loaded.get_params())
-    attrs_est = _get_learned_attrs(estimator)
-    attrs_loaded = _get_learned_attrs(loaded)
-    assert_params_equal(attrs_est, attrs_loaded)
+    assert_params_equal(estimator.__dict__, loaded.__dict__)
 
     for method in [
         "predict",
@@ -458,11 +440,7 @@ if __name__ == "__main__":
             estimator.fit(X)
 
     loaded = save_load_round(estimator)
-    # check that params and learned attributes are equal
-    assert_params_equal(estimator.get_params(), loaded.get_params())
-    attrs_est = _get_learned_attrs(estimator)
-    attrs_loaded = _get_learned_attrs(loaded)
-    assert_params_equal(attrs_est, attrs_loaded)
+    assert_params_equal(estimator.__dict__, loaded.__dict__)
 
     for method in [
         "predict",
