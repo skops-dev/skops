@@ -402,7 +402,14 @@ def update_env(
     -------
     None
     """
-    pass
+
+    with open(Path(path) / "config.json") as f:
+        config = json.load(f)
+
+    config["sklearn"]["environment"] = requirements
+
+    with open(Path(path) / "config.json", mode="w") as f:
+        json.dump(config, f, sort_keys=True, indent=4)
 
 
 def push(

@@ -26,6 +26,7 @@ from skops.hub_utils import (
     get_requirements,
     init,
     push,
+    update_env,
 )
 from skops.hub_utils._hf_hub import (
     _create_config,
@@ -460,6 +461,13 @@ def test_get_config(repo_path):
     config = get_config(repo_path)
     assert config == CONFIG
     assert get_requirements(repo_path) == ['scikit-learn="1.1.1"']
+
+
+def test_update_env(repo_path):
+    # sanity check
+    assert get_requirements(repo_path) == ['scikit-learn="1.1.1"']
+    update_env(path=repo_path, requirements=['scikit-learn="1.1.2"'])
+    assert get_requirements(repo_path) == ['scikit-learn="1.1.2"']
 
 
 def test_get_example_input():
