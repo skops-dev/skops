@@ -3,7 +3,14 @@ from types import FunctionType
 
 import numpy as np
 
-from ._utils import _get_instance, _get_state, _import_obj, get_module, whichmodule
+from ._utils import (
+    _get_instance,
+    _get_state,
+    _import_obj,
+    get_module,
+    gettype,
+    whichmodule,
+)
 
 
 def dict_get_state(obj, dst):
@@ -22,9 +29,9 @@ def dict_get_state(obj, dst):
 
 
 def dict_get_instance(state, src):
+    content = gettype(state)()
     state.pop("__class__")
     state.pop("__module__")
-    content = {}
     for key, value in state["content"].items():
         content[key] = _get_instance(value, src)
     return content
@@ -43,9 +50,9 @@ def list_get_state(obj, dst):
 
 
 def list_get_instance(state, src):
+    content = gettype(state)()
     state.pop("__class__")
     state.pop("__module__")
-    content = []
     for value in state["content"]:
         content.append(_get_instance(value, src))
     return content
@@ -64,11 +71,28 @@ def tuple_get_state(obj, dst):
 
 
 def tuple_get_instance(state, src):
+    # Returns a tuple or a namedtuple instance.
+    def isnamedtuple(t):
+        # This is needed since namedtuples need to have the args when
+        # initialized.
+        b = t.__bases__
+        if len(b) != 1 or b[0] != tuple:
+            return False
+        f = getattr(t, "_fields", None)
+        if not isinstance(f, tuple):
+            return False
+        return all(type(n) == str for n in f)
+
+    cls = gettype(state)
     state.pop("__class__")
     state.pop("__module__")
-    content = ()
+
+    content = tuple()
     for value in state["content"]:
         content += (_get_instance(value, src),)
+
+    if isnamedtuple(cls):
+        return cls(*content)
     return content
 
 
