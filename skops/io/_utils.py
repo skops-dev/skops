@@ -1,6 +1,6 @@
 import importlib
 import json  # type: ignore
-import sys  # type: ignore
+import sys
 from functools import _find_impl, get_cache_token, update_wrapper  # type: ignore
 from types import FunctionType
 

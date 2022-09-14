@@ -7,7 +7,13 @@ import tempfile
 from pathlib import Path
 from zipfile import ZipFile
 
+import skops
+
 from ._utils import get_instance, get_state
+
+# For now, there is just one protocol version
+PROTOCOL = 0
+
 
 # We load the dispatch functions from the corresponding modules and register
 # them.
@@ -24,7 +30,10 @@ for module_name in modules:
 def save(obj, file):
     with tempfile.TemporaryDirectory() as dst:
         with open(Path(dst) / "schema.json", "w") as f:
-            json.dump(get_state(obj, dst), f, indent=2)
+            state = get_state(obj, dst)
+            state["protocol"] = PROTOCOL
+            state["_skops_version"] = skops.__version__
+            json.dump(state, f, indent=2)
 
         # we use the zip format since tarfile can be exploited to create files
         # outside of the destination directory:
