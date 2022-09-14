@@ -82,6 +82,9 @@ def _tested_estimators(type_filter=None):
                     # Then n_best needs to be <= n_components
                     if "n_best" in estimator.get_params():
                         estimator.set_params(n_best=1)
+                if "patch_size" in estimator.get_params():
+                    # set patch size to fix PatchExtractor test.
+                    estimator.set_params(patch_size=(3, 3))
         except SkipTest:
             continue
 
@@ -423,9 +426,9 @@ def test_cross_validator(cv):
 # TODO: remove this, Adrin uses this for debugging.
 if __name__ == "__main__":
     from sklearn.experimental import enable_iterative_imputer  # noqa
-    from sklearn.preprocessing import OneHotEncoder as SINGLE_CLASS
+    from sklearn.feature_extraction.image import PatchExtractor as SINGLE_CLASS
 
-    estimator = _construct_instance(SINGLE_CLASS)
+    estimator = _construct_instance(SINGLE_CLASS).set_params(patch_size=(3, 3))
     loaded = save_load_round(estimator)
     assert_params_equal(estimator.get_params(), loaded.get_params())
 
