@@ -90,8 +90,6 @@ def tuple_get_instance(state, src):
 
 
 def function_get_state(obj, dst):
-    if isinstance(obj, partial):
-        raise TypeError("partial function are not supported yet")
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(obj),
@@ -106,6 +104,32 @@ def function_get_state(obj, dst):
 def function_get_instance(obj, src):
     loaded = _import_obj(obj["content"]["module_path"], obj["content"]["function"])
     return loaded
+
+
+def partial_get_state(obj, dst):
+    _, _, (func, args, kwds, namespace) = obj.__reduce__()
+    res = {
+        "__class__": "partial",  # don't allow any subclass
+        "__module__": get_module(type(obj)),
+        "content": {
+            "func": _get_state(func, dst),
+            "args": _get_state(args, dst),
+            "kwds": _get_state(kwds, dst),
+            "namespace": _get_state(namespace, dst),
+        },
+    }
+    return res
+
+
+def partial_get_instance(obj, src):
+    content = obj["content"]
+    func = _get_instance(content["func"], src)
+    args = _get_instance(content["args"], src)
+    kwds = _get_instance(content["kwds"], src)
+    namespace = _get_instance(content["namespace"], src)
+    instance = partial(func, *args, **kwds)  # always use partial, not a subclass
+    instance.__setstate__((func, args, kwds, namespace))
+    return instance
 
 
 def type_get_state(obj, dst):
@@ -133,6 +157,7 @@ GET_STATE_DISPATCH_FUNCTIONS = [
     (list, list_get_state),
     (tuple, tuple_get_state),
     (FunctionType, function_get_state),
+    (partial, partial_get_state),
     (type, type_get_state),
 ]
 # tuples of type and function that creates the instance of that type
@@ -141,5 +166,6 @@ GET_INSTANCE_DISPATCH_FUNCTIONS = [
     (list, list_get_instance),
     (tuple, tuple_get_instance),
     (FunctionType, function_get_instance),
+    (partial, partial_get_instance),
     (type, type_get_instance),
 ]

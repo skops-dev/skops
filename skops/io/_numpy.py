@@ -1,5 +1,4 @@
 import io
-from functools import partial
 from pathlib import Path
 from uuid import uuid4
 
@@ -94,8 +93,6 @@ def random_generator_get_instance(state, src):
 # functions we get it from objet's module directly. Therefore sett a especial
 # get_state method for them here. The load is the same as other functions.
 def ufunc_get_state(obj, dst):
-    if isinstance(obj, partial):
-        raise TypeError("partial function are not supported yet")
     res = {
         "__class__": obj.__class__.__name__,  # ufunc
         "__module__": get_module(type(obj)),  # numpy

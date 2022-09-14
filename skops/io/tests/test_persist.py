@@ -1,5 +1,6 @@
 import tempfile
 import warnings
+from functools import partial
 from pathlib import Path
 
 import numpy as np
@@ -114,6 +115,12 @@ def _tested_estimators(type_filter=None):
     yield FunctionTransformer(
         func=special.erf,
         inverse_func=special.erfinv,
+    )
+
+    # partial functions should be supported
+    yield FunctionTransformer(
+        func=partial(np.add, 10),
+        inverse_func=partial(np.add, -10),
     )
 
 
