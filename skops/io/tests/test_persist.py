@@ -547,9 +547,13 @@ def test_metainfo():
 # TODO: remove this, Adrin uses this for debugging.
 if __name__ == "__main__":
     from sklearn.ensemble import StackingClassifier as SINGLE_CLASS
-    from sklearn.experimental import enable_iterative_imputer  # noqa
 
     estimator = _construct_instance(SINGLE_CLASS)
+    estimator = GridSearchCV(
+        LogisticRegression(random_state=0, solver="liblinear"),
+        {"C": [1, 2, 3, 4, 5]},
+    )
+
     loaded = save_load_round(estimator)
     assert_params_equal(estimator.get_params(), loaded.get_params())
 

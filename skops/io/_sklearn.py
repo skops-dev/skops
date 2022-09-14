@@ -66,6 +66,8 @@ def generic_get_state(obj, dst):
     for key, value in attrs.items():
         if isinstance(getattr(type(obj), key, None), property):
             continue
+        if key == "C":
+            pass
         content[key] = _get_state(value, dst)
 
     res["content"] = content
