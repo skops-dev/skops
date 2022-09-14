@@ -11,12 +11,16 @@ def dict_get_state(obj, dst):
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
     }
+
+    # Since json converts dict keys to strings, we store the dict 4 arrays:
+    # keys, key-types, values, value-types.
     content = {}
-    for key, value in obj.items():
-        if np.isscalar(key) and hasattr(key, "item"):
-            # convert numpy value to python object
-            key = key.item()
-        content[key] = _get_state(value, dst)
+    keys = np.array(list(obj.keys()))
+    values = np.array(list(obj.values()))
+    content["keys"] = _get_state(keys, dst)
+    content["key-types"] = _get_state([type(key) for key in obj.keys()], dst)
+    content["values"] = _get_state(values, dst)
+    content["value-types"] = _get_state([type(value) for value in obj.values()], dst)
     res["content"] = content
     return res
 
@@ -25,8 +29,19 @@ def dict_get_instance(state, src):
     content = gettype(state)()
     state.pop("__class__")
     state.pop("__module__")
-    for key, value in state["content"].items():
-        content[key] = _get_instance(value, src)
+    # we load the 4 arrays in which the contents of the dict were stored:
+    # keys, key-types, values, value-types.
+    keys = _get_instance(state["content"]["keys"], src)
+    key_types = _get_instance(state["content"]["key-types"], src)
+    values = _get_instance(state["content"]["values"], src)
+    value_types = _get_instance(state["content"]["value-types"], src)
+    content = {}
+    for key, k_type, value, v_type in zip(keys, key_types, values, value_types):
+        if np.isscalar(value):
+            # this is a hack to handle numpy <-> primitive dtype conversions.
+            content[k_type(key)] = v_type(value)
+        else:
+            content[k_type(key)] = value
     return content
 
 

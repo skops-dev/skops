@@ -425,10 +425,10 @@ def test_cross_validator(cv):
 
 # TODO: remove this, Adrin uses this for debugging.
 if __name__ == "__main__":
+    from sklearn.ensemble import StackingClassifier as SINGLE_CLASS
     from sklearn.experimental import enable_iterative_imputer  # noqa
-    from sklearn.feature_extraction.image import PatchExtractor as SINGLE_CLASS
 
-    estimator = _construct_instance(SINGLE_CLASS).set_params(patch_size=(3, 3))
+    estimator = _construct_instance(SINGLE_CLASS)
     loaded = save_load_round(estimator)
     assert_params_equal(estimator.get_params(), loaded.get_params())
 
