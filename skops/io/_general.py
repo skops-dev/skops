@@ -155,11 +155,32 @@ def type_get_instance(obj, src):
     return loaded
 
 
+def slice_get_state(obj, dst):
+    res = {
+        "__class__": obj.__class__.__name__,
+        "__module__": get_module(type(obj)),
+        "content": {
+            "start": obj.start,
+            "stop": obj.stop,
+            "step": obj.step,
+        },
+    }
+    return res
+
+
+def slice_get_instance(obj, src):
+    start = obj["content"]["start"]
+    stop = obj["content"]["stop"]
+    step = obj["content"]["step"]
+    return slice(start, stop, step)
+
+
 # tuples of type and function that gets the state of that type
 GET_STATE_DISPATCH_FUNCTIONS = [
     (dict, dict_get_state),
     (list, list_get_state),
     (tuple, tuple_get_state),
+    (slice, slice_get_state),
     (FunctionType, function_get_state),
     (partial, partial_get_state),
     (type, type_get_state),
@@ -169,6 +190,7 @@ GET_INSTANCE_DISPATCH_FUNCTIONS = [
     (dict, dict_get_instance),
     (list, list_get_instance),
     (tuple, tuple_get_instance),
+    (slice, slice_get_instance),
     (FunctionType, function_get_instance),
     (partial, partial_get_instance),
     (type, type_get_instance),

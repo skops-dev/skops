@@ -238,6 +238,7 @@ def _assert_vals_equal(val1, val2):
         # Some objects return a tuple of parameters, others a dict.
         state1 = val1.__getstate__()
         state2 = val2.__getstate__()
+        assert type(state1) == type(state2)
         if isinstance(state1, tuple):
             _assert_tuples_equal(state1, state2)
         else:
@@ -562,9 +563,15 @@ if __name__ == "__main__":
     from sklearn.ensemble import StackingClassifier as SINGLE_CLASS
 
     estimator = _construct_instance(SINGLE_CLASS)
-    estimator = GridSearchCV(
-        LogisticRegression(random_state=0, solver="liblinear"),
-        {"C": [1, 2, 3, 4, 5]},
+    estimator = ColumnTransformer(
+        [
+            ("norm1", Normalizer(norm="l1"), [0]),
+            ("norm2", Normalizer(norm="l1"), [1, 2]),
+            ("norm3", Normalizer(norm="l1"), [True] + (N_FEATURES - 1) * [False]),
+            ("norm4", Normalizer(norm="l1"), np.array([1, 2])),
+            ("norm5", Normalizer(norm="l1"), slice(3)),
+            ("norm6", Normalizer(norm="l1"), slice(-10, -3, 2)),
+        ],
     )
 
     loaded = save_load_round(estimator)
