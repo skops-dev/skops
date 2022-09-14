@@ -25,9 +25,10 @@ def ndarray_get_state(obj, dst):
         # Object arrays cannot be saved with allow_pickle=False, therefore we
         # convert them to a list and recursively call get_state on it.
         if obj.dtype == object:
-            obj = get_state(obj.tolist(), dst)
-            res["content"] = obj["content"]
+            obj_serialized = get_state(obj.tolist(), dst)
+            res["content"] = obj_serialized["content"]
             res["type"] = "json"
+            res["shape"] = get_state(obj.shape, dst)
         else:
             raise TypeError(f"numpy arrays of dtype {obj.dtype} are not supported yet")
 
@@ -43,7 +44,18 @@ def ndarray_get_instance(state, src):
             cls = _import_obj(state["__module__"], state["__class__"])
             val = cls(val)
     else:
-        val = np.array([get_instance(s, src) for s in state["content"]])
+        # We explicitly set the dtype to "O" since we only save object arrays
+        # in json.
+        shape = get_instance(state["shape"], src)
+        tmp = [get_instance(s, src) for s in state["content"]]
+        # TODO: this is a hack to get the correct shape of the array. We should
+        # find a better way to do this.
+        if len(shape) == 1:
+            val = np.ndarray(shape=len(tmp), dtype="O")
+            for i, v in enumerate(tmp):
+                val[i] = v
+        else:
+            val = np.array(tmp, dtype="O")
     return val
 
 
