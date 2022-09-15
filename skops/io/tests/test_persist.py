@@ -430,7 +430,7 @@ def test_can_persist_fitted(estimator, request):
         if hasattr(estimator, method):
             X_pred1 = getattr(estimator, method)(X)
             X_pred2 = getattr(loaded, method)(X)
-            assert_allclose_dense_sparse(X_pred1, X_pred2, err_msg=err_msg)
+            assert_allclose_dense_sparse(X_pred1, X_pred2, err_msg=err_msg, atol=1e-7)
 
 
 @pytest.mark.parametrize(
