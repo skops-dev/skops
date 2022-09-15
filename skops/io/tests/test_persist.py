@@ -26,6 +26,7 @@ from sklearn.model_selection import (
     StratifiedGroupKFold,
     check_cv,
 )
+from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 from sklearn.pipeline import FeatureUnion, Pipeline
 from sklearn.preprocessing import (
     FunctionTransformer,
@@ -135,6 +136,9 @@ def _tested_estimators(type_filter=None):
         func=partial(np.add, 10),
         inverse_func=partial(np.add, -10),
     )
+
+    yield KNeighborsClassifier(algorithm="kd_tree")
+    yield KNeighborsRegressor(algorithm="ball_tree")
 
     yield ColumnTransformer(
         [
@@ -545,7 +549,10 @@ def test_metainfo():
         },
     }
     # check both the top level state and the nested state
-    states = schema["content"], schema["content"]["nested_"]["content"]
+    states = (
+        schema["content"]["content"],
+        schema["content"]["content"]["nested_"]["content"],
+    )
     for key, val_expected in expected.items():
         for state in states:
             val_state = state[key]

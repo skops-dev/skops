@@ -1,5 +1,3 @@
-import inspect
-
 from sklearn.covariance._graph_lasso import _DictWithDeprecatedKeys
 from sklearn.linear_model._sgd_fast import (
     EpsilonInsensitive,
@@ -16,14 +14,7 @@ from sklearn.tree._tree import Tree
 from sklearn.utils import Bunch
 
 from ._general import dict_get_instance, dict_get_state
-from ._utils import (
-    _get_instance,
-    _get_state,
-    get_instance,
-    get_module,
-    get_state,
-    gettype,
-)
+from ._utils import _get_instance, _get_state, get_module, gettype
 
 ALLOWED_SGD_LOSSES = {
     ModifiedHuber,
@@ -42,7 +33,7 @@ def reduce_get_state(obj, dst):
     # method to get the state.
     res = {
         "__class__": obj.__class__.__name__,
-        "__module__": inspect.getmodule(type(obj)).__name__,
+        "__module__": get_module(type(obj)),
     }
 
     # We get the output of __reduce__ and use it to reconstruct the object.
@@ -61,7 +52,7 @@ def reduce_get_state(obj, dst):
     # As a good example, this makes Tree object to be serializable.
     reduce = obj.__reduce__()
     res["__reduce__"] = {}
-    res["__reduce__"]["args"] = get_state(reduce[1], dst)
+    res["__reduce__"]["args"] = _get_state(reduce[1], dst)
 
     if len(reduce) == 3:
         # reduce includes what's needed for __getstate__ and we don't need to
@@ -72,31 +63,27 @@ def reduce_get_state(obj, dst):
     elif hasattr(obj, "__dict__"):
         attrs = obj.__dict__
     else:
-        return res
+        attrs = {}
 
-    content = {}
-    for key, value in attrs.items():
-        if isinstance(getattr(type(obj), key, None), property):
-            continue
-        content[key] = _get_state(value, dst)
+    if not isinstance(attrs, dict):
+        raise TypeError(f"Objects of type {res['__class__']} not supported yet")
 
-    res["content"] = content
-
+    res["content"] = {"attrs": _get_state(attrs, dst)}
     return res
 
 
 def reduce_get_instance(state, src, constructor):
     reduce = state["__reduce__"]
-    args = get_instance(reduce["args"], src)
+    args = _get_instance(reduce["args"], src)
     instance = constructor(*args)
 
-    if "content" not in state:
+    attrs = _get_instance(state["content"]["attrs"], src)
+    if not attrs:
+        # nothing more to do
         return instance
 
-    content = state["content"]
-    attrs = {}
-    for key, value in content.items():
-        attrs[key] = _get_instance(value, src)
+    if isinstance(args, tuple) and not hasattr(instance, "__setstate__"):
+        raise TypeError(f"Objects of type {constructor} are not supported yet")
 
     if hasattr(instance, "__setstate__"):
         instance.__setstate__(attrs)
@@ -107,14 +94,14 @@ def reduce_get_instance(state, src, constructor):
 
 
 def Tree_get_instance(state, src):
-    return reduce_get_instance(state, src, Tree)
+    return reduce_get_instance(state, src, constructor=Tree)
 
 
 def sgd_loss_get_instance(state, src):
     cls = gettype(state)
     if cls not in ALLOWED_SGD_LOSSES:
         raise TypeError(f"Expected LossFunction, got {cls}")
-    return reduce_get_instance(state, src, cls)
+    return reduce_get_instance(state, src, constructor=cls)
 
 
 def bunch_get_instance(state, src):

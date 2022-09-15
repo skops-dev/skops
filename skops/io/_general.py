@@ -16,6 +16,8 @@ def dict_get_state(obj, dst):
     key_types = _get_state([type(key) for key in obj.keys()], dst)
     content = {}
     for key, value in obj.items():
+        if isinstance(value, property):
+            continue
         if np.isscalar(key) and hasattr(key, "item"):
             # convert numpy value to python object
             key = key.item()
@@ -194,16 +196,10 @@ def object_get_state(obj, dst):
     else:
         return res
 
-    content = {}
-    for key, value in attrs.items():
-        if isinstance(getattr(type(obj), key, None), property):
-            continue
-        if key == "C":
-            pass
-        content[key] = _get_state(value, dst)
-
+    content = _get_state(attrs, dst)
+    # it's sufficient to store the "content" because we know that this dict can
+    # only have str type keys
     res["content"] = content
-
     return res
 
 
@@ -224,10 +220,7 @@ def object_get_instance(state, src):
     if not len(content):
         return instance
 
-    attrs = {}
-    for key, value in content.items():
-        attrs[key] = _get_instance(value, src)
-
+    attrs = _get_instance(content, src)
     if hasattr(instance, "__setstate__"):
         instance.__setstate__(attrs)
     else:
