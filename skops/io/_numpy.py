@@ -35,24 +35,6 @@ def ndarray_get_state(obj, dst):
     return res
 
 
-def maskedarray_get_state(obj, dst):
-    res = {
-        "__class__": obj.__class__.__name__,
-        "__module__": get_module(type(obj)),
-        "content": {
-            "data": get_state(obj.data, dst),
-            "mask": get_state(obj.mask, dst),
-        },
-    }
-    return res
-
-
-def maskedarray_get_instance(state, src):
-    data = get_instance(state["content"]["data"], src)
-    mask = get_instance(state["content"]["mask"], src)
-    return np.ma.MaskedArray(data, mask)
-
-
 def ndarray_get_instance(state, src):
     if state["type"] == "numpy":
         val = np.load(io.BytesIO(src.read(state["file"])), allow_pickle=False)
@@ -75,6 +57,24 @@ def ndarray_get_instance(state, src):
         else:
             val = np.array(tmp, dtype="O")
     return val
+
+
+def maskedarray_get_state(obj, dst):
+    res = {
+        "__class__": obj.__class__.__name__,
+        "__module__": get_module(type(obj)),
+        "content": {
+            "data": get_state(obj.data, dst),
+            "mask": get_state(obj.mask, dst),
+        },
+    }
+    return res
+
+
+def maskedarray_get_instance(state, src):
+    data = get_instance(state["content"]["data"], src)
+    mask = get_instance(state["content"]["mask"], src)
+    return np.ma.MaskedArray(data, mask)
 
 
 def random_state_get_state(obj, dst):
