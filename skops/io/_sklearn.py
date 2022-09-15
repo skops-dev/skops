@@ -82,8 +82,6 @@ def generic_get_instance(state, src):
         pass
 
     cls = gettype(state)
-    state.pop("__class__")
-    state.pop("__module__")
 
     # Instead of simply constructing the instance, we use __new__, which
     # bypasses the __init__, and then we set the attributes. This solves
@@ -155,10 +153,7 @@ def reduce_get_state(obj, dst):
 
 
 def reduce_get_instance(state, src, constructor):
-    state.pop("__class__")
-    state.pop("__module__")
-
-    reduce = state.pop("__reduce__")
+    reduce = state["__reduce__"]
     args = get_instance(reduce["args"], src)
     instance = constructor(*args)
 

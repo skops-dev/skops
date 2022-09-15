@@ -26,8 +26,6 @@ def dict_get_state(obj, dst):
 
 def dict_get_instance(state, src):
     content = gettype(state)()
-    state.pop("__class__")
-    state.pop("__module__")
     key_types = _get_instance(state["key_types"], src)
     for k_type, item in zip(key_types, state["content"].items()):
         content[k_type(item[0])] = _get_instance(item[1], src)
@@ -48,8 +46,6 @@ def list_get_state(obj, dst):
 
 def list_get_instance(state, src):
     content = gettype(state)()
-    state.pop("__class__")
-    state.pop("__module__")
     for value in state["content"]:
         content.append(_get_instance(value, src))
     return content
@@ -81,8 +77,6 @@ def tuple_get_instance(state, src):
         return all(type(n) == str for n in f)
 
     cls = gettype(state)
-    state.pop("__class__")
-    state.pop("__module__")
 
     content = tuple()
     for value in state["content"]:
