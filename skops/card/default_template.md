@@ -41,16 +41,9 @@ You can find the details about evaluation process and the evaluation results.
 
 Use the code below to get started with the model.
 
-<details>
-<summary> Click to expand </summary>
-
 ```python
 {{ get_started_code | default("[More Information Needed]", true)}}
 ```
-
-</details>
-
-
 
 
 # Model Card Authors
