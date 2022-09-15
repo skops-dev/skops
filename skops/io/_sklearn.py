@@ -1,5 +1,4 @@
 import inspect
-import json
 
 from sklearn.covariance._graph_lasso import _DictWithDeprecatedKeys
 from sklearn.linear_model._sgd_fast import (
@@ -36,72 +35,6 @@ ALLOWED_SGD_LOSSES = {
     EpsilonInsensitive,
     SquaredEpsilonInsensitive,
 }
-
-
-def generic_get_state(obj, dst):
-    # This method is for objects which can either be persisted with json, or
-    # the ones for which we can get/set attributes through
-    # __getstate__/__setstate__ or reading/writing to __dict__.
-    try:
-        # if we can simply use json, then we're done.
-        return json.dumps(obj)
-    except Exception:
-        pass
-
-    res = {
-        "__class__": obj.__class__.__name__,
-        "__module__": get_module(type(obj)),
-    }
-
-    # __getstate__ takes priority over __dict__, and if non exist, we only save
-    # the type of the object, and loading would mean instantiating the object.
-    if hasattr(obj, "__getstate__"):
-        attrs = obj.__getstate__()
-    elif hasattr(obj, "__dict__"):
-        attrs = obj.__dict__
-    else:
-        return res
-
-    content = {}
-    for key, value in attrs.items():
-        if isinstance(getattr(type(obj), key, None), property):
-            continue
-        if key == "C":
-            pass
-        content[key] = _get_state(value, dst)
-
-    res["content"] = content
-
-    return res
-
-
-def generic_get_instance(state, src):
-    try:
-        return json.loads(state)
-    except Exception:
-        pass
-
-    cls = gettype(state)
-
-    # Instead of simply constructing the instance, we use __new__, which
-    # bypasses the __init__, and then we set the attributes. This solves
-    # the issue of required init arguments.
-    instance = cls.__new__(cls)
-
-    content = state.get("content", {})
-    if not len(content):
-        return instance
-
-    attrs = {}
-    for key, value in content.items():
-        attrs[key] = _get_instance(value, src)
-
-    if hasattr(instance, "__setstate__"):
-        instance.__setstate__(attrs)
-    else:
-        instance.__dict__.update(attrs)
-
-    return instance
 
 
 def reduce_get_state(obj, dst):
@@ -220,7 +153,6 @@ GET_STATE_DISPATCH_FUNCTIONS = [
     (LossFunction, reduce_get_state),
     (Tree, reduce_get_state),
     (_DictWithDeprecatedKeys, _DictWithDeprecatedKeys_get_state),
-    (object, generic_get_state),
 ]
 # tuples of type and function that creates the instance of that type
 GET_INSTANCE_DISPATCH_FUNCTIONS = [
@@ -228,5 +160,4 @@ GET_INSTANCE_DISPATCH_FUNCTIONS = [
     (Tree, Tree_get_instance),
     (Bunch, bunch_get_instance),
     (_DictWithDeprecatedKeys, _DictWithDeprecatedKeys_get_instance),
-    (object, generic_get_instance),
 ]
