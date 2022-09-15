@@ -1,3 +1,4 @@
+from sklearn.cluster import Birch
 from sklearn.covariance._graph_lasso import _DictWithDeprecatedKeys
 from sklearn.linear_model._sgd_fast import (
     EpsilonInsensitive,
@@ -13,7 +14,7 @@ from sklearn.linear_model._sgd_fast import (
 from sklearn.tree._tree import Tree
 from sklearn.utils import Bunch
 
-from ._general import dict_get_instance, dict_get_state
+from ._general import dict_get_instance, dict_get_state, unsupported_get_state
 from ._utils import _get_instance, _get_state, get_module, gettype
 
 ALLOWED_SGD_LOSSES = {
@@ -26,6 +27,8 @@ ALLOWED_SGD_LOSSES = {
     EpsilonInsensitive,
     SquaredEpsilonInsensitive,
 }
+
+UNSUPPORTED_TYPES = {Birch}
 
 
 def reduce_get_state(obj, dst):
@@ -141,6 +144,9 @@ GET_STATE_DISPATCH_FUNCTIONS = [
     (Tree, reduce_get_state),
     (_DictWithDeprecatedKeys, _DictWithDeprecatedKeys_get_state),
 ]
+for type_ in UNSUPPORTED_TYPES:
+    GET_STATE_DISPATCH_FUNCTIONS.append((type_, unsupported_get_state))
+
 # tuples of type and function that creates the instance of that type
 GET_INSTANCE_DISPATCH_FUNCTIONS = [
     (LossFunction, sgd_loss_get_instance),

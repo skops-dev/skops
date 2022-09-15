@@ -5,6 +5,7 @@ from types import FunctionType
 import numpy as np
 
 from ._utils import _get_instance, _get_state, _import_obj, get_module, gettype
+from .exceptions import UnsupportedTypeException
 
 
 def dict_get_state(obj, dst):
@@ -227,6 +228,10 @@ def object_get_instance(state, src):
         instance.__dict__.update(attrs)
 
     return instance
+
+
+def unsupported_get_state(obj, dst):
+    raise UnsupportedTypeException(obj)
 
 
 # tuples of type and function that gets the state of that type
