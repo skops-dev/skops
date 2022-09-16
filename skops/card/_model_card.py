@@ -10,6 +10,8 @@ from pathlib import Path
 from reprlib import Repr
 from typing import Any, Optional, Union
 
+import matplotlib.pyplot as plt
+import pandas as pd
 from modelcards import CardData, ModelCard
 from sklearn.utils import estimator_html_repr
 from tabulate import tabulate  # type: ignore
@@ -364,6 +366,33 @@ class Card:
         """
         for metric, value in kwargs.items():
             self._eval_results[metric] = value
+        return self
+
+    def add_feature_importances(self, feature_importances) -> "Card":
+        """Visualize permutation importance.
+
+        Parameters
+        ----------
+        self : object
+            Card object.
+        feature_importances : sklearn.utils.Bunch
+            Output of sklearn.inspection.permutation_importance()
+
+        Returns
+        -------
+        self : object
+            Card object.
+        """
+
+        importances = pd.DataFrame(
+            feature_importances.importances.T,
+            columns=self.model.feature_names_in_,
+        )
+        ax = importances.plot.box(vert=False, whis=10)
+        ax.set_title("Permutation Importances")
+        ax.set_xlabel("Decrease in accuracy score")
+        plt.savefig("feature_importances.png")
+        self.add_plot(**{"Feature Importances": "feature_importances.png"})
         return self
 
     def _generate_card(self) -> ModelCard:

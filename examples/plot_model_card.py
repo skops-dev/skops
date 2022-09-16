@@ -20,6 +20,7 @@ import sklearn
 from sklearn.datasets import load_breast_cancer
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.experimental import enable_halving_search_cv  # noqa
+from sklearn.inspection import permutation_importance
 from sklearn.metrics import (
     ConfusionMatrixDisplay,
     accuracy_score,
@@ -147,6 +148,9 @@ disp.plot()
 
 disp.figure_.savefig(Path(local_repo) / "confusion_matrix.png")
 model_card.add_plot(**{"Confusion matrix": "confusion_matrix.png"})
+
+result = permutation_importance(model, X_test, y_test, n_repeats=10)
+model_card.add_feature_importances(result)
 
 cv_results = model.cv_results_
 clf_report = classification_report(
