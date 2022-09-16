@@ -60,12 +60,11 @@ N_SAMPLES = 50
 N_FEATURES = 20
 
 
-@pytest.mark.parametrize("x", range(100))
+@pytest.mark.parametrize("x", range(50))
 def test_dummy(x):
+    obj = LogisticRegression()
     _, f_name = tempfile.mkstemp(prefix="skops-", suffix=".skops")
-    with open(f_name, "w") as f:
-        f.write(f"dummy {x}")
-        time.sleep(0.2)
+    save(obj, f_name)
 
 
 def save_load_round(estimator):
