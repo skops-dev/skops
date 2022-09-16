@@ -45,4 +45,4 @@ def save(obj, file):
 def load(file):
     with ZipFile(file, "r") as input_zip:
         schema = input_zip.read("schema.json")
-    return get_instance(json.loads(schema), input_zip)
+        return get_instance(json.loads(schema), input_zip)
