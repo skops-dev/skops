@@ -1,5 +1,6 @@
 import json
 import tempfile
+import time
 import warnings
 from collections import Counter
 from functools import partial
@@ -343,6 +344,7 @@ def assert_params_equal(params1, params2):
 )
 def test_can_persist_non_fitted(estimator):
     """Check that non-fitted estimators can be persisted."""
+    time.sleep(0.1)
     loaded = save_load_round(estimator)
     assert_params_equal(estimator.get_params(), loaded.get_params())
 
@@ -401,6 +403,7 @@ def get_input(estimator):
 )
 def test_can_persist_fitted(estimator, request):
     """Check that fitted estimators can be persisted and return the right results."""
+    time.sleep(0.1)
     set_random_state(estimator, random_state=0)
 
     X, y = get_input(estimator)
