@@ -1,10 +1,7 @@
 import json
-import tempfile
-import time
 import warnings
 from collections import Counter
 from functools import partial
-from pathlib import Path
 from zipfile import ZipFile
 
 import numpy as np
@@ -53,25 +50,16 @@ import skops
 from skops.io import load, save
 from skops.io._sklearn import UNSUPPORTED_TYPES
 from skops.io.exceptions import UnsupportedTypeException
-from skops.utils.fixes import path_unlink
 
 # Default settings for X
 N_SAMPLES = 50
 N_FEATURES = 20
 
 
-@pytest.mark.parametrize("x", range(20))
-def test_dummy(x):
-    obj = LogisticRegression()
-    save_load_round(obj)
-
-
-def save_load_round(estimator):
+def save_load_round(estimator, f_name):
     # save and then load the model, and return the loaded model.
-    _, f_name = tempfile.mkstemp(prefix="skops-", suffix=".skops")
     save(file=f_name, obj=estimator)
     loaded = load(file=f_name)
-    path_unlink(Path(f_name))
     return loaded
 
 
@@ -345,14 +333,13 @@ def assert_params_equal(params1, params2):
             _assert_vals_equal(val1, val2)
 
 
-@pytest.mark.skip()
 @pytest.mark.parametrize(
     "estimator", _tested_estimators(), ids=_get_check_estimator_ids
 )
-def test_can_persist_non_fitted(estimator):
+def test_can_persist_non_fitted(estimator, tmp_path):
     """Check that non-fitted estimators can be persisted."""
-    time.sleep(0.1)
-    loaded = save_load_round(estimator)
+    f_name = tmp_path / "file.skops"
+    loaded = save_load_round(estimator, f_name)
     assert_params_equal(estimator.get_params(), loaded.get_params())
 
 
@@ -405,13 +392,11 @@ def get_input(estimator):
     raise ValueError(f"Unsupported X type for estimator: {tags['X_types']}")
 
 
-@pytest.mark.skip()
 @pytest.mark.parametrize(
     "estimator", _tested_estimators(), ids=_get_check_estimator_ids
 )
-def test_can_persist_fitted(estimator, request):
+def test_can_persist_fitted(estimator, request, tmp_path):
     """Check that fitted estimators can be persisted and return the right results."""
-    time.sleep(0.1)
     set_random_state(estimator, random_state=0)
 
     X, y = get_input(estimator)
@@ -424,7 +409,8 @@ def test_can_persist_fitted(estimator, request):
             else:
                 estimator.fit(X)
 
-    loaded = save_load_round(estimator)
+    f_name = tmp_path / "file.skops"
+    loaded = save_load_round(estimator, f_name)
     assert_params_equal(estimator.__dict__, loaded.__dict__)
 
     for method in [
@@ -444,11 +430,10 @@ def test_can_persist_fitted(estimator, request):
             assert_allclose_dense_sparse(X_pred1, X_pred2, err_msg=err_msg, atol=1e-7)
 
 
-@pytest.mark.skip()
 @pytest.mark.parametrize(
     "estimator", _unsupported_estimators(), ids=_get_check_estimator_ids
 )
-def test_unsupported_type_raises(estimator):
+def test_unsupported_type_raises(estimator, tmp_path):
     """Estimators that are known to fail should raise an error"""
     set_random_state(estimator, random_state=0)
 
@@ -464,7 +449,8 @@ def test_unsupported_type_raises(estimator):
 
     msg = f"Objects of type {estimator.__class__.__name__} are not supported yet"
     with pytest.raises(UnsupportedTypeException, match=msg):
-        save_load_round(estimator)
+        f_name = tmp_path / "file.skops"
+        save_load_round(estimator, f_name)
 
 
 class RandomStateEstimator(BaseEstimator):
@@ -480,7 +466,6 @@ class RandomStateEstimator(BaseEstimator):
         return self
 
 
-@pytest.mark.skip()
 @pytest.mark.parametrize(
     "random_state",
     [
@@ -491,7 +476,7 @@ class RandomStateEstimator(BaseEstimator):
         np.random.Generator(np.random.PCG64DXSM(seed=123)),
     ],
 )
-def test_random_state(random_state):
+def test_random_state(random_state, tmp_path):
     # Numpy random Generators
     # (https://numpy.org/doc/stable/reference/random/generator.html) are not
     # supported by sklearn yet but will be in the future, thus they're tested
@@ -499,7 +484,8 @@ def test_random_state(random_state):
     est = RandomStateEstimator(random_state=random_state).fit(None, None)
     est.random_state_.random(123)  # move RNG forwards
 
-    loaded = save_load_round(est)
+    f_name = tmp_path / "file.skops"
+    loaded = save_load_round(est, f_name)
     rand_floats_expected = est.random_state_.random(100)
     rand_floats_loaded = loaded.random_state_.random(100)
     np.testing.assert_equal(rand_floats_loaded, rand_floats_expected)
@@ -517,7 +503,6 @@ class CVEstimator(BaseEstimator):
         return list(self.cv_.split(X, **kwargs))
 
 
-@pytest.mark.skip()
 @pytest.mark.parametrize(
     "cv",
     [
@@ -528,9 +513,10 @@ class CVEstimator(BaseEstimator):
         ShuffleSplit(6, random_state=np.random.RandomState(123)),
     ],
 )
-def test_cross_validator(cv):
+def test_cross_validator(cv, tmp_path):
     est = CVEstimator(cv=cv).fit(None, None)
-    loaded = save_load_round(est)
+    f_name = tmp_path / "file.skops"
+    loaded = save_load_round(est, f_name)
     X, y = make_classification(
         n_samples=N_SAMPLES, n_features=N_FEATURES, random_state=0
     )
@@ -549,8 +535,7 @@ def test_cross_validator(cv):
         np.testing.assert_equal(split_est, split_loaded)
 
 
-@pytest.mark.skip()
-def test_metainfo():
+def test_metainfo(tmp_path):
     class MyEstimator(BaseEstimator):
         """Estimator with attributes of different supported types"""
 
@@ -572,7 +557,7 @@ def test_metainfo():
 
     # safe and load the schema
     estimator = MyEstimator().fit(None)
-    _, f_name = tempfile.mkstemp(prefix="skops-", suffix=".skops")
+    f_name = tmp_path / "file.skops"
     save(file=f_name, obj=estimator)
     schema = json.loads(ZipFile(f_name).read("schema.json"))
 
@@ -618,52 +603,3 @@ def test_metainfo():
             # change across versions, e.g. 'scipy.sparse.csr' moving to
             # 'scipy.sparse._csr'.
             assert val_state["__module__"].startswith(val_expected["__module__"])
-
-
-# TODO: remove this, Adrin uses this for debugging.
-if __name__ == "__main__":
-    from sklearn.ensemble import StackingClassifier as SINGLE_CLASS
-
-    estimator = _construct_instance(SINGLE_CLASS)
-    estimator = ColumnTransformer(
-        [
-            ("norm1", Normalizer(norm="l1"), [0]),
-            ("norm2", Normalizer(norm="l1"), [1, 2]),
-            ("norm3", Normalizer(norm="l1"), [True] + (N_FEATURES - 1) * [False]),
-            ("norm4", Normalizer(norm="l1"), np.array([1, 2])),
-            ("norm5", Normalizer(norm="l1"), slice(3)),
-            ("norm6", Normalizer(norm="l1"), slice(-10, -3, 2)),
-        ],
-    )
-
-    loaded = save_load_round(estimator)
-    assert_params_equal(estimator.get_params(), loaded.get_params())
-
-    set_random_state(estimator, random_state=0)
-
-    X, y = get_input(estimator)
-    with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", module="sklearn")
-        if y is not None:
-            estimator.fit(X, y)
-        else:
-            estimator.fit(X)
-
-    loaded = save_load_round(estimator)
-    assert_params_equal(estimator.__dict__, loaded.__dict__)
-
-    for method in [
-        "predict",
-        "predict_proba",
-        "decision_function",
-        "transform",
-        "predict_log_proba",
-    ]:
-        err_msg = (
-            f"{estimator.__class__.__name__}.{method}() doesn't produce the same"
-            " results after loading the persisted model."
-        )
-        if hasattr(estimator, method):
-            X_pred1 = getattr(estimator, method)(X)
-            X_pred2 = getattr(loaded, method)(X)
-            assert_allclose_dense_sparse(X_pred1, X_pred2, err_msg=err_msg)

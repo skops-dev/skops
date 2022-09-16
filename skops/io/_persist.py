@@ -46,5 +46,4 @@ def load(file):
     with ZipFile(file, "r") as input_zip:
         schema = input_zip.read("schema.json")
         instance = get_instance(json.loads(schema), input_zip)
-    input_zip.close()
     return instance
