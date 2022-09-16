@@ -63,7 +63,7 @@ N_SAMPLES = 50
 N_FEATURES = 20
 
 
-@pytest.mark.parametrize("x", range(20))
+@pytest.mark.parametrize("x", range(5))
 def test_dummy(x):
     obj = LogisticRegression()
     save_load_round(obj)
