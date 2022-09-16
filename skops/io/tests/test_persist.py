@@ -60,6 +60,14 @@ N_SAMPLES = 50
 N_FEATURES = 20
 
 
+@pytest.mark.parametrize("x", range(100))
+def test_dummy(x):
+    _, f_name = tempfile.mkstemp(prefix="skops-", suffix=".skops")
+    with open(f_name, "w") as f:
+        f.write(f"dummy {x}")
+        time.sleep(0.2)
+
+
 def save_load_round(estimator):
     # save and then load the model, and return the loaded model.
     _, f_name = tempfile.mkstemp(prefix="skops-", suffix=".skops")
@@ -339,6 +347,7 @@ def assert_params_equal(params1, params2):
             _assert_vals_equal(val1, val2)
 
 
+@pytest.mark.skip()
 @pytest.mark.parametrize(
     "estimator", _tested_estimators(), ids=_get_check_estimator_ids
 )
@@ -398,6 +407,7 @@ def get_input(estimator):
     raise ValueError(f"Unsupported X type for estimator: {tags['X_types']}")
 
 
+@pytest.mark.skip()
 @pytest.mark.parametrize(
     "estimator", _tested_estimators(), ids=_get_check_estimator_ids
 )
@@ -436,6 +446,7 @@ def test_can_persist_fitted(estimator, request):
             assert_allclose_dense_sparse(X_pred1, X_pred2, err_msg=err_msg, atol=1e-7)
 
 
+@pytest.mark.skip()
 @pytest.mark.parametrize(
     "estimator", _unsupported_estimators(), ids=_get_check_estimator_ids
 )
@@ -471,6 +482,7 @@ class RandomStateEstimator(BaseEstimator):
         return self
 
 
+@pytest.mark.skip()
 @pytest.mark.parametrize(
     "random_state",
     [
@@ -507,6 +519,7 @@ class CVEstimator(BaseEstimator):
         return list(self.cv_.split(X, **kwargs))
 
 
+@pytest.mark.skip()
 @pytest.mark.parametrize(
     "cv",
     [
@@ -538,6 +551,7 @@ def test_cross_validator(cv):
         np.testing.assert_equal(split_est, split_loaded)
 
 
+@pytest.mark.skip()
 def test_metainfo():
     class MyEstimator(BaseEstimator):
         """Estimator with attributes of different supported types"""
