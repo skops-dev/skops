@@ -4,6 +4,7 @@
 import sys
 from contextlib import suppress
 from pathlib import Path
+from typing import List
 
 if sys.version_info >= (3, 8):
     # py>=3.8
@@ -20,6 +21,11 @@ else:
     # if you're removing this, you should also remove the dependency from
     # _min_dependencies.py
     from typing_extensions import Literal  # noqa
+
+if sys.version_info >= (3, 9):
+    from types import GenericAlias
+else:
+    GenericAlias = type(List[int])
 
 
 def path_unlink(path: Path, missing_ok: bool = False) -> None:
