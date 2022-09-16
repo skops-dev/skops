@@ -1,12 +1,10 @@
 import json
-import os
 import tempfile
 import time
 import warnings
 from collections import Counter
 from functools import partial
-
-# from pathlib import Path
+from pathlib import Path
 from zipfile import ZipFile
 
 import numpy as np
@@ -55,15 +53,14 @@ import skops
 from skops.io import load, save
 from skops.io._sklearn import UNSUPPORTED_TYPES
 from skops.io.exceptions import UnsupportedTypeException
-
-# from skops.utils.fixes import path_unlink
+from skops.utils.fixes import path_unlink
 
 # Default settings for X
 N_SAMPLES = 50
 N_FEATURES = 20
 
 
-@pytest.mark.parametrize("x", range(5))
+@pytest.mark.parametrize("x", range(20))
 def test_dummy(x):
     obj = LogisticRegression()
     save_load_round(obj)
@@ -74,8 +71,7 @@ def save_load_round(estimator):
     _, f_name = tempfile.mkstemp(prefix="skops-", suffix=".skops")
     save(file=f_name, obj=estimator)
     loaded = load(file=f_name)
-    # path_unlink(Path(f_name))
-    os.remove(f_name)
+    path_unlink(Path(f_name))
     return loaded
 
 
