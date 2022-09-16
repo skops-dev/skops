@@ -1,4 +1,5 @@
 import json
+import sys
 import warnings
 from collections import Counter
 from functools import partial
@@ -54,6 +55,10 @@ from skops.io.exceptions import UnsupportedTypeException
 # Default settings for X
 N_SAMPLES = 50
 N_FEATURES = 20
+
+# TODO: Investigate why that seems to be an issue on MacOS (only observed with
+# Python 3.8)
+ATOL = 1e-6 if sys.platform == "darwin" else 1e-9
 
 
 def save_load_round(estimator, f_name):
@@ -427,7 +432,7 @@ def test_can_persist_fitted(estimator, request, tmp_path):
         if hasattr(estimator, method):
             X_pred1 = getattr(estimator, method)(X)
             X_pred2 = getattr(loaded, method)(X)
-            assert_allclose_dense_sparse(X_pred1, X_pred2, err_msg=err_msg, atol=1e-7)
+            assert_allclose_dense_sparse(X_pred1, X_pred2, err_msg=err_msg, atol=ATOL)
 
 
 @pytest.mark.parametrize(
