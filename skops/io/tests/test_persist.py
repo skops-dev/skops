@@ -58,7 +58,7 @@ N_FEATURES = 20
 
 # TODO: Investigate why that seems to be an issue on MacOS (only observed with
 # Python 3.8)
-ATOL = 1e-6 if sys.platform == "darwin" else 1e-8
+ATOL = 1e-6 if sys.platform == "darwin" else 1e-7
 
 
 def save_load_round(estimator, f_name):
