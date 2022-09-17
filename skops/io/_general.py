@@ -60,9 +60,7 @@ def tuple_get_state(obj, dst):
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
     }
-    content = ()
-    for value in obj:
-        content += (_get_state(value, dst),)
+    content = tuple(_get_state(value, dst) for value in obj)
     res["content"] = content
     return res
 
@@ -81,10 +79,7 @@ def tuple_get_instance(state, src):
         return all(type(n) == str for n in f)
 
     cls = gettype(state)
-
-    content = tuple()
-    for value in state["content"]:
-        content += (_get_instance(value, src),)
+    content = tuple(_get_instance(value, src) for value in state["content"])
 
     if isnamedtuple(cls):
         return cls(*content)
@@ -103,8 +98,8 @@ def function_get_state(obj, dst):
     return res
 
 
-def function_get_instance(obj, src):
-    loaded = _import_obj(obj["content"]["module_path"], obj["content"]["function"])
+def function_get_instance(state, src):
+    loaded = _import_obj(state["content"]["module_path"], state["content"]["function"])
     return loaded
 
 
@@ -123,8 +118,8 @@ def partial_get_state(obj, dst):
     return res
 
 
-def partial_get_instance(obj, src):
-    content = obj["content"]
+def partial_get_instance(state, src):
+    content = state["content"]
     func = _get_instance(content["func"], src)
     args = _get_instance(content["args"], src)
     kwds = _get_instance(content["kwds"], src)
@@ -148,8 +143,8 @@ def type_get_state(obj, dst):
     return res
 
 
-def type_get_instance(obj, src):
-    loaded = _import_obj(obj["content"]["__module__"], obj["content"]["__class__"])
+def type_get_instance(state, src):
+    loaded = _import_obj(state["content"]["__module__"], state["content"]["__class__"])
     return loaded
 
 
@@ -166,10 +161,10 @@ def slice_get_state(obj, dst):
     return res
 
 
-def slice_get_instance(obj, src):
-    start = obj["content"]["start"]
-    stop = obj["content"]["stop"]
-    step = obj["content"]["step"]
+def slice_get_instance(state, src):
+    start = state["content"]["start"]
+    stop = state["content"]["stop"]
+    step = state["content"]["step"]
     return slice(start, stop, step)
 
 
@@ -217,8 +212,8 @@ def object_get_instance(state, src):
     # the issue of required init arguments.
     instance = cls.__new__(cls)
 
-    content = state.get("content", {})
-    if not len(content):
+    content = state.get("content")
+    if not content:  # nothing more to do
         return instance
 
     attrs = _get_instance(content, src)
