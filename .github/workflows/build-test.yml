@@ -14,10 +14,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     if: "github.repository == 'skops-dev/skops'"
     strategy:
-      fail-fast: true
+      fail-fast: false  # need to see which ones fail
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        python: ["3.7", "3.8", "3.9", "3.10"]
+        python: ["3.7", "3.8", "3.9", "3.10.6"]
 
     # Timeout: https://stackoverflow.com/a/59076067/4521646
     timeout-minutes: 15
