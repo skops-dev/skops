@@ -76,7 +76,10 @@ def debug_dispatch_functions():
 
         @wraps(func)
         def wrapper(obj, dst):
+            assert isinstance(dst, str)
+
             result = func(obj, dst)
+
             if isinstance(result, dict):
                 assert "__class__" in result
                 assert "__module__" in result
@@ -88,7 +91,7 @@ def debug_dispatch_functions():
         return wrapper
 
     def debug_get_instance(func):
-        # check consistency of argument names and output type
+        # check consistency of argument names and input type
         signature = inspect.signature(func)
         assert list(signature.parameters.keys()) == ["state", "src"]
 
@@ -100,7 +103,10 @@ def debug_dispatch_functions():
             else:
                 # should be a primitive type
                 assert isinstance(state, (int, float, str))
+            assert isinstance(src, ZipFile)
+
             result = func(state, src)
+
             return result
 
         return wrapper
