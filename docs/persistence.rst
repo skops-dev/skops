@@ -61,7 +61,7 @@ Goals
 -----
 
 Currently, it is still possible to run insecure code when using skops
-persistence. E.g., it's possible to load a save file that evaluates arbitrary
+persistence, e.g., it's possible to load a save file that evaluates arbitrary
 code using :func:`eval`. We do, however, have concrete plans on how to mitigate
 this. Please stay updated.
 
