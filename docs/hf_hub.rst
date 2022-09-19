@@ -120,12 +120,12 @@ Easily build user interfaces to your scikit-learn models
 It has a class called :class:`Interface` that lets you create application
 interfaces to your machine learning models.
 ``gradio`` is integrated with skops, so you can load an interface with only one
-line of code. You need to initialize an interface, call load method with
-your repository identifier (your user name and name of the model repository)
-prepended with "huggingface/" will load an interface for your model. The interface
-has a dataframe input that takes samples and a dataframe output to return
-predictions. It also takes the example in the repository that is previously
-pushed with skops. Calling :func:`gr.Interface.launch()` will launch your application.
+line of code. During the initialization of the interface, call load method with
+your repository identifier prepended with "huggingface/" will load an 
+interface for your model. The interface has a dataframe input that takes samples 
+and a dataframe output to return predictions. It also takes the example in the 
+repository that is previously pushed with skops. 
+Calling :func:`gr.Interface.launch()` will launch your application.
 
 .. code:: python
 

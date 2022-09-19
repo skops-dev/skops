@@ -162,7 +162,6 @@ print(json.dumps(hub_utils.get_config(path=repo_copy), indent=2))
 
 hub_utils.update_env(path=local_repo, requirements=["scikit-learn"])
 
-
 # %%
 # Delete Repository
 # =================
