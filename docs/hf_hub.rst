@@ -113,7 +113,8 @@ In the above code snippet, ``res`` will be a :class:`numpy.ndarray` containing
 the model's output.
 
 .. _hf_hub_gradio:
-
+..
+   TODO: replace gradio link once gradio provides object.inv
 Easily build user interfaces to your scikit-learn models
 --------------------------------------------------------
 `gradio <https://gradio.app/>`__ is a python library that lets you create interfaces on your model.
