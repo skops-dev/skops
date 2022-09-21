@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  pytest:
+  inference-pytest:
 
     runs-on: ${{ matrix.os }}
     if: "(github.repository == 'skops-dev/skops') && ((github.ref == 'refs/heads/main') || contains(github.event.pull_request.title, 'inference'))"
@@ -35,7 +35,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        pip install .[docs]
+        pip install .[tests]
         python --version
         pip --version
         pip list
