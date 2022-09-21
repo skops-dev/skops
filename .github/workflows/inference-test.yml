@@ -1,3 +1,7 @@
+# Tests hitting the inference API are slow and prone to hanging, resulting in
+# timeouts. Therefore, we only run them on the main branch or if the PR title
+# contains the word "inference". See #118
+
 name: pytest
 
 on:
@@ -12,7 +16,7 @@ jobs:
   pytest:
 
     runs-on: ${{ matrix.os }}
-    if: "github.repository == 'skops-dev/skops'"
+    if: "(github.repository == 'skops-dev/skops') && ((github.ref == 'refs/heads/main') || contains(github.event.pull_request.title, 'inference'))"
     strategy:
       fail-fast: false  # need to see which ones fail
       matrix:
@@ -31,28 +35,17 @@ jobs:
 
     - name: Install dependencies
       run: |
-        pip install .[docs,tests]
-        pip install black=="22.6.0" isort=="5.10.1" mypy=="0.971"
+        pip install .[docs]
         python --version
         pip --version
         pip list
       shell: bash
 
-    - name: Check black
-      run: black --check --diff .
-
-    - name: Check isort
-      run: isort --check --diff .
-
-    - name: Tests
+    - name: Inference tests
       env:
         SUPER_SECRET: ${{ secrets.HF_HUB_TOKEN }}
-      # skip slow inference tests here, see inference-test.yml
       run: |
-        python -m pytest -s -v --cov-report=xml -m "not inference" skops/
-
-    - name: Mypy
-      run: mypy --config-file pyproject.toml skops
+        python -m pytest -s -v --cov-report=xml -m "inference" skops/
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v2

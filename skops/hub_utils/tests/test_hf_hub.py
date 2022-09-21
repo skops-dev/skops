@@ -391,6 +391,7 @@ def repo_path_for_inference():
         yield Path(repo_path)
 
 
+@pytest.mark.inference
 @pytest.mark.network
 @flaky(max_runs=3)
 @pytest.mark.parametrize(
@@ -408,7 +409,8 @@ def test_inference(
     repo_path_for_inference,
     destination_path,
 ):
-    # test inference backend for classifier and regressor models.
+    # Test inference backend for classifier and regressor models. This test can
+    # take a lot of time.
     client = HfApi()
 
     repo_path = repo_path_for_inference

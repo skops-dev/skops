@@ -13,6 +13,7 @@ filterwarnings = [
 ]
 markers = [
     "network: marks tests as requiring internet (deselect with '-m \"not network\"')",
+    "inference: marks tests that call inference API (deselect with '-m \"not inference\"')",
 ]
 addopts = "--cov=skops --cov-report=term-missing --doctest-modules"
 
