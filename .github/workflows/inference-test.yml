@@ -2,7 +2,7 @@
 # timeouts. Therefore, we only run them on the main branch or if the PR title
 # contains the word "inference". See #118
 
-name: pytest
+name: inference-tests
 
 on:
   - push
