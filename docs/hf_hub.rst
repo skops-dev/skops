@@ -126,7 +126,7 @@ your repository identifier prepended with "huggingface/" will load an
 interface for your model. The interface has a dataframe input that takes samples 
 and a dataframe output to return predictions. It also takes the example in the 
 repository that is previously pushed with skops. 
-Calling `gr.Interface.launch() https://gradio.app/docs/#launch`__ will launch your application.
+Calling `gr.Interface.launch() <https://gradio.app/docs/#launch/>`__ will launch your application.
 
 .. code:: python
 
@@ -136,7 +136,7 @@ Calling `gr.Interface.launch() https://gradio.app/docs/#launch`__ will launch yo
 
 
 You can further customize your UI, add description, title, and more. If you'd
-like to share your demo, you can set ``share`` to True in :func:`gr.Interface.launch()`.
+like to share your demo, you can set ``share`` to True in `gr.Interface.launch() <https://gradio.app/docs/#launch/>`__.
 
 .. code:: python
 
