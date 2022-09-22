@@ -650,3 +650,28 @@ def test_identical_numpy_arrays_not_duplicated(tmp_path):
     expected_files = 5
     num_files = len(files)
     assert num_files == expected_files
+
+
+class NumpyDtypeObjectEstimator(BaseEstimator):
+    """An estimator with a numpy array of dtype object"""
+
+    def fit(self, X, y=None, **fit_params):
+        self.obj_ = np.zeros(3, dtype=object)
+        return self
+
+
+def test_numpy_dtype_object_does_not_store_broken_file(tmp_path):
+    # This addresses a specific bug where trying to store an object numpy array
+    # resulted in the creation of a broken .npy file being left over. This is
+    # because numpy tries to write to the file until it encounters an error and
+    # raises, but then doesn't clean up said file. Before the bugfix in #150, we
+    # would include that broken file in the zip archive, although we wouldn't do
+    # anything with it. Here we test that no such file exists.
+    estimator = NumpyDtypeObjectEstimator().fit(None)
+    f_name = tmp_path / "file.skops"
+    save_load_round(estimator, f_name)
+    with ZipFile(f_name, "r") as input_zip:
+        files = input_zip.namelist()
+
+    # this estimator should not have any numpy file
+    assert not any(file.endswith(".npy") for file in files)

@@ -16,15 +16,22 @@ def ndarray_get_state(obj, dst):
         "__module__": get_module(type(obj)),
     }
 
-    try:
-        digest = joblib.hash(obj)
-        f_name = f"{digest}.npy"
-        if not os.path.exists(f_name):
-            with open(Path(dst) / f_name, "wb") as f:
-                np.save(f, obj, allow_pickle=False)
-        res["type"] = "numpy"
-        res["file"] = f_name
-    except ValueError:
+    if obj.dtype != object:
+        try:
+            digest = joblib.hash(obj)
+            f_name = f"{digest}.npy"
+            if not os.path.exists(Path(dst) / f_name):
+                with open(Path(dst) / f_name, "wb") as f:
+                    np.save(f, obj, allow_pickle=False)
+            res["type"] = "numpy"
+            res["file"] = f_name
+        except ValueError as exc:
+            msg = (
+                f"numpy arrays of type {type(obj)} and dtype {obj.dtype} are not "
+                "supported yet"
+            )
+            raise TypeError(msg) from exc
+    else:
         # Object arrays cannot be saved with allow_pickle=False, therefore we
         # convert them to a list and recursively call get_state on it.
         if obj.dtype == object:
@@ -32,8 +39,6 @@ def ndarray_get_state(obj, dst):
             res["content"] = obj_serialized["content"]
             res["type"] = "json"
             res["shape"] = get_state(obj.shape, dst)
-        else:
-            raise TypeError(f"numpy arrays of dtype {obj.dtype} are not supported yet")
 
     return res
 
