@@ -21,9 +21,8 @@ docs say:
     code during unpickling. Never unpickle data that could have come from an
     untrusted source, or that could have been tampered with.
 
-With the :func:`skops.io.save` and :func:`skops.io.load` functions, we aim at
-providing a secure method to load and save sklearn code. In contrast to pickle,
-these functions cannot be used to save arbitrary Python code, but they bypass
+In contrast to pickle, the :func:`skops.io.save` and :func:`skops.io.load` 
+functions cannot be used to save arbitrary Python code, but they bypass 
 pickle and are thus more secure.
 
 Usage
