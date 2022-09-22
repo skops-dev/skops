@@ -50,9 +50,9 @@ as :class:`sklearn.tree.DecisionTreeClassifier`, and more. If you discover an sk
 estimator that does not work, please open an issue on the skops `GitHub page
 <https://github.com/skops-dev/skops/issues>`_ and let us know.
 
-In contrast to pickle, skops cannot persist arbitrary Python code. In
-particular, this means that if you have custom functions (say, a custom function
-to be used with :class:`sklearn.preprocessing.FunctionTransformer`), it will not
+In contrast to pickle, skops cannot persist arbitrary Python code. This means 
+if you have custom functions (say, a custom function to be used 
+with :class:`sklearn.preprocessing.FunctionTransformer`), it will not
 work. However, most ``numpy`` and ``scipy`` functions should work. Therefore,
 you can actually save built-in functions like``numpy.sqrt``.
 
