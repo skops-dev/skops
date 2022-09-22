@@ -608,3 +608,45 @@ def test_metainfo(tmp_path):
             # change across versions, e.g. 'scipy.sparse.csr' moving to
             # 'scipy.sparse._csr'.
             assert val_state["__module__"].startswith(val_expected["__module__"])
+
+
+class EstimatorIdenticalArrays(BaseEstimator):
+    """Estimator that stores multiple references to the same array"""
+
+    def fit(self, X, y=None, **fit_params):
+        # each block below should reference the same file
+        self.X = X
+        self.X_2 = X
+        self.X_copy = X.copy()
+        self.X_list = [X, X]
+        self.X_dict = {"a": X, 2: X}
+
+        self.X_T = X.T
+        self.X_T2 = X.T
+
+        self.vector = X[0]
+        self.vector_2 = X[0]
+
+        self.scalar = X[0, 0]
+        self.scalar_2 = X[0, 0]
+
+        return self
+
+
+def test_identical_numpy_arrays_not_duplicated(tmp_path):
+    # Test that identical numpy arrays are not stored multiple times
+    X = np.random.random((10, 5))
+    estimator = EstimatorIdenticalArrays().fit(X)
+    f_name = tmp_path / "file.skops"
+    loaded = save_load_round(estimator, f_name)
+    assert_params_equal(estimator.__dict__, loaded.__dict__)
+
+    # check number of numpy arrays stored on disk
+    with ZipFile(f_name, "r") as input_zip:
+        files = input_zip.namelist()
+    # expected files are:
+    # schema, X, X.T, vector, and scalar
+    # the rest should be referencing the same file.
+    expected_files = 5
+    num_files = len(files)
+    assert num_files == expected_files

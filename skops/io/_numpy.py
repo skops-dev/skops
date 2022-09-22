@@ -1,7 +1,8 @@
 import io
+import os
 from pathlib import Path
-from uuid import uuid4
 
+import joblib
 import numpy as np
 
 from ._general import function_get_instance
@@ -16,11 +17,13 @@ def ndarray_get_state(obj, dst):
     }
 
     try:
-        f_name = f"{uuid4()}.npy"
-        with open(Path(dst) / f_name, "wb") as f:
-            np.save(f, obj, allow_pickle=False)
-            res["type"] = "numpy"
-            res["file"] = f_name
+        digest = joblib.hash(obj)
+        f_name = f"{digest}.npy"
+        if not os.path.exists(f_name):
+            with open(Path(dst) / f_name, "wb") as f:
+                np.save(f, obj, allow_pickle=False)
+        res["type"] = "numpy"
+        res["file"] = f_name
     except ValueError:
         # Object arrays cannot be saved with allow_pickle=False, therefore we
         # convert them to a list and recursively call get_state on it.
