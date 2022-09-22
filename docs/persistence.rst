@@ -46,7 +46,7 @@ an example:
 At the moment, we support the vast majority of sklearn estimators. This includes
 complex use cases such as :class:`sklearn.pipeline.Pipeline`,
 :class:`sklearn.model_selection.GridSearchCV`, classes using Cython code, such
-as :class:`sklearn.tree.DecisionTreeClassifier`, etc. If you discover an sklearn
+as :class:`sklearn.tree.DecisionTreeClassifier`, and more. If you discover an sklearn
 estimator that does not work, please open an issue on the skops `GitHub page
 <https://github.com/skops-dev/skops/issues>`_ and let us know.
 
