@@ -61,8 +61,8 @@ Goals
 
 Currently, it is still possible to run insecure code when using skops
 persistence, e.g., it's possible to load a save file that evaluates arbitrary
-code using :func:`eval`. We do, however, have concrete plans on how to mitigate
-this. Please stay updated.
+code using :func:`eval`. However, we have concrete plans on how to mitigate
+this, so please stay updated.
 
 On top of trying to support all of sklearn, we plan on making persistence
 extensible for other libraries. As a user, this means that if you trust a
