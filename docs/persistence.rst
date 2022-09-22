@@ -12,7 +12,7 @@ Secure persistence with skops
 
 Skops offers a way to save and load sklearn models without using :mod:`pickle`.
 Pickle is the standard serialization format for sklearn and for Python in
-general. It has the big advantage that it can be used for almost all Python code
+general. One of its biggest advantages is it can be used for almost all Python code
 but this flexibility also means that it's inherently insecure. As the Python
 docs say:
 
