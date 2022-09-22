@@ -5,9 +5,9 @@ Secure persistence with skops
 
 .. warning::
 
-   This feature is very early in development, which means that the API is
-   unstable and that it is **not secure** for the moment. Therefore, the same
-   caution as for pickle should be applied: Don't load from sources that you
+   This feature is very early in development, which means the API is
+   unstable and it is **not secure** at the moment. Therefore, use the same
+   caution as you would for ``pickle``: Don't load from sources that you
    don't trust. In the future, more security will be added.
 
 Skops offers a way to save and load sklearn models without using :mod:`pickle`.
