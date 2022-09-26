@@ -44,7 +44,7 @@ def save(obj, file):
     Parameters
     ----------
     obj
-        The object to be saved
+        The object to be saved. Usually a scikit-learn compatible model.
 
     file: str
         The file name. A zip archive will automatically created, with the ".zip"
