@@ -47,8 +47,9 @@ def save(obj, file):
         The object to be saved. Usually a scikit-learn compatible model.
 
     file: str
-        The file name. A zip archive will automatically created, with the ".zip"
-        ending added to the given filename.
+        The file name. A zip archive will automatically created. As a matter of
+        convention, we recommend to use the ".skops" file extension, e.g.
+        ``save(model, "my-model.skops")``.
 
     """
     with tempfile.TemporaryDirectory() as dst:
