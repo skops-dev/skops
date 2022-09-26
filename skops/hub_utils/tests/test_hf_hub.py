@@ -8,6 +8,7 @@ import warnings
 from pathlib import Path
 from uuid import uuid4
 
+import huggingface_hub
 import numpy as np
 import pandas as pd
 import pytest
@@ -35,7 +36,7 @@ from skops.hub_utils._hf_hub import (
     _validate_folder,
 )
 from skops.hub_utils.tests.common import HF_HUB_TOKEN
-from skops.utils.fixes import metadata, path_unlink
+from skops.utils.fixes import Version, metadata, path_unlink
 
 iris = load_iris(as_frame=True, return_X_y=False)
 diabetes = load_diabetes(as_frame=True, return_X_y=False)
@@ -338,6 +339,11 @@ def test_push_download(
     config_json,
 ):
     client = HfApi()
+    # TODO: remove once we drop support for Hub<0.10
+    if Version(huggingface_hub.__version__) < Version("0.10"):
+        extra_kwargs = {"token": HF_HUB_TOKEN}
+    else:
+        extra_kwargs = {"use_auth_token": HF_HUB_TOKEN}
 
     version = metadata.version("scikit-learn")
     init(
@@ -348,17 +354,18 @@ def test_push_download(
         data=iris.data,
     )
 
-    user = client.whoami(token=HF_HUB_TOKEN)["name"]
+    user = client.whoami(**extra_kwargs)["name"]
     repo_id = f"{user}/test-{uuid4()}"
+
     if explicit_create:
-        client.create_repo(repo_id=repo_id, token=HF_HUB_TOKEN, repo_type="model")
+        client.create_repo(repo_id=repo_id, repo_type="model", **extra_kwargs)
     push(
         repo_id=repo_id,
         source=repo_path,
-        token=HF_HUB_TOKEN,
         commit_message="test message",
         create_remote=True,
         private=True,
+        **extra_kwargs,
     )
 
     with pytest.raises(
@@ -368,19 +375,19 @@ def test_push_download(
         download(repo_id=repo_id, dst="/tmp/test")
 
     with pytest.raises(OSError, match="None-empty dst path already exists!"):
-        download(repo_id=repo_id, dst=destination_path, token=HF_HUB_TOKEN)
+        download(repo_id=repo_id, dst=destination_path, **extra_kwargs)
 
-    files = client.list_repo_files(repo_id=repo_id, token=HF_HUB_TOKEN)
+    files = client.list_repo_files(repo_id=repo_id, **extra_kwargs)
     for f_name in [classifier_pickle.name, config_json.name]:
         assert f_name in files
 
     try:
         with tempfile.TemporaryDirectory(prefix="skops-test") as dst:
-            download(repo_id=repo_id, dst=dst, token=HF_HUB_TOKEN, keep_cache=False)
+            download(repo_id=repo_id, dst=dst, keep_cache=False, **extra_kwargs)
             copy_files = os.listdir(dst)
             assert set(copy_files) == set(files)
     finally:
-        client.delete_repo(repo_id=repo_id, token=HF_HUB_TOKEN)
+        client.delete_repo(repo_id=repo_id, **extra_kwargs)
 
 
 @pytest.fixture
@@ -409,6 +416,13 @@ def test_inference(
     destination_path,
 ):
     # test inference backend for classifier and regressor models.
+
+    # TODO: remove once we drop support for Hub<0.10
+    if Version(huggingface_hub.__version__) < Version("0.10"):
+        extra_kwargs = {"token": HF_HUB_TOKEN}
+    else:
+        extra_kwargs = {"use_auth_token": HF_HUB_TOKEN}
+
     client = HfApi()
 
     repo_path = repo_path_for_inference
@@ -433,25 +447,25 @@ def test_inference(
     )
     model_card.save(Path(destination_path) / "README.md")
 
-    user = client.whoami(token=HF_HUB_TOKEN)["name"]
+    user = client.whoami(**extra_kwargs)["name"]
     repo_id = f"{user}/test-{uuid4()}"
 
     push(
         repo_id=repo_id,
         source=destination_path,
-        token=HF_HUB_TOKEN,
         commit_message="test message",
         create_remote=True,
         # api-inference doesn't support private repos for community projects.
         private=False,
+        **extra_kwargs,
     )
 
     X_test = data.data.head(5)
     y_pred = model.predict(X_test)
-    output = get_model_output(repo_id, data=X_test, token=HF_HUB_TOKEN)
+    output = get_model_output(repo_id, data=X_test, **extra_kwargs)
 
     # cleanup
-    client.delete_repo(repo_id=repo_id, token=HF_HUB_TOKEN)
+    client.delete_repo(repo_id=repo_id, **extra_kwargs)
     path_unlink(model_path, missing_ok=True)
 
     assert np.allclose(output, y_pred)

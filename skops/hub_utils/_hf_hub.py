@@ -12,10 +12,11 @@ import warnings
 from pathlib import Path
 from typing import Any, List, MutableMapping, Optional, Union
 
+import huggingface_hub
 import numpy as np
 from huggingface_hub import HfApi, InferenceApi, snapshot_download
 
-from ..utils.fixes import Literal
+from ..utils.fixes import Literal, Version
 
 SUPPORTED_TASKS = [
     "tabular-classification",
@@ -626,7 +627,13 @@ def get_model_output(repo_id: str, data: Any, token: Optional[str] = None) -> An
     Also note that if the model repo is private, the inference API would not be
     available.
     """
-    model_info = HfApi().model_info(repo_id=repo_id, token=token)
+    # TODO: remove once we drop support for Hub<0.10
+    if Version(huggingface_hub.__version__) < Version("0.10"):
+        extra_kwargs = {"token": token}
+    else:
+        extra_kwargs = {"use_auth_token": token}
+
+    model_info = HfApi().model_info(repo_id=repo_id, **extra_kwargs)
     if not model_info.pipeline_tag:
         raise ValueError(
             f"Repo {repo_id} has no pipeline tag. You should set a valid 'task' in"
@@ -642,7 +649,7 @@ def get_model_output(repo_id: str, data: Any, token: Optional[str] = None) -> An
         inputs = {f"x{i}": data[:, i] for i in range(data.shape[1])}
         inputs = {"data": inputs}
 
-    res = InferenceApi(repo_id=repo_id, task=model_info.pipeline_tag, token=token)(
+    res = InferenceApi(repo_id=repo_id, task=model_info.pipeline_tag, **extra_kwargs)(
         inputs=inputs
     )
 

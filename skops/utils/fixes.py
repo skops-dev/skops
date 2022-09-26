@@ -6,6 +6,8 @@ from contextlib import suppress
 from pathlib import Path
 from typing import List
 
+from scipy._lib._pep440 import Version  # noqa
+
 if sys.version_info >= (3, 8):
     # py>=3.8
     from importlib import metadata  # noqa
