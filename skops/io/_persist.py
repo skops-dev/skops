@@ -43,7 +43,7 @@ def save(obj, file):
 
     Parameters
     ----------
-    obj
+    obj: object
         The object to be saved. Usually a scikit-learn compatible model.
 
     file: str
