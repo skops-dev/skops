@@ -14,21 +14,24 @@ Skops offers a way to save and load sklearn models without using :mod:`pickle`.
 The ``pickle`` module is not secure, but with skops, you can securely save and
 load sklearn models without using ``pickle``.
 
-Pickle is the standard serialization format for sklearn and for Python in
-general. One of its biggest advantages is it can be used for almost all Python
-code but this flexibility also makes it inherently insecure. This is because
-loading certain types of objects requires the ability to run arbitrary code,
-which can be misused for malicious purposes. For example, an attacker can use it
-to steal secrets from your machine or install a virus. As the Python docs say:
+``Pickle`` is the standard serialization format for sklearn and for Python in
+general. One of the main advantages of ``pickle`` is that it can be used for
+almost all Python code but this flexibility also makes it inherently insecure.
+This is because loading certain types of objects requires the ability to run
+arbitrary code, which can be misused for malicious purposes. For example, an
+attacker can use it to steal secrets from your machine or install a virus. As
+the Python docs say:
+
+.. warning::
 
     The pickle module is not secure. Only unpickle data you trust. It is
     possible to construct malicious pickle data which will execute arbitrary
     code during unpickling. Never unpickle data that could have come from an
     untrusted source, or that could have been tampered with.
 
-In contrast to pickle, the :func:`skops.io.save` and :func:`skops.io.load`
+In contrast to ``pickle``, the :func:`skops.io.save` and :func:`skops.io.load`
 functions cannot be used to save arbitrary Python code, but they bypass
-pickle and are thus more secure.
+``pickle`` and are thus more secure.
 
 Usage
 -----
@@ -55,11 +58,11 @@ as :class:`sklearn.tree.DecisionTreeClassifier`, and more. If you discover an sk
 estimator that does not work, please open an issue on the skops `GitHub page
 <https://github.com/skops-dev/skops/issues>`_ and let us know.
 
-In contrast to pickle, skops cannot persist arbitrary Python code. This means
-if you have custom functions (say, a custom function to be used
-with :class:`sklearn.preprocessing.FunctionTransformer`), it will not
-work. However, most ``numpy`` and ``scipy`` functions should work. Therefore,
-you can actually save built-in functions like``numpy.sqrt``.
+In contrast to ``pickle``, skops cannot persist arbitrary Python code. This
+means if you have custom functions (say, a custom function to be used with
+:class:`sklearn.preprocessing.FunctionTransformer`), it will not work. However,
+most ``numpy`` and ``scipy`` functions should work. Therefore, you can actually
+save built-in functions like``numpy.sqrt``.
 
 Roadmap
 -------
