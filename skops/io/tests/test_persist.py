@@ -67,10 +67,13 @@ ATOL = 1e-6 if sys.platform == "darwin" else 1e-7
 @pytest.fixture(autouse=True)
 def debug_dispatch_functions():
     # Patch the get_state and get_instance methods to add some sanity checks on
-    # them.
+    # them. Specifically, we test that the arguments of the functions all follow
+    # the same pattern to enforce consistency and that the "state" is either a
+    # dict with specified keys or a primitive type.
 
     def debug_get_state(func):
-        # check consistency of argument names and output type
+        # Check consistency of argument names, output type, and that the output,
+        # if a dict, has certain keys, or if not a dict, is a primitive type.
         signature = inspect.signature(func)
         assert list(signature.parameters.keys()) == ["obj", "dst"]
 

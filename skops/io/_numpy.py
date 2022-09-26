@@ -1,5 +1,4 @@
 import io
-from contextlib import suppress
 from pathlib import Path
 from uuid import uuid4
 
@@ -18,25 +17,25 @@ def ndarray_get_state(obj, dst):
 
     # First, try to save object with np.save and allow_pickle=False, which
     # should generally work as long as the dtype is not object.
-    with suppress(ValueError):
+    try:
         f_name = f"{uuid4()}.npy"
         with open(Path(dst) / f_name, "wb") as f:
             np.save(f, obj, allow_pickle=False)
         res.update(type="numpy", file=f_name)
-        return res
+    except ValueError:
+        # Object arrays cannot be saved with allow_pickle=False, therefore we
+        # convert them to a list and recursively call get_state on it. For this,
+        # we expect the dtype to be object.
+        if obj.dtype != object:
+            raise UnsupportedTypeException(
+                f"numpy arrays of dtype {obj.dtype} are not supported yet"
+            )
 
-    # Object arrays cannot be saved with allow_pickle=False, therefore we
-    # convert them to a list and recursively call get_state on it. For this, we
-    # expect the dtype to be object.
-    if obj.dtype != object:
-        raise UnsupportedTypeException(
-            f"numpy arrays of dtype {obj.dtype} are not supported yet"
-        )
+        obj_serialized = _get_state(obj.tolist(), dst)
+        res["content"] = obj_serialized["content"]
+        res["type"] = "json"
+        res["shape"] = _get_state(obj.shape, dst)
 
-    obj_serialized = _get_state(obj.tolist(), dst)
-    res["content"] = obj_serialized["content"]
-    res["type"] = "json"
-    res["shape"] = _get_state(obj.shape, dst)
     return res
 
 
