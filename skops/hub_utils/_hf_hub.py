@@ -628,7 +628,7 @@ def get_model_output(repo_id: str, data: Any, token: Optional[str] = None) -> An
     available.
     """
     # TODO: remove once we drop support for Hub<0.10
-    if Version(huggingface_hub.__version__) < Version("0.10"):
+    if Version(huggingface_hub.__version__) <= Version("0.9.1"):
         extra_kwargs = {"token": token}
     else:
         extra_kwargs = {"use_auth_token": token}
@@ -649,7 +649,7 @@ def get_model_output(repo_id: str, data: Any, token: Optional[str] = None) -> An
         inputs = {f"x{i}": data[:, i] for i in range(data.shape[1])}
         inputs = {"data": inputs}
 
-    res = InferenceApi(repo_id=repo_id, task=model_info.pipeline_tag, **extra_kwargs)(
+    res = InferenceApi(repo_id=repo_id, task=model_info.pipeline_tag, token=token)(
         inputs=inputs
     )
 

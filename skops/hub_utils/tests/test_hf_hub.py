@@ -340,7 +340,7 @@ def test_push_download(
 ):
     client = HfApi()
     # TODO: remove once we drop support for Hub<0.10
-    if Version(huggingface_hub.__version__) < Version("0.10"):
+    if Version(huggingface_hub.__version__) <= Version("0.9.1"):
         extra_kwargs = {"token": HF_HUB_TOKEN}
     else:
         extra_kwargs = {"use_auth_token": HF_HUB_TOKEN}
@@ -354,18 +354,18 @@ def test_push_download(
         data=iris.data,
     )
 
-    user = client.whoami(**extra_kwargs)["name"]
+    user = client.whoami(token=HF_HUB_TOKEN)["name"]
     repo_id = f"{user}/test-{uuid4()}"
 
     if explicit_create:
-        client.create_repo(repo_id=repo_id, repo_type="model", **extra_kwargs)
+        client.create_repo(repo_id=repo_id, repo_type="model", token=HF_HUB_TOKEN)
     push(
         repo_id=repo_id,
         source=repo_path,
+        token=HF_HUB_TOKEN,
         commit_message="test message",
         create_remote=True,
         private=True,
-        **extra_kwargs,
     )
 
     with pytest.raises(
@@ -383,11 +383,11 @@ def test_push_download(
 
     try:
         with tempfile.TemporaryDirectory(prefix="skops-test") as dst:
-            download(repo_id=repo_id, dst=dst, keep_cache=False, **extra_kwargs)
+            download(repo_id=repo_id, dst=dst, keep_cache=False, token=HF_HUB_TOKEN)
             copy_files = os.listdir(dst)
             assert set(copy_files) == set(files)
     finally:
-        client.delete_repo(repo_id=repo_id, **extra_kwargs)
+        client.delete_repo(repo_id=repo_id, token=HF_HUB_TOKEN)
 
 
 @pytest.fixture
@@ -416,13 +416,6 @@ def test_inference(
     destination_path,
 ):
     # test inference backend for classifier and regressor models.
-
-    # TODO: remove once we drop support for Hub<0.10
-    if Version(huggingface_hub.__version__) < Version("0.10"):
-        extra_kwargs = {"token": HF_HUB_TOKEN}
-    else:
-        extra_kwargs = {"use_auth_token": HF_HUB_TOKEN}
-
     client = HfApi()
 
     repo_path = repo_path_for_inference
@@ -447,25 +440,25 @@ def test_inference(
     )
     model_card.save(Path(destination_path) / "README.md")
 
-    user = client.whoami(**extra_kwargs)["name"]
+    user = client.whoami(token=HF_HUB_TOKEN)["name"]
     repo_id = f"{user}/test-{uuid4()}"
 
     push(
         repo_id=repo_id,
         source=destination_path,
+        token=HF_HUB_TOKEN,
         commit_message="test message",
         create_remote=True,
         # api-inference doesn't support private repos for community projects.
         private=False,
-        **extra_kwargs,
     )
 
     X_test = data.data.head(5)
     y_pred = model.predict(X_test)
-    output = get_model_output(repo_id, data=X_test, **extra_kwargs)
+    output = get_model_output(repo_id, data=X_test, token=HF_HUB_TOKEN)
 
     # cleanup
-    client.delete_repo(repo_id=repo_id, **extra_kwargs)
+    client.delete_repo(repo_id=repo_id, token=HF_HUB_TOKEN)
     path_unlink(model_path, missing_ok=True)
 
     assert np.allclose(output, y_pred)
