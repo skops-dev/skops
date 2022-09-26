@@ -86,7 +86,7 @@ def load(file):
 
     Returns
     -------
-    instance
+    instance: object
         The loaded object.
 
     """
