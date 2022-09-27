@@ -8,6 +8,7 @@ import numpy as np
 from ._general import function_get_instance
 from ._persist import get_instance, get_state
 from ._utils import _import_obj, get_module
+from .exceptions import UnsupportedTypeException
 
 
 def ndarray_get_state(obj, dst):
@@ -30,7 +31,7 @@ def ndarray_get_state(obj, dst):
                 f"numpy arrays of type {type(obj)} and dtype {obj.dtype} are not "
                 "supported yet"
             )
-            raise TypeError(msg) from exc
+            raise UnsupportedTypeException(msg) from exc
     else:
         # Object arrays cannot be saved with allow_pickle=False, therefore we
         # convert them to a list and recursively call get_state on it.
