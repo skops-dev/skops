@@ -20,7 +20,8 @@ almost all Python code but this flexibility also makes it inherently insecure.
 This is because loading certain types of objects requires the ability to run
 arbitrary code, which can be misused for malicious purposes. For example, an
 attacker can use it to steal secrets from your machine or install a virus. As
-the Python docs say:
+the `Python docs
+<https://docs.python.org/3/library/pickle.html#module-pickle>`__ say:
 
 .. warning::
 
