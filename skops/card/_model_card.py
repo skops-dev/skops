@@ -28,6 +28,19 @@ def wrap_as_details(text: str, folded: bool) -> str:
     return f"<details>\n<summary> Click to expand </summary>\n\n{text}\n\n</details>"
 
 
+def _clean_table(table: str) -> str:
+    # replace line breaks "\n" with html tag <br />, however, leave end-of-line
+    # line breaks (eol_lb) intact
+    eol_lb = "|\n"
+    placeholder = "$%!?"  # arbitrary sting that never appears naturally
+    table = (
+        table.replace(eol_lb, placeholder)
+        .replace("\n", "<br />")
+        .replace(placeholder, eol_lb)
+    )
+    return table
+
+
 @dataclass
 class PlotSection:
     """Adds a link to a figure to the model card"""
@@ -48,7 +61,7 @@ class PlotSection:
 class TableSection:
     """Adds a table to the model card"""
 
-    table: dict["str", list[Any]]
+    table: dict[str, list[Any]]
     folded: bool = False
 
     def __post_init__(self) -> None:
@@ -78,8 +91,8 @@ class TableSection:
         else:
             headers = self.table.keys()
 
-        table = tabulate(
-            self.table, tablefmt="github", headers=headers, showindex=False
+        table = _clean_table(
+            tabulate(self.table, tablefmt="github", headers=headers, showindex=False)
         )
         return wrap_as_details(table, folded=self.folded)
 
@@ -467,10 +480,12 @@ class Card:
             Markdown table of hyperparameters.
         """
         hyperparameter_dict = self.model.get_params(deep=True)
-        return tabulate(
-            list(hyperparameter_dict.items()),
-            headers=["Hyperparameter", "Value"],
-            tablefmt="github",
+        return _clean_table(
+            tabulate(
+                list(hyperparameter_dict.items()),
+                headers=["Hyperparameter", "Value"],
+                tablefmt="github",
+            )
         )
 
     @staticmethod

@@ -16,6 +16,8 @@ v0.3
 - Add ``private`` as an optional argument to :meth:`.hub_utils.push` to
   optionally set the visibility status of a repo when pushing to the hub.
   :pr:`130` by `Adrin Jalali`_.
+- Fix a bug that resulted in markdown tables being rendered incorrectly if
+  entries contained line breaks by `Benjamin Bossan`_.
 
 v0.2
 ----
