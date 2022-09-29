@@ -111,3 +111,43 @@ returns the model output for a given input. It can be used as::
 
 In the above code snippet, ``res`` will be a :class:`numpy.ndarray` containing
 the model's output.
+
+.. _hf_hub_gradio:
+..
+   TODO: replace gradio link once gradio provides object.inv
+Easily build user interfaces to your scikit-learn models
+--------------------------------------------------------
+`gradio <https://gradio.app/>`__ is a python library that lets you create interfaces on your model.
+It has a class called `Interface <https://gradio.app/docs/#interface>`__ that lets you create application
+interfaces to your machine learning models.
+``gradio`` is integrated with skops, so you can load an interface with only one
+line of code. During the initialization of the interface, call load method with
+your repository identifier prepended with "huggingface/" will load an 
+interface for your model. The interface has a dataframe input that takes samples 
+and a dataframe output to return predictions. It also takes the example in the 
+repository that is previously pushed with skops. 
+Calling `gr.Interface.launch() <https://gradio.app/docs/#launch/>`__ will launch your application.
+
+.. code:: python
+
+    import gradio as gr
+    repo_id = "scikit-learn/tabular-playground"
+    gr.Interface.load(f"huggingface/{repo_id}").launch()
+
+
+You can further customize your UI, add description, title, and more. If you'd
+like to share your demo, you can set ``share`` to True in `gr.Interface.launch() <https://gradio.app/docs/#launch/>`__.
+
+.. code:: python
+
+    title = "Supersoaker Defective Product Prediction"
+    description = ("This model predicts Supersoaker production line failures."
+    "Drag and drop any slice from dataset or edit values as you wish in below"
+    "dataframe component.")
+    gr.Interface.load(f"huggingface/{repo_id}", title = title, description = description)
+
+Sharing your local application has time limitations.
+If you want to share your application continuously, you can deploy it to
+Hugging Face Spaces. You can check out `this blog <https://huggingface.co/blog/gradio-spaces>`__
+on how to do it.
+For more information, please refer to documentation of `gradio <https://gradio.app/docs/>`__.
