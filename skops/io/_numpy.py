@@ -28,7 +28,9 @@ def ndarray_get_state(obj, dst):
         # we expect the dtype to be object.
         if obj.dtype != object:
             raise UnsupportedTypeException(
-                f"numpy arrays of dtype {obj.dtype} are not supported yet"
+                f"numpy arrays of dtype {obj.dtype} are not supported yet, please "
+                "open an issue at https://github.com/skops-dev/skops/issues and "
+                "report your error"
             )
 
         obj_serialized = _get_state(obj.tolist(), dst)
