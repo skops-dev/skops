@@ -1,6 +1,6 @@
 # Tests hitting the inference API are slow and prone to hanging, resulting in
-# timeouts. Therefore, we only run a subset of settings with inference tests by
-# default. See #118
+# timeouts. Therefore, we only run inference tests on the full test matrix if
+# the head commit message contains the text "[CI inference]". See #118
 
 name: inference-tests
 
@@ -13,15 +13,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  unconditional-inference-pytest:
+  inference-pytest-full:
 
     runs-on: ${{ matrix.os }}
-    if: "(github.repository == 'skops-dev/skops')"
+    if: "(github.repository == 'skops-dev/skops') && contains(github.event.head_commit.message, '[CI inference]')"
     strategy:
       fail-fast: false  # need to see which ones fail
       matrix:
-        os: [ubuntu-latest]
-        python: ["3.10"]
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python: ["3.7", "3.8", "3.9", "3.10"]
 
     # Timeout: https://stackoverflow.com/a/59076067/4521646
     timeout-minutes: 15
@@ -41,7 +41,7 @@ jobs:
         pip list
       shell: bash
 
-    - name: Unconditional inference tests
+    - name: Full inference tests
       env:
         SUPER_SECRET: ${{ secrets.HF_HUB_TOKEN }}
       run: |
