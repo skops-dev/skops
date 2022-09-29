@@ -2,7 +2,7 @@
 # timeouts. Therefore, we only run a subset of settings with inference tests by
 # default. See #118
 
-name: inference-tests
+name: inference-tests-partial
 
 on:
   - push

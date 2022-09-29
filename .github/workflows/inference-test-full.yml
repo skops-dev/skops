@@ -2,7 +2,7 @@
 # timeouts. Therefore, we only run inference tests on the full test matrix if
 # the head commit message contains the text "[CI inference]". See #118
 
-name: inference-tests
+name: inference-tests-full
 
 on:
   - push
