@@ -45,6 +45,10 @@ download or load the model.
   and how it should be used. The model card can then be stored as the
   ``README.md`` file on the Hugging Face Hub, with pre-populated metadata to
   help Hub understand the model.
+- ``skops.io``: Secure persistence of sklearn estimators and more, without using
+  ``pickle``. Visit `the docs
+  <https://skops.readthedocs.io/en/latest/persistence.html>`_ for more
+  information.
 
 Please refer to our `documentation <https://skops.readthedocs.io/en/latest/>`_
 on using the library as user, which includes user guides on the above topics as

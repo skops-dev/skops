@@ -5,8 +5,8 @@ from uuid import uuid4
 import numpy as np
 
 from ._general import function_get_instance
-from ._persist import get_instance, get_state
-from ._utils import _import_obj, get_module
+from ._utils import _get_instance, _get_state, _import_obj, get_module
+from .exceptions import UnsupportedTypeException
 
 
 def ndarray_get_state(obj, dst):
@@ -15,27 +15,34 @@ def ndarray_get_state(obj, dst):
         "__module__": get_module(type(obj)),
     }
 
+    # First, try to save object with np.save and allow_pickle=False, which
+    # should generally work as long as the dtype is not object.
     try:
         f_name = f"{uuid4()}.npy"
         with open(Path(dst) / f_name, "wb") as f:
             np.save(f, obj, allow_pickle=False)
-            res["type"] = "numpy"
-            res["file"] = f_name
+        res.update(type="numpy", file=f_name)
     except ValueError:
         # Object arrays cannot be saved with allow_pickle=False, therefore we
-        # convert them to a list and recursively call get_state on it.
-        if obj.dtype == object:
-            obj_serialized = get_state(obj.tolist(), dst)
-            res["content"] = obj_serialized["content"]
-            res["type"] = "json"
-            res["shape"] = get_state(obj.shape, dst)
-        else:
-            raise TypeError(f"numpy arrays of dtype {obj.dtype} are not supported yet")
+        # convert them to a list and recursively call get_state on it. For this,
+        # we expect the dtype to be object.
+        if obj.dtype != object:
+            raise UnsupportedTypeException(
+                f"numpy arrays of dtype {obj.dtype} are not supported yet, please "
+                "open an issue at https://github.com/skops-dev/skops/issues and "
+                "report your error"
+            )
+
+        obj_serialized = _get_state(obj.tolist(), dst)
+        res["content"] = obj_serialized["content"]
+        res["type"] = "json"
+        res["shape"] = _get_state(obj.shape, dst)
 
     return res
 
 
 def ndarray_get_instance(state, src):
+    # Dealing with a regular numpy array, where dtype != object
     if state["type"] == "numpy":
         val = np.load(io.BytesIO(src.read(state["file"])), allow_pickle=False)
         # Coerce type, because it may not be conserved by np.save/load. E.g. a
@@ -43,19 +50,20 @@ def ndarray_get_instance(state, src):
         if state["__class__"] != "ndarray":
             cls = _import_obj(state["__module__"], state["__class__"])
             val = cls(val)
+        return val
+
+    # We explicitly set the dtype to "O" since we only save object arrays in
+    # json.
+    shape = _get_instance(state["shape"], src)
+    tmp = [_get_instance(s, src) for s in state["content"]]
+    # TODO: this is a hack to get the correct shape of the array. We should
+    # find _a better way to do this.
+    if len(shape) == 1:
+        val = np.ndarray(shape=len(tmp), dtype="O")
+        for i, v in enumerate(tmp):
+            val[i] = v
     else:
-        # We explicitly set the dtype to "O" since we only save object arrays
-        # in json.
-        shape = get_instance(state["shape"], src)
-        tmp = [get_instance(s, src) for s in state["content"]]
-        # TODO: this is a hack to get the correct shape of the array. We should
-        # find a better way to do this.
-        if len(shape) == 1:
-            val = np.ndarray(shape=len(tmp), dtype="O")
-            for i, v in enumerate(tmp):
-                val[i] = v
-        else:
-            val = np.array(tmp, dtype="O")
+        val = np.array(tmp, dtype="O")
     return val
 
 
@@ -64,25 +72,24 @@ def maskedarray_get_state(obj, dst):
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
         "content": {
-            "data": get_state(obj.data, dst),
-            "mask": get_state(obj.mask, dst),
+            "data": _get_state(obj.data, dst),
+            "mask": _get_state(obj.mask, dst),
         },
     }
     return res
 
 
 def maskedarray_get_instance(state, src):
-    data = get_instance(state["content"]["data"], src)
-    mask = get_instance(state["content"]["mask"], src)
+    data = _get_instance(state["content"]["data"], src)
+    mask = _get_instance(state["content"]["mask"], src)
     return np.ma.MaskedArray(data, mask)
 
 
 def random_state_get_state(obj, dst):
-    content = get_state(obj.get_state(legacy=False), dst)
+    content = _get_state(obj.get_state(legacy=False), dst)
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
-        "type": "numpy",
         "content": content,
     }
     return res
@@ -91,7 +98,7 @@ def random_state_get_state(obj, dst):
 def random_state_get_instance(state, src):
     cls = _import_obj(state["__module__"], state["__class__"])
     random_state = cls()
-    content = get_instance(state["content"], src)
+    content = _get_instance(state["content"], src)
     random_state.set_state(content)
     return random_state
 
@@ -101,7 +108,6 @@ def random_generator_get_state(obj, dst):
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
-        "type": "numpy",
         "content": {"bit_generator": bit_generator_state},
     }
     return res

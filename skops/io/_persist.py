@@ -28,6 +28,30 @@ for module_name in modules:
 
 
 def save(obj, file):
+    """Save an object using the skops persistence format.
+
+    Skops aims at providing a secure persistence feature that does not rely on
+    :mod:`pickle`, which is inherently insecure. For more information, please
+    visit the :ref:`persistence` documentation.
+
+    .. warning::
+
+       This feature is very early in development, which means the API is
+       unstable and it is **not secure** at the moment. Therefore, use the same
+       caution as you would for ``pickle``: Don't load from sources that you
+       don't trust. In the future, more security will be added.
+
+    Parameters
+    ----------
+    obj: object
+        The object to be saved. Usually a scikit-learn compatible model.
+
+    file: str
+        The file name. A zip archive will automatically created. As a matter of
+        convention, we recommend to use the ".skops" file extension, e.g.
+        ``save(model, "my-model.skops")``.
+
+    """
     with tempfile.TemporaryDirectory() as dst:
         with open(Path(dst) / "schema.json", "w") as f:
             state = get_state(obj, dst)
@@ -43,6 +67,30 @@ def save(obj, file):
 
 
 def load(file):
+    """Load an object saved with the skops persistence format.
+
+    Skops aims at providing a secure persistence feature that does not rely on
+    :mod:`pickle`, which is inherently insecure. For more information, please
+    visit the :ref:`persistence` documentation.
+
+    .. warning::
+
+       This feature is very early in development, which means the API is
+       unstable and it is **not secure** at the moment. Therefore, use the same
+       caution as you would for ``pickle``: Don't load from sources that you
+       don't trust. In the future, more security will be added.
+
+    Parameters
+    ----------
+    file: str
+        The file name of the object to be loaded.
+
+    Returns
+    -------
+    instance: object
+        The loaded object.
+
+    """
     with ZipFile(file, "r") as input_zip:
         schema = input_zip.read("schema.json")
         instance = get_instance(json.loads(schema), input_zip)
