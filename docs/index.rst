@@ -38,6 +38,7 @@ User Guide / API Reference
    installation
    hf_hub
    model_card
+   persistence
    modules/classes
    changes
 

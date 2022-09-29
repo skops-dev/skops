@@ -16,6 +16,10 @@ v0.3
 - Add ``private`` as an optional argument to :meth:`.hub_utils.push` to
   optionally set the visibility status of a repo when pushing to the hub.
   :pr:`130` by `Adrin Jalali`_.
+- First release of the skops secure persistence feature (:pr:`128`) by `Adrin
+  Jalali`_ and `Benjamin Bossan`_. Visit :ref:`persistence` for more
+  information. This feature is not production ready yet but we're happy to
+  receive feedback from users.
 
 v0.2
 ----
