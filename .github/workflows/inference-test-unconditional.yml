@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  inference-pytest:
+  unconditional-inference-pytest:
 
     runs-on: ${{ matrix.os }}
     if: "(github.repository == 'skops-dev/skops')"
