@@ -1,0 +1,48 @@
+# Tests hitting the inference API are slow and prone to hanging, resulting in
+# timeouts. Therefore, we only run a subset of settings with inference tests by
+# default. See #118
+
+name: inference-tests
+
+on:
+  - push
+  - pull_request
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  inference-pytest:
+
+    runs-on: ${{ matrix.os }}
+    if: "(github.repository == 'skops-dev/skops')"
+    strategy:
+      fail-fast: false  # need to see which ones fail
+      matrix:
+        os: [ubuntu-latest]
+        python: ["3.10"]
+
+    # Timeout: https://stackoverflow.com/a/59076067/4521646
+    timeout-minutes: 15
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python ${{ matrix.python }}
+      uses: actions/setup-python@v3
+      with:
+        python-version: ${{ matrix.python }}
+
+    - name: Install dependencies
+      run: |
+        pip install .[docs,tests]
+        python --version
+        pip --version
+        pip list
+      shell: bash
+
+    - name: Unconditional inference tests
+      env:
+        SUPER_SECRET: ${{ secrets.HF_HUB_TOKEN }}
+      run: |
+        python -m pytest -s -v -m "inference" skops/
