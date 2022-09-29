@@ -16,6 +16,7 @@ from sklearn.utils import Bunch
 
 from ._general import dict_get_instance, dict_get_state, unsupported_get_state
 from ._utils import _get_instance, _get_state, get_module, gettype
+from .exceptions import UnsupportedTypeException
 
 ALLOWED_SGD_LOSSES = {
     ModifiedHuber,
@@ -69,9 +70,11 @@ def reduce_get_state(obj, dst):
         attrs = {}
 
     if not isinstance(attrs, dict):
-        raise TypeError(f"Objects of type {res['__class__']} not supported yet")
+        raise UnsupportedTypeException(
+            f"Objects of type {res['__class__']} not supported yet"
+        )
 
-    res["content"] = {"attrs": _get_state(attrs, dst)}
+    res["content"] = _get_state(attrs, dst)
     return res
 
 
@@ -80,13 +83,15 @@ def reduce_get_instance(state, src, constructor):
     args = _get_instance(reduce["args"], src)
     instance = constructor(*args)
 
-    attrs = _get_instance(state["content"]["attrs"], src)
+    attrs = _get_instance(state["content"], src)
     if not attrs:
         # nothing more to do
         return instance
 
     if isinstance(args, tuple) and not hasattr(instance, "__setstate__"):
-        raise TypeError(f"Objects of type {constructor} are not supported yet")
+        raise UnsupportedTypeException(
+            f"Objects of type {constructor} are not supported yet"
+        )
 
     if hasattr(instance, "__setstate__"):
         instance.__setstate__(attrs)
@@ -103,7 +108,7 @@ def Tree_get_instance(state, src):
 def sgd_loss_get_instance(state, src):
     cls = gettype(state)
     if cls not in ALLOWED_SGD_LOSSES:
-        raise TypeError(f"Expected LossFunction, got {cls}")
+        raise UnsupportedTypeException(f"Expected LossFunction, got {cls}")
     return reduce_get_instance(state, src, constructor=cls)
 
 

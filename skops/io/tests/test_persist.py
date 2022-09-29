@@ -1,8 +1,10 @@
+import importlib
+import inspect
 import json
 import sys
 import warnings
 from collections import Counter
-from functools import partial
+from functools import partial, wraps
 from zipfile import ZipFile
 
 import numpy as np
@@ -50,6 +52,7 @@ from sklearn.utils.estimator_checks import (
 import skops
 from skops.io import load, save
 from skops.io._sklearn import UNSUPPORTED_TYPES
+from skops.io._utils import get_instance, get_state
 from skops.io.exceptions import UnsupportedTypeException
 
 # Default settings for X
@@ -59,6 +62,66 @@ N_FEATURES = 20
 # TODO: Investigate why that seems to be an issue on MacOS (only observed with
 # Python 3.8)
 ATOL = 1e-6 if sys.platform == "darwin" else 1e-7
+
+
+@pytest.fixture(autouse=True)
+def debug_dispatch_functions():
+    # Patch the get_state and get_instance methods to add some sanity checks on
+    # them. Specifically, we test that the arguments of the functions all follow
+    # the same pattern to enforce consistency and that the "state" is either a
+    # dict with specified keys or a primitive type.
+
+    def debug_get_state(func):
+        # Check consistency of argument names, output type, and that the output,
+        # if a dict, has certain keys, or if not a dict, is a primitive type.
+        signature = inspect.signature(func)
+        assert list(signature.parameters.keys()) == ["obj", "dst"]
+
+        @wraps(func)
+        def wrapper(obj, dst):
+            assert isinstance(dst, str)
+
+            result = func(obj, dst)
+
+            if isinstance(result, dict):
+                assert "__class__" in result
+                assert "__module__" in result
+            else:
+                # should be a primitive type
+                assert isinstance(result, (int, float, str))
+            return result
+
+        return wrapper
+
+    def debug_get_instance(func):
+        # check consistency of argument names and input type
+        signature = inspect.signature(func)
+        assert list(signature.parameters.keys()) == ["state", "src"]
+
+        @wraps(func)
+        def wrapper(state, src):
+            if isinstance(state, dict):
+                assert "__class__" in state
+                assert "__module__" in state
+            else:
+                # should be a primitive type
+                assert isinstance(state, (int, float, str))
+            assert isinstance(src, ZipFile)
+
+            result = func(state, src)
+
+            return result
+
+        return wrapper
+
+    modules = ["._general", "._numpy", "._scipy", "._sklearn"]
+    for module_name in modules:
+        # overwrite exposed functions for get_state and get_instance
+        module = importlib.import_module(module_name, package="skops.io")
+        for cls, method in getattr(module, "GET_STATE_DISPATCH_FUNCTIONS", []):
+            get_state.register(cls)(debug_get_state(method))
+        for cls, method in getattr(module, "GET_INSTANCE_DISPATCH_FUNCTIONS", []):
+            get_instance.register(cls)(debug_get_instance(method))
 
 
 def save_load_round(estimator, f_name):
