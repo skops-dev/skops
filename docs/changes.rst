@@ -13,13 +13,15 @@ v0.3
 ----
 - Utility function to add arbitrary files to be uploaded to the hub by using
   :func:`.hub_utils.add_files`. :pr:`123` by `Benjamin Bossan`_.
-- Add ``private`` as an optional argument to :meth:`.hub_utils.push` to
+- Add ``private`` as an optional argument to :meth:`skops.hub_utils.push` to
   optionally set the visibility status of a repo when pushing to the hub.
   :pr:`130` by `Adrin Jalali`_.
 - First release of the skops secure persistence feature (:pr:`128`) by `Adrin
   Jalali`_ and `Benjamin Bossan`_. Visit :ref:`persistence` for more
   information. This feature is not production ready yet but we're happy to
   receive feedback from users.
+- Use ``huggingface_hub`` v0.10 for model cards, drop ``modelcards`` dependency
+  by `Benjamin Bossan`_.
 
 v0.2
 ----

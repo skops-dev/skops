@@ -10,7 +10,7 @@ from pathlib import Path
 from reprlib import Repr
 from typing import Any, Optional, Union
 
-from modelcards import CardData, ModelCard
+from huggingface_hub import CardData, ModelCard
 from sklearn.utils import estimator_html_repr
 from tabulate import tabulate  # type: ignore
 
@@ -97,10 +97,10 @@ class TableSection:
 def metadata_from_config(config_path: Union[str, Path]) -> CardData:
     """Construct a ``CardData`` object from a ``config.json`` file.
 
-    Most information needed for the metadata section of a ``README.md``
-    file on Hugging Face Hub is included in the ``config.json`` file. This
-    utility function constructs a ``CardData`` object which can then be
-    passed to the :class:`~skops.card.Card` object.
+    Most information needed for the metadata section of a ``README.md`` file on
+    Hugging Face Hub is included in the ``config.json`` file. This utility
+    function constructs a :class:`huggingface_hub.CardData` object which can
+    then be passed to the :class:`~skops.card.Card` object.
 
     This method populates the following attributes of the instance:
 
@@ -120,8 +120,9 @@ def metadata_from_config(config_path: Union[str, Path]) -> CardData:
 
     Returns
     -------
-    card_data: ``modelcards.CardData``
-        ``CardData`` object.
+    card_data: huggingface_hub.CardData
+        :class:`huggingface_hub.CardData` object.
+
     """
     config_path = Path(config_path)
     if not config_path.is_file():
@@ -371,9 +372,9 @@ class Card:
 
         Returns
         -------
-        card : modelcards.ModelCard
-            The final ``ModelCard`` object with all placeholders filled and all
-            extra sections inserted.
+        card : huggingface_hub.ModelCard
+            The final :class:`huggingface_hub.ModelCard` object with all
+            placeholders filled and all extra sections inserted.
         """
         root = skops.__path__
 

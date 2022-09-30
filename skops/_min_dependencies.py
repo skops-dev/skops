@@ -11,8 +11,7 @@ PYTEST_MIN_VERSION = "5.0.1"
 #     "tomli": ("1.1.0", "install", "python_full_version < '3.11.0a7'"),
 dependent_packages = {
     "scikit-learn": ("0.24", "install", None),
-    "huggingface_hub": ("0.9.0rc3,<0.10.0rc0", "install", None),
-    "modelcards": ("0.1.6", "install", None),
+    "huggingface_hub": ("0.10.0", "install", None),
     "tabulate": ("0.8.8", "install", None),
     "pytest": (PYTEST_MIN_VERSION, "tests", None),
     "pytest-cov": ("2.9.0", "tests", None),
