@@ -4,7 +4,7 @@ from types import FunctionType
 
 import numpy as np
 
-from ._utils import _get_instance, _get_state, _import_obj, get_module, gettype
+from ._utils import _import_obj, get_instance, get_module, get_state, gettype
 from .exceptions import UnsupportedTypeException
 
 
@@ -14,7 +14,7 @@ def dict_get_state(obj, dst):
         "__module__": get_module(type(obj)),
     }
 
-    key_types = _get_state([type(key) for key in obj.keys()], dst)
+    key_types = get_state([type(key) for key in obj.keys()], dst)
     content = {}
     for key, value in obj.items():
         if isinstance(value, property):
@@ -22,7 +22,7 @@ def dict_get_state(obj, dst):
         if np.isscalar(key) and hasattr(key, "item"):
             # convert numpy value to python object
             key = key.item()
-        content[key] = _get_state(value, dst)
+        content[key] = get_state(value, dst)
     res["content"] = content
     res["key_types"] = key_types
     return res
@@ -30,9 +30,9 @@ def dict_get_state(obj, dst):
 
 def dict_get_instance(state, src):
     content = gettype(state)()
-    key_types = _get_instance(state["key_types"], src)
+    key_types = get_instance(state["key_types"], src)
     for k_type, item in zip(key_types, state["content"].items()):
-        content[k_type(item[0])] = _get_instance(item[1], src)
+        content[k_type(item[0])] = get_instance(item[1], src)
     return content
 
 
@@ -43,7 +43,7 @@ def list_get_state(obj, dst):
     }
     content = []
     for value in obj:
-        content.append(_get_state(value, dst))
+        content.append(get_state(value, dst))
     res["content"] = content
     return res
 
@@ -51,7 +51,7 @@ def list_get_state(obj, dst):
 def list_get_instance(state, src):
     content = gettype(state)()
     for value in state["content"]:
-        content.append(_get_instance(value, src))
+        content.append(get_instance(value, src))
     return content
 
 
@@ -60,7 +60,7 @@ def tuple_get_state(obj, dst):
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
     }
-    content = tuple(_get_state(value, dst) for value in obj)
+    content = tuple(get_state(value, dst) for value in obj)
     res["content"] = content
     return res
 
@@ -79,7 +79,7 @@ def tuple_get_instance(state, src):
         return all(type(n) == str for n in f)
 
     cls = gettype(state)
-    content = tuple(_get_instance(value, src) for value in state["content"])
+    content = tuple(get_instance(value, src) for value in state["content"])
 
     if isnamedtuple(cls):
         return cls(*content)
@@ -109,10 +109,10 @@ def partial_get_state(obj, dst):
         "__class__": "partial",  # don't allow any subclass
         "__module__": get_module(type(obj)),
         "content": {
-            "func": _get_state(func, dst),
-            "args": _get_state(args, dst),
-            "kwds": _get_state(kwds, dst),
-            "namespace": _get_state(namespace, dst),
+            "func": get_state(func, dst),
+            "args": get_state(args, dst),
+            "kwds": get_state(kwds, dst),
+            "namespace": get_state(namespace, dst),
         },
     }
     return res
@@ -120,10 +120,10 @@ def partial_get_state(obj, dst):
 
 def partial_get_instance(state, src):
     content = state["content"]
-    func = _get_instance(content["func"], src)
-    args = _get_instance(content["args"], src)
-    kwds = _get_instance(content["kwds"], src)
-    namespace = _get_instance(content["namespace"], src)
+    func = get_instance(content["func"], src)
+    args = get_instance(content["args"], src)
+    kwds = get_instance(content["kwds"], src)
+    namespace = get_instance(content["namespace"], src)
     instance = partial(func, *args, **kwds)  # always use partial, not a subclass
     instance.__setstate__((func, args, kwds, namespace))
     return instance
@@ -192,7 +192,7 @@ def object_get_state(obj, dst):
     else:
         return res
 
-    content = _get_state(attrs, dst)
+    content = get_state(attrs, dst)
     # it's sufficient to store the "content" because we know that this dict can
     # only have str type keys
     res["content"] = content
@@ -216,7 +216,7 @@ def object_get_instance(state, src):
     if not content:  # nothing more to do
         return instance
 
-    attrs = _get_instance(content, src)
+    attrs = get_instance(content, src)
     if hasattr(instance, "__setstate__"):
         instance.__setstate__(attrs)
     else:

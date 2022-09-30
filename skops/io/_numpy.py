@@ -5,7 +5,7 @@ from uuid import uuid4
 import numpy as np
 
 from ._general import function_get_instance
-from ._utils import _get_instance, _get_state, _import_obj, get_module
+from ._utils import _import_obj, get_instance, get_module, get_state
 from .exceptions import UnsupportedTypeException
 
 
@@ -33,10 +33,10 @@ def ndarray_get_state(obj, dst):
                 "report your error"
             )
 
-        obj_serialized = _get_state(obj.tolist(), dst)
+        obj_serialized = get_state(obj.tolist(), dst)
         res["content"] = obj_serialized["content"]
         res["type"] = "json"
-        res["shape"] = _get_state(obj.shape, dst)
+        res["shape"] = get_state(obj.shape, dst)
 
     return res
 
@@ -54,8 +54,8 @@ def ndarray_get_instance(state, src):
 
     # We explicitly set the dtype to "O" since we only save object arrays in
     # json.
-    shape = _get_instance(state["shape"], src)
-    tmp = [_get_instance(s, src) for s in state["content"]]
+    shape = get_instance(state["shape"], src)
+    tmp = [get_instance(s, src) for s in state["content"]]
     # TODO: this is a hack to get the correct shape of the array. We should
     # find _a better way to do this.
     if len(shape) == 1:
@@ -72,21 +72,21 @@ def maskedarray_get_state(obj, dst):
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
         "content": {
-            "data": _get_state(obj.data, dst),
-            "mask": _get_state(obj.mask, dst),
+            "data": get_state(obj.data, dst),
+            "mask": get_state(obj.mask, dst),
         },
     }
     return res
 
 
 def maskedarray_get_instance(state, src):
-    data = _get_instance(state["content"]["data"], src)
-    mask = _get_instance(state["content"]["mask"], src)
+    data = get_instance(state["content"]["data"], src)
+    mask = get_instance(state["content"]["mask"], src)
     return np.ma.MaskedArray(data, mask)
 
 
 def random_state_get_state(obj, dst):
-    content = _get_state(obj.get_state(legacy=False), dst)
+    content = get_state(obj.get_state(legacy=False), dst)
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
@@ -98,7 +98,7 @@ def random_state_get_state(obj, dst):
 def random_state_get_instance(state, src):
     cls = _import_obj(state["__module__"], state["__class__"])
     random_state = cls()
-    content = _get_instance(state["content"], src)
+    content = get_instance(state["content"], src)
     random_state.set_state(content)
     return random_state
 
