@@ -9,7 +9,7 @@ from zipfile import ZipFile
 
 import skops
 
-from ._utils import _get_instance, _get_state
+from ._utils import _get_instance, _get_state, get_instance, get_state
 
 # For now, there is just one protocol version
 PROTOCOL = 0
@@ -54,7 +54,7 @@ def save(obj, file):
     """
     with tempfile.TemporaryDirectory() as dst:
         with open(Path(dst) / "schema.json", "w") as f:
-            state = _get_state(obj, dst)
+            state = get_state(obj, dst)
             state["protocol"] = PROTOCOL
             state["_skops_version"] = skops.__version__
             json.dump(state, f, indent=2)
@@ -93,5 +93,5 @@ def load(file):
     """
     with ZipFile(file, "r") as input_zip:
         schema = input_zip.read("schema.json")
-        instance = _get_instance(json.loads(schema), input_zip)
+        instance = get_instance(json.loads(schema), input_zip)
     return instance
