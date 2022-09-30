@@ -373,7 +373,6 @@ class Card:
         # add evaluation results
 
         template_sections = copy.deepcopy(self._template_sections)
-        self._hyperparameter_table = self._extract_estimator_config()
 
         if self.metadata:
             model_file = self.metadata.to_dict().get("model_file")
@@ -386,11 +385,11 @@ class Card:
                     'clf.predict(pd.DataFrame.from_dict(config["sklearn"]["example_input"]))'
                 )
         if self._model_diagram is True:
-            self._model_plot: str | None = re.sub(
+            model_plot: str | None = re.sub(
                 r"\n\s+", "", str(estimator_html_repr(self.model))
             )
         else:
-            self._model_plot = None
+            model_plot = None
         template_sections["eval_results"] = tabulate(
             list(self._eval_results.items()),
             headers=["Metric", "Value"],
@@ -423,8 +422,8 @@ class Card:
 
             card = ModelCard.from_template(
                 card_data=self.metadata,
-                hyperparameter_table=self._hyperparameter_table,
-                model_plot=self._model_plot,
+                hyperparameter_table=self._extract_estimator_config(),
+                model_plot=model_plot,
                 **template_sections,
             )
         return card
