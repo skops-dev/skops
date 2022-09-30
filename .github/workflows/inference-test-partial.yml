@@ -16,7 +16,7 @@ jobs:
   inference-pytest-partial:
 
     runs-on: ${{ matrix.os }}
-    if: "(github.repository == 'skops-dev/skops') && (!contains(github.event.head_commit.message, '[CI inference]'))"
+    if: ${{ (github.repository == 'skops-dev/skops') && (!contains(github.event.head_commit.message, '[CI inference]')) }}
     strategy:
       fail-fast: false  # need to see which ones fail
       matrix:
