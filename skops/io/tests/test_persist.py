@@ -338,6 +338,11 @@ def _assert_vals_equal(val1, val2):
         assert sparse.issparse(val2) and ((val1 - val2).nnz == 0)
     elif isinstance(val1, (np.ndarray, np.generic)):
         if len(val1.dtype) == 0:
+            # for arrays with at least 2 dimensions, check that contiguity is
+            # preserved
+            if val1.squeeze().ndim > 1:
+                assert val1.flags["C_CONTIGUOUS"] is val2.flags["C_CONTIGUOUS"]
+                assert val1.flags["F_CONTIGUOUS"] is val2.flags["F_CONTIGUOUS"]
             if val1.dtype == object:
                 assert val2.dtype == object
                 assert val1.shape == val2.shape
@@ -601,6 +606,34 @@ def test_cross_validator(cv, tmp_path):
     assert len(splits_est) == len(splits_loaded)
     for split_est, split_loaded in zip(splits_est, splits_loaded):
         np.testing.assert_equal(split_est, split_loaded)
+
+
+class EstimatorWith2dObjectArray(BaseEstimator):
+    def fit(self, X, y=None, **fit_params):
+        self.obj_array_ = np.array([[1, "2"], [3.0, None]])
+        return self
+
+
+@pytest.mark.parametrize(
+    "transpose",
+    [
+        False,
+        pytest.param(True, marks=pytest.mark.xfail(raises=AssertionError)),
+    ],
+)
+def test_numpy_object_dtype_2d_array(transpose, tmp_path):
+    # Explicitly test multi-dimensional (i.e. more than 1) object arrays, since
+    # those use json instead of numpy.save/load and some errors may only occur
+    # with multi-dimensional arrays (e.g. mismatched contiguity). For
+    # F-contiguous object arrays, this test currently fails, as the array is
+    # loaded as C-contiguous.
+    est = EstimatorWith2dObjectArray().fit(None)
+    if transpose:
+        est.obj_array_ = est.obj_array_.T
+
+    f_name = tmp_path / "file.skops"
+    loaded = save_load_round(est, f_name)
+    assert_params_equal(est.__dict__, loaded.__dict__)
 
 
 def test_metainfo(tmp_path):
