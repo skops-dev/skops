@@ -122,6 +122,12 @@ def test_metadata_keys(destination_path, model_card):
     assert "tags: dummy" in model_card
 
 
+def test_default_sections_save(model_card):
+    # test if the plot and hyperparameters are only added during save
+    assert "<style>" not in str(model_card)
+    assert "fit_intercept" not in str(model_card)
+
+
 def test_add_metrics(destination_path, model_card):
     model_card.add_metrics(**{"acc": 0.1})
     model_card.add_metrics(f1=0.1)
