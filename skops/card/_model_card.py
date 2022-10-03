@@ -381,15 +381,27 @@ class Card:
 
         template_sections = copy.deepcopy(self._template_sections)
         if self.metadata:
-            model_file = self.metadata.to_dict().get("model_file")
-            if model_file:
-                template_sections["get_started_code"] = (
-                    "import joblib\nimport json\nimport pandas as pd\nclf ="
-                    f' joblib.load({model_file})\nwith open("config.json") as f:\n   '
-                    " config ="
-                    " json.load(f)\n"
-                    'clf.predict(pd.DataFrame.from_dict(config["sklearn"]["example_input"]))'
-                )
+            if self.metadata.to_dict().get("model_file"):
+                model_file = self.metadata.to_dict().get("model_file")
+                if model_file.endswith(".skops"):
+                    template_sections["get_started_code"] = (
+                        "from skops.io import load\nimport json\n"
+                        "import pandas as pd\n"
+                        f'clf = load("{model_file}")\n'
+                        'with open("config.json") as f:\n   '
+                        " config ="
+                        " json.load(f)\n"
+                        'clf.predict(pd.DataFrame.from_dict(config["sklearn"]["example_input"]))'
+                    )
+                else:
+                    template_sections["get_started_code"] = (
+                        "import joblib\nimport json\nimport pandas as pd\nclf ="
+                        f' joblib.load({model_file})\nwith open("config.json") as'
+                        " f:\n   "
+                        " config ="
+                        " json.load(f)\n"
+                        'clf.predict(pd.DataFrame.from_dict(config["sklearn"]["example_input"]))'
+                    )
         template_sections["eval_results"] = tabulate(
             list(self._eval_results.items()),
             headers=["Metric", "Value"],
