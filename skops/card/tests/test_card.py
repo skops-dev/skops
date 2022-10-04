@@ -68,10 +68,11 @@ def test_hyperparameter_table(destination_path, model_card):
     assert "fit_intercept" in model_card
 
 
-def _strip_multiple_whitespaces(text):
-    # _strip_multiple_whitespaces("hi    there") == "hi there"
+def _strip_multiple_chars(text, char):
+    # _strip_multiple_chars("hi    there") == "hi there"
+    # _strip_multiple_chars("|---|--|", "-") == "|-|-|"
     while "  " in text:
-        text = text.replace("  ", " ")
+        text = text.replace(char + char, char)
     return text
 
 
@@ -86,7 +87,7 @@ def test_hyperparameter_table_with_line_break(destination_path):
     model_card = Card(EstimatorWithLbInParams())
     model_card = model_card.render()
     # remove multiple whitespaces, as they're not important
-    model_card = _strip_multiple_whitespaces(model_card)
+    model_card = _strip_multiple_chars(model_card, " ")
     assert "| n_jobs | line<br />with<br />break |" in model_card
 
 
@@ -470,6 +471,7 @@ line breaks
 | 3 | 6 | entry with<br />line breaks |"""
 
         result = section.format()
-        # remove multiple whitespaces, as they're not important
-        result = _strip_multiple_whitespaces(result)
+        # remove multiple whitespaces and dashes, as they're not important
+        result = _strip_multiple_chars(result, " ")
+        result = _strip_multiple_chars(result, "-")
         assert result == expected
