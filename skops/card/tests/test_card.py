@@ -68,6 +68,13 @@ def test_hyperparameter_table(destination_path, model_card):
     assert "fit_intercept" in model_card
 
 
+def _strip_multiple_whitespaces(text):
+    # _strip_multiple_whitespaces("hi    there") == "hi there"
+    while "  " in text:
+        text = text.replace("  ", " ")
+    return text
+
+
 def test_hyperparameter_table_with_line_break(destination_path):
     # Hyperparameters can contain values with line breaks, "\n", in them. In
     # that case, the markdown table is broken. Check that the hyperparameter
@@ -78,7 +85,9 @@ def test_hyperparameter_table_with_line_break(destination_path):
 
     model_card = Card(EstimatorWithLbInParams())
     model_card = model_card.render()
-    assert "| n_jobs           | line<br />with<br />break         |" in model_card
+    # remove multiple whitespaces, as they're not important
+    model_card = _strip_multiple_whitespaces(model_card)
+    assert "| n_jobs | line<br />with<br />break |" in model_card
 
 
 def test_plot_model(destination_path, model_card):
@@ -454,9 +463,13 @@ line breaks
 """,
         ]
         section = TableSection(table=table_dict)
-        expected = """|   split |   score | with break   |
+        expected = """| split | score | with break |
 |---------|---------|--------------|
-|       1 |       4 | obj<br />with lb              |
-|       2 |       5 | hi<br />there              |
-|       3 |       6 | entry with<br />line breaks              |"""
-        assert section.format() == expected
+| 1 | 4 | obj<br />with lb |
+| 2 | 5 | hi<br />there |
+| 3 | 6 | entry with<br />line breaks |"""
+
+        result = section.format()
+        # remove multiple whitespaces, as they're not important
+        result = _strip_multiple_whitespaces(result)
+        assert result == expected
