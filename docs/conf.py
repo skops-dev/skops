@@ -6,6 +6,11 @@
 
 # -- Path setup --------------------------------------------------------------
 
+import inspect
+import os
+import sys
+import warnings
+
 from packaging.version import parse
 
 # If extensions (or modules to document with autodoc) are in another directory,
@@ -40,6 +45,7 @@ extensions = [
     "numpydoc",
     "sphinx_gallery.gen_gallery",
     "sphinx_issues",
+    "sphinx.ext.linkcode",
     "sphinx.ext.intersphinx",  # link to other documentations, e.g. sklearn
 ]
 
@@ -92,3 +98,58 @@ intersphinx_mapping = {
     "joblib": ("https://joblib.readthedocs.io/en/latest/", None),
     "huggingface_hub": ("https://huggingface.co/docs/huggingface_hub/main/en", None),
 }
+
+
+# based on pandas doc/source/conf.py
+def linkcode_resolve(domain, info):
+    """
+    Determine the URL corresponding to Python object
+    """
+    if domain != "py":
+        return None
+
+    modname = info["module"]
+    fullname = info["fullname"]
+
+    submod = sys.modules.get(modname)
+    if submod is None:
+        return None
+
+    obj = submod
+    for part in fullname.split("."):
+        try:
+            with warnings.catch_warnings():
+                # Accessing deprecated objects will generate noisy warnings
+                warnings.simplefilter("ignore", FutureWarning)
+                obj = getattr(obj, part)
+        except AttributeError:
+            return None
+
+    try:
+        fn = inspect.getsourcefile(inspect.unwrap(obj))
+    except TypeError:
+        try:  # property
+            fn = inspect.getsourcefile(inspect.unwrap(obj.fget))
+        except (AttributeError, TypeError):
+            fn = None
+    if not fn:
+        return None
+
+    try:
+        source, lineno = inspect.getsourcelines(obj)
+    except TypeError:
+        try:  # property
+            source, lineno = inspect.getsourcelines(obj.fget)
+        except (AttributeError, TypeError):
+            lineno = None
+    except OSError:
+        lineno = None
+
+    if lineno:
+        linespec = f"#L{lineno}-L{lineno + len(source) - 1}"
+    else:
+        linespec = ""
+
+    fn = os.path.relpath(fn, start=os.path.dirname(skops.__file__))
+
+    return f"https://github.com/skops-dev/skops/blob/main/skops/{fn}{linespec}"
