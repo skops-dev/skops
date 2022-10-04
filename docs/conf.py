@@ -16,14 +16,9 @@ from packaging.version import parse
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
 import skops
-import subprocess
 import inspect
 from operator import attrgetter
 import os
-import sys
-from functools import partial
-
-
 
 # -- Project information -----------------------------------------------------
 
