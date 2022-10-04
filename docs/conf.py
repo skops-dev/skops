@@ -94,25 +94,21 @@ def linkcode_resolve(domain, info):
     obj = inspect.unwrap(obj)
 
     try:
-        fn = inspect.getsourcefile(obj)
-    except Exception:
-        fn = None
-    if not fn:
-        try:
-            fn = inspect.getsourcefile(sys.modules[obj.__module__])
-        except Exception:
+        fn = inspect.getsourcefile(inspect.unwrap(obj))
+    except TypeError:
+        try:  # property
+            fn = inspect.getsourcefile(inspect.unwrap(obj.fget))
+        except (AttributeError, TypeError):
             fn = None
     if not fn:
-        return
-    
-    package="skops"
+        return None
+    package = "skops"
     fn = os.path.relpath(fn, start=os.path.dirname(__import__(package).__file__))
     try:
         lineno = inspect.getsourcelines(obj)[1]
     except Exception:
         lineno = ""
-    return "https://github.com/skops-dev/skops/blob/main/skops/hub_utils/_hf_hub.py" + "#L" + str(lineno)
-
+    return "https://github.com/skops-dev/skops/blob/main/skops/"+ fn + "#L" + str(lineno)
 
 # -- Options for HTML output -------------------------------------------------
 
