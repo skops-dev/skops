@@ -69,6 +69,29 @@ def test_hyperparameter_table(destination_path, model_card):
     assert "fit_intercept" in model_card
 
 
+def _strip_multiple_chars(text, char):
+    # _strip_multiple_chars("hi    there") == "hi there"
+    # _strip_multiple_chars("|---|--|", "-") == "|-|-|"
+    while char + char in text:
+        text = text.replace(char + char, char)
+    return text
+
+
+def test_hyperparameter_table_with_line_break(destination_path):
+    # Hyperparameters can contain values with line breaks, "\n", in them. In
+    # that case, the markdown table is broken. Check that the hyperparameter
+    # table we create properly replaces the "\n" with "<br />".
+    class EstimatorWithLbInParams:
+        def get_params(self, deep=False):
+            return {"fit_intercept": True, "n_jobs": "line\nwith\nbreak"}
+
+    model_card = Card(EstimatorWithLbInParams())
+    model_card = model_card.render()
+    # remove multiple whitespaces, as they're not important
+    model_card = _strip_multiple_chars(model_card, " ")
+    assert "| n_jobs | line<br />with<br />break |" in model_card
+
+
 def test_plot_model(destination_path, model_card):
     model_card = model_card.render()
     assert "<style>" in model_card
@@ -438,3 +461,40 @@ class TestTableSection:
             assert "<details>" in output
         else:
             assert "<details>" not in output
+
+    def test_line_break_in_entry(self, table_dict):
+        # Line breaks are not allowed inside markdown tables, so check that
+        # they're removed. We test 3 conditions here:
+
+        # 1. custom object with line breaks in repr
+        # 2. string with line break in the middle
+        # 3. string with line break at start, middle, and end
+
+        # Note that for the latter, tabulate will automatically strip the line
+        # breaks from the start and end.
+        class LineBreakInRepr:
+            """Custom object whose repr has a line break"""
+
+            def __repr__(self) -> str:
+                return "obj\nwith lb"
+
+        table_dict["with break"] = [
+            LineBreakInRepr(),
+            "hi\nthere",
+            """
+entry with
+line breaks
+""",
+        ]
+        section = TableSection(table=table_dict)
+        expected = """| split | score | with break |
+|-|-|-|
+| 1 | 4 | obj<br />with lb |
+| 2 | 5 | hi<br />there |
+| 3 | 6 | entry with<br />line breaks |"""
+
+        result = section.format()
+        # remove multiple whitespaces and dashes, as they're not important
+        result = _strip_multiple_chars(result, " ")
+        result = _strip_multiple_chars(result, "-")
+        assert result == expected
