@@ -16,6 +16,7 @@ import skops
 from skops import hub_utils
 from skops.card import Card, metadata_from_config
 from skops.card._model_card import PlotSection, TableSection
+from skops.io import save
 
 
 def fit_model():
@@ -136,6 +137,28 @@ def test_code_autogeneration(destination_path, model_card_metadata_from_config):
     filename = metadata["model_file"]
     with open(Path(destination_path) / "README.md") as f:
         assert f"joblib.load({filename})" in f.read()
+
+
+def test_code_autogeneration_skops(destination_path):
+    # test if getting started code is automatically generated for skops format
+    X, y = load_iris(return_X_y=True, as_frame=True)
+    model = fit_model()
+    skops_folder = tempfile.mkdtemp()
+    model_name = "model.skops"
+    save(model, Path(skops_folder) / model_name)
+    hub_utils.init(
+        model=Path(skops_folder) / model_name,
+        requirements=[f"scikit-learn=={sklearn.__version__}"],
+        dst=destination_path,
+        task="tabular-classification",
+        data=X,
+    )
+    card = Card(model, metadata=metadata_from_config(destination_path))
+    card.save(Path(destination_path) / "README.md")
+    metadata = metadata_load(local_path=Path(destination_path) / "README.md")
+    filename = metadata["model_file"]
+    with open(Path(destination_path) / "README.md") as f:
+        assert f'clf = load("{filename}")' in f.read()
 
 
 def test_metadata_from_config_tabular_data(
