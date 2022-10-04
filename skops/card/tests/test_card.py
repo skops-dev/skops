@@ -71,7 +71,7 @@ def test_hyperparameter_table(destination_path, model_card):
 def _strip_multiple_chars(text, char):
     # _strip_multiple_chars("hi    there") == "hi there"
     # _strip_multiple_chars("|---|--|", "-") == "|-|-|"
-    while "  " in text:
+    while char + char in text:
         text = text.replace(char + char, char)
     return text
 
@@ -465,7 +465,7 @@ line breaks
         ]
         section = TableSection(table=table_dict)
         expected = """| split | score | with break |
-|---------|---------|--------------|
+|-|-|-|
 | 1 | 4 | obj<br />with lb |
 | 2 | 5 | hi<br />there |
 | 3 | 6 | entry with<br />line breaks |"""
