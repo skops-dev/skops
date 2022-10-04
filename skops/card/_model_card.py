@@ -241,7 +241,7 @@ class Card:
         metadata: Optional[CardData] = None,
     ) -> None:
         self.model = model
-        self._model_diagram = model_diagram
+        self.model_diagram = model_diagram
         self._eval_results = {}  # type: ignore
         self._template_sections: dict[str, str] = {}
         self._extra_sections: list[tuple[str, Any]] = []
