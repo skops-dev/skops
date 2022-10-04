@@ -16,6 +16,14 @@ from packaging.version import parse
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
 import skops
+import subprocess
+import inspect
+from operator import attrgetter
+import os
+import sys
+from functools import partial
+
+
 
 # -- Project information -----------------------------------------------------
 
@@ -36,6 +44,7 @@ release = ".".join(parsed_version.base_version.split(".")[:2])
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+    "sphinx.ext.linkcode",
     "sphinx.ext.autodoc",
     "numpydoc",
     "sphinx_gallery.gen_gallery",
@@ -64,6 +73,19 @@ autosummary_generate = True
 # Path to GitHub repo {group}/{project}
 # (note that `group` is the GitHub user or organization)
 issues_github_path = "skops-dev/skops"
+
+
+
+
+def linkcode_resolve(domain, info):
+    if domain != 'py':
+        return None
+    if not info['module']:
+        return None
+    filename = info['module'].replace('.', '/')
+    return "https://github.com/skops-dev/skops/blob/main/skops/hub_utils/_hf_hub.py"
+
+
 
 # -- Options for HTML output -------------------------------------------------
 
