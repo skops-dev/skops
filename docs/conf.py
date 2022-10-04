@@ -74,17 +74,44 @@ autosummary_generate = True
 # (note that `group` is the GitHub user or organization)
 issues_github_path = "skops-dev/skops"
 
-
-
-
 def linkcode_resolve(domain, info):
     if domain != 'py':
         return None
     if not info['module']:
         return None
     filename = info['module'].replace('.', '/')
-    return "https://github.com/skops-dev/skops/blob/main/skops/hub_utils/_hf_hub.py"
+    if domain not in ("py", "pyx"):
+        return
+    if not info.get("module") or not info.get("fullname"):
+        return
 
+    class_name = info["fullname"].split(".")[0]
+    module = __import__(info["module"], fromlist=[class_name])
+    obj = attrgetter(info["fullname"])(module)
+
+    # Unwrap the object to get the correct source
+    # file in case that is wrapped by a decorator
+    obj = inspect.unwrap(obj)
+
+    try:
+        fn = inspect.getsourcefile(obj)
+    except Exception:
+        fn = None
+    if not fn:
+        try:
+            fn = inspect.getsourcefile(sys.modules[obj.__module__])
+        except Exception:
+            fn = None
+    if not fn:
+        return
+    
+    package="skops"
+    fn = os.path.relpath(fn, start=os.path.dirname(__import__(package).__file__))
+    try:
+        lineno = inspect.getsourcelines(obj)[1]
+    except Exception:
+        lineno = ""
+    return "https://github.com/skops-dev/skops/blob/main/skops/hub_utils/_hf_hub.py" + "#L" + str(lineno)
 
 
 # -- Options for HTML output -------------------------------------------------
