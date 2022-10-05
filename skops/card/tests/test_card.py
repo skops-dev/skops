@@ -34,14 +34,28 @@ def model_card(model_diagram=True):
 
 
 @pytest.fixture
-def model_card_metadata_from_config(destination_path):
+def iris_data():
     X, y = load_iris(return_X_y=True, as_frame=True)
+    yield X, y
+
+
+@pytest.fixture
+def pkl_iris_estimator(iris_data):
+    X, y = iris_data
     est = LogisticRegression(solver="liblinear").fit(X, y)
     pkl_file = tempfile.mkstemp(suffix=".pkl", prefix="skops-test")[1]
     with open(pkl_file, "wb") as f:
         pickle.dump(est, f)
+    yield pkl_file
+
+
+@pytest.fixture
+def model_card_metadata_from_config(destination_path, pkl_iris_estimator, iris_data):
+    X, y = iris_data
+    with open(pkl_iris_estimator, "rb") as f:
+        est = pickle.load(f)
     hub_utils.init(
-        model=pkl_file,
+        model=pkl_iris_estimator,
         requirements=[f"scikit-learn=={sklearn.__version__}"],
         dst=destination_path,
         task="tabular-classification",
