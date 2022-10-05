@@ -373,7 +373,7 @@ class Card:
             self._eval_results[metric] = value
         return self
 
-    def _load_model(model: Any) -> Any:
+    def _load_model(self, model: Any) -> Any:
         """Loads the model if provided a file path.
 
         Parameters
