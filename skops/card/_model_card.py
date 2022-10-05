@@ -254,7 +254,7 @@ class Card:
         model_diagram: bool = True,
         metadata: Optional[CardData] = None,
     ) -> None:
-        self.model = model
+        self.model = self._load_model(model)
         self.model_diagram = model_diagram
         self._eval_results = {}  # type: ignore
         self._template_sections: dict[str, str] = {}
@@ -372,6 +372,26 @@ class Card:
         for metric, value in kwargs.items():
             self._eval_results[metric] = value
         return self
+
+    def _load_model(model: Any) -> Any:
+        """Loads the model if provided a file path.
+
+        Parameters
+        ----------
+        model : Any
+            Str or model instance.
+
+        Returns
+        -------
+        model : object 
+            Model instance.
+        """
+        if isinstance(model, str):
+            model_path = Path(model)
+            if not model_path.exists():
+                raise ValueError("Model file does not exist")
+            model = skops.io.load(model)
+        return model
 
     def _generate_card(self) -> ModelCard:
         """Generate the ModelCard object
