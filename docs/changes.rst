@@ -20,6 +20,8 @@ v0.3
   Jalali`_ and `Benjamin Bossan`_. Visit :ref:`persistence` for more
   information. This feature is not production ready yet but we're happy to
   receive feedback from users.
+- Fix a bug that resulted in markdown tables being rendered incorrectly if
+  entries contained line breaks. :pr:`156` by `Benjamin Bossan`_.
 
 v0.2
 ----

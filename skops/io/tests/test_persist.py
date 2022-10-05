@@ -52,7 +52,7 @@ from sklearn.utils.estimator_checks import (
 import skops
 from skops.io import load, save
 from skops.io._sklearn import UNSUPPORTED_TYPES
-from skops.io._utils import get_instance, get_state
+from skops.io._utils import _get_instance, _get_state
 from skops.io.exceptions import UnsupportedTypeException
 
 # Default settings for X
@@ -119,9 +119,9 @@ def debug_dispatch_functions():
         # overwrite exposed functions for get_state and get_instance
         module = importlib.import_module(module_name, package="skops.io")
         for cls, method in getattr(module, "GET_STATE_DISPATCH_FUNCTIONS", []):
-            get_state.register(cls)(debug_get_state(method))
+            _get_state.register(cls)(debug_get_state(method))
         for cls, method in getattr(module, "GET_INSTANCE_DISPATCH_FUNCTIONS", []):
-            get_instance.register(cls)(debug_get_instance(method))
+            _get_instance.register(cls)(debug_get_instance(method))
 
 
 def save_load_round(estimator, f_name):

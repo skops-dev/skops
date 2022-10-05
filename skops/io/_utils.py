@@ -211,21 +211,27 @@ def get_module(obj):
 
 
 @singledispatch
-def get_state(obj, dst):
+def _get_state(obj, dst):
+    # This function should never be called directly. Instead, it is used to
+    # dispatch to the correct implementation of get_state for the given type of
+    # its first argument.
     raise TypeError(f"Getting the state of type {type(obj)} is not supported yet")
 
 
 @singledispatch
-def get_instance(obj):
+def _get_instance(obj, src):
+    # This function should never be called directly. Instead, it is used to
+    # dispatch to the correct implementation of get_instance for the given type
+    # of its first argument.
     raise TypeError(f"Creating an instance of type {type(obj)} is not supported yet")
 
 
-def _get_state(value, dst):
+def get_state(value, dst):
     # This is a helper function to try to get the state of an object. If it
     # fails with `get_state`, we try with json.dumps, if that fails, we raise
     # the original error alongside the json error.
     try:
-        return get_state(value, dst)
+        return _get_state(value, dst)
     except TypeError as e1:
         try:
             return json.dumps(value)
@@ -233,13 +239,13 @@ def _get_state(value, dst):
             raise e1 from e2
 
 
-def _get_instance(value, src):
+def get_instance(value, src):
     # This is a helper function to try to get the state of an object. If
     # `gettype` fails, we load with `json`.
     if value is None:
         return None
 
     if gettype(value):
-        return get_instance(value, src)
+        return _get_instance(value, src)
 
     return json.loads(value)

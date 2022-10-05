@@ -15,7 +15,7 @@ from sklearn.tree._tree import Tree
 from sklearn.utils import Bunch
 
 from ._general import dict_get_instance, dict_get_state, unsupported_get_state
-from ._utils import _get_instance, _get_state, get_module, gettype
+from ._utils import get_instance, get_module, get_state, gettype
 from .exceptions import UnsupportedTypeException
 
 ALLOWED_SGD_LOSSES = {
@@ -56,7 +56,7 @@ def reduce_get_state(obj, dst):
     # As a good example, this makes Tree object to be serializable.
     reduce = obj.__reduce__()
     res["__reduce__"] = {}
-    res["__reduce__"]["args"] = _get_state(reduce[1], dst)
+    res["__reduce__"]["args"] = get_state(reduce[1], dst)
 
     if len(reduce) == 3:
         # reduce includes what's needed for __getstate__ and we don't need to
@@ -74,16 +74,16 @@ def reduce_get_state(obj, dst):
             f"Objects of type {res['__class__']} not supported yet"
         )
 
-    res["content"] = _get_state(attrs, dst)
+    res["content"] = get_state(attrs, dst)
     return res
 
 
 def reduce_get_instance(state, src, constructor):
     reduce = state["__reduce__"]
-    args = _get_instance(reduce["args"], src)
+    args = get_instance(reduce["args"], src)
     instance = constructor(*args)
 
-    attrs = _get_instance(state["content"], src)
+    attrs = get_instance(state["content"], src)
     if not attrs:
         # nothing more to do
         return instance
