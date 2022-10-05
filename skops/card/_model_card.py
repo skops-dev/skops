@@ -409,7 +409,7 @@ class Card:
                         " json.load(f)\n"
                         'clf.predict(pd.DataFrame.from_dict(config["sklearn"]["example_input"]))'
                     )
-        if self._model_diagram is True:
+        if self.model_diagram is True:
             model_plot: str | None = re.sub(
                 r"\n\s+", "", str(estimator_html_repr(self.model))
             )
