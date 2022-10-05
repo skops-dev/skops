@@ -1,23 +1,29 @@
 import io
-from pathlib import Path
-from uuid import uuid4
+from typing import Any
 
 from scipy.sparse import load_npz, save_npz, spmatrix
 
-from ._utils import get_module
+from ._utils import SaveState, get_module
 
 
-def sparse_matrix_get_state(obj, dst):
+def sparse_matrix_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
     }
 
-    f_name = f"{uuid4()}.npz"
-    save_npz(Path(dst) / f_name, obj)
+    # Memoize the object and then check if it's file name (containing the object
+    # id) already exists. If it does, there is no need to save the object again.
+    # Memoizitation is necessary since for ephemeral objects, the same id might
+    # otherwise be reused.
+    obj_id = save_state.memoize(obj)
+    f_name = f"{obj_id}.npz"
+    path = save_state.path / f_name
+    if not path.exists():
+        save_npz(path, obj)
+
     res["type"] = "scipy"
     res["file"] = f_name
-
     return res
 
 

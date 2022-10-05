@@ -1,8 +1,11 @@
 import importlib
 import json  # type: ignore
 import sys
+from dataclasses import dataclass, field
 from functools import _find_impl, get_cache_token, update_wrapper  # type: ignore
+from pathlib import Path
 from types import FunctionType
+from typing import Any
 
 from skops.utils.fixes import GenericAlias
 
@@ -208,6 +211,45 @@ def get_module(obj):
 
     """
     return whichmodule(obj, obj.__name__)
+
+
+# For now, there is just one protocol version
+DEFAULT_PROTOCOL = 0
+
+
+@dataclass(frozen=True)
+class SaveState:
+    """State required for saving the objects
+
+    This state is passed to each ``get_state_*`` function.
+
+    Parameters
+    ----------
+    path: pathlib.Path
+        The path to the directory to store the object in.
+
+    protocol: int
+        The protocol of the persistence format. Right now, there is only
+        protocol 0, but this leaves the door open for future changes.
+
+    """
+
+    path: Path
+    protocol: int = DEFAULT_PROTOCOL
+    memo: dict[int, Any] = field(default_factory=dict)
+
+    def memoize(self, obj: Any) -> int:
+        # Currenlty, the only purpose for saving the object id is to make sure
+        # that for the length of the context that the main object is being
+        # saved, all attributes persist, so that the same id cannot be re-used
+        # for different objects.
+        obj_id = id(obj)
+        if obj_id not in self.memo:
+            self.memo[obj_id] = obj
+        return obj_id
+
+    def clear_memo(self) -> None:
+        self.memo.clear()
 
 
 @singledispatch
