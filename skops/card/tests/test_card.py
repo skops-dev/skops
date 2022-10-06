@@ -228,7 +228,6 @@ def test_metadata_from_config_tabular_data(
     pkl_model_card_metadata_from_config, destination_path
 ):
     # test if widget data is correctly set in the README
-    pkl_model_card_metadata_from_config.save(Path(destination_path) / "README.md")
     metadata = metadata_load(local_path=Path(destination_path) / "README.md")
     assert "widget" in metadata
 
