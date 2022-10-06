@@ -6,6 +6,10 @@
 
 # -- Path setup --------------------------------------------------------------
 
+import inspect
+import os
+from operator import attrgetter
+
 from packaging.version import parse
 
 # If extensions (or modules to document with autodoc) are in another directory,
@@ -16,9 +20,6 @@ from packaging.version import parse
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
 import skops
-import inspect
-from operator import attrgetter
-import os
 
 # -- Project information -----------------------------------------------------
 
@@ -69,12 +70,13 @@ autosummary_generate = True
 # (note that `group` is the GitHub user or organization)
 issues_github_path = "skops-dev/skops"
 
+
 def linkcode_resolve(domain, info):
-    if domain != 'py':
+    if domain != "py":
         return None
-    if not info['module']:
+    if not info["module"]:
         return None
-    filename = info['module'].replace('.', '/')
+    filename = info["module"].replace(".", "/")
     if domain not in ("py", "pyx"):
         return
     if not info.get("module") or not info.get("fullname"):
@@ -91,7 +93,7 @@ def linkcode_resolve(domain, info):
     try:
         fn = inspect.getsourcefile(inspect.unwrap(obj))
     except TypeError:
-        try:  # property
+        try: 
             fn = inspect.getsourcefile(inspect.unwrap(obj.fget))
         except (AttributeError, TypeError):
             fn = None
@@ -103,7 +105,10 @@ def linkcode_resolve(domain, info):
         lineno = inspect.getsourcelines(obj)[1]
     except Exception:
         lineno = ""
-    return "https://github.com/skops-dev/skops/blob/main/skops/"+ fn + "#L" + str(lineno)
+    return (
+        "https://github.com/skops-dev/skops/blob/main/skops/" + fn + "#L" + str(lineno)
+    )
+
 
 # -- Options for HTML output -------------------------------------------------
 
