@@ -208,7 +208,6 @@ def test_add_metrics(destination_path, model_card):
 
 def test_code_autogeneration(destination_path, pkl_model_card_metadata_from_config):
     # test if getting started code is automatically generated
-    pkl_model_card_metadata_from_config.save(Path(destination_path) / "README.md")
     metadata = metadata_load(local_path=Path(destination_path) / "README.md")
     filename = metadata["model_file"]
     with open(Path(destination_path) / "README.md") as f:
