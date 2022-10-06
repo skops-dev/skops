@@ -5,6 +5,7 @@ import json
 import re
 import shutil
 import tempfile
+import joblib
 from dataclasses import dataclass
 from pathlib import Path
 from reprlib import Repr
@@ -390,7 +391,12 @@ class Card:
             model_path = Path(model)
             if not model_path.exists():
                 raise ValueError("Model file does not exist")
-            model = skops.io.load(model)
+            if model_path.suffix==".pkl":
+                model = joblib.load(model_path)
+            elif model_path.suffix==".skops":
+                model = skops.io.load(model_path)
+            else:
+                raise ValueError("Model Format not supported")
         return model
 
     def _generate_card(self) -> ModelCard:
