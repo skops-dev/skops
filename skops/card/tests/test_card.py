@@ -47,7 +47,7 @@ def iris_estimator(iris_data):
 
 
 @pytest.fixture
-def pkl_file(iris_estimator):
+def iris_pkl_file(iris_estimator):
     pkl_file = tempfile.mkstemp(suffix=".pkl", prefix="skops-test")[1]
     with open(pkl_file, "wb") as f:
         pickle.dump(iris_estimator, f)
@@ -55,7 +55,7 @@ def pkl_file(iris_estimator):
 
 
 @pytest.fixture
-def skops_file(iris_estimator):
+def iris_skops_file(iris_estimator):
     skops_folder = tempfile.mkdtemp()
     model_name = "model.skops"
     skops_path = Path(skops_folder) / model_name
@@ -84,19 +84,19 @@ def _create_model_card_from_saved_model(
 
 @pytest.fixture
 def skops_model_card_metadata_from_config(
-    destination_path, iris_estimator, skops_file, iris_data
+    destination_path, iris_estimator, iris_skops_file, iris_data
 ):
     yield _create_model_card_from_saved_model(
-        destination_path, iris_estimator, iris_data, skops_file
+        destination_path, iris_estimator, iris_data, iris_skops_file
     )
 
 
 @pytest.fixture
 def pkl_model_card_metadata_from_config(
-    destination_path, iris_estimator, pkl_file, iris_data
+    destination_path, iris_estimator, iris_pkl_file, iris_data
 ):
     yield _create_model_card_from_saved_model(
-        destination_path, iris_estimator, iris_data, pkl_file
+        destination_path, iris_estimator, iris_data, iris_pkl_file
     )
 
 
