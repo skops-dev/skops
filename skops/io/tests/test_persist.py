@@ -75,13 +75,11 @@ def debug_dispatch_functions():
         # Check consistency of argument names, output type, and that the output,
         # if a dict, has certain keys, or if not a dict, is a primitive type.
         signature = inspect.signature(func)
-        assert list(signature.parameters.keys()) == ["obj", "dst"]
+        assert list(signature.parameters.keys()) == ["obj", "save_state"]
 
         @wraps(func)
-        def wrapper(obj, dst):
-            assert isinstance(dst, str)
-
-            result = func(obj, dst)
+        def wrapper(obj, save_state):
+            result = func(obj, save_state)
 
             if isinstance(result, dict):
                 assert "__class__" in result
@@ -663,7 +661,7 @@ def test_metainfo(tmp_path):
     schema = json.loads(ZipFile(f_name).read("schema.json"))
 
     # check some schema metainfo
-    assert schema["protocol"] == skops.io._persist.PROTOCOL
+    assert schema["protocol"] == skops.io._utils.DEFAULT_PROTOCOL
     assert schema["_skops_version"] == skops.__version__
 
     # additionally, check following metainfo: class, module, and version
@@ -704,3 +702,83 @@ def test_metainfo(tmp_path):
             # change across versions, e.g. 'scipy.sparse.csr' moving to
             # 'scipy.sparse._csr'.
             assert val_state["__module__"].startswith(val_expected["__module__"])
+
+
+class EstimatorIdenticalArrays(BaseEstimator):
+    """Estimator that stores multiple references to the same array"""
+
+    def fit(self, X, y=None, **fit_params):
+        # each block below should reference the same file
+        self.X = X
+        self.X_2 = X
+        self.X_list = [X, X]
+        self.X_dict = {"a": X, 2: X}
+
+        # copies are not deduplicated
+        X_copy = X.copy()
+        self.X_copy = X_copy
+        self.X_copy2 = X_copy
+
+        # transposed matrices are not the same
+        X_T = X.T
+        self.X_T = X_T
+        self.X_T2 = X_T
+
+        # slices are not the same
+        self.vector = X[0]
+
+        self.vector_2 = X[0]
+
+        self.scalar = X[0, 0]
+
+        self.scalar_2 = X[0, 0]
+
+        # deduplication should work on sparse matrices
+        X_sparse = sparse.csr_matrix(X)
+        self.X_sparse = X_sparse
+        self.X_sparse2 = X_sparse
+
+        return self
+
+
+def test_identical_numpy_arrays_not_duplicated(tmp_path):
+    # Test that identical numpy arrays are not stored multiple times
+    X = np.random.random((10, 5))
+    estimator = EstimatorIdenticalArrays().fit(X)
+    f_name = tmp_path / "file.skops"
+    loaded = save_load_round(estimator, f_name)
+    assert_params_equal(estimator.__dict__, loaded.__dict__)
+
+    # check number of numpy arrays stored on disk
+    with ZipFile(f_name, "r") as input_zip:
+        files = input_zip.namelist()
+    # expected number of files are:
+    # schema, X, X_copy, X_t, 2 vectors, 2 scalars, X_sparse = 9
+    expected_files = 9
+    num_files = len(files)
+    assert num_files == expected_files
+
+
+class NumpyDtypeObjectEstimator(BaseEstimator):
+    """An estimator with a numpy array of dtype object"""
+
+    def fit(self, X, y=None, **fit_params):
+        self.obj_ = np.zeros(3, dtype=object)
+        return self
+
+
+def test_numpy_dtype_object_does_not_store_broken_file(tmp_path):
+    # This addresses a specific bug where trying to store an object numpy array
+    # resulted in the creation of a broken .npy file being left over. This is
+    # because numpy tries to write to the file until it encounters an error and
+    # raises, but then doesn't clean up said file. Before the bugfix in #150, we
+    # would include that broken file in the zip archive, although we wouldn't do
+    # anything with it. Here we test that no such file exists.
+    estimator = NumpyDtypeObjectEstimator().fit(None)
+    f_name = tmp_path / "file.skops"
+    save_load_round(estimator, f_name)
+    with ZipFile(f_name, "r") as input_zip:
+        files = input_zip.namelist()
+
+    # this estimator should not have any numpy file
+    assert not any(file.endswith(".npy") for file in files)
