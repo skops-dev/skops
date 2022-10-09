@@ -197,7 +197,9 @@ def test_create_config(data, task, expected_config):
 
 
 def test_create_config_invalid_text_data(temp_path):
-    with pytest.raises(ValueError, match="The data needs to be a list of strings."):
+    with pytest.raises(
+        ValueError, match="The data needs to be an iterable of strings."
+    ):
         _create_config(
             model_path="model.pkl",
             requirements=['scikit-learn="1.1.1"', "numpy"],

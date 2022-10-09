@@ -5,6 +5,7 @@ hub.
 from __future__ import annotations
 
 import collections
+import itertools
 import json
 import os
 import shutil
@@ -73,6 +74,14 @@ def _validate_folder(path: Union[str, Path]) -> None:
         raise TypeError(f"Model file {model_path} does not exist.")
 
 
+def _convert_to_2d_numpy_array(data):
+    data_array = np.asarray(data)
+    if len(data_array.shape) != 2:
+        raise ValueError("The data must be convertible to a 2D numpy.ndarray.")
+
+    return data_array
+
+
 def _get_example_input(data):
     """Returns the example input of a model.
 
@@ -81,9 +90,10 @@ def _get_example_input(data):
 
     Parameters
     ----------
-    data: array-like
-        The input needs to be either a ``pandas.DataFrame`` or a
-        ``numpy.ndarray``. The first 3 rows are used as example input.
+    data: pandas.DataFrame or array-like
+        The input needs to be anything that can be converted to a 2D
+        ``numpy.ndarray``, including a ``pandas.DataFrame``. The first 3 rows
+        are used as example input.
 
     Returns
     -------
@@ -95,28 +105,29 @@ def _get_example_input(data):
 
         if isinstance(data, pd.DataFrame):
             return {x: data[x][:3].to_list() for x in data.columns}
-    except ImportError:
-        # pandas is not installed, the data cannot be a pandas DataFrame
-        pass
+    except ImportError as e:
+        raise ValueError(
+            "The data cannot be a pandas.DataFrame because pandas is not installed."
+        ) from e
 
     # here we convert the first three rows of the numpy array to a dict of lists
     # to be stored in the config file
-    if isinstance(data, np.ndarray):
-        return {f"x{x}": data[:3, x].tolist() for x in range(data.shape[1])}
-
-    raise ValueError("The data is not a pandas.DataFrame or a numpy.ndarray.")
+    data_array = _convert_to_2d_numpy_array(data)
+    return {f"x{x}": data_array[:3, x].tolist() for x in range(data_array.shape[1])}
 
 
 def _get_column_names(data):
     """Returns the column names of the input.
 
-    If data is a ``numpy.ndarray``, column names are assumed to be ``x0`` to
-    ``xn-1``, where ``n`` is the number of columns.
+    If data is not a ``pandas.DataFrame``, column names are assumed to be
+    ``x0`` to ``xn-1``, where ``n`` is the number of columns.
 
     Parameters
     ----------
-    data: pandas.DataFrame or numpy.ndarray
-        The data whose columns names are to be returned.
+    data: pandas.DataFrame or array-like
+        The data whose columns names are to be returned. Must be a
+        ``pandas.DataFrame`` or anything that can be converted to a 2D
+        ``numpy.ndarray``
 
     Returns
     -------
@@ -128,16 +139,13 @@ def _get_column_names(data):
 
         if isinstance(data, pd.DataFrame):
             return list(data.columns)
-    except ImportError:
-        # pandas is not installed, the data cannot be a pandas DataFrame
-        pass
+    except ImportError as e:
+        raise ValueError(
+            "The data cannot be a pandas.DataFrame because pandas is not installed."
+        ) from e
 
-    # TODO: this is going to fail for Structured Arrays. We can add support for
-    # them later if we see need for it.
-    if isinstance(data, np.ndarray):
-        return [f"x{x}" for x in range(data.shape[1])]
-
-    raise ValueError("The data is not a pandas.DataFrame or a numpy.ndarray.")
+    data_array = _convert_to_2d_numpy_array(data)
+    return [f"x{x}" for x in range(data_array.shape[1])]
 
 
 def _create_config(
@@ -174,7 +182,7 @@ def _create_config(
         the model. It can be one of: ``tabular-classification``,
         ``tabular-regression``, ``text-classification``, ``text-regression``.
 
-    data: array-like
+    data: array-like, or iterable
         The input to the model. This is used for two purposes:
 
             1. Save an example input to the model, which is used by
@@ -184,7 +192,10 @@ def _create_config(
                HuggingFace's backend to pass the data in the right form to the
                model.
 
-        The first 3 input values are used as example inputs.
+        The first 3 input values are used as example inputs. If the task is
+        ``tabular-classification`` or ``tabular-regression``, then data is
+        expected to be an array-like. Otherwise, it is expected to be an
+        iterable of strings.
 
     Returns
     -------
@@ -205,12 +216,26 @@ def _create_config(
         config["sklearn"]["example_input"] = _get_example_input(data)
         config["sklearn"]["columns"] = _get_column_names(data)
     elif "text" in task:
-        if isinstance(data, list) and all(isinstance(x, str) for x in data):
-            config["sklearn"]["example_input"] = {"data": data[:3]}
+        if _is_iterable_of_strings(data):
+            config["sklearn"]["example_input"] = {
+                "data": list(itertools.islice(data, 3))
+            }
         else:
-            raise ValueError("The data needs to be a list of strings.")
+            raise ValueError("The data needs to be an iterable of strings.")
 
     dump_json(Path(dst) / "config.json", config)
+
+
+def _is_iterable_of_strings(data):
+    if isinstance(data, str):
+        return False
+    try:
+        # needed in case data is an iterator or a generator
+        data, data_copy = itertools.tee(data, 2)
+        return all(isinstance(x, str) for x in data_copy)
+    except TypeError:
+        # data is not iterable
+        return False
 
 
 def _check_model_file(path: str | Path) -> Path:
