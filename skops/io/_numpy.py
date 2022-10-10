@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import io
 from typing import Any
 
@@ -25,6 +26,14 @@ def ndarray_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
             res["content"] = obj_serialized["content"]
             res["type"] = "json"
             res["shape"] = get_state(obj.shape, save_state)
+        elif save_state.path is None:
+            # using skops.io.dumps, don't write to file
+            f = io.BytesIO()
+            np.save(f, obj)
+            b = f.getvalue()
+            b64 = base64.b64encode(b)
+            s = b64.decode("utf-8")
+            res.update(content=s, type="base64")
         else:
             # Memoize the object and then check if it's file name (containing
             # the object id) already exists. If it does, there is no need to
@@ -49,6 +58,16 @@ def ndarray_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
 
 
 def ndarray_get_instance(state, src):
+    if state["type"] == "base64":
+        # TODO
+        b64 = state["content"].encode("utf-8")
+        b = io.BytesIO(base64.b64decode(b64))
+        val = np.load(b)
+        if state["__class__"] != "ndarray":
+            cls = _import_obj(state["__module__"], state["__class__"])
+            val = cls(val)
+        return val
+
     # Dealing with a regular numpy array, where dtype != object
     if state["type"] == "numpy":
         val = np.load(io.BytesIO(src.read(state["file"])), allow_pickle=False)
@@ -64,7 +83,7 @@ def ndarray_get_instance(state, src):
     shape = get_instance(state["shape"], src)
     tmp = [get_instance(s, src) for s in state["content"]]
     # TODO: this is a hack to get the correct shape of the array. We should
-    # find _a better way to do this.
+    # find _a better way_ to do this.
     if len(shape) == 1:
         val = np.ndarray(shape=len(tmp), dtype="O")
         for i, v in enumerate(tmp):

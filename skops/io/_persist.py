@@ -23,7 +23,16 @@ for module_name in modules:
         _get_instance.register(cls)(method)
 
 
-def save(obj, file):
+def _save(obj, save_state):
+    state = get_state(obj, save_state)
+    save_state.clear_memo()
+
+    state["protocol"] = save_state.protocol
+    state["_skops_version"] = skops.__version__
+    return state
+
+
+def dump(obj, file):
     """Save an object using the skops persistence format.
 
     Skops aims at providing a secure persistence feature that does not rely on
@@ -52,11 +61,7 @@ def save(obj, file):
         path = Path(dst)
         with open(path / "schema.json", "w") as f:
             save_state = SaveState(path=path)
-            state = get_state(obj, save_state)
-            save_state.clear_memo()
-
-            state["protocol"] = save_state.protocol
-            state["_skops_version"] = skops.__version__
+            state = _save(obj, save_state)
             json.dump(state, f, indent=2)
 
         # we use the zip format since tarfile can be exploited to create files
@@ -64,6 +69,17 @@ def save(obj, file):
         # https://docs.python.org/3/library/tarfile.html#tarfile.TarFile.extractall
         shutil.make_archive(file, format="zip", root_dir=dst)
         shutil.move(f"{file}.zip", file)
+
+
+# TODO
+save = dump
+
+
+def dumps(obj):
+    """TODO"""
+    save_state = SaveState(path=None)
+    state = _save(obj, save_state=save_state)
+    return json.dumps(state)
 
 
 def load(file):
@@ -94,4 +110,13 @@ def load(file):
     with ZipFile(file, "r") as input_zip:
         schema = input_zip.read("schema.json")
         instance = get_instance(json.loads(schema), input_zip)
+    return instance
+
+
+def loads(s):
+    """TODO"""
+    if isinstance(s, bytes):
+        raise TypeError("Can't load skops format from bytes, pass a string")
+    schema = json.loads(s)
+    instance = get_instance(schema, src=None)
     return instance

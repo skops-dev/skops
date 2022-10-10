@@ -50,7 +50,7 @@ from sklearn.utils.estimator_checks import (
 )
 
 import skops
-from skops.io import load, save
+from skops.io import dumps, load, loads, save
 from skops.io._sklearn import UNSUPPORTED_TYPES
 from skops.io._utils import _get_instance, _get_state
 from skops.io.exceptions import UnsupportedTypeException
@@ -104,7 +104,7 @@ def debug_dispatch_functions():
             else:
                 # should be a primitive type
                 assert isinstance(state, (int, float, str))
-            assert isinstance(src, ZipFile)
+            assert (src is None) or isinstance(src, ZipFile)
 
             result = func(state, src)
 
@@ -122,8 +122,11 @@ def debug_dispatch_functions():
             _get_instance.register(cls)(debug_get_instance(method))
 
 
-def save_load_round(estimator, f_name):
+def save_load_round(estimator, f_name, dump_method="fs"):
     # save and then load the model, and return the loaded model.
+    if dump_method == "memory":
+        return loads(dumps(estimator))
+
     save(file=f_name, obj=estimator)
     loaded = load(file=f_name)
     return loaded
@@ -407,10 +410,11 @@ def assert_params_equal(params1, params2):
 @pytest.mark.parametrize(
     "estimator", _tested_estimators(), ids=_get_check_estimator_ids
 )
-def test_can_persist_non_fitted(estimator, tmp_path):
+@pytest.mark.parametrize("dump_method", ["fs", "memory"])
+def test_can_persist_non_fitted(estimator, dump_method, tmp_path):
     """Check that non-fitted estimators can be persisted."""
     f_name = tmp_path / "file.skops"
-    loaded = save_load_round(estimator, f_name)
+    loaded = save_load_round(estimator, f_name, dump_method=dump_method)
     assert_params_equal(estimator.get_params(), loaded.get_params())
 
 
@@ -466,7 +470,8 @@ def get_input(estimator):
 @pytest.mark.parametrize(
     "estimator", _tested_estimators(), ids=_get_check_estimator_ids
 )
-def test_can_persist_fitted(estimator, request, tmp_path):
+@pytest.mark.parametrize("dump_method", ["fs", "memory"])
+def test_can_persist_fitted(estimator, dump_method, request, tmp_path):
     """Check that fitted estimators can be persisted and return the right results."""
     set_random_state(estimator, random_state=0)
 
@@ -481,7 +486,7 @@ def test_can_persist_fitted(estimator, request, tmp_path):
                 estimator.fit(X)
 
     f_name = tmp_path / "file.skops"
-    loaded = save_load_round(estimator, f_name)
+    loaded = save_load_round(estimator, f_name, dump_method=dump_method)
     assert_params_equal(estimator.__dict__, loaded.__dict__)
 
     for method in [
