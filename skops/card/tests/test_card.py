@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 import sklearn
-from huggingface_hub import metadata_load
+from huggingface_hub import CardData, metadata_load
 from sklearn.datasets import load_iris
 from sklearn.linear_model import LinearRegression, LogisticRegression
 
@@ -371,8 +371,6 @@ class TestCardRepr:
 
     @pytest.mark.parametrize("meth", [repr, str])
     def test_with_metadata(self, card: Card, meth):
-        from modelcards import CardData
-
         metadata = CardData(
             language="fr",
             license="bsd",
