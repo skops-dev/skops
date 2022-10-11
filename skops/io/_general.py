@@ -1,28 +1,31 @@
+from __future__ import annotations
+
 import json
 from functools import partial
 from types import FunctionType
+from typing import Any
 
 import numpy as np
 
-from ._utils import _get_instance, _get_state, _import_obj, get_module, gettype
+from ._utils import SaveState, _import_obj, get_instance, get_module, get_state, gettype
 from .exceptions import UnsupportedTypeException
 
 
-def dict_get_state(obj, dst):
+def dict_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
     }
 
-    key_types = _get_state([type(key) for key in obj.keys()], dst)
+    key_types = get_state([type(key) for key in obj.keys()], save_state)
     content = {}
     for key, value in obj.items():
         if isinstance(value, property):
             continue
         if np.isscalar(key) and hasattr(key, "item"):
             # convert numpy value to python object
-            key = key.item()
-        content[key] = _get_state(value, dst)
+            key = key.item()  # type: ignore
+        content[key] = get_state(value, save_state)
     res["content"] = content
     res["key_types"] = key_types
     return res
@@ -30,20 +33,20 @@ def dict_get_state(obj, dst):
 
 def dict_get_instance(state, src):
     content = gettype(state)()
-    key_types = _get_instance(state["key_types"], src)
+    key_types = get_instance(state["key_types"], src)
     for k_type, item in zip(key_types, state["content"].items()):
-        content[k_type(item[0])] = _get_instance(item[1], src)
+        content[k_type(item[0])] = get_instance(item[1], src)
     return content
 
 
-def list_get_state(obj, dst):
+def list_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
     }
     content = []
     for value in obj:
-        content.append(_get_state(value, dst))
+        content.append(get_state(value, save_state))
     res["content"] = content
     return res
 
@@ -51,16 +54,16 @@ def list_get_state(obj, dst):
 def list_get_instance(state, src):
     content = gettype(state)()
     for value in state["content"]:
-        content.append(_get_instance(value, src))
+        content.append(get_instance(value, src))
     return content
 
 
-def tuple_get_state(obj, dst):
+def tuple_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
     }
-    content = tuple(_get_state(value, dst) for value in obj)
+    content = tuple(get_state(value, save_state) for value in obj)
     res["content"] = content
     return res
 
@@ -79,14 +82,14 @@ def tuple_get_instance(state, src):
         return all(type(n) == str for n in f)
 
     cls = gettype(state)
-    content = tuple(_get_instance(value, src) for value in state["content"])
+    content = tuple(get_instance(value, src) for value in state["content"])
 
     if isnamedtuple(cls):
         return cls(*content)
     return content
 
 
-def function_get_state(obj, dst):
+def function_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(obj),
@@ -103,16 +106,16 @@ def function_get_instance(state, src):
     return loaded
 
 
-def partial_get_state(obj, dst):
+def partial_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     _, _, (func, args, kwds, namespace) = obj.__reduce__()
     res = {
         "__class__": "partial",  # don't allow any subclass
         "__module__": get_module(type(obj)),
         "content": {
-            "func": _get_state(func, dst),
-            "args": _get_state(args, dst),
-            "kwds": _get_state(kwds, dst),
-            "namespace": _get_state(namespace, dst),
+            "func": get_state(func, save_state),
+            "args": get_state(args, save_state),
+            "kwds": get_state(kwds, save_state),
+            "namespace": get_state(namespace, save_state),
         },
     }
     return res
@@ -120,16 +123,16 @@ def partial_get_state(obj, dst):
 
 def partial_get_instance(state, src):
     content = state["content"]
-    func = _get_instance(content["func"], src)
-    args = _get_instance(content["args"], src)
-    kwds = _get_instance(content["kwds"], src)
-    namespace = _get_instance(content["namespace"], src)
+    func = get_instance(content["func"], src)
+    args = get_instance(content["args"], src)
+    kwds = get_instance(content["kwds"], src)
+    namespace = get_instance(content["namespace"], src)
     instance = partial(func, *args, **kwds)  # always use partial, not a subclass
     instance.__setstate__((func, args, kwds, namespace))
     return instance
 
 
-def type_get_state(obj, dst):
+def type_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     # To serialize a type, we first need to set the metadata to tell that it's
     # a type, then store the type's info itself in the content field.
     res = {
@@ -148,7 +151,7 @@ def type_get_instance(state, src):
     return loaded
 
 
-def slice_get_state(obj, dst):
+def slice_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
@@ -168,13 +171,19 @@ def slice_get_instance(state, src):
     return slice(start, stop, step)
 
 
-def object_get_state(obj, dst):
+def object_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     # This method is for objects which can either be persisted with json, or
     # the ones for which we can get/set attributes through
     # __getstate__/__setstate__ or reading/writing to __dict__.
     try:
         # if we can simply use json, then we're done.
-        return json.dumps(obj)
+        obj_str = json.dumps(obj)
+        return {
+            "__class__": "str",
+            "__module__": "builtins",
+            "content": obj_str,
+            "is_json": True,
+        }
     except Exception:
         pass
 
@@ -192,7 +201,7 @@ def object_get_state(obj, dst):
     else:
         return res
 
-    content = _get_state(attrs, dst)
+    content = get_state(attrs, save_state)
     # it's sufficient to store the "content" because we know that this dict can
     # only have str type keys
     res["content"] = content
@@ -200,10 +209,8 @@ def object_get_state(obj, dst):
 
 
 def object_get_instance(state, src):
-    try:
-        return json.loads(state)
-    except Exception:
-        pass
+    if state.get("is_json", False):
+        return json.loads(state["content"])
 
     cls = gettype(state)
 
@@ -216,7 +223,7 @@ def object_get_instance(state, src):
     if not content:  # nothing more to do
         return instance
 
-    attrs = _get_instance(content, src)
+    attrs = get_instance(content, src)
     if hasattr(instance, "__setstate__"):
         instance.__setstate__(attrs)
     else:
@@ -225,7 +232,7 @@ def object_get_instance(state, src):
     return instance
 
 
-def unsupported_get_state(obj, dst):
+def unsupported_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     raise UnsupportedTypeException(obj)
 
 

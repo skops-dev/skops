@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import Any
+
 from sklearn.cluster import Birch
 from sklearn.covariance._graph_lasso import _DictWithDeprecatedKeys
 from sklearn.linear_model._sgd_fast import (
@@ -15,7 +19,7 @@ from sklearn.tree._tree import Tree
 from sklearn.utils import Bunch
 
 from ._general import dict_get_instance, dict_get_state, unsupported_get_state
-from ._utils import _get_instance, _get_state, get_module, gettype
+from ._utils import SaveState, get_instance, get_module, get_state, gettype
 from .exceptions import UnsupportedTypeException
 
 ALLOWED_SGD_LOSSES = {
@@ -32,7 +36,7 @@ ALLOWED_SGD_LOSSES = {
 UNSUPPORTED_TYPES = {Birch}
 
 
-def reduce_get_state(obj, dst):
+def reduce_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     # This method is for objects for which we have to use the __reduce__
     # method to get the state.
     res = {
@@ -56,7 +60,7 @@ def reduce_get_state(obj, dst):
     # As a good example, this makes Tree object to be serializable.
     reduce = obj.__reduce__()
     res["__reduce__"] = {}
-    res["__reduce__"]["args"] = _get_state(reduce[1], dst)
+    res["__reduce__"]["args"] = get_state(reduce[1], save_state)
 
     if len(reduce) == 3:
         # reduce includes what's needed for __getstate__ and we don't need to
@@ -74,16 +78,16 @@ def reduce_get_state(obj, dst):
             f"Objects of type {res['__class__']} not supported yet"
         )
 
-    res["content"] = _get_state(attrs, dst)
+    res["content"] = get_state(attrs, save_state)
     return res
 
 
 def reduce_get_instance(state, src, constructor):
     reduce = state["__reduce__"]
-    args = _get_instance(reduce["args"], src)
+    args = get_instance(reduce["args"], src)
     instance = constructor(*args)
 
-    attrs = _get_instance(state["content"], src)
+    attrs = get_instance(state["content"], src)
     if not attrs:
         # nothing more to do
         return instance
@@ -118,15 +122,17 @@ def bunch_get_instance(state, src):
     return Bunch(**content)
 
 
-def _DictWithDeprecatedKeys_get_state(obj, dst):
+def _DictWithDeprecatedKeys_get_state(
+    obj: Any, save_state: SaveState
+) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
     }
     content = {}
-    content["main"] = dict_get_state(obj, dst)
+    content["main"] = dict_get_state(obj, save_state)
     content["_deprecated_key_to_new_key"] = dict_get_state(
-        obj._deprecated_key_to_new_key, dst
+        obj._deprecated_key_to_new_key, save_state
     )
     res["content"] = content
     return res

@@ -20,8 +20,10 @@ v0.3
   Jalali`_ and `Benjamin Bossan`_. Visit :ref:`persistence` for more
   information. This feature is not production ready yet but we're happy to
   receive feedback from users.
-- Use ``huggingface_hub`` v0.10 for model cards, drop ``modelcards`` dependency.
-  :pr:`162` by `Benjamin Bossan`_.
+- Fix a bug that resulted in markdown tables being rendered incorrectly if
+  entries contained line breaks. :pr:`156` by `Benjamin Bossan`_.
+- Use ``huggingface_hub`` v0.10.1 for model cards, drop ``modelcards``
+  dependency. :pr:`162` by `Benjamin Bossan`_.
 
 v0.2
 ----

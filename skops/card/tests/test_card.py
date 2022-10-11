@@ -16,6 +16,7 @@ import skops
 from skops import hub_utils
 from skops.card import Card, metadata_from_config
 from skops.card._model_card import PlotSection, TableSection
+from skops.io import save
 
 
 def fit_model():
@@ -33,23 +34,70 @@ def model_card(model_diagram=True):
 
 
 @pytest.fixture
-def model_card_metadata_from_config(destination_path):
+def iris_data():
     X, y = load_iris(return_X_y=True, as_frame=True)
+    yield X, y
+
+
+@pytest.fixture
+def iris_estimator(iris_data):
+    X, y = iris_data
     est = LogisticRegression(solver="liblinear").fit(X, y)
+    yield est
+
+
+@pytest.fixture
+def iris_pkl_file(iris_estimator):
     pkl_file = tempfile.mkstemp(suffix=".pkl", prefix="skops-test")[1]
     with open(pkl_file, "wb") as f:
-        pickle.dump(est, f)
+        pickle.dump(iris_estimator, f)
+    yield pkl_file
+
+
+@pytest.fixture
+def iris_skops_file(iris_estimator):
+    skops_folder = tempfile.mkdtemp()
+    model_name = "model.skops"
+    skops_path = Path(skops_folder) / model_name
+    save(iris_estimator, skops_path)
+    yield skops_path
+
+
+def _create_model_card_from_saved_model(
+    destination_path,
+    iris_estimator,
+    iris_data,
+    save_file,
+):
+    X, y = iris_data
     hub_utils.init(
-        model=pkl_file,
+        model=save_file,
         requirements=[f"scikit-learn=={sklearn.__version__}"],
         dst=destination_path,
         task="tabular-classification",
         data=X,
     )
-    card = Card(
-        est, model_diagram=True, metadata=metadata_from_config(destination_path)
+    card = Card(iris_estimator, metadata=metadata_from_config(destination_path))
+    card.save(Path(destination_path) / "README.md")
+    return card
+
+
+@pytest.fixture
+def skops_model_card_metadata_from_config(
+    destination_path, iris_estimator, iris_skops_file, iris_data
+):
+    yield _create_model_card_from_saved_model(
+        destination_path, iris_estimator, iris_data, iris_skops_file
     )
-    yield card
+
+
+@pytest.fixture
+def pkl_model_card_metadata_from_config(
+    destination_path, iris_estimator, iris_pkl_file, iris_data
+):
+    yield _create_model_card_from_saved_model(
+        destination_path, iris_estimator, iris_data, iris_pkl_file
+    )
 
 
 @pytest.fixture
@@ -66,6 +114,29 @@ def test_save_model_card(destination_path, model_card):
 def test_hyperparameter_table(destination_path, model_card):
     model_card = model_card.render()
     assert "fit_intercept" in model_card
+
+
+def _strip_multiple_chars(text, char):
+    # _strip_multiple_chars("hi    there") == "hi there"
+    # _strip_multiple_chars("|---|--|", "-") == "|-|-|"
+    while char + char in text:
+        text = text.replace(char + char, char)
+    return text
+
+
+def test_hyperparameter_table_with_line_break(destination_path):
+    # Hyperparameters can contain values with line breaks, "\n", in them. In
+    # that case, the markdown table is broken. Check that the hyperparameter
+    # table we create properly replaces the "\n" with "<br />".
+    class EstimatorWithLbInParams:
+        def get_params(self, deep=False):
+            return {"fit_intercept": True, "n_jobs": "line\nwith\nbreak"}
+
+    model_card = Card(EstimatorWithLbInParams())
+    model_card = model_card.render()
+    # remove multiple whitespaces, as they're not important
+    model_card = _strip_multiple_chars(model_card, " ")
+    assert "| n_jobs | line<br />with<br />break |" in model_card
 
 
 def test_plot_model(destination_path, model_card):
@@ -122,6 +193,12 @@ def test_metadata_keys(destination_path, model_card):
     assert "tags: dummy" in model_card
 
 
+def test_default_sections_save(model_card):
+    # test if the plot and hyperparameters are only added during save
+    assert "<style>" not in str(model_card)
+    assert "fit_intercept" not in str(model_card)
+
+
 def test_add_metrics(destination_path, model_card):
     model_card.add_metrics(**{"acc": 0.1})
     model_card.add_metrics(f1=0.1)
@@ -129,20 +206,28 @@ def test_add_metrics(destination_path, model_card):
     assert ("acc" in card) and ("f1" in card) and ("0.1" in card)
 
 
-def test_code_autogeneration(destination_path, model_card_metadata_from_config):
+def test_code_autogeneration(destination_path, pkl_model_card_metadata_from_config):
     # test if getting started code is automatically generated
-    model_card_metadata_from_config.save(Path(destination_path) / "README.md")
     metadata = metadata_load(local_path=Path(destination_path) / "README.md")
     filename = metadata["model_file"]
     with open(Path(destination_path) / "README.md") as f:
         assert f"joblib.load({filename})" in f.read()
 
 
+def test_code_autogeneration_skops(
+    destination_path, skops_model_card_metadata_from_config
+):
+    # test if getting started code is automatically generated for skops format
+    metadata = metadata_load(local_path=Path(destination_path) / "README.md")
+    filename = metadata["model_file"]
+    with open(Path(destination_path) / "README.md") as f:
+        assert f'clf = load("{filename}")' in f.read()
+
+
 def test_metadata_from_config_tabular_data(
-    model_card_metadata_from_config, destination_path
+    pkl_model_card_metadata_from_config, destination_path
 ):
     # test if widget data is correctly set in the README
-    model_card_metadata_from_config.save(Path(destination_path) / "README.md")
     metadata = metadata_load(local_path=Path(destination_path) / "README.md")
     assert "widget" in metadata
 
@@ -413,3 +498,40 @@ class TestTableSection:
             assert "<details>" in output
         else:
             assert "<details>" not in output
+
+    def test_line_break_in_entry(self, table_dict):
+        # Line breaks are not allowed inside markdown tables, so check that
+        # they're removed. We test 3 conditions here:
+
+        # 1. custom object with line breaks in repr
+        # 2. string with line break in the middle
+        # 3. string with line break at start, middle, and end
+
+        # Note that for the latter, tabulate will automatically strip the line
+        # breaks from the start and end.
+        class LineBreakInRepr:
+            """Custom object whose repr has a line break"""
+
+            def __repr__(self) -> str:
+                return "obj\nwith lb"
+
+        table_dict["with break"] = [
+            LineBreakInRepr(),
+            "hi\nthere",
+            """
+entry with
+line breaks
+""",
+        ]
+        section = TableSection(table=table_dict)
+        expected = """| split | score | with break |
+|-|-|-|
+| 1 | 4 | obj<br />with lb |
+| 2 | 5 | hi<br />there |
+| 3 | 6 | entry with<br />line breaks |"""
+
+        result = section.format()
+        # remove multiple whitespaces and dashes, as they're not important
+        result = _strip_multiple_chars(result, " ")
+        result = _strip_multiple_chars(result, "-")
+        assert result == expected

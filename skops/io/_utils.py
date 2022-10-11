@@ -1,8 +1,13 @@
+from __future__ import annotations
+
 import importlib
 import json  # type: ignore
 import sys
+from dataclasses import dataclass, field
 from functools import _find_impl, get_cache_token, update_wrapper  # type: ignore
+from pathlib import Path
 from types import FunctionType
+from typing import Any
 
 from skops.utils.fixes import GenericAlias
 
@@ -210,22 +215,67 @@ def get_module(obj):
     return whichmodule(obj, obj.__name__)
 
 
+# For now, there is just one protocol version
+DEFAULT_PROTOCOL = 0
+
+
+@dataclass(frozen=True)
+class SaveState:
+    """State required for saving the objects
+
+    This state is passed to each ``get_state_*`` function.
+
+    Parameters
+    ----------
+    path: pathlib.Path
+        The path to the directory to store the object in.
+
+    protocol: int
+        The protocol of the persistence format. Right now, there is only
+        protocol 0, but this leaves the door open for future changes.
+
+    """
+
+    path: Path
+    protocol: int = DEFAULT_PROTOCOL
+    memo: dict[int, Any] = field(default_factory=dict)
+
+    def memoize(self, obj: Any) -> int:
+        # Currenlty, the only purpose for saving the object id is to make sure
+        # that for the length of the context that the main object is being
+        # saved, all attributes persist, so that the same id cannot be re-used
+        # for different objects.
+        obj_id = id(obj)
+        if obj_id not in self.memo:
+            self.memo[obj_id] = obj
+        return obj_id
+
+    def clear_memo(self) -> None:
+        self.memo.clear()
+
+
 @singledispatch
-def get_state(obj, dst):
+def _get_state(obj, dst):
+    # This function should never be called directly. Instead, it is used to
+    # dispatch to the correct implementation of get_state for the given type of
+    # its first argument.
     raise TypeError(f"Getting the state of type {type(obj)} is not supported yet")
 
 
 @singledispatch
-def get_instance(obj):
+def _get_instance(obj, src):
+    # This function should never be called directly. Instead, it is used to
+    # dispatch to the correct implementation of get_instance for the given type
+    # of its first argument.
     raise TypeError(f"Creating an instance of type {type(obj)} is not supported yet")
 
 
-def _get_state(value, dst):
+def get_state(value, dst):
     # This is a helper function to try to get the state of an object. If it
     # fails with `get_state`, we try with json.dumps, if that fails, we raise
     # the original error alongside the json error.
     try:
-        return get_state(value, dst)
+        return _get_state(value, dst)
     except TypeError as e1:
         try:
             return json.dumps(value)
@@ -233,13 +283,13 @@ def _get_state(value, dst):
             raise e1 from e2
 
 
-def _get_instance(value, src):
+def get_instance(value, src):
     # This is a helper function to try to get the state of an object. If
     # `gettype` fails, we load with `json`.
     if value is None:
         return None
 
     if gettype(value):
-        return get_instance(value, src)
+        return _get_instance(value, src)
 
     return json.loads(value)
