@@ -125,10 +125,9 @@ def _get_example_input(data):
 
         if isinstance(data, pd.DataFrame):
             return {x: data[x][:3].to_list() for x in data.columns}
-    except ImportError as e:
-        raise ValueError(
-            "The data cannot be a pandas.DataFrame because pandas is not installed."
-        ) from e
+    except ImportError:
+        # pandas is not installed, the data cannot be a pandas DataFrame
+        pass
 
     # here we convert the first three rows of the numpy array to a dict of lists
     # to be stored in the config file
@@ -159,10 +158,9 @@ def _get_column_names(data):
 
         if isinstance(data, pd.DataFrame):
             return list(data.columns)
-    except ImportError as e:
-        raise ValueError(
-            "The data cannot be a pandas.DataFrame because pandas is not installed."
-        ) from e
+    except ImportError:
+        # pandas is not installed, the data cannot be a pandas DataFrame
+        pass
 
     data_array = _convert_to_2d_numpy_array(data)
     return [f"x{x}" for x in range(data_array.shape[1])]
