@@ -41,6 +41,13 @@ def singledispatch(func):
     dispatch_cache = weakref.WeakKeyDictionary()
     cache_token = None
 
+    # TODO
+    def reset():
+        nonlocal cache_token
+        registry.clear()
+        dispatch_cache.clear()
+        cache_token = None
+
     def dispatch(instance):  # CHANGED: variable name cls->instance
         """generic_func.dispatch(cls) -> <function implementation>
 
@@ -131,6 +138,7 @@ def singledispatch(func):
     wrapper.register = register
     wrapper.dispatch = dispatch
     wrapper.registry = types.MappingProxyType(registry)
+    wrapper.reset = reset
     wrapper._clear_cache = dispatch_cache.clear
     update_wrapper(wrapper, func)
     return wrapper
@@ -263,33 +271,33 @@ def _get_state(obj, dst):
 
 
 @singledispatch
-def _get_instance(obj, src):
+def _get_instance(state, src):
     # This function should never be called directly. Instead, it is used to
     # dispatch to the correct implementation of get_instance for the given type
     # of its first argument.
-    raise TypeError(f"Creating an instance of type {type(obj)} is not supported yet")
+    raise TypeError(f"Creating an instance of type {type(state)} is not supported yet")
 
 
-def get_state(value, dst):
+def get_state(obj, dst):
     # This is a helper function to try to get the state of an object. If it
     # fails with `get_state`, we try with json.dumps, if that fails, we raise
     # the original error alongside the json error.
     try:
-        return _get_state(value, dst)
+        return _get_state(obj, dst)
     except TypeError as e1:
         try:
-            return json.dumps(value)
+            return json.dumps(obj)
         except Exception as e2:
             raise e1 from e2
 
 
-def get_instance(value, src):
+def get_instance(state, src):
     # This is a helper function to try to get the state of an object. If
     # `gettype` fails, we load with `json`.
-    if value is None:
+    if state is None:
         return None
 
-    if gettype(value):
-        return _get_instance(value, src)
+    if gettype(state):
+        return _get_instance(state, src)
 
-    return json.loads(value)
+    return json.loads(state)

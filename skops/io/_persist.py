@@ -9,7 +9,22 @@ from zipfile import ZipFile
 
 import skops
 
+from ._audit import (
+    Audit,
+    AuditChain,
+    AuditSecureModule,
+    audit_is_function,
+    audit_state_sanity,
+)
 from ._utils import SaveState, _get_instance, _get_state, get_instance, get_state
+
+secure_modules = ["builtins", "numpy", "scipy", "sklearn"]
+audit_hooks: list[Audit] = [
+    audit_state_sanity,
+    audit_is_function,
+    AuditSecureModule(secure_modules),
+]
+audit_chain = AuditChain(audit_hooks)
 
 # We load the dispatch functions from the corresponding modules and register
 # them.
@@ -20,7 +35,7 @@ for module_name in modules:
     for cls, method in getattr(module, "GET_STATE_DISPATCH_FUNCTIONS", []):
         _get_state.register(cls)(method)
     for cls, method in getattr(module, "GET_INSTANCE_DISPATCH_FUNCTIONS", []):
-        _get_instance.register(cls)(method)
+        _get_instance.register(cls)(audit_chain(method))
 
 
 def save(obj, file):

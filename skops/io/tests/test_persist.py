@@ -51,6 +51,13 @@ from sklearn.utils.estimator_checks import (
 
 import skops
 from skops.io import load, save
+from skops.io._audit import (
+    Audit,
+    AuditChain,
+    AuditSecureModule,
+    audit_is_function,
+    audit_state_sanity,
+)
 from skops.io._sklearn import UNSUPPORTED_TYPES
 from skops.io._utils import _get_instance, _get_state
 from skops.io.exceptions import UnsupportedTypeException
@@ -63,6 +70,18 @@ N_FEATURES = 20
 # Python 3.8)
 ATOL = 1e-6 if sys.platform == "darwin" else 1e-7
 
+LOG_AUDIT = []
+
+
+def log_audit(msg):
+    LOG_AUDIT.append(msg)
+
+
+@pytest.fixture
+def audit_logs():
+    LOG_AUDIT.clear()  # clear between calls
+    return LOG_AUDIT
+
 
 @pytest.fixture(autouse=True)
 def debug_dispatch_functions():
@@ -70,6 +89,9 @@ def debug_dispatch_functions():
     # them. Specifically, we test that the arguments of the functions all follow
     # the same pattern to enforce consistency and that the "state" is either a
     # dict with specified keys or a primitive type.
+
+    _get_state.reset()
+    _get_instance.reset()
 
     def debug_get_state(func):
         # Check consistency of argument names, output type, and that the output,
@@ -112,6 +134,15 @@ def debug_dispatch_functions():
 
         return wrapper
 
+    secure_modules = ["builtins", "numpy", "scipy", "sklearn"]
+    # Overwrite audit to log the security issues instead of raising
+    audit_hooks: list[Audit] = [
+        audit_state_sanity,
+        audit_is_function,
+        AuditSecureModule(secure_modules),
+    ]
+    audit_chain = AuditChain(audit_hooks, method=log_audit)
+
     modules = ["._general", "._numpy", "._scipy", "._sklearn"]
     for module_name in modules:
         # overwrite exposed functions for get_state and get_instance
@@ -119,7 +150,7 @@ def debug_dispatch_functions():
         for cls, method in getattr(module, "GET_STATE_DISPATCH_FUNCTIONS", []):
             _get_state.register(cls)(debug_get_state(method))
         for cls, method in getattr(module, "GET_INSTANCE_DISPATCH_FUNCTIONS", []):
-            _get_instance.register(cls)(debug_get_instance(method))
+            _get_instance.register(cls)(audit_chain(debug_get_instance(method)))
 
 
 def save_load_round(estimator, f_name):
@@ -782,3 +813,33 @@ def test_numpy_dtype_object_does_not_store_broken_file(tmp_path):
 
     # this estimator should not have any numpy file
     assert not any(file.endswith(".npy") for file in files)
+
+
+def dummy(x):
+    """Dummy function that should be considered as insecure"""
+    return x
+
+
+class TestAudit:
+    def test_insecure_function(self, audit_logs, tmp_path):
+        estimator = FunctionTransformer(dummy)
+        save_load_round(estimator, tmp_path / "file.skops")
+
+        expected = (
+            "The following 2 security violations have been found: Loading function"
+            " ''dummy' of module 'test_persist'' is considered insecure. Untrusted"
+            " module 'test_persist' found"
+        )
+        assert len(audit_logs) == 1
+        assert audit_logs[0] == expected
+
+    def test_insecure_class(self, audit_logs, tmp_path):
+        estimator = NumpyDtypeObjectEstimator()
+        save_load_round(estimator, tmp_path / "file.skops")
+
+        expected = (
+            "The following security violation has been found: Untrusted module"
+            " 'test_persist' found"
+        )
+        assert len(audit_logs) == 1
+        assert audit_logs[0] == expected
