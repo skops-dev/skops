@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import warnings
 from functools import wraps
-from typing import Any, Callable, Literal, Protocol, Sequence
+from typing import Any, Callable, Protocol, Sequence
 
+from ..utils.fixes import Literal
 from .exceptions import InsecureObjectException
 
 
