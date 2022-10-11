@@ -158,12 +158,72 @@ def test_validate_folder(config_json):
             },
         ),
         (
+            iris.data.values,
+            "tabular-classification",
+            {
+                "sklearn": {
+                    "columns": ["x0", "x1", "x2", "x3"],
+                    "environment": ['scikit-learn="1.1.1"', "numpy"],
+                    "example_input": {
+                        "x0": [1.4, 1.4, 1.3],
+                        "x1": [0.2, 0.2, 0.2],
+                        "x2": [5.1, 4.9, 4.7],
+                        "x3": [3.5, 3.0, 3.2],
+                    },
+                    "model": {"file": "model.pkl"},
+                    "task": "tabular-classification",
+                }
+            },
+        ),
+        (
+            iris.data.values.tolist(),
+            "tabular-classification",
+            {
+                "sklearn": {
+                    "columns": ["x0", "x1", "x2", "x3"],
+                    "environment": ['scikit-learn="1.1.1"', "numpy"],
+                    "example_input": {
+                        "x0": [1.4, 1.4, 1.3],
+                        "x1": [0.2, 0.2, 0.2],
+                        "x2": [5.1, 4.9, 4.7],
+                        "x3": [3.5, 3.0, 3.2],
+                    },
+                    "model": {"file": "model.pkl"},
+                    "task": "tabular-classification",
+                }
+            },
+        ),
+        (
             ["test", "text", "problem", "random"],
             "text-classification",
             {
                 "sklearn": {
                     "environment": ['scikit-learn="1.1.1"', "numpy"],
                     "example_input": {"data": ["test", "text", "problem"]},
+                    "model": {"file": "model.pkl"},
+                    "task": "text-classification",
+                }
+            },
+        ),
+        (
+            np.array(["test", "text", "problem", "random"]),
+            "text-classification",
+            {
+                "sklearn": {
+                    "environment": ['scikit-learn="1.1.1"', "numpy"],
+                    "example_input": {"data": ["test", "text", "problem"]},
+                    "model": {"file": "model.pkl"},
+                    "task": "text-classification",
+                }
+            },
+        ),
+        (
+            (f"test{n}" for n in range(4)),
+            "text-classification",
+            {
+                "sklearn": {
+                    "environment": ['scikit-learn="1.1.1"', "numpy"],
+                    "example_input": {"data": ["test0", "test1", "test2"]},
                     "model": {"file": "model.pkl"},
                     "task": "text-classification",
                 }
@@ -475,7 +535,7 @@ def test_update_env(repo_path, config_json):
 def test_get_example_input():
     """Test the _get_example_input function."""
     with pytest.raises(
-        ValueError, match="The data is not a pandas.DataFrame or a numpy.ndarray."
+        ValueError, match="The data must be convertible to a 2D numpy.ndarray."
     ):
         _get_example_input(["a", "b", "c"])
 
@@ -494,7 +554,7 @@ def test_get_example_input():
 
 def test_get_column_names():
     with pytest.raises(
-        ValueError, match="The data is not a pandas.DataFrame or a numpy.ndarray."
+        ValueError, match="The data must be convertible to a 2D numpy.ndarray."
     ):
         _get_column_names(["a", "b", "c"])
 
