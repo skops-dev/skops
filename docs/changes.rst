@@ -11,6 +11,7 @@ skops Changelog
 
 v0.3
 ----
+- Support more array-like data types for tabular data and list-like data types for text data. :pr:`179` by `Francesco Cariaggi`_.
 - Utility function to add arbitrary files to be uploaded to the hub by using
   :func:`.hub_utils.add_files`. :pr:`123` by `Benjamin Bossan`_.
 - Add ``private`` as an optional argument to :meth:`.hub_utils.push` to
