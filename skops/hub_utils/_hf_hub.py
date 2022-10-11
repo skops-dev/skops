@@ -75,6 +75,26 @@ def _validate_folder(path: Union[str, Path]) -> None:
 
 
 def _convert_to_2d_numpy_array(data):
+    """Converts an array-like object to a 2D numpy.ndarray.
+
+    Raises a ``ValueError`` if data cannot be converted to a 2D numpy.ndarray.
+
+    Parameters
+    ----------
+    data: pandas.DataFrame or array-like
+        Any object that can be converted to a 2D ``numpy.ndarray``, including
+        a ``pandas.DataFrame``.
+
+    Raises
+    ------
+    ValueError
+        Raised when the passed object cannot be converted to 2D numpy.ndarray.
+
+    Returns
+    -------
+    data_array: numpy.ndarray
+        The numpy.ndarray object obtained by converting data.
+    """
     data_array = np.asarray(data)
     if len(data_array.shape) != 2:
         raise ValueError("The data must be convertible to a 2D numpy.ndarray.")
@@ -227,6 +247,19 @@ def _create_config(
 
 
 def _is_iterable_of_strings(data):
+    """Checks whether data is an iterable of strings.
+
+    Parameters
+    ----------
+    data: Any
+        Any object.
+
+    Returns
+    -------
+    is_iterable_of_strings: bool
+        A boolean variable indicating whether or not data is an iterable of
+        strings.
+    """
     if isinstance(data, str):
         return False
     try:
