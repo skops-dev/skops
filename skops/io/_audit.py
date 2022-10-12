@@ -71,7 +71,7 @@ def audit_is_function(state: dict[str, Any]) -> tuple[bool, str]:
     """Check whether a function is being loaded"""
     if state["__class__"] == "function" or state["__class__"] == "partial":
         func_name = _get_func_name(state)
-        msg = f"Loading function '{func_name}' is considered insecure"
+        msg = f"Loading function {func_name} is considered insecure"
         return False, msg
     return True, ""
 

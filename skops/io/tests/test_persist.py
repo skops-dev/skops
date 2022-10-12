@@ -827,7 +827,7 @@ class TestAudit:
 
         expected = (
             "The following 2 security violations have been found: Loading function"
-            " ''dummy' of module 'test_persist'' is considered insecure. Untrusted"
+            " 'dummy' of module 'test_persist' is considered insecure. Untrusted"
             " module 'test_persist' found"
         )
         assert len(audit_logs) == 1
