@@ -1,10 +1,9 @@
 from __future__ import annotations
 
+import base64
 import importlib
+import io
 import json
-import shutil
-import tempfile
-from pathlib import Path
 from zipfile import ZipFile
 
 import skops
@@ -23,52 +22,26 @@ for module_name in modules:
         _get_instance.register(cls)(method)
 
 
-def _save(obj, save_state):
-    state = get_state(obj, save_state)
-    save_state.clear_memo()
+def _save(obj):
+    buffer = io.BytesIO()
 
-    state["protocol"] = save_state.protocol
-    state["_skops_version"] = skops.__version__
-    return state
+    with ZipFile(buffer, "w") as zip_file:
+        save_state = SaveState(zip_file=zip_file)
+        state = get_state(obj, save_state)
+        save_state.clear_memo()
+
+        state["protocol"] = save_state.protocol
+        state["_skops_version"] = skops.__version__
+
+        zip_file.writestr("schema.json", json.dumps(state))
+
+    return buffer
 
 
 def dump(obj, file):
-    """Save an object using the skops persistence format.
-
-    Skops aims at providing a secure persistence feature that does not rely on
-    :mod:`pickle`, which is inherently insecure. For more information, please
-    visit the :ref:`persistence` documentation.
-
-    .. warning::
-
-       This feature is very early in development, which means the API is
-       unstable and it is **not secure** at the moment. Therefore, use the same
-       caution as you would for ``pickle``: Don't load from sources that you
-       don't trust. In the future, more security will be added.
-
-    Parameters
-    ----------
-    obj: object
-        The object to be saved. Usually a scikit-learn compatible model.
-
-    file: str
-        The file name. A zip archive will automatically created. As a matter of
-        convention, we recommend to use the ".skops" file extension, e.g.
-        ``save(model, "my-model.skops")``.
-
-    """
-    with tempfile.TemporaryDirectory() as dst:
-        path = Path(dst)
-        with open(path / "schema.json", "w") as f:
-            save_state = SaveState(path=path)
-            state = _save(obj, save_state)
-            json.dump(state, f, indent=2)
-
-        # we use the zip format since tarfile can be exploited to create files
-        # outside of the destination directory:
-        # https://docs.python.org/3/library/tarfile.html#tarfile.TarFile.extractall
-        shutil.make_archive(file, format="zip", root_dir=dst)
-        shutil.move(f"{file}.zip", file)
+    buffer = _save(obj)
+    with open(file, "wb") as f:
+        f.write(buffer.getbuffer())
 
 
 # TODO
@@ -77,9 +50,8 @@ save = dump
 
 def dumps(obj):
     """TODO"""
-    save_state = SaveState(path=None)
-    state = _save(obj, save_state=save_state)
-    return json.dumps(state)
+    buffer = _save(obj)
+    return base64.b64encode(buffer.getbuffer())
 
 
 def load(file):
@@ -115,8 +87,10 @@ def load(file):
 
 def loads(s):
     """TODO"""
-    if isinstance(s, bytes):
-        raise TypeError("Can't load skops format from bytes, pass a string")
-    schema = json.loads(s)
-    instance = get_instance(schema, src=None)
+    if isinstance(s, str):
+        raise TypeError("Can't load skops format from string, pass bytes")
+
+    with ZipFile(io.BytesIO(base64.b64decode(s)), "r") as zip_file:
+        schema = json.loads(zip_file.read("schema.json"))
+        instance = get_instance(schema, src=zip_file)
     return instance

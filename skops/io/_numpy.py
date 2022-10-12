@@ -26,25 +26,12 @@ def ndarray_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
             res["content"] = obj_serialized["content"]
             res["type"] = "json"
             res["shape"] = get_state(obj.shape, save_state)
-        elif save_state.path is None:
-            # using skops.io.dumps, don't write to file
-            f = io.BytesIO()
-            np.save(f, obj)
-            b = f.getvalue()
-            b64 = base64.b64encode(b)
-            s = b64.decode("utf-8")
-            res.update(content=s, type="base64")
         else:
-            # Memoize the object and then check if it's file name (containing
-            # the object id) already exists. If it does, there is no need to
-            # save the object again. Memoizitation is necessary since for
-            # ephemeral objects, the same id might otherwise be reused.
-            obj_id = save_state.memoize(obj)
+            data_buffer = io.BytesIO()
+            np.save(data_buffer, obj)
+            obj_id = save_state.memoize(obj)  # TODO: useless
             f_name = f"{obj_id}.npy"
-            path = save_state.path / f_name
-            if not path.exists():
-                with open(path, "wb") as f:
-                    np.save(f, obj, allow_pickle=False)
+            save_state.zip_file.writestr(f_name, data_buffer.getbuffer())
             res.update(type="numpy", file=f_name)
     except ValueError:
         # Couldn't save the numpy array with either method
