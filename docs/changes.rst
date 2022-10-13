@@ -56,4 +56,4 @@ Contributors
 ~~~~~~~~~~~~
 
 :user:`Adrin Jalali <adrinjalali>`, :user:`Merve Noyan <merveenoyan>`,
-:user:`Benjamin Bossan <BenjaminBossan>`
+:user:`Benjamin Bossan <BenjaminBossan>`, :user:`Francesco Cariaggi <anferico>`
