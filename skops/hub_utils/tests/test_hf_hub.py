@@ -32,6 +32,8 @@ from skops.hub_utils._hf_hub import (
     _create_config,
     _get_column_names,
     _get_example_input,
+    _head,
+    _is_sequence_of_strings,
     _validate_folder,
 )
 from skops.hub_utils.tests.common import HF_HUB_TOKEN
@@ -256,7 +258,8 @@ def test_create_config(data, task, expected_config):
             )
 
 
-def test_create_config_invalid_text_data(temp_path):
+@pytest.mark.parametrize("data", [[1, 2, 3], 420])
+def test_create_config_invalid_text_data(data, temp_path):
     with pytest.raises(
         ValueError, match="The data needs to be an iterable of strings."
     ):
@@ -264,9 +267,38 @@ def test_create_config_invalid_text_data(temp_path):
             model_path="model.pkl",
             requirements=['scikit-learn="1.1.1"', "numpy"],
             task="text-classification",
-            data=[1, 2, 3],
+            data=data,
             dst=temp_path,
         )
+
+
+@pytest.mark.parametrize(
+    "data, n, expected_output",
+    [
+        ([0, "1", 2, 3, 4], 3, [0, "1", 2]),
+        ((i for i in range(5)), 3, [0, 1, 2]),
+    ],
+)
+def test_head(data, n, expected_output):
+    assert _head(data, n) == expected_output
+
+
+def test_head_invalid_iterable():
+    with pytest.raises(TypeError):
+        _head(420)
+
+
+@pytest.mark.parametrize(
+    "data, is_sequence_of_strings",
+    [
+        ("sample text", False),
+        (["sample", 420], False),
+        (420, False),
+        (["sample", "text"], True),
+    ],
+)
+def test_is_sequence_of_strings(data, is_sequence_of_strings):
+    assert _is_sequence_of_strings(data) == is_sequence_of_strings
 
 
 def test_atomic_init(classifier_pickle, temp_path):
