@@ -8,6 +8,7 @@
 
 import inspect
 import os
+import subprocess
 from operator import attrgetter
 
 from packaging.version import parse
@@ -70,16 +71,24 @@ autosummary_generate = True
 # (note that `group` is the GitHub user or organization)
 issues_github_path = "skops-dev/skops"
 
+REVISION_CMD = "git rev-parse --short HEAD"
+
+
+def _get_git_revision():
+    try:
+        revision = subprocess.check_output(REVISION_CMD.split()).strip()
+    except (subprocess.CalledProcessError, OSError):
+        print("Failed to execute git to get revision")
+        return None
+    return revision.decode("utf-8")
+
 
 def linkcode_resolve(domain, info):
-    if domain != "py":
-        return None
-    if not info["module"]:
-        return None
-    filename = info["module"].replace(".", "/")
-    if domain not in ("py", "pyx"):
-        return
     if not info.get("module") or not info.get("fullname"):
+        return
+    revision = _get_git_revision()
+
+    if revision is None:
         return
 
     class_name = info["fullname"].split(".")[0]
@@ -93,7 +102,7 @@ def linkcode_resolve(domain, info):
     try:
         fn = inspect.getsourcefile(inspect.unwrap(obj))
     except TypeError:
-        try: 
+        try:
             fn = inspect.getsourcefile(inspect.unwrap(obj.fget))
         except (AttributeError, TypeError):
             fn = None
@@ -105,9 +114,11 @@ def linkcode_resolve(domain, info):
         lineno = inspect.getsourcelines(obj)[1]
     except Exception:
         lineno = ""
-    return (
-        "https://github.com/skops-dev/skops/blob/main/skops/" + fn + "#L" + str(lineno)
+    url_fmt = (
+        "https://github.com/skops-dev/skops/blob/{revision}/{package}/{path}#L{lineno}"
     )
+    revision = _get_git_revision()
+    return url_fmt.format(revision=revision, package=package, path=fn, lineno=lineno)
 
 
 # -- Options for HTML output -------------------------------------------------
