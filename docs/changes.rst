@@ -24,6 +24,9 @@ v0.3
   entries contained line breaks. :pr:`156` by `Benjamin Bossan`_.
 - Use ``huggingface_hub`` v0.10.1 for model cards, drop ``modelcards``
   dependency. :pr:`162` by `Benjamin Bossan`_.
+- Add source links to API documentation.
+  :pr:`172` by `Ayyuce Demirbas`_.
+
 
 v0.2
 ----
@@ -57,4 +60,4 @@ Contributors
 ~~~~~~~~~~~~
 
 :user:`Adrin Jalali <adrinjalali>`, :user:`Merve Noyan <merveenoyan>`,
-:user:`Benjamin Bossan <BenjaminBossan>`
+:user:`Benjamin Bossan <BenjaminBossan>`, :user:`Ayyuce Demirbas <ayyucedemirbas>`
