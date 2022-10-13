@@ -10,7 +10,7 @@ from pathlib import Path
 from reprlib import Repr
 from typing import Any, Optional, Union
 
-from modelcards import CardData, ModelCard
+from huggingface_hub import CardData, ModelCard
 from sklearn.utils import estimator_html_repr
 from tabulate import tabulate  # type: ignore
 
@@ -110,10 +110,10 @@ class TableSection:
 def metadata_from_config(config_path: Union[str, Path]) -> CardData:
     """Construct a ``CardData`` object from a ``config.json`` file.
 
-    Most information needed for the metadata section of a ``README.md``
-    file on Hugging Face Hub is included in the ``config.json`` file. This
-    utility function constructs a ``CardData`` object which can then be
-    passed to the :class:`~skops.card.Card` object.
+    Most information needed for the metadata section of a ``README.md`` file on
+    Hugging Face Hub is included in the ``config.json`` file. This utility
+    function constructs a :class:`huggingface_hub.CardData` object which can
+    then be passed to the :class:`~skops.card.Card` object.
 
     This method populates the following attributes of the instance:
 
@@ -133,8 +133,9 @@ def metadata_from_config(config_path: Union[str, Path]) -> CardData:
 
     Returns
     -------
-    card_data: ``modelcards.CardData``
-        ``CardData`` object.
+    card_data: huggingface_hub.CardData
+        :class:`huggingface_hub.CardData` object.
+
     """
     config_path = Path(config_path)
     if not config_path.is_file():
@@ -254,15 +255,8 @@ class Card:
         metadata: Optional[CardData] = None,
     ) -> None:
         self.model = model
-        self._hyperparameter_table = self._extract_estimator_config()
-        # the spaces in the pipeline breaks markdown, so we replace them
+        self.model_diagram = model_diagram
         self._eval_results = {}  # type: ignore
-        if model_diagram is True:
-            self._model_plot: str | None = re.sub(
-                r"\n\s+", "", str(estimator_html_repr(model))
-            )
-        else:
-            self._model_plot = None
         self._template_sections: dict[str, str] = {}
         self._extra_sections: list[tuple[str, Any]] = []
         self.metadata = metadata or CardData()
@@ -384,15 +378,16 @@ class Card:
 
         Returns
         -------
-        card : modelcards.ModelCard
-            The final ``ModelCard`` object with all placeholders filled and all
-            extra sections inserted.
+        card : huggingface_hub.ModelCard
+            The final :class:`huggingface_hub.ModelCard` object with all
+            placeholders filled and all extra sections inserted.
         """
         root = skops.__path__
 
         # add evaluation results
 
         template_sections = copy.deepcopy(self._template_sections)
+
         if self.metadata:
             if self.metadata.to_dict().get("model_file"):
                 model_file = self.metadata.to_dict().get("model_file")
@@ -415,11 +410,18 @@ class Card:
                         " json.load(f)\n"
                         'clf.predict(pd.DataFrame.from_dict(config["sklearn"]["example_input"]))'
                     )
+        if self.model_diagram is True:
+            model_plot: str | None = re.sub(
+                r"\n\s+", "", str(estimator_html_repr(self.model))
+            )
+        else:
+            model_plot = None
         template_sections["eval_results"] = tabulate(
             list(self._eval_results.items()),
             headers=["Metric", "Value"],
             tablefmt="github",
         )
+
         # if template path is not given, use default
         if template_sections.get("template_path") is None:
             template_sections["template_path"] = str(
@@ -446,8 +448,8 @@ class Card:
 
             card = ModelCard.from_template(
                 card_data=self.metadata,
-                hyperparameter_table=self._hyperparameter_table,
-                model_plot=self._model_plot,
+                hyperparameter_table=self._extract_estimator_config(),
+                model_plot=model_plot,
                 **template_sections,
             )
         return card

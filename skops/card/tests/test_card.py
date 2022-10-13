@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 import sklearn
-from huggingface_hub import metadata_load
+from huggingface_hub import CardData, metadata_load
 from sklearn.datasets import load_iris
 from sklearn.linear_model import LinearRegression, LogisticRegression
 
@@ -34,23 +34,70 @@ def model_card(model_diagram=True):
 
 
 @pytest.fixture
-def model_card_metadata_from_config(destination_path):
+def iris_data():
     X, y = load_iris(return_X_y=True, as_frame=True)
+    yield X, y
+
+
+@pytest.fixture
+def iris_estimator(iris_data):
+    X, y = iris_data
     est = LogisticRegression(solver="liblinear").fit(X, y)
+    yield est
+
+
+@pytest.fixture
+def iris_pkl_file(iris_estimator):
     pkl_file = tempfile.mkstemp(suffix=".pkl", prefix="skops-test")[1]
     with open(pkl_file, "wb") as f:
-        pickle.dump(est, f)
+        pickle.dump(iris_estimator, f)
+    yield pkl_file
+
+
+@pytest.fixture
+def iris_skops_file(iris_estimator):
+    skops_folder = tempfile.mkdtemp()
+    model_name = "model.skops"
+    skops_path = Path(skops_folder) / model_name
+    save(iris_estimator, skops_path)
+    yield skops_path
+
+
+def _create_model_card_from_saved_model(
+    destination_path,
+    iris_estimator,
+    iris_data,
+    save_file,
+):
+    X, y = iris_data
     hub_utils.init(
-        model=pkl_file,
+        model=save_file,
         requirements=[f"scikit-learn=={sklearn.__version__}"],
         dst=destination_path,
         task="tabular-classification",
         data=X,
     )
-    card = Card(
-        est, model_diagram=True, metadata=metadata_from_config(destination_path)
+    card = Card(iris_estimator, metadata=metadata_from_config(destination_path))
+    card.save(Path(destination_path) / "README.md")
+    return card
+
+
+@pytest.fixture
+def skops_model_card_metadata_from_config(
+    destination_path, iris_estimator, iris_skops_file, iris_data
+):
+    yield _create_model_card_from_saved_model(
+        destination_path, iris_estimator, iris_data, iris_skops_file
     )
-    yield card
+
+
+@pytest.fixture
+def pkl_model_card_metadata_from_config(
+    destination_path, iris_estimator, iris_pkl_file, iris_data
+):
+    yield _create_model_card_from_saved_model(
+        destination_path, iris_estimator, iris_data, iris_pkl_file
+    )
 
 
 @pytest.fixture
@@ -146,6 +193,12 @@ def test_metadata_keys(destination_path, model_card):
     assert "tags: dummy" in model_card
 
 
+def test_default_sections_save(model_card):
+    # test if the plot and hyperparameters are only added during save
+    assert "<style>" not in str(model_card)
+    assert "fit_intercept" not in str(model_card)
+
+
 def test_add_metrics(destination_path, model_card):
     model_card.add_metrics(**{"acc": 0.1})
     model_card.add_metrics(f1=0.1)
@@ -153,31 +206,18 @@ def test_add_metrics(destination_path, model_card):
     assert ("acc" in card) and ("f1" in card) and ("0.1" in card)
 
 
-def test_code_autogeneration(destination_path, model_card_metadata_from_config):
+def test_code_autogeneration(destination_path, pkl_model_card_metadata_from_config):
     # test if getting started code is automatically generated
-    model_card_metadata_from_config.save(Path(destination_path) / "README.md")
     metadata = metadata_load(local_path=Path(destination_path) / "README.md")
     filename = metadata["model_file"]
     with open(Path(destination_path) / "README.md") as f:
         assert f"joblib.load({filename})" in f.read()
 
 
-def test_code_autogeneration_skops(destination_path):
+def test_code_autogeneration_skops(
+    destination_path, skops_model_card_metadata_from_config
+):
     # test if getting started code is automatically generated for skops format
-    X, y = load_iris(return_X_y=True, as_frame=True)
-    model = fit_model()
-    skops_folder = tempfile.mkdtemp()
-    model_name = "model.skops"
-    save(model, Path(skops_folder) / model_name)
-    hub_utils.init(
-        model=Path(skops_folder) / model_name,
-        requirements=[f"scikit-learn=={sklearn.__version__}"],
-        dst=destination_path,
-        task="tabular-classification",
-        data=X,
-    )
-    card = Card(model, metadata=metadata_from_config(destination_path))
-    card.save(Path(destination_path) / "README.md")
     metadata = metadata_load(local_path=Path(destination_path) / "README.md")
     filename = metadata["model_file"]
     with open(Path(destination_path) / "README.md") as f:
@@ -185,10 +225,9 @@ def test_code_autogeneration_skops(destination_path):
 
 
 def test_metadata_from_config_tabular_data(
-    model_card_metadata_from_config, destination_path
+    pkl_model_card_metadata_from_config, destination_path
 ):
     # test if widget data is correctly set in the README
-    model_card_metadata_from_config.save(Path(destination_path) / "README.md")
     metadata = metadata_load(local_path=Path(destination_path) / "README.md")
     assert "widget" in metadata
 
@@ -332,8 +371,6 @@ class TestCardRepr:
 
     @pytest.mark.parametrize("meth", [repr, str])
     def test_with_metadata(self, card: Card, meth):
-        from modelcards import CardData
-
         metadata = CardData(
             language="fr",
             license="bsd",

@@ -626,7 +626,7 @@ def get_model_output(repo_id: str, data: Any, token: Optional[str] = None) -> An
     Also note that if the model repo is private, the inference API would not be
     available.
     """
-    model_info = HfApi().model_info(repo_id=repo_id, token=token)
+    model_info = HfApi().model_info(repo_id=repo_id, use_auth_token=token)
     if not model_info.pipeline_tag:
         raise ValueError(
             f"Repo {repo_id} has no pipeline tag. You should set a valid 'task' in"

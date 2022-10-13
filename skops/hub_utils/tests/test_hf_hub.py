@@ -370,7 +370,7 @@ def test_push_download(
     with pytest.raises(OSError, match="None-empty dst path already exists!"):
         download(repo_id=repo_id, dst=destination_path, token=HF_HUB_TOKEN)
 
-    files = client.list_repo_files(repo_id=repo_id, token=HF_HUB_TOKEN)
+    files = client.list_repo_files(repo_id=repo_id, use_auth_token=HF_HUB_TOKEN)
     for f_name in [classifier_pickle.name, config_json.name]:
         assert f_name in files
 
