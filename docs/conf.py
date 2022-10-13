@@ -84,6 +84,8 @@ def _get_git_revision():
 
 
 def linkcode_resolve(domain, info):
+    if domain not in ("py", "pyx"):
+        return
     if not info.get("module") or not info.get("fullname"):
         return
     revision = _get_git_revision()
