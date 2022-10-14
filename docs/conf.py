@@ -6,6 +6,11 @@
 
 # -- Path setup --------------------------------------------------------------
 
+import inspect
+import os
+import subprocess
+from operator import attrgetter
+
 from packaging.version import parse
 
 # If extensions (or modules to document with autodoc) are in another directory,
@@ -36,6 +41,7 @@ release = ".".join(parsed_version.base_version.split(".")[:2])
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+    "sphinx.ext.linkcode",
     "sphinx.ext.autodoc",
     "numpydoc",
     "sphinx_gallery.gen_gallery",
@@ -64,6 +70,58 @@ autosummary_generate = True
 # Path to GitHub repo {group}/{project}
 # (note that `group` is the GitHub user or organization)
 issues_github_path = "skops-dev/skops"
+
+REVISION_CMD = "git rev-parse --short HEAD"
+
+
+def _get_git_revision():
+    try:
+        revision = subprocess.check_output(REVISION_CMD.split()).strip()
+    except (subprocess.CalledProcessError, OSError):
+        print("Failed to execute git to get revision")
+        return None
+    return revision.decode("utf-8")
+
+
+def linkcode_resolve(domain, info):
+    if domain not in ("py", "pyx"):
+        return
+    if not info.get("module") or not info.get("fullname"):
+        return
+    revision = _get_git_revision()
+
+    if revision is None:
+        return
+
+    class_name = info["fullname"].split(".")[0]
+    module = __import__(info["module"], fromlist=[class_name])
+    obj = attrgetter(info["fullname"])(module)
+
+    # Unwrap the object to get the correct source
+    # file in case that is wrapped by a decorator
+    obj = inspect.unwrap(obj)
+
+    try:
+        fn = inspect.getsourcefile(inspect.unwrap(obj))
+    except TypeError:
+        try:
+            fn = inspect.getsourcefile(inspect.unwrap(obj.fget))
+        except (AttributeError, TypeError):
+            fn = None
+    if not fn:
+        return None
+    package = "skops"
+    fn = os.path.relpath(fn, start=os.path.dirname(__import__(package).__file__))
+    try:
+        lineno = inspect.getsourcelines(obj)[1]
+    except Exception:
+        lineno = ""
+    url_fmt = (
+        "https://github.com/skops-dev/skops/blob/{revision}/{package}/{path}#L{lineno}"
+    )
+    revision = _get_git_revision()
+    return url_fmt.format(revision=revision, package=package, path=fn, lineno=lineno)
+
 
 # -- Options for HTML output -------------------------------------------------
 
