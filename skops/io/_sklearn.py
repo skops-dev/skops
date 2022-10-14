@@ -129,8 +129,7 @@ def _DictWithDeprecatedKeys_get_state(
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
     }
-    content = {}
-    content["main"] = dict_get_state(obj, save_state)
+    content = {"main": dict_get_state(obj, save_state)}
     content["_deprecated_key_to_new_key"] = dict_get_state(
         obj._deprecated_key_to_new_key, save_state
     )
@@ -155,8 +154,9 @@ GET_STATE_DISPATCH_FUNCTIONS = [
     (Tree, reduce_get_state),
     (_DictWithDeprecatedKeys, _DictWithDeprecatedKeys_get_state),
 ]
-for type_ in UNSUPPORTED_TYPES:
-    GET_STATE_DISPATCH_FUNCTIONS.append((type_, unsupported_get_state))
+GET_STATE_DISPATCH_FUNCTIONS.extend(
+    (type_, unsupported_get_state) for type_ in UNSUPPORTED_TYPES
+)
 
 # tuples of type and function that creates the instance of that type
 GET_INSTANCE_DISPATCH_FUNCTIONS = [

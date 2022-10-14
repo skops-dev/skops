@@ -114,7 +114,7 @@ def test_validate_folder(config_json):
         _validate_folder(path=dir_path)
 
     with open(Path(dir_path) / "config.json", "w") as f:
-        json.dump(dict(), f)
+        json.dump({}, f)
 
     with pytest.raises(
         TypeError, match="Model file not configured in the configuration file."

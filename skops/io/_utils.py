@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import importlib
 import json  # type: ignore
 import sys
@@ -171,11 +172,9 @@ def whichmodule(obj, name):
             or module is None
         ):
             continue
-        try:
+        with contextlib.suppress(AttributeError):
             if _getattribute(module, name)[0] is obj:
                 return module_name
-        except AttributeError:
-            pass
     return "__main__"
 
 

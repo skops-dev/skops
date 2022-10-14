@@ -277,7 +277,7 @@ def _is_steps_like(obj):
         return False
 
     lens = set(map(len, obj))
-    if not lens == {2}:  # all elements must be length 2 tuples
+    if lens != {2}:  # all elements must be length 2 tuples
         return False
 
     keys, vals = list(zip(*obj))
@@ -285,11 +285,8 @@ def _is_steps_like(obj):
     if len(keys) != len(set(keys)):  # keys must be unique
         return False
 
-    if not all(map(lambda x: isinstance(x, (type(None), BaseEstimator)), vals)):
-        # values must be BaseEstimators or None
-        return False
-
-    return True
+    # values must be BaseEstimators or None
+    return all(map(lambda x: isinstance(x, (type(None), BaseEstimator)), vals))
 
 
 def _assert_generic_objects_equal(val1, val2):

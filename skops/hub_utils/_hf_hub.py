@@ -2,9 +2,11 @@
 This module contains utilities to push a model to the hub and pull from the
 hub.
 """
+
 from __future__ import annotations
 
 import collections
+import contextlib
 import json
 import os
 import shutil
@@ -90,15 +92,11 @@ def _get_example_input(data):
     example_input: dict of lists
         The example input of the model as accepted by Hugging Face's backend.
     """
-    try:
+    with contextlib.suppress(ImportError):
         import pandas as pd
 
         if isinstance(data, pd.DataFrame):
             return {x: data[x][:3].to_list() for x in data.columns}
-    except ImportError:
-        # pandas is not installed, the data cannot be a pandas DataFrame
-        pass
-
     # here we convert the first three rows of the numpy array to a dict of lists
     # to be stored in the config file
     if isinstance(data, np.ndarray):
@@ -123,15 +121,11 @@ def _get_column_names(data):
     columns: list of tuples
         A list of strings. Each string is a column name.
     """
-    try:
+    with contextlib.suppress(ImportError):
         import pandas as pd
 
         if isinstance(data, pd.DataFrame):
             return list(data.columns)
-    except ImportError:
-        # pandas is not installed, the data cannot be a pandas DataFrame
-        pass
-
     # TODO: this is going to fail for Structured Arrays. We can add support for
     # them later if we see need for it.
     if isinstance(data, np.ndarray):
@@ -524,7 +518,7 @@ def get_requirements(path: Union[str, Path]) -> List[str]:
         be installed.
     """
     config = get_config(path)
-    return config.get("sklearn", dict()).get("environment", list())
+    return config.get("sklearn", {}).get("environment", [])
 
 
 def download(

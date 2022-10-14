@@ -37,13 +37,13 @@ def ndarray_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
                 with open(path, "wb") as f:
                     np.save(f, obj, allow_pickle=False)
             res.update(type="numpy", file=f_name)
-    except ValueError:
+    except ValueError as e:
         # Couldn't save the numpy array with either method
         raise UnsupportedTypeException(
             f"numpy arrays of dtype {obj.dtype} are not supported yet, please "
             "open an issue at https://github.com/skops-dev/skops/issues and "
             "report your error"
-        )
+        ) from e
 
     return res
 

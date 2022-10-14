@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import json
 from functools import partial
 from types import FunctionType
@@ -44,9 +45,7 @@ def list_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
     }
-    content = []
-    for value in obj:
-        content.append(get_state(value, save_state))
+    content = [get_state(value, save_state) for value in obj]
     res["content"] = content
     return res
 
@@ -77,16 +76,12 @@ def tuple_get_instance(state, src):
         if len(b) != 1 or b[0] != tuple:
             return False
         f = getattr(t, "_fields", None)
-        if not isinstance(f, tuple):
-            return False
-        return all(type(n) == str for n in f)
+        return all(type(n) == str for n in f) if isinstance(f, tuple) else False
 
     cls = gettype(state)
     content = tuple(get_instance(value, src) for value in state["content"])
 
-    if isnamedtuple(cls):
-        return cls(*content)
-    return content
+    return cls(*content) if isnamedtuple(cls) else content
 
 
 def function_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
@@ -175,7 +170,7 @@ def object_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     # This method is for objects which can either be persisted with json, or
     # the ones for which we can get/set attributes through
     # __getstate__/__setstate__ or reading/writing to __dict__.
-    try:
+    with contextlib.suppress(Exception):
         # if we can simply use json, then we're done.
         obj_str = json.dumps(obj)
         return {
@@ -184,9 +179,6 @@ def object_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
             "content": obj_str,
             "is_json": True,
         }
-    except Exception:
-        pass
-
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),

@@ -174,15 +174,17 @@ def test_temporary_plot(destination_path, model_card):
     # and not to default template or template provided
     root = skops.__path__
     # read original template
-    with open(Path(root[0]) / "card" / "default_template.md") as f:
-        default_template = f.read()
+    default_template = Path(Path(root[0]) / "card" / "default_template.md").read_text()
+
     plt.plot([4, 5, 6, 7])
     plt.savefig(Path(destination_path) / "fig1.png")
     model_card.add_plot(fig1="fig1.png")
     model_card.save(Path(destination_path) / "README.md")
     # check if default template is not modified
-    with open(Path(root[0]) / "card" / "default_template.md") as f:
-        default_template_post = f.read()
+    default_template_post = Path(
+        Path(root[0]) / "card" / "default_template.md"
+    ).read_text()
+
     assert default_template == default_template_post
 
 
