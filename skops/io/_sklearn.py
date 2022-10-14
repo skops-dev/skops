@@ -3,7 +3,11 @@ from __future__ import annotations
 from typing import Any
 
 from sklearn.cluster import Birch
-from sklearn.covariance._graph_lasso import _DictWithDeprecatedKeys
+
+try:
+    from sklearn.covariance._graph_lasso import _DictWithDeprecatedKeys
+except ImportError:
+    _DictWithDeprecatedKeys = None
 from sklearn.linear_model._sgd_fast import (
     EpsilonInsensitive,
     Hinge,
@@ -153,7 +157,6 @@ def _DictWithDeprecatedKeys_get_instance(state, src):
 GET_STATE_DISPATCH_FUNCTIONS = [
     (LossFunction, reduce_get_state),
     (Tree, reduce_get_state),
-    (_DictWithDeprecatedKeys, _DictWithDeprecatedKeys_get_state),
 ]
 for type_ in UNSUPPORTED_TYPES:
     GET_STATE_DISPATCH_FUNCTIONS.append((type_, unsupported_get_state))
@@ -163,5 +166,12 @@ GET_INSTANCE_DISPATCH_FUNCTIONS = [
     (LossFunction, sgd_loss_get_instance),
     (Tree, Tree_get_instance),
     (Bunch, bunch_get_instance),
-    (_DictWithDeprecatedKeys, _DictWithDeprecatedKeys_get_instance),
 ]
+
+if _DictWithDeprecatedKeys is not None:
+    GET_STATE_DISPATCH_FUNCTIONS.append(
+        (_DictWithDeprecatedKeys, _DictWithDeprecatedKeys_get_state)
+    )
+    GET_INSTANCE_DISPATCH_FUNCTIONS.append(
+        (_DictWithDeprecatedKeys, _DictWithDeprecatedKeys_get_instance)
+    )
