@@ -51,23 +51,19 @@ def save(obj, file):
     with tempfile.TemporaryDirectory() as dst:
         path = Path(dst)
         with open(path / "schema.json", "w") as f:
-            _extracted_from_save_29(path, obj, f)
+            save_state = SaveState(path=path)
+            state = get_state(obj, save_state)
+            save_state.clear_memo()
+
+            state["protocol"] = save_state.protocol
+            state["_skops_version"] = skops.__version__
+            json.dump(state, f, indent=2)
+
         # we use the zip format since tarfile can be exploited to create files
         # outside of the destination directory:
         # https://docs.python.org/3/library/tarfile.html#tarfile.TarFile.extractall
         shutil.make_archive(file, format="zip", root_dir=dst)
         shutil.move(f"{file}.zip", file)
-
-
-# TODO Rename this here and in `save`
-def _extracted_from_save_29(path, obj, f):
-    save_state = SaveState(path=path)
-    state = get_state(obj, save_state)
-    save_state.clear_memo()
-
-    state["protocol"] = save_state.protocol
-    state["_skops_version"] = skops.__version__
-    json.dump(state, f, indent=2)
 
 
 def load(file):

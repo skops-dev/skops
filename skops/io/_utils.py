@@ -287,8 +287,4 @@ def get_instance(value, src):
     # `gettype` fails, we load with `json`.
     if value is None:
         return None
-
-    if gettype(value):
-        return _get_instance(value, src)
-
-    return json.loads(value)
+    return _get_instance(value, src) if gettype(value) else json.loads(value)
