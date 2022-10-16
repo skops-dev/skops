@@ -10,8 +10,6 @@ profile = "black"
 filterwarnings = [
     "error::DeprecationWarning",
     "error::FutureWarning",
-    # TODO: remove line below once we changed hub calls to use use_auth_token
-    "ignore:Deprecated argument\\(s\\) used in 'model_info':FutureWarning",
 ]
 markers = [
     "network: marks tests as requiring internet (deselect with '-m \"not network\"')",
