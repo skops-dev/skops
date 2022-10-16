@@ -187,7 +187,12 @@ def test_code_autogeneration_skops(destination_path):
     metadata = metadata_load(local_path=Path(destination_path) / "README.md")
     filename = metadata["model_file"]
     with open(Path(destination_path) / "README.md") as f:
-        assert f'clf = load("{filename}")' in f.read()
+        read_buffer = f.read()
+        assert f'clf = load("{filename}")' in read_buffer
+
+        # test if the model doesn't overflow the huggingface models page
+        assert read_buffer.count("sk-top-container") == 1
+        assert 'style="overflow: auto;' in read_buffer
 
 
 def test_metadata_from_config_tabular_data(
