@@ -1,3 +1,6 @@
+Thanks a lot for contributing to skops! Please make sure you've taken a look at the contribution guidelines: https://github.com/skops-dev/skops/blob/main/CONTRIBUTING.rst
+Below is a template you can use to create pull requests. 
+
 # Description
 
 Please include:
@@ -19,3 +22,5 @@ Partially resolves: # (issue)
 - [ ] I have made changes to docstrings and notebooks
 - [ ] I have added tests that prove my fix is effective or that my feature works
 - [ ] New and existing unit tests pass locally with my changes
+
+
