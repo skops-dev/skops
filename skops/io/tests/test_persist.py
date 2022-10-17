@@ -782,3 +782,13 @@ def test_numpy_dtype_object_does_not_store_broken_file(tmp_path):
 
     # this estimator should not have any numpy file
     assert not any(file.endswith(".npy") for file in files)
+
+
+def test_for_serialized_bound_method_works_as_expected(tmp_path):
+    from scipy import stats
+
+    estimator = FunctionTransformer(func=stats.zipf)
+    loaded_estimator = save_load_round(estimator, tmp_path / "file.skops")
+
+    assert estimator.func._entropy(2) == loaded_estimator.func._entropy(2)
+    # This is the bounded method that was causing trouble. As seen, it works now!

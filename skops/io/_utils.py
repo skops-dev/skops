@@ -6,7 +6,7 @@ import sys
 from dataclasses import dataclass, field
 from functools import _find_impl, get_cache_token, update_wrapper  # type: ignore
 from pathlib import Path
-from types import FunctionType
+from types import FunctionType, MethodType
 from typing import Any
 
 from skops.utils.fixes import GenericAlias
@@ -192,6 +192,8 @@ def gettype(state):
             # This special case is due to how functions are serialized. We
             # could try to change it.
             return FunctionType
+        if state["__class__"] == "method":
+            return MethodType
         return _import_obj(state["__module__"], state["__class__"])
     return None
 
