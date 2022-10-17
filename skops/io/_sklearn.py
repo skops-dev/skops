@@ -5,6 +5,7 @@ from typing import Any
 from sklearn.cluster import Birch
 
 try:
+    # TODO: remove once support for sklearn<1.2 is dropped. See #187
     from sklearn.covariance._graph_lasso import _DictWithDeprecatedKeys
 except ImportError:
     _DictWithDeprecatedKeys = None
@@ -168,6 +169,9 @@ GET_INSTANCE_DISPATCH_FUNCTIONS = [
     (Bunch, bunch_get_instance),
 ]
 
+# TODO: remove once support for sklearn<1.2 is dropped.
+# Starting from sklearn 1.2, _DictWithDeprecatedKeys is removed as it's no
+# longer needed for GraphicalLassoCV, see #187.
 if _DictWithDeprecatedKeys is not None:
     GET_STATE_DISPATCH_FUNCTIONS.append(
         (_DictWithDeprecatedKeys, _DictWithDeprecatedKeys_get_state)
