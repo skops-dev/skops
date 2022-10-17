@@ -127,6 +127,7 @@ def bunch_get_instance(state, src):
     return Bunch(**content)
 
 
+# TODO: remove once support for sklearn<1.2 is dropped.
 def _DictWithDeprecatedKeys_get_state(
     obj: Any, save_state: SaveState
 ) -> dict[str, Any]:
@@ -143,6 +144,7 @@ def _DictWithDeprecatedKeys_get_state(
     return res
 
 
+# TODO: remove once support for sklearn<1.2 is dropped.
 def _DictWithDeprecatedKeys_get_instance(state, src):
     # _DictWithDeprecatedKeys is just a wrapper for dict
     content = dict_get_instance(state["content"]["main"], src)
