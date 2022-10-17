@@ -3,7 +3,12 @@ from __future__ import annotations
 from typing import Any
 
 from sklearn.cluster import Birch
-from sklearn.covariance._graph_lasso import _DictWithDeprecatedKeys
+
+try:
+    # TODO: remove once support for sklearn<1.2 is dropped. See #187
+    from sklearn.covariance._graph_lasso import _DictWithDeprecatedKeys
+except ImportError:
+    _DictWithDeprecatedKeys = None
 from sklearn.linear_model._sgd_fast import (
     EpsilonInsensitive,
     Hinge,
@@ -122,6 +127,7 @@ def bunch_get_instance(state, src):
     return Bunch(**content)
 
 
+# TODO: remove once support for sklearn<1.2 is dropped.
 def _DictWithDeprecatedKeys_get_state(
     obj: Any, save_state: SaveState
 ) -> dict[str, Any]:
@@ -138,6 +144,7 @@ def _DictWithDeprecatedKeys_get_state(
     return res
 
 
+# TODO: remove once support for sklearn<1.2 is dropped.
 def _DictWithDeprecatedKeys_get_instance(state, src):
     # _DictWithDeprecatedKeys is just a wrapper for dict
     content = dict_get_instance(state["content"]["main"], src)
@@ -153,7 +160,6 @@ def _DictWithDeprecatedKeys_get_instance(state, src):
 GET_STATE_DISPATCH_FUNCTIONS = [
     (LossFunction, reduce_get_state),
     (Tree, reduce_get_state),
-    (_DictWithDeprecatedKeys, _DictWithDeprecatedKeys_get_state),
 ]
 for type_ in UNSUPPORTED_TYPES:
     GET_STATE_DISPATCH_FUNCTIONS.append((type_, unsupported_get_state))
@@ -163,5 +169,15 @@ GET_INSTANCE_DISPATCH_FUNCTIONS = [
     (LossFunction, sgd_loss_get_instance),
     (Tree, Tree_get_instance),
     (Bunch, bunch_get_instance),
-    (_DictWithDeprecatedKeys, _DictWithDeprecatedKeys_get_instance),
 ]
+
+# TODO: remove once support for sklearn<1.2 is dropped.
+# Starting from sklearn 1.2, _DictWithDeprecatedKeys is removed as it's no
+# longer needed for GraphicalLassoCV, see #187.
+if _DictWithDeprecatedKeys is not None:
+    GET_STATE_DISPATCH_FUNCTIONS.append(
+        (_DictWithDeprecatedKeys, _DictWithDeprecatedKeys_get_state)
+    )
+    GET_INSTANCE_DISPATCH_FUNCTIONS.append(
+        (_DictWithDeprecatedKeys, _DictWithDeprecatedKeys_get_instance)
+    )
