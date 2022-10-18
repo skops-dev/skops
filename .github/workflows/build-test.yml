@@ -10,14 +10,21 @@ concurrency:
 
 jobs:
   pytest:
-
     runs-on: ${{ matrix.os }}
     if: "github.repository == 'skops-dev/skops'"
     strategy:
       fail-fast: false  # need to see which ones fail
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        python: ["3.7", "3.8", "3.9", "3.10"]
+        os: [ubuntu-latest]  # FIXME debug: , windows-latest, macos-latest]
+        include:
+          - python: "3.7"
+            sklearn_version: "0.24"
+          - python: "3.8"
+            sklearn_version: "1.0"
+          - python: "3.9"
+            sklearn_version: "1.1"
+          - python: "3.10"
+            sklearn_version: "nightly"
 
     # Timeout: https://stackoverflow.com/a/59076067/4521646
     timeout-minutes: 15
@@ -33,6 +40,8 @@ jobs:
       run: |
         pip install .[docs,tests]
         pip install black=="22.6.0" isort=="5.10.1" mypy=="0.981"
+        pip uninstall scikit-learn
+        pip install "scikit-learn==${{ sklearn_version }}"
         python --version
         pip --version
         pip list
@@ -48,7 +57,7 @@ jobs:
       env:
         SUPER_SECRET: ${{ secrets.HF_HUB_TOKEN }}
       run: |
-        python -m pytest -s -v --cov-report=xml skops/
+        python -m pytest -s -v --cov-report=xml skops/ -m "not network"  # FIXME debug
 
     - name: Mypy
       run: mypy --config-file pyproject.toml skops
