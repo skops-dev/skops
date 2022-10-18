@@ -19,12 +19,12 @@ from sklearn.experimental import enable_halving_search_cv  # noqa
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import (
     GridSearchCV,
+    GroupKFold,
     HalvingGridSearchCV,
     HalvingRandomSearchCV,
     KFold,
     RandomizedSearchCV,
     ShuffleSplit,
-    StratifiedGroupKFold,
     check_cv,
 )
 from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
@@ -579,8 +579,8 @@ class CVEstimator(BaseEstimator):
     [
         None,
         3,
-        KFold(4),
-        StratifiedGroupKFold(5, shuffle=True, random_state=42),
+        KFold(4, shuffle=True, random_state=42),
+        GroupKFold(5),
         ShuffleSplit(6, random_state=np.random.RandomState(123)),
     ],
 )
