@@ -249,7 +249,7 @@ def method_get_state(obj: Any, save_state: SaveState):
 def method_get_instance(state, src):
     # TODO: init with attrs
     loaded_obj = _import_obj(state["content"]["module_path"], state["content"]["obj"])()
-    method = getattr(loaded_obj, "_entropy")
+    method = getattr(loaded_obj, state["content"]["func"])
     return method
 
 
