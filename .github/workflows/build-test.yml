@@ -10,12 +10,15 @@ concurrency:
 
 jobs:
   pytest:
+
     runs-on: ${{ matrix.os }}
     if: "github.repository == 'skops-dev/skops'"
     strategy:
       fail-fast: false  # need to see which ones fail
       matrix:
-        os: [ubuntu-latest]  # FIXME debug: , windows-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python: ["3.7", "3.8", "3.9", "3.10"]
+        # this is to make the CI run on different sklearn versions
         include:
           - python: "3.7"
             sklearn_version: "0.24"
@@ -41,7 +44,10 @@ jobs:
         pip install .[docs,tests]
         pip install black=="22.6.0" isort=="5.10.1" mypy=="0.981"
         pip uninstall scikit-learn
-        pip install "scikit-learn==${{ sklearn_version }}"
+        if [ ${{ matrix.sklearn_version }} == "nightly" ];
+          then pip install --pre --extra-index https://pypi.anaconda.org/scipy-wheels-nightly/simple scikit-learn;
+          else pip install "scikit-learn==${{ matrix.sklearn_version }}";
+        fi
         python --version
         pip --version
         pip list
