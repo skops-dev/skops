@@ -10,6 +10,8 @@ profile = "black"
 filterwarnings = [
     "error::DeprecationWarning",
     "error::FutureWarning",
+    # numpy.distutils deprecation needs to be fixed on sklearn side
+    'ignore:\`numpy.distutils\` is deprecated:DeprecationWarning',
 ]
 markers = [
     "network: marks tests as requiring internet (deselect with '-m \"not network\"')",

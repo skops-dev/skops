@@ -10,9 +10,9 @@ from zipfile import ZipFile
 import numpy as np
 import pytest
 from scipy import sparse, special
-from sklearn.base import BaseEstimator
+from sklearn.base import BaseEstimator, is_regressor
 from sklearn.compose import ColumnTransformer
-from sklearn.datasets import load_sample_images, make_classification
+from sklearn.datasets import load_sample_images, make_classification, make_regression
 from sklearn.decomposition import SparseCoder
 from sklearn.exceptions import SkipTestWarning
 from sklearn.experimental import enable_halving_search_cv  # noqa
@@ -419,10 +419,16 @@ def get_input(estimator):
 
     # TODO: make this a parameter and test with sparse data
     # TODO: try with pandas.DataFrame as well
-    # This data can be used for a regression model as well.
-    X, y = make_classification(
-        n_samples=N_SAMPLES, n_features=N_FEATURES, random_state=0
-    )
+    if is_regressor(estimator):
+        # classifier data can lead to failure of certain regressors to fit, e.g.
+        # RANSAC in sklearn 0.24, so regression data is needed
+        X, y = make_regression(
+            n_samples=N_SAMPLES, n_features=N_FEATURES, random_state=0
+        )
+    else:
+        X, y = make_classification(
+            n_samples=N_SAMPLES, n_features=N_FEATURES, random_state=0
+        )
     y = _enforce_estimator_tags_y(estimator, y)
     tags = _safe_tags(estimator)
 
@@ -459,6 +465,10 @@ def get_input(estimator):
             "And this is the third one.",
             "Is this the first document?",
         ], None
+
+    if tags["X_types"] == "sparse":
+        # TfidfTransformer in sklearn 0.24 needs this
+        return sparse.csr_matrix(X), y
 
     raise ValueError(f"Unsupported X type for estimator: {tags['X_types']}")
 
