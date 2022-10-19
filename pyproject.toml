@@ -10,8 +10,13 @@ profile = "black"
 filterwarnings = [
     "error::DeprecationWarning",
     "error::FutureWarning",
-    # numpy.distutils deprecation needs to be fixed on sklearn side
-    'ignore:\`numpy.distutils\` is deprecated:DeprecationWarning',
+    # TODO: remove when no longer supporting sklearn v1.0
+    # numpy and scipy deprecation warnings in sklearn:
+    'ignore:\n\n  \`numpy.distutils\` is deprecated since NumPy:DeprecationWarning',
+    # https://github.com/scikit-learn/scikit-learn/issues/24080
+    "ignore:The \\'sym_pos\\' keyword is deprecated and should be replaced:DeprecationWarning",
+    # https://github.com/scikit-learn/scikit-learn/pull/23633
+    "ignore:Unlike other reduction functions:FutureWarning",
 ]
 markers = [
     "network: marks tests as requiring internet (deselect with '-m \"not network\"')",
