@@ -63,7 +63,7 @@ jobs:
       env:
         SUPER_SECRET: ${{ secrets.HF_HUB_TOKEN }}
       run: |
-        python -m pytest -s -v --cov-report=xml skops/ -m "not network"  # FIXME debug
+        python -m pytest -s -v --cov-report=xml skops/
 
     - name: Mypy
       run: mypy --config-file pyproject.toml skops
