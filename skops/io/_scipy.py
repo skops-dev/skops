@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import base64
 import io
 from typing import Any
 
@@ -19,7 +18,8 @@ def sparse_matrix_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     save_npz(data_buffer, obj)
     obj_id = save_state.memoize(obj)  # TODO: useless
     f_name = f"{obj_id}.npz"
-    save_state.zip_file.writestr(f_name, data_buffer.getbuffer())
+    if f_name not in save_state.zip_file.namelist():
+        save_state.zip_file.writestr(f_name, data_buffer.getbuffer())
 
     res["type"] = "scipy"
     res["file"] = f_name
@@ -27,13 +27,6 @@ def sparse_matrix_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
 
 
 def sparse_matrix_get_instance(state, src):
-    if state["type"] == "base64":
-        # TODO
-        b64 = state["content"].encode("utf-8")
-        b = io.BytesIO(base64.b64decode(b64))
-        val = load_npz(b)
-        return val
-
     if state["type"] != "scipy":
         raise TypeError(
             f"Cannot load object of type {state['__module__']}.{state['__class__']}"

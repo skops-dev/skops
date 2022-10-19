@@ -787,3 +787,10 @@ def test_numpy_dtype_object_does_not_store_broken_file(tmp_path):
 
     # this estimator should not have any numpy file
     assert not any(file.endswith(".npy") for file in files)
+
+
+def test_loads_from_str():
+    # loads expects bytes, not str
+    msg = "Can't load skops format from string, pass bytes"
+    with pytest.raises(TypeError, match=msg):
+        loads("this is a string")

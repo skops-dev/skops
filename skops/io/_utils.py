@@ -227,7 +227,9 @@ class SaveState:
 
     Parameters
     ----------
-    TODO
+    zip_file: zipfile.ZipFile
+        The zip file to write the data to, must be in write mode.
+
     path: pathlib.Path
         The path to the directory to store the object in.
 
