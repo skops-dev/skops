@@ -239,16 +239,15 @@ def method_get_state(obj: Any, save_state: SaveState):
         "__module__": get_module(obj),
         "content": {
             "func": obj.__func__.__name__,
-            "obj": obj.__self__.__class__.__name__,
-            "module_path": get_module(obj.__self__.__class__),
+            "obj": object_get_state(obj.__self__, save_state),
         },
     }
+
     return res
 
 
 def method_get_instance(state, src):
-    # TODO: init with attrs
-    loaded_obj = _import_obj(state["content"]["module_path"], state["content"]["obj"])()
+    loaded_obj = object_get_instance(state["content"]["obj"], src)
     method = getattr(loaded_obj, state["content"]["func"])
     return method
 

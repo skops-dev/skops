@@ -784,11 +784,28 @@ def test_numpy_dtype_object_does_not_store_broken_file(tmp_path):
     assert not any(file.endswith(".npy") for file in files)
 
 
+class DummyMethodHolder:
+    """Used to test the ability to serialise and deserialize"""
+
+    def __init__(self, variant: str):
+        if variant == "sqrt":
+            self.chosen_function = np.sqrt
+        elif variant == "log":
+            self.chosen_function = np.log
+        else:
+            self.chosen_function = np.exp
+
+    def apply(self, x):
+        return self.chosen_function(x)
+
+
 def test_for_serialized_bound_method_works_as_expected(tmp_path):
-    from scipy import stats
+    obj = DummyMethodHolder(variant="log")
+    bound_function = obj.apply
+    transformer = FunctionTransformer(func=bound_function)
 
-    estimator = FunctionTransformer(func=stats.zipf)
-    loaded_estimator = save_load_round(estimator, tmp_path / "file.skops")
+    loaded_transformer = save_load_round(transformer, tmp_path / "file.skops")
+    loaded_bound_function = loaded_transformer.func.__self__.chosen_function
 
-    assert estimator.func._entropy(2) == loaded_estimator.func._entropy(2)
-    # This is the bounded method that was causing trouble. As seen, it works now!
+    assert loaded_transformer.func.__name__ == bound_function.__name__
+    assert loaded_bound_function == obj.chosen_function
