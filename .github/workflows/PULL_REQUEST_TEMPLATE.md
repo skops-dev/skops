@@ -1,28 +1,30 @@
-Thanks a lot for contributing to skops! Please make sure you've taken a look at the contribution guidelines: https://github.com/skops-dev/skops/blob/main/CONTRIBUTING.rst You can find answers to your questions about the checklist below in this file.
-Below is a template you can use to create pull requests. 
+<!--
+Thanks for contributing a pull request! Please ensure you have taken a look at
+the contribution guidelines: https://github.com/skops-dev/skops/blob/main/CONTRIBUTING.rst
+-->
 
-# Description
+#### Reference Issues/PRs
+<!--
+Example: Fixes #1234. See also #3456.
+Please use keywords (e.g., Fixes, partially fixes) to create link to the issues 
+or pull requests you resolved, so that they will automatically be closed when 
+your pull request is merged. 
+See https://github.com/blog/1506-closing-issues-via-pull-requests
+-->
 
-Please include:
-* relevant motivation
-* a summary of the change
-* which issue is fixed
-* any additional dependencies that are required for this change.
 
-You can link the PR to the issue like below:
-Closes: # (issue)
-If it's a PR that solves a small part of the issue, you can do:
-Partially resolves: # (issue)
+#### What does this implement/fix? Explain your changes.
 
-# Checklist:
 
-- [ ] I have performed a self-review of my own code
-- [ ] I have run style formatting on my code
-- [ ] I have commented my code in hard-to-understand areas
-- [ ] I have made changes to docstrings and notebooks
-- [ ] I have added tests that prove my fix is effective or that my feature works
-- [ ] New and existing unit tests pass locally with my changes
-- [ ] I added my changes to changelog in docs/changes.rst.
+#### Any other comments?
 
-Don't hesitate to ping @skops-dev/maintainers in your issues and pull requests if you don't receive a review in a timely manner. We try to review all pull requests as soon as we can.
 
+<!--
+Please be aware that we are a loose team of volunteers so patience is
+necessary; assistance handling other issues is very welcome. We value
+all user contributions, no matter how minor they are. If we are slow to
+review, either the pull request needs some benchmarking, tinkering,
+convincing, etc. or more likely the reviewers are simply busy.
+
+Thanks for contributing!
+-->
