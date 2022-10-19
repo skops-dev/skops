@@ -1,6 +1,8 @@
 <!--
 Thanks for contributing a pull request! Please ensure you have taken a look at
 the contribution guidelines: https://github.com/skops-dev/skops/blob/main/CONTRIBUTING.rst
+This guideline contains crucial information for your PR to be merged, such as setting up 
+development environment or linting your code.
 -->
 
 #### Reference Issues/PRs
