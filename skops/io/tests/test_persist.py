@@ -784,8 +784,8 @@ def test_numpy_dtype_object_does_not_store_broken_file(tmp_path):
     assert not any(file.endswith(".npy") for file in files)
 
 
-class DummyMethodHolder:
-    """Used to test the ability to serialise and deserialize"""
+class _BoundMethodHolder:
+    """Used to test the ability to serialise and deserialize bound methods"""
 
     def __init__(self, variant: str):
         if variant == "sqrt":
@@ -800,7 +800,7 @@ class DummyMethodHolder:
 
 
 def test_for_serialized_bound_method_works_as_expected(tmp_path):
-    obj = DummyMethodHolder(variant="log")
+    obj = _BoundMethodHolder(variant="log")
     bound_function = obj.apply
     transformer = FunctionTransformer(func=bound_function)
 
