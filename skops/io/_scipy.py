@@ -16,7 +16,7 @@ def sparse_matrix_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
 
     data_buffer = io.BytesIO()
     save_npz(data_buffer, obj)
-    obj_id = save_state.memoize(obj)  # TODO: useless
+    obj_id = save_state.memoize(obj)
     f_name = f"{obj_id}.npz"
     if f_name not in save_state.zip_file.namelist():
         save_state.zip_file.writestr(f_name, data_buffer.getbuffer())
