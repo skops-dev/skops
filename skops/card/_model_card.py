@@ -16,6 +16,7 @@ from sklearn.utils import estimator_html_repr
 from tabulate import tabulate  # type: ignore
 
 import skops
+from skops.io import load
 
 # Repr attributes can be used to control the behavior of repr
 aRepr = Repr()
@@ -26,7 +27,10 @@ aRepr.maxstring = 79
 def wrap_as_details(text: str, folded: bool) -> str:
     if not folded:
         return text
-    return f"<details>\n<summary> Click to expand </summary>\n\n{text}\n\n</details>"
+    return (
+        "<details>\n<summary> Click to expand"
+        f" </summary>\n\n{text}\n\n</details>"
+    )
 
 
 def _clean_table(table: str) -> str:
@@ -93,7 +97,9 @@ class TableSection:
             headers = self.table.keys()
 
         table = _clean_table(
-            tabulate(self.table, tablefmt="github", headers=headers, showindex=False)
+            tabulate(
+                self.table, tablefmt="github", headers=headers, showindex=False
+            )
         )
         return wrap_as_details(table, folded=self.folded)
 
@@ -151,7 +157,9 @@ def metadata_from_config(config_path: Union[str, Path]) -> CardData:
     task = config.get("sklearn", {}).get("task", None)
     if task:
         card_data.tags += [task]
-    card_data.model_file = config.get("sklearn", {}).get("model", {}).get("file")
+    card_data.model_file = (
+        config.get("sklearn", {}).get("model", {}).get("file")
+    )
     example_input = config.get("sklearn", {}).get("example_input", None)
     # Documentation on what the widget expects:
     # https://huggingface.co/docs/hub/models-widgets-examples
@@ -173,7 +181,7 @@ class Card:
 
     Parameters
     ----------
-    model: estimator object
+    model: pathlib.path, str, or sklearn estimator object
         Model that will be documented.
 
     model_diagram: bool, default=True
@@ -255,7 +263,7 @@ class Card:
         model_diagram: bool = True,
         metadata: Optional[CardData] = None,
     ) -> None:
-        self.model = self._load_model(model)
+        self._model = model
         self.model_diagram = model_diagram
         self._eval_results = {}  # type: ignore
         self._template_sections: dict[str, str] = {}
@@ -303,11 +311,15 @@ class Card:
             Card object.
         """
         for plot_name, plot_path in kwargs.items():
-            section = PlotSection(alt_text=plot_name, path=plot_path, folded=folded)
+            section = PlotSection(
+                alt_text=plot_name, path=plot_path, folded=folded
+            )
             self._extra_sections.append((plot_name, section))
         return self
 
-    def add_table(self, folded: bool = False, **kwargs: dict["str", list[Any]]) -> Card:
+    def add_table(
+        self, folded: bool = False, **kwargs: dict["str", list[Any]]
+    ) -> Card:
         """Add a table to the model card.
 
         Add a table to the model card. This can be especially useful when you
@@ -374,29 +386,54 @@ class Card:
             self._eval_results[metric] = value
         return self
 
+    @property
+    def model(self):
+        model = self._load_model(self._model)
+        if model is not self._model:
+            self._model = model
+        return model
+
+    @model.setter
+    def model(self, model):
+        self._model = model
+
+    @model.deleter
+    def model(self):
+        del self._model
+
     def _load_model(self, model: Any) -> Any:
-        """Loads the model if provided a file path.
+        """Loads the model if provided a file path, if already a model instance,
+        return it unmodified.
 
         Parameters
         ----------
-        model : Any
-            Str or model instance.
+        model : pathlib.path, str, or sklearn estimator
+            Path/str or the actual model instance. If a Path or str, loads the model on first call.
 
         Returns
         -------
-        model : object 
+        model : object
             Model instance.
+
         """
-        if isinstance(model, str):
-            model_path = Path(model)
-            if not model_path.exists():
-                raise ValueError("Model file does not exist")
-            if model_path.suffix==".pkl":
-                model = joblib.load(model_path)
-            elif model_path.suffix==".skops":
-                model = skops.io.load(model_path)
-            else:
-                raise ValueError("Model Format not supported")
+        if not isinstance(model, (Path, str)):
+            return model
+
+        model_path = Path(model)
+        if not model_path.exists():
+            raise ValueError("Model file does not exist")
+
+        if model_path.suffix in (".pkl", ".pickle"):
+            model = joblib.load(model_path)
+        elif model_path.suffix == ".skops":
+            model = load(model_path)
+        else:
+            msg = (
+                f"Cannot interpret model suffix {model_path.suffix}, should be"
+                " '.pkl', '.pickle' or '.skops'"
+            )
+            raise ValueError(msg)
+
         return model
 
     def _generate_card(self) -> ModelCard:
@@ -429,18 +466,23 @@ class Card:
                     )
                 else:
                     template_sections["get_started_code"] = (
-                        "import joblib\nimport json\nimport pandas as pd\nclf ="
-                        f' joblib.load({model_file})\nwith open("config.json") as'
+                        "import joblib\nimport json\nimport pandas as"
+                        " pd\nclf ="
+                        f" joblib.load({model_file})\nwith"
+                        ' open("config.json") as'
                         " f:\n   "
                         " config ="
                         " json.load(f)\n"
                         'clf.predict(pd.DataFrame.from_dict(config["sklearn"]["example_input"]))'
                     )
         if self.model_diagram is True:
-            model_plot_div = re.sub(r"\n\s+", "", str(estimator_html_repr(self.model)))
+            model_plot_div = re.sub(
+                r"\n\s+", "", str(estimator_html_repr(self.model))
+            )
             if model_plot_div.count("sk-top-container") == 1:
                 model_plot_div = model_plot_div.replace(
-                    "sk-top-container", 'sk-top-container" style="overflow: auto;'
+                    "sk-top-container",
+                    'sk-top-container" style="overflow: auto;',
                 )
             model_plot: str | None = model_plot_div
         else:
@@ -465,7 +507,9 @@ class Card:
                 f"{tmpdirname}/temporary_template.md",
             )
             #  create a temporary template with the additional plots
-            template_sections["template_path"] = f"{tmpdirname}/temporary_template.md"
+            template_sections[
+                "template_path"
+            ] = f"{tmpdirname}/temporary_template.md"
             # add extra sections at the end of the template
             with open(template_sections["template_path"], "a") as template:
                 if self._extra_sections:
@@ -546,13 +590,17 @@ class Card:
         model = getattr(self, "model", None)
         if model:
             model_str = self._strip_blank(repr(model))
-            model_repr = aRepr.repr(f"  model={model_str},").strip('"').strip("'")
+            model_repr = (
+                aRepr.repr(f"  model={model_str},").strip('"').strip("'")
+            )
         else:
             model_repr = None
 
         # metadata
         metadata_reprs = []
-        for key, val in self.metadata.to_dict().items() if self.metadata else {}:
+        for key, val in (
+            self.metadata.to_dict().items() if self.metadata else {}
+        ):
             if key == "widget":
                 metadata_reprs.append("  metadata.widget={...},")
                 continue
@@ -566,14 +614,18 @@ class Card:
         template_reprs = []
         for key, val in self._template_sections.items():
             val = self._strip_blank(repr(val))
-            template_reprs.append(aRepr.repr(f"  {key}={val},").strip('"').strip("'"))
+            template_reprs.append(
+                aRepr.repr(f"  {key}={val},").strip('"').strip("'")
+            )
         template_repr = "\n".join(template_reprs)
 
         # figures
         figure_reprs = []
         for key, val in self._extra_sections:
             val = self._strip_blank(repr(val))
-            figure_reprs.append(aRepr.repr(f"  {key}={val},").strip('"').strip("'"))
+            figure_reprs.append(
+                aRepr.repr(f"  {key}={val},").strip('"').strip("'")
+            )
         figure_repr = "\n".join(figure_reprs)
 
         complete_repr = "Card(\n"

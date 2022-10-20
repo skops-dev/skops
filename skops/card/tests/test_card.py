@@ -77,7 +77,9 @@ def _create_model_card_from_saved_model(
         task="tabular-classification",
         data=X,
     )
-    card = Card(iris_estimator, metadata=metadata_from_config(destination_path))
+    card = Card(
+        iris_estimator, metadata=metadata_from_config(destination_path)
+    )
     card.save(Path(destination_path) / "README.md")
     return card
 
@@ -206,7 +208,9 @@ def test_add_metrics(destination_path, model_card):
     assert ("acc" in card) and ("f1" in card) and ("0.1" in card)
 
 
-def test_code_autogeneration(destination_path, pkl_model_card_metadata_from_config):
+def test_code_autogeneration(
+    destination_path, pkl_model_card_metadata_from_config
+):
     # test if getting started code is automatically generated
     metadata = metadata_load(local_path=Path(destination_path) / "README.md")
     filename = metadata["model_file"]
@@ -288,14 +292,12 @@ class TestCardRepr:
         card.add(my_section="very long line " * 100)
         result = meth(card)
         expected = (
-            "Card(\n  model=LinearRegression(fit_intercept=False),\n"
-            "  model_description='A description',\n  model_card_authors='Jane Doe',\n"
-            "  my_section='very long line very lon...line very long line very long line"
-            " ',\n"
-            "  roc_curve='ROC_curve.png',\n"
-            "  confusion_matrix='confusion_matrix.jpg',\n"
-            "  search_results=Table(3x2),\n"
-            ")"
+            "Card(\n  model=LinearRegression(fit_intercept=False),\n "
+            " model_description='A description',\n  model_card_authors='Jane"
+            " Doe',\n  my_section='very long line very lon...line very long"
+            " line very long line ',\n  roc_curve='ROC_curve.png',\n "
+            " confusion_matrix='confusion_matrix.jpg',\n "
+            " search_results=Table(3x2),\n)"
         )
         assert result == expected
 
@@ -412,7 +414,9 @@ class TestPlotSection:
         assert section.format() == expected
 
     def test_format_path_is_pathlib(self):
-        section = PlotSection(alt_text="some title", path=Path("path") / "plot.png")
+        section = PlotSection(
+            alt_text="some title", path=Path("path") / "plot.png"
+        )
         expected = f"![some title](path{os.path.sep}plot.png)"
         assert section.format() == expected
 
