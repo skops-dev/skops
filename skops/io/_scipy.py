@@ -14,15 +14,16 @@ def sparse_matrix_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
         "__module__": get_module(type(obj)),
     }
 
-    # Memoize the object and then check if it's file name (containing the object
-    # id) already exists. If it does, there is no need to save the object again.
-    # Memoizitation is necessary since for ephemeral objects, the same id might
-    # otherwise be reused.
+    data_buffer = io.BytesIO()
+    save_npz(data_buffer, obj)
+    # Memoize the object and then check if it's file name (containing
+    # the object id) already exists. If it does, there is no need to
+    # save the object again. Memoizitation is necessary since for
+    # ephemeral objects, the same id might otherwise be reused.
     obj_id = save_state.memoize(obj)
     f_name = f"{obj_id}.npz"
-    path = save_state.path / f_name
-    if not path.exists():
-        save_npz(path, obj)
+    if f_name not in save_state.zip_file.namelist():
+        save_state.zip_file.writestr(f_name, data_buffer.getbuffer())
 
     res["type"] = "scipy"
     res["file"] = f_name

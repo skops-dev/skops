@@ -26,16 +26,16 @@ def ndarray_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
             res["type"] = "json"
             res["shape"] = get_state(obj.shape, save_state)
         else:
+            data_buffer = io.BytesIO()
+            np.save(data_buffer, obj)
             # Memoize the object and then check if it's file name (containing
             # the object id) already exists. If it does, there is no need to
             # save the object again. Memoizitation is necessary since for
             # ephemeral objects, the same id might otherwise be reused.
             obj_id = save_state.memoize(obj)
             f_name = f"{obj_id}.npy"
-            path = save_state.path / f_name
-            if not path.exists():
-                with open(path, "wb") as f:
-                    np.save(f, obj, allow_pickle=False)
+            if f_name not in save_state.zip_file.namelist():
+                save_state.zip_file.writestr(f_name, data_buffer.getbuffer())
             res.update(type="numpy", file=f_name)
     except ValueError:
         # Couldn't save the numpy array with either method
@@ -64,7 +64,7 @@ def ndarray_get_instance(state, src):
     shape = get_instance(state["shape"], src)
     tmp = [get_instance(s, src) for s in state["content"]]
     # TODO: this is a hack to get the correct shape of the array. We should
-    # find _a better way to do this.
+    # find _a better way_ to do this.
     if len(shape) == 1:
         val = np.ndarray(shape=len(tmp), dtype="O")
         for i, v in enumerate(tmp):
