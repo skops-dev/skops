@@ -8,6 +8,7 @@ from functools import _find_impl, get_cache_token, update_wrapper  # type: ignor
 from pathlib import Path
 from types import FunctionType, MethodType
 from typing import Any
+from zipfile import ZipFile
 
 from skops.utils.fixes import GenericAlias
 
@@ -229,6 +230,9 @@ class SaveState:
 
     Parameters
     ----------
+    zip_file: zipfile.ZipFile
+        The zip file to write the data to, must be in write mode.
+
     path: pathlib.Path
         The path to the directory to store the object in.
 
@@ -238,7 +242,7 @@ class SaveState:
 
     """
 
-    path: Path
+    zip_file: ZipFile
     protocol: int = DEFAULT_PROTOCOL
     memo: dict[int, Any] = field(default_factory=dict)
 

@@ -10,21 +10,21 @@ from zipfile import ZipFile
 import numpy as np
 import pytest
 from scipy import sparse, special
-from sklearn.base import BaseEstimator
+from sklearn.base import BaseEstimator, is_regressor
 from sklearn.compose import ColumnTransformer
-from sklearn.datasets import load_sample_images, make_classification
+from sklearn.datasets import load_sample_images, make_classification, make_regression
 from sklearn.decomposition import SparseCoder
 from sklearn.exceptions import SkipTestWarning
 from sklearn.experimental import enable_halving_search_cv  # noqa
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import (
     GridSearchCV,
+    GroupKFold,
     HalvingGridSearchCV,
     HalvingRandomSearchCV,
     KFold,
     RandomizedSearchCV,
     ShuffleSplit,
-    StratifiedGroupKFold,
     check_cv,
 )
 from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
@@ -50,7 +50,7 @@ from sklearn.utils.estimator_checks import (
 )
 
 import skops
-from skops.io import load, save
+from skops.io import dumps, load, loads, save
 from skops.io._sklearn import UNSUPPORTED_TYPES
 from skops.io._utils import _get_instance, _get_state
 from skops.io.exceptions import UnsupportedTypeException
@@ -104,7 +104,7 @@ def debug_dispatch_functions():
             else:
                 # should be a primitive type
                 assert isinstance(state, (int, float, str))
-            assert isinstance(src, ZipFile)
+            assert (src is None) or isinstance(src, ZipFile)
 
             result = func(state, src)
 
@@ -122,8 +122,11 @@ def debug_dispatch_functions():
             _get_instance.register(cls)(debug_get_instance(method))
 
 
-def save_load_round(estimator, f_name):
+def save_load_round(estimator, f_name, dump_method="fs"):
     # save and then load the model, and return the loaded model.
+    if dump_method == "memory":
+        return loads(dumps(estimator))
+
     save(file=f_name, obj=estimator)
     loaded = load(file=f_name)
     return loaded
@@ -407,10 +410,11 @@ def assert_params_equal(params1, params2):
 @pytest.mark.parametrize(
     "estimator", _tested_estimators(), ids=_get_check_estimator_ids
 )
-def test_can_persist_non_fitted(estimator, tmp_path):
+@pytest.mark.parametrize("dump_method", ["fs", "memory"])
+def test_can_persist_non_fitted(estimator, dump_method, tmp_path):
     """Check that non-fitted estimators can be persisted."""
     f_name = tmp_path / "file.skops"
-    loaded = save_load_round(estimator, f_name)
+    loaded = save_load_round(estimator, f_name, dump_method=dump_method)
     assert_params_equal(estimator.get_params(), loaded.get_params())
 
 
@@ -419,10 +423,16 @@ def get_input(estimator):
 
     # TODO: make this a parameter and test with sparse data
     # TODO: try with pandas.DataFrame as well
-    # This data can be used for a regression model as well.
-    X, y = make_classification(
-        n_samples=N_SAMPLES, n_features=N_FEATURES, random_state=0
-    )
+    if is_regressor(estimator):
+        # classifier data can lead to failure of certain regressors to fit, e.g.
+        # RANSAC in sklearn 0.24, so regression data is needed
+        X, y = make_regression(
+            n_samples=N_SAMPLES, n_features=N_FEATURES, random_state=0
+        )
+    else:
+        X, y = make_classification(
+            n_samples=N_SAMPLES, n_features=N_FEATURES, random_state=0
+        )
     y = _enforce_estimator_tags_y(estimator, y)
     tags = _safe_tags(estimator)
 
@@ -460,13 +470,18 @@ def get_input(estimator):
             "Is this the first document?",
         ], None
 
+    if tags["X_types"] == "sparse":
+        # TfidfTransformer in sklearn 0.24 needs this
+        return sparse.csr_matrix(X), y
+
     raise ValueError(f"Unsupported X type for estimator: {tags['X_types']}")
 
 
 @pytest.mark.parametrize(
     "estimator", _tested_estimators(), ids=_get_check_estimator_ids
 )
-def test_can_persist_fitted(estimator, request, tmp_path):
+@pytest.mark.parametrize("dump_method", ["fs", "memory"])
+def test_can_persist_fitted(estimator, dump_method, request, tmp_path):
     """Check that fitted estimators can be persisted and return the right results."""
     set_random_state(estimator, random_state=0)
 
@@ -481,7 +496,7 @@ def test_can_persist_fitted(estimator, request, tmp_path):
                 estimator.fit(X)
 
     f_name = tmp_path / "file.skops"
-    loaded = save_load_round(estimator, f_name)
+    loaded = save_load_round(estimator, f_name, dump_method=dump_method)
     assert_params_equal(estimator.__dict__, loaded.__dict__)
 
     for method in [
@@ -579,8 +594,8 @@ class CVEstimator(BaseEstimator):
     [
         None,
         3,
-        KFold(4),
-        StratifiedGroupKFold(5, shuffle=True, random_state=42),
+        KFold(4, shuffle=True, random_state=42),
+        GroupKFold(5),
         ShuffleSplit(6, random_state=np.random.RandomState(123)),
     ],
 )
@@ -782,6 +797,13 @@ def test_numpy_dtype_object_does_not_store_broken_file(tmp_path):
 
     # this estimator should not have any numpy file
     assert not any(file.endswith(".npy") for file in files)
+
+
+def test_loads_from_str():
+    # loads expects bytes, not str
+    msg = "Can't load skops format from string, pass bytes"
+    with pytest.raises(TypeError, match=msg):
+        loads("this is a string")
 
 
 class _BoundMethodHolder:

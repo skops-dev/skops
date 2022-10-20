@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 import importlib
+import io
 import json
-import shutil
-import tempfile
-from pathlib import Path
 from zipfile import ZipFile
 
 import skops
@@ -23,7 +21,23 @@ for module_name in modules:
         _get_instance.register(cls)(method)
 
 
-def save(obj, file):
+def _save(obj):
+    buffer = io.BytesIO()
+
+    with ZipFile(buffer, "w") as zip_file:
+        save_state = SaveState(zip_file=zip_file)
+        state = get_state(obj, save_state)
+        save_state.clear_memo()
+
+        state["protocol"] = save_state.protocol
+        state["_skops_version"] = skops.__version__
+
+        zip_file.writestr("schema.json", json.dumps(state, indent=2))
+
+    return buffer
+
+
+def dump(obj, file):
     """Save an object using the skops persistence format.
 
     Skops aims at providing a secure persistence feature that does not rely on
@@ -48,22 +62,33 @@ def save(obj, file):
         ``save(model, "my-model.skops")``.
 
     """
-    with tempfile.TemporaryDirectory() as dst:
-        path = Path(dst)
-        with open(path / "schema.json", "w") as f:
-            save_state = SaveState(path=path)
-            state = get_state(obj, save_state)
-            save_state.clear_memo()
+    buffer = _save(obj)
+    with open(file, "wb") as f:
+        f.write(buffer.getbuffer())
 
-            state["protocol"] = save_state.protocol
-            state["_skops_version"] = skops.__version__
-            json.dump(state, f, indent=2)
 
-        # we use the zip format since tarfile can be exploited to create files
-        # outside of the destination directory:
-        # https://docs.python.org/3/library/tarfile.html#tarfile.TarFile.extractall
-        shutil.make_archive(file, format="zip", root_dir=dst)
-        shutil.move(f"{file}.zip", file)
+# TODO: remove "save" in favor of "dump"
+save = dump
+
+
+def dumps(obj):
+    """Save an object uisng the skops persistence format as a bytes object.
+
+    .. warning::
+
+       This feature is very early in development, which means the API is
+       unstable and it is **not secure** at the moment. Therefore, use the same
+       caution as you would for ``pickle``: Don't load from sources that you
+       don't trust. In the future, more security will be added.
+
+    Parameters
+    ----------
+    obj: object
+        The object to be saved. Usually a scikit-learn compatible model.
+
+    """
+    buffer = _save(obj)
+    return buffer.getbuffer().tobytes()
 
 
 def load(file):
@@ -94,4 +119,30 @@ def load(file):
     with ZipFile(file, "r") as input_zip:
         schema = input_zip.read("schema.json")
         instance = get_instance(json.loads(schema), input_zip)
+    return instance
+
+
+def loads(data):
+    """Load an object saved with the skops persistence format from a bytes
+    object.
+
+    .. warning::
+
+       This feature is very early in development, which means the API is
+       unstable and it is **not secure** at the moment. Therefore, use the same
+       caution as you would for ``pickle``: Don't load from sources that you
+       don't trust. In the future, more security will be added.
+
+    Parameters
+    ----------
+    data: bytes
+        The file name of the object to be loaded.
+
+    """
+    if isinstance(data, str):
+        raise TypeError("Can't load skops format from string, pass bytes")
+
+    with ZipFile(io.BytesIO(data), "r") as zip_file:
+        schema = json.loads(zip_file.read("schema.json"))
+        instance = get_instance(schema, src=zip_file)
     return instance
