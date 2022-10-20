@@ -21,11 +21,11 @@ jobs:
         # this is to make the CI run on different sklearn versions
         include:
           - python: "3.7"
-            sklearn_version: "0.24"
+            sklearn_version: "0.24.0"
           - python: "3.8"
-            sklearn_version: "1.0"
+            sklearn_version: "1.0.0"
           - python: "3.9"
-            sklearn_version: "1.1"
+            sklearn_version: "1.1.0"
           - python: "3.10"
             sklearn_version: "nightly"
 
