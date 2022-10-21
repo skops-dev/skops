@@ -68,10 +68,6 @@ def dump(obj, file):
         f.write(buffer.getbuffer())
 
 
-# TODO: remove "save" in favor of "dump"
-save = dump
-
-
 def dumps(obj):
     """Save an object uisng the skops persistence format as a bytes object.
 
