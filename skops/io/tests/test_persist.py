@@ -807,7 +807,7 @@ def test_loads_from_str():
 
 
 class _BoundMethodHolder:
-    """Used to test the ability to serialise and deserialize bound methods"""
+    """Used to test the ability to serialize and deserialize bound methods"""
 
     def __init__(self, variant: str):
         if variant == "sqrt":
