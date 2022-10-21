@@ -16,7 +16,7 @@ import skops
 from skops import hub_utils
 from skops.card import Card, metadata_from_config
 from skops.card._model_card import PlotSection, TableSection
-from skops.io import save
+from skops.io import dump
 
 
 def fit_model():
@@ -59,7 +59,7 @@ def iris_skops_file(iris_estimator):
     skops_folder = tempfile.mkdtemp()
     model_name = "model.skops"
     skops_path = Path(skops_folder) / model_name
-    save(iris_estimator, skops_path)
+    dump(iris_estimator, skops_path)
     yield skops_path
 
 
