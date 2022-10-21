@@ -21,7 +21,6 @@ from sklearn.linear_model._sgd_fast import (
     SquaredLoss,
 )
 from sklearn.tree._tree import Tree
-from sklearn.utils import Bunch
 
 from ._dispatch import get_instance
 from ._general import dict_get_instance, dict_get_state, unsupported_get_state
@@ -134,18 +133,6 @@ def sgd_loss_get_instance(state, src):
     return reduce_get_instance(state, src, constructor=cls)
 
 
-def bunch_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
-    state = dict_get_state(obj, save_state)
-    state["__loader__"] = "bunch_get_instance"
-    return state
-
-
-def bunch_get_instance(state, src):
-    # Bunch is just a wrapper for dict
-    content = dict_get_instance(state, src)
-    return Bunch(**content)
-
-
 # TODO: remove once support for sklearn<1.2 is dropped.
 def _DictWithDeprecatedKeys_get_state(
     obj: Any, save_state: SaveState
@@ -188,7 +175,6 @@ for type_ in UNSUPPORTED_TYPES:
 GET_INSTANCE_DISPATCH_MAPPING = {
     "sgd_loss_get_instance": sgd_loss_get_instance,
     "tree_get_instance": tree_get_instance,
-    "bunch_get_instance": bunch_get_instance,
 }
 
 # TODO: remove once support for sklearn<1.2 is dropped.
