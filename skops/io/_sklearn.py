@@ -23,8 +23,9 @@ from sklearn.linear_model._sgd_fast import (
 from sklearn.tree._tree import Tree
 from sklearn.utils import Bunch
 
+from ._dispatch import get_instance
 from ._general import dict_get_instance, dict_get_state, unsupported_get_state
-from ._utils import SaveState, get_instance, get_module, get_state, gettype
+from ._utils import SaveState, get_module, get_state, gettype
 from .exceptions import UnsupportedTypeException
 
 ALLOWED_SGD_LOSSES = {
@@ -110,8 +111,20 @@ def reduce_get_instance(state, src, constructor):
     return instance
 
 
-def Tree_get_instance(state, src):
+def tree_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
+    state = reduce_get_state(obj, save_state)
+    state["__loader__"] = "tree_get_instance"
+    return state
+
+
+def tree_get_instance(state, src):
     return reduce_get_instance(state, src, constructor=Tree)
+
+
+def sgd_loss_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
+    state = reduce_get_state(obj, save_state)
+    state["__loader__"] = "sgd_loss_get_instance"
+    return state
 
 
 def sgd_loss_get_instance(state, src):
@@ -119,6 +132,12 @@ def sgd_loss_get_instance(state, src):
     if cls not in ALLOWED_SGD_LOSSES:
         raise UnsupportedTypeException(f"Expected LossFunction, got {cls}")
     return reduce_get_instance(state, src, constructor=cls)
+
+
+def bunch_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
+    state = dict_get_state(obj, save_state)
+    state["__loader__"] = "bunch_get_instance"
+    return state
 
 
 def bunch_get_instance(state, src):
@@ -134,6 +153,7 @@ def _DictWithDeprecatedKeys_get_state(
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
+        "__loader__": "_DictWithDeprecatedKeys_get_instance",
     }
     content = {}
     content["main"] = dict_get_state(obj, save_state)
@@ -158,18 +178,18 @@ def _DictWithDeprecatedKeys_get_instance(state, src):
 
 # tuples of type and function that gets the state of that type
 GET_STATE_DISPATCH_FUNCTIONS = [
-    (LossFunction, reduce_get_state),
-    (Tree, reduce_get_state),
+    (LossFunction, sgd_loss_get_state),
+    (Tree, tree_get_state),
 ]
 for type_ in UNSUPPORTED_TYPES:
     GET_STATE_DISPATCH_FUNCTIONS.append((type_, unsupported_get_state))
 
 # tuples of type and function that creates the instance of that type
-GET_INSTANCE_DISPATCH_FUNCTIONS = [
-    (LossFunction, sgd_loss_get_instance),
-    (Tree, Tree_get_instance),
-    (Bunch, bunch_get_instance),
-]
+GET_INSTANCE_DISPATCH_MAPPING = {
+    "sgd_loss_get_instance": sgd_loss_get_instance,
+    "tree_get_instance": tree_get_instance,
+    "bunch_get_instance": bunch_get_instance,
+}
 
 # TODO: remove once support for sklearn<1.2 is dropped.
 # Starting from sklearn 1.2, _DictWithDeprecatedKeys is removed as it's no
@@ -178,6 +198,6 @@ if _DictWithDeprecatedKeys is not None:
     GET_STATE_DISPATCH_FUNCTIONS.append(
         (_DictWithDeprecatedKeys, _DictWithDeprecatedKeys_get_state)
     )
-    GET_INSTANCE_DISPATCH_FUNCTIONS.append(
-        (_DictWithDeprecatedKeys, _DictWithDeprecatedKeys_get_instance)
-    )
+    GET_INSTANCE_DISPATCH_MAPPING[
+        "_DictWithDeprecatedKeys_get_instance"
+    ] = _DictWithDeprecatedKeys_get_instance

@@ -7,7 +7,8 @@ from zipfile import ZipFile
 
 import skops
 
-from ._utils import SaveState, _get_instance, _get_state, get_instance, get_state
+from ._dispatch import GET_INSTANCE_MAPPING, get_instance
+from ._utils import SaveState, _get_state, get_state
 
 # We load the dispatch functions from the corresponding modules and register
 # them.
@@ -17,8 +18,8 @@ for module_name in modules:
     module = importlib.import_module(module_name, package="skops.io")
     for cls, method in getattr(module, "GET_STATE_DISPATCH_FUNCTIONS", []):
         _get_state.register(cls)(method)
-    for cls, method in getattr(module, "GET_INSTANCE_DISPATCH_FUNCTIONS", []):
-        _get_instance.register(cls)(method)
+    # populate the the dict used for dispatching get_instance functions
+    GET_INSTANCE_MAPPING.update(module.GET_INSTANCE_DISPATCH_MAPPING)
 
 
 def _save(obj):
