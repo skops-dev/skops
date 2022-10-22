@@ -809,25 +809,70 @@ def test_loads_from_str():
 class _BoundMethodHolder:
     """Used to test the ability to serialize and deserialize bound methods"""
 
-    def __init__(self, variant: str):
-        if variant == "sqrt":
-            self.chosen_function = np.sqrt
-        elif variant == "log":
-            self.chosen_function = np.log
-        else:
-            self.chosen_function = np.exp
+    def __init__(self, object_state: str):
+        self.object_state = (
+            object_state  # Initialize with some state to make sure state is persisted
+        )
+        self.chosen_function = (
+            np.log
+        )  # Bound a method to this object (can be any method)
 
-    def apply(self, x):
+    def bound_method(self, x):
         return self.chosen_function(x)
 
 
-def test_for_serialized_bound_method_works_as_expected(tmp_path):
-    obj = _BoundMethodHolder(variant="log")
-    bound_function = obj.apply
-    transformer = FunctionTransformer(func=bound_function)
+class TestPersistingBoundMethods:
+    @staticmethod
+    def assert_transformer_persisted_correctly(
+        loaded_transformer: FunctionTransformer,
+        original_transformer: FunctionTransformer,
+    ):
+        """Checks that a persisted and original transformer are equivalent, including the func passed to it
+        """
+        assert loaded_transformer.func.__name__ == original_transformer.func.__name__
 
-    loaded_transformer = save_load_round(transformer, tmp_path / "file.skops")
-    loaded_bound_function = loaded_transformer.func.__self__.chosen_function
+        assert_params_equal(
+            loaded_transformer.func.__self__.__dict__,
+            original_transformer.func.__self__.__dict__,
+        )
+        assert_params_equal(loaded_transformer.__dict__, original_transformer.__dict__)
 
-    assert loaded_transformer.func.__name__ == bound_function.__name__
-    assert loaded_bound_function == obj.chosen_function
+    @staticmethod
+    def assert_bound_method_holder_persisted_correctly(
+        original_obj: _BoundMethodHolder, loaded_obj: _BoundMethodHolder
+    ):
+        """Checks that the persisted and original instances of _BoundMethodHolder are equivalent
+        """
+        assert original_obj.bound_method.__name__ == loaded_obj.bound_method.__name__
+        assert original_obj.chosen_function == loaded_obj.chosen_function
+
+        assert_params_equal(original_obj.__dict__, loaded_obj.__dict__)
+
+    def test_for_base_case_returns_as_expected(self, tmp_path):
+        initial_state = "This is an arbitrary state"
+        obj = _BoundMethodHolder(object_state=initial_state)
+        bound_function = obj.bound_method
+        transformer = FunctionTransformer(func=bound_function)
+
+        loaded_transformer = save_load_round(transformer, tmp_path / "file.skops")
+        loaded_obj = loaded_transformer.func.__self__
+
+        self.assert_transformer_persisted_correctly(loaded_transformer, transformer)
+        self.assert_bound_method_holder_persisted_correctly(obj, loaded_obj)
+
+    def test_when_method_is_not_set_during_init_works_as_expected(self, tmp_path):
+        # given change to object with bound method after initialisation,
+        # make sure still persists correctly
+
+        initial_state = "This is an arbitrary state"
+        obj = _BoundMethodHolder(object_state=initial_state)
+        obj.chosen_function = np.sqrt
+        bound_function = obj.bound_method
+
+        transformer = FunctionTransformer(func=bound_function)
+
+        loaded_transformer = save_load_round(transformer, tmp_path / "file.skops")
+        loaded_obj = loaded_transformer.func.__self__
+
+        self.assert_transformer_persisted_correctly(loaded_transformer, transformer)
+        self.assert_bound_method_holder_persisted_correctly(obj, loaded_obj)

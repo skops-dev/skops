@@ -234,12 +234,15 @@ def object_get_instance(state, src):
 
 
 def method_get_state(obj: Any, save_state: SaveState):
+    # This method is used to persist methods bound to a different instance
+    # It stores the state of the object the method is bound to,
+    # and prepares both to be persisted.
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(obj),
         "content": {
             "func": obj.__func__.__name__,
-            "obj": object_get_state(obj.__self__, save_state),
+            "obj": get_state(obj.__self__, save_state),
         },
     }
 
