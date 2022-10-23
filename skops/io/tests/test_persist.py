@@ -50,7 +50,7 @@ from sklearn.utils.estimator_checks import (
 )
 
 import skops
-from skops.io import dumps, load, loads, save
+from skops.io import dump, dumps, load, loads
 from skops.io._sklearn import UNSUPPORTED_TYPES
 from skops.io._utils import _get_instance, _get_state
 from skops.io.exceptions import UnsupportedTypeException
@@ -127,7 +127,7 @@ def save_load_round(estimator, f_name, dump_method="fs"):
     if dump_method == "memory":
         return loads(dumps(estimator))
 
-    save(file=f_name, obj=estimator)
+    dump(file=f_name, obj=estimator)
     loaded = load(file=f_name)
     return loaded
 
@@ -672,7 +672,7 @@ def test_metainfo(tmp_path):
     # safe and load the schema
     estimator = MyEstimator().fit(None)
     f_name = tmp_path / "file.skops"
-    save(file=f_name, obj=estimator)
+    dump(file=f_name, obj=estimator)
     schema = json.loads(ZipFile(f_name).read("schema.json"))
 
     # check some schema metainfo
