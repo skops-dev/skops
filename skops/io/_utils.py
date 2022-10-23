@@ -5,7 +5,6 @@ import json  # type: ignore
 import sys
 from dataclasses import dataclass, field
 from functools import _find_impl, get_cache_token, update_wrapper  # type: ignore
-from pathlib import Path
 from types import FunctionType, MethodType
 from typing import Any
 from zipfile import ZipFile
@@ -52,6 +51,7 @@ def singledispatch(func):
         # CHANGED: check if we deal with a state dict, in which case we use it
         # to resolve the correct class. Otherwise, just use the class of the
         # instance.
+
         if (
             isinstance(instance, dict)
             and "__module__" in instance

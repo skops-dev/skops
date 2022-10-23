@@ -814,8 +814,8 @@ class _BoundMethodHolder:
             object_state  # Initialize with some state to make sure state is persisted
         )
         self.chosen_function = (
-            np.log
-        )  # Bound a method to this object (can be any method)
+            np.log  # bind some method to this object, could be any persistable function
+        )
 
     def bound_method(self, x):
         return self.chosen_function(x)
