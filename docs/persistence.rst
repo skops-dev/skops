@@ -30,27 +30,32 @@ the `Python docs
     code during unpickling. Never unpickle data that could have come from an
     untrusted source, or that could have been tampered with.
 
-In contrast to ``pickle``, the :func:`skops.io.save` and :func:`skops.io.load`
+In contrast to ``pickle``, the :func:`skops.io.dump` and :func:`skops.io.load`
 functions cannot be used to save arbitrary Python code, but they bypass
 ``pickle`` and are thus more secure.
 
 Usage
 -----
 
-The code snippet below illustrates how to use :func:`skops.io.save` and
+The code snippet below illustrates how to use :func:`skops.io.dump` and
 :func:`skops.io.load`:
 
 .. code:: python
 
     from sklearn.linear_model import LogisticRegression
-    from skops.io import load, save
+    from skops.io import dump, load
 
     clf = LogisticRegression(random_state=0, solver="liblinear")
     clf.fit(X_train, y_train)
-    save(clf, "my-logistic-regression.skops")
+    dump(clf, "my-logistic-regression.skops")
     # ...
     loaded = load("my-logistic-regression.skops")
     loaded.predict(X_test)
+
+    # in memory
+    from skops.io import dumps, loads
+    serialized = dumps(clf)
+    loaded = loads(serialized)
 
 At the moment, we support the vast majority of sklearn estimators. This includes
 complex use cases such as :class:`sklearn.pipeline.Pipeline`,
