@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Callable
-from zipfile import ZipFile
 
-GET_INSTANCE_MAPPING: dict[str, Callable[[dict[str, Any], ZipFile], Any]] = {}
+GET_INSTANCE_MAPPING = {}  # type: ignore
 
 
 def get_instance(state, src):
@@ -17,7 +15,8 @@ def get_instance(state, src):
     try:
         get_instance_func = GET_INSTANCE_MAPPING[state["__loader__"]]
     except KeyError:
+        type_name = f"{state['__module__']}.{state['__class__']}"
         raise TypeError(
-            f"Creating an instance of type {type(state)} is not supported yet"
+            f" Can't find loader {state['__loader__']} for type {type_name}."
         )
     return get_instance_func(state, src)

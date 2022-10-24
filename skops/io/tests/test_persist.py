@@ -51,9 +51,9 @@ from sklearn.utils.estimator_checks import (
 
 import skops
 from skops.io import dump, dumps, load, loads
-from skops.io._dispatch import GET_INSTANCE_MAPPING
+from skops.io._dispatch import GET_INSTANCE_MAPPING, get_instance
 from skops.io._sklearn import UNSUPPORTED_TYPES
-from skops.io._utils import _get_state
+from skops.io._utils import _get_state, get_state
 from skops.io.exceptions import UnsupportedTypeException
 
 # Default settings for X
@@ -799,3 +799,11 @@ def test_loads_from_str():
     msg = "Can't load skops format from string, pass bytes"
     with pytest.raises(TypeError, match=msg):
         loads("this is a string")
+
+
+def test_get_instance_unknown_type_error_msg():
+    state = get_state(("hi", [123]), None)
+    state["__loader__"] = "this_get_instance_does_not_exist"
+    msg = "Can't find loader this_get_instance_does_not_exist for type builtins.tuple."
+    with pytest.raises(TypeError, match=msg):
+        get_instance(state, None)

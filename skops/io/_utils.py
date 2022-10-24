@@ -131,19 +131,19 @@ class SaveState:
 
 
 @singledispatch
-def _get_state(obj, dst):
+def _get_state(obj, save_state):
     # This function should never be called directly. Instead, it is used to
     # dispatch to the correct implementation of get_state for the given type of
     # its first argument.
     raise TypeError(f"Getting the state of type {type(obj)} is not supported yet")
 
 
-def get_state(value, dst):
+def get_state(value, save_state):
     # This is a helper function to try to get the state of an object. If it
     # fails with `get_state`, we try with json.dumps, if that fails, we raise
     # the original error alongside the json error.
     try:
-        return _get_state(value, dst)
+        return _get_state(value, save_state)
     except TypeError as e1:
         try:
             return json.dumps(value)
