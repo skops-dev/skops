@@ -12,6 +12,7 @@ def sparse_matrix_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
+        "__loader__": "sparse_matrix_get_instance",
     }
 
     data_buffer = io.BytesIO()
@@ -49,8 +50,8 @@ GET_STATE_DISPATCH_FUNCTIONS = [
     (spmatrix, sparse_matrix_get_state),
 ]
 # tuples of type and function that creates the instance of that type
-GET_INSTANCE_DISPATCH_FUNCTIONS = [
+GET_INSTANCE_DISPATCH_MAPPING = {
     # use 'spmatrix' to check if a matrix is a sparse matrix because that is
     # what scipy.sparse.issparse checks
-    (spmatrix, sparse_matrix_get_instance),
-]
+    "sparse_matrix_get_instance": sparse_matrix_get_instance,
+}

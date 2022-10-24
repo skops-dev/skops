@@ -51,8 +51,9 @@ from sklearn.utils.estimator_checks import (
 
 import skops
 from skops.io import dump, dumps, load, loads
+from skops.io._dispatch import GET_INSTANCE_MAPPING, get_instance
 from skops.io._sklearn import UNSUPPORTED_TYPES
-from skops.io._utils import _get_instance, _get_state
+from skops.io._utils import _get_state, get_state
 from skops.io.exceptions import UnsupportedTypeException
 
 # Default settings for X
@@ -64,7 +65,7 @@ N_FEATURES = 20
 ATOL = 1e-6 if sys.platform == "darwin" else 1e-7
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(autouse=True, scope="module")
 def debug_dispatch_functions():
     # Patch the get_state and get_instance methods to add some sanity checks on
     # them. Specifically, we test that the arguments of the functions all follow
@@ -81,12 +82,10 @@ def debug_dispatch_functions():
         def wrapper(obj, save_state):
             result = func(obj, save_state)
 
-            if isinstance(result, dict):
-                assert "__class__" in result
-                assert "__module__" in result
-            else:
-                # should be a primitive type
-                assert isinstance(result, (int, float, str))
+            assert "__class__" in result
+            assert "__module__" in result
+            assert "__loader__" in result
+
             return result
 
         return wrapper
@@ -98,16 +97,12 @@ def debug_dispatch_functions():
 
         @wraps(func)
         def wrapper(state, src):
-            if isinstance(state, dict):
-                assert "__class__" in state
-                assert "__module__" in state
-            else:
-                # should be a primitive type
-                assert isinstance(state, (int, float, str))
-            assert (src is None) or isinstance(src, ZipFile)
+            assert "__class__" in state
+            assert "__module__" in state
+            assert "__loader__" in state
+            assert isinstance(src, ZipFile)
 
             result = func(state, src)
-
             return result
 
         return wrapper
@@ -118,8 +113,8 @@ def debug_dispatch_functions():
         module = importlib.import_module(module_name, package="skops.io")
         for cls, method in getattr(module, "GET_STATE_DISPATCH_FUNCTIONS", []):
             _get_state.register(cls)(debug_get_state(method))
-        for cls, method in getattr(module, "GET_INSTANCE_DISPATCH_FUNCTIONS", []):
-            _get_instance.register(cls)(debug_get_instance(method))
+        for key, method in GET_INSTANCE_MAPPING.copy().items():
+            GET_INSTANCE_MAPPING[key] = debug_get_instance(method)
 
 
 def save_load_round(estimator, f_name, dump_method="fs"):
@@ -804,3 +799,11 @@ def test_loads_from_str():
     msg = "Can't load skops format from string, pass bytes"
     with pytest.raises(TypeError, match=msg):
         loads("this is a string")
+
+
+def test_get_instance_unknown_type_error_msg():
+    state = get_state(("hi", [123]), None)
+    state["__loader__"] = "this_get_instance_does_not_exist"
+    msg = "Can't find loader this_get_instance_does_not_exist for type builtins.tuple."
+    with pytest.raises(TypeError, match=msg):
+        get_instance(state, None)
