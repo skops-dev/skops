@@ -5,8 +5,9 @@ from typing import Any
 
 import numpy as np
 
+from ._dispatch import get_instance
 from ._general import function_get_instance
-from ._utils import SaveState, _import_obj, get_instance, get_module, get_state
+from ._utils import SaveState, _import_obj, get_module, get_state
 from .exceptions import UnsupportedTypeException
 
 
@@ -14,6 +15,7 @@ def ndarray_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
+        "__loader__": "ndarray_get_instance",
     }
 
     try:
@@ -78,6 +80,7 @@ def maskedarray_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
+        "__loader__": "maskedarray_get_instance",
         "content": {
             "data": get_state(obj.data, save_state),
             "mask": get_state(obj.mask, save_state),
@@ -97,6 +100,7 @@ def random_state_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
+        "__loader__": "random_state_get_instance",
         "content": content,
     }
     return res
@@ -115,6 +119,7 @@ def random_generator_get_state(obj: Any, save_state: SaveState) -> dict[str, Any
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
+        "__loader__": "random_generator_get_instance",
         "content": {"bit_generator": bit_generator_state},
     }
     return res
@@ -139,6 +144,7 @@ def ufunc_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,  # ufunc
         "__module__": get_module(type(obj)),  # numpy
+        "__loader__": "function_get_instance",
         "content": {
             "module_path": get_module(obj),
             "function": obj.__name__,
@@ -154,6 +160,7 @@ def dtype_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     res = {
         "__class__": "dtype",
         "__module__": "numpy",
+        "__loader__": "dtype_get_instance",
         "content": ndarray_get_state(tmp, save_state),
     }
     return res
@@ -177,12 +184,11 @@ GET_STATE_DISPATCH_FUNCTIONS = [
     (np.random.Generator, random_generator_get_state),
 ]
 # tuples of type and function that creates the instance of that type
-GET_INSTANCE_DISPATCH_FUNCTIONS = [
-    (np.generic, ndarray_get_instance),
-    (np.ndarray, ndarray_get_instance),
-    (np.ma.MaskedArray, maskedarray_get_instance),
-    (np.ufunc, function_get_instance),
-    (np.dtype, dtype_get_instance),
-    (np.random.RandomState, random_state_get_instance),
-    (np.random.Generator, random_generator_get_instance),
-]
+GET_INSTANCE_DISPATCH_MAPPING = {
+    "ndarray_get_instance": ndarray_get_instance,
+    "maskedarray_get_instance": maskedarray_get_instance,
+    "function_get_instance": function_get_instance,
+    "dtype_get_instance": dtype_get_instance,
+    "random_state_get_instance": random_state_get_instance,
+    "random_generator_get_instance": random_generator_get_instance,
+}
