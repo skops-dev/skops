@@ -6,6 +6,7 @@ import sys
 import warnings
 from collections import Counter
 from functools import partial, wraps
+from pathlib import Path
 from zipfile import ZipFile
 
 import numpy as np
@@ -51,7 +52,7 @@ from sklearn.utils.estimator_checks import (
 )
 
 import skops
-from skops.io import dumps, loads
+from skops.io import dump, dumps, load, loads
 from skops.io._dispatch import GET_INSTANCE_MAPPING, get_instance
 from skops.io._sklearn import UNSUPPORTED_TYPES
 from skops.io._utils import _get_state, get_state
@@ -788,3 +789,42 @@ def test_get_instance_unknown_type_error_msg():
     msg = "Can't find loader this_get_instance_does_not_exist for type builtins.tuple."
     with pytest.raises(TypeError, match=msg):
         get_instance(state, None)
+
+
+class CustomEstimator(BaseEstimator):
+    def fit(self, X, y=None):
+        self.numpy_array = np.zeros(3)
+        self.numpy_scalar = np.ones(1)[0]
+        self.sparse_matrix = sparse.csr_matrix(np.arange(3))
+        return self
+
+
+def test_dump_to_and_load_from_disk(tmp_path):
+    # Test saving to and loading from disk. Functionality-wise, this is almost
+    # identical to saving to and loading from memory using dumps and loads.
+    # Therefore, only test functionality that is specific to dump and load.
+
+    estimator = CustomEstimator().fit(None)
+    f_name = tmp_path / "estimator.skops"
+    dump(estimator, f_name)
+    file = Path(f_name)
+    assert file.exists()
+
+    with ZipFile(f_name, "r") as input_zip:
+        files = input_zip.namelist()
+
+    # there should be 4 files in total, schema.json, 2 np arrays, and 1 sparse matrix
+    assert len(files) == 4
+    assert "schema.json" in files
+
+    num_array_files = sum(1 for file in files if file.endswith(".npy"))
+    assert num_array_files == 2
+    num_sparse_files = sum(1 for file in files if file.endswith(".npz"))
+    assert num_sparse_files == 1
+
+    # check that schema is valid json by loading it
+    json.loads(ZipFile(f_name).read("schema.json"))
+
+    # load and compare the actual estimator
+    loaded = load(f_name)
+    assert_params_equal(loaded.__dict__, estimator.__dict__)
