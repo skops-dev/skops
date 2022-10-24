@@ -810,12 +810,10 @@ class _BoundMethodHolder:
     """Used to test the ability to serialize and deserialize bound methods"""
 
     def __init__(self, object_state: str):
-        self.object_state = (
-            object_state  # Initialize with some state to make sure state is persisted
-        )
-        self.chosen_function = (
-            np.log  # bind some method to this object, could be any persistable function
-        )
+        # Initialize with some state to make sure state is persisted
+        self.object_state = object_state
+        # bind some method to this object, could be any persistable function
+        self.chosen_function = np.log
 
     def bound_method(self, x):
         return self.chosen_function(x)
