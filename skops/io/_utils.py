@@ -51,7 +51,6 @@ def singledispatch(func):
         # CHANGED: check if we deal with a state dict, in which case we use it
         # to resolve the correct class. Otherwise, just use the class of the
         # instance.
-
         if (
             isinstance(instance, dict)
             and "__module__" in instance
