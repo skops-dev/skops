@@ -792,6 +792,8 @@ def test_get_instance_unknown_type_error_msg():
 
 
 class CustomEstimator(BaseEstimator):
+    """Estimator with np array, np scalar, and sparse matrix attribute"""
+
     def fit(self, X, y=None):
         self.numpy_array = np.zeros(3)
         self.numpy_scalar = np.ones(1)[0]
