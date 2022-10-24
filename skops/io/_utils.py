@@ -244,7 +244,7 @@ class SaveState:
     memo: dict[int, Any] = field(default_factory=dict)
 
     def memoize(self, obj: Any) -> int:
-        # Currenlty, the only purpose for saving the object id is to make sure
+        # Currently, the only purpose for saving the object id is to make sure
         # that for the length of the context that the main object is being
         # saved, all attributes persist, so that the same id cannot be re-used
         # for different objects.
