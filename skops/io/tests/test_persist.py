@@ -825,7 +825,8 @@ class TestPersistingBoundMethods:
         loaded_transformer: FunctionTransformer,
         original_transformer: FunctionTransformer,
     ):
-        """Checks that a persisted and original transformer are equivalent, including the func passed to it
+        """Checks that a persisted and original transformer are equivalent, including
+        the func passed to it
         """
         assert loaded_transformer.func.__name__ == original_transformer.func.__name__
 
@@ -839,26 +840,27 @@ class TestPersistingBoundMethods:
     def assert_bound_method_holder_persisted_correctly(
         original_obj: _BoundMethodHolder, loaded_obj: _BoundMethodHolder
     ):
-        """Checks that the persisted and original instances of _BoundMethodHolder are equivalent
+        """Checks that the persisted and original instances of _BoundMethodHolder are
+        equivalent
         """
         assert original_obj.bound_method.__name__ == loaded_obj.bound_method.__name__
         assert original_obj.chosen_function == loaded_obj.chosen_function
 
         assert_params_equal(original_obj.__dict__, loaded_obj.__dict__)
 
-    def test_for_base_case_returns_as_expected(self, tmp_path):
+    def test_for_base_case_returns_as_expected(self):
         initial_state = "This is an arbitrary state"
         obj = _BoundMethodHolder(object_state=initial_state)
         bound_function = obj.bound_method
         transformer = FunctionTransformer(func=bound_function)
 
-        loaded_transformer = save_load_round(transformer, tmp_path / "file.skops")
+        loaded_transformer = loads(dumps(transformer))
         loaded_obj = loaded_transformer.func.__self__
 
         self.assert_transformer_persisted_correctly(loaded_transformer, transformer)
         self.assert_bound_method_holder_persisted_correctly(obj, loaded_obj)
 
-    def test_when_method_is_not_set_during_init_works_as_expected(self, tmp_path):
+    def test_when_object_is_changed_after_init_works_as_expected(self):
         # given change to object with bound method after initialisation,
         # make sure still persists correctly
 
@@ -869,7 +871,7 @@ class TestPersistingBoundMethods:
 
         transformer = FunctionTransformer(func=bound_function)
 
-        loaded_transformer = save_load_round(transformer, tmp_path / "file.skops")
+        loaded_transformer = loads(dumps(transformer))
         loaded_obj = loaded_transformer.func.__self__
 
         self.assert_transformer_persisted_correctly(loaded_transformer, transformer)
