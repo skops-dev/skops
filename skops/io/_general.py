@@ -261,7 +261,7 @@ def method_get_state(obj: Any, save_state: SaveState):
 
 
 def method_get_instance(state, src):
-    loaded_obj = object_get_instance(state["content"]["obj"], src)
+    loaded_obj = get_instance(state["content"]["obj"], src)
     method = getattr(loaded_obj, state["content"]["func"])
     return method
 
