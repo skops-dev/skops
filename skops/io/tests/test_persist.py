@@ -1,12 +1,15 @@
 import importlib
 import inspect
+import io
 import json
 import sys
 import warnings
 from collections import Counter
 from functools import partial, wraps
+from pathlib import Path
 from zipfile import ZipFile
 
+import joblib
 import numpy as np
 import pytest
 from scipy import sparse, special
@@ -115,16 +118,6 @@ def debug_dispatch_functions():
             _get_state.register(cls)(debug_get_state(method))
         for key, method in GET_INSTANCE_MAPPING.copy().items():
             GET_INSTANCE_MAPPING[key] = debug_get_instance(method)
-
-
-def save_load_round(estimator, f_name, dump_method="fs"):
-    # save and then load the model, and return the loaded model.
-    if dump_method == "memory":
-        return loads(dumps(estimator))
-
-    dump(file=f_name, obj=estimator)
-    loaded = load(file=f_name)
-    return loaded
 
 
 def _tested_estimators(type_filter=None):
@@ -405,11 +398,9 @@ def assert_params_equal(params1, params2):
 @pytest.mark.parametrize(
     "estimator", _tested_estimators(), ids=_get_check_estimator_ids
 )
-@pytest.mark.parametrize("dump_method", ["fs", "memory"])
-def test_can_persist_non_fitted(estimator, dump_method, tmp_path):
+def test_can_persist_non_fitted(estimator):
     """Check that non-fitted estimators can be persisted."""
-    f_name = tmp_path / "file.skops"
-    loaded = save_load_round(estimator, f_name, dump_method=dump_method)
+    loaded = loads(dumps(estimator))
     assert_params_equal(estimator.get_params(), loaded.get_params())
 
 
@@ -475,8 +466,7 @@ def get_input(estimator):
 @pytest.mark.parametrize(
     "estimator", _tested_estimators(), ids=_get_check_estimator_ids
 )
-@pytest.mark.parametrize("dump_method", ["fs", "memory"])
-def test_can_persist_fitted(estimator, dump_method, request, tmp_path):
+def test_can_persist_fitted(estimator, request):
     """Check that fitted estimators can be persisted and return the right results."""
     set_random_state(estimator, random_state=0)
 
@@ -490,8 +480,7 @@ def test_can_persist_fitted(estimator, dump_method, request, tmp_path):
             else:
                 estimator.fit(X)
 
-    f_name = tmp_path / "file.skops"
-    loaded = save_load_round(estimator, f_name, dump_method=dump_method)
+    loaded = loads(dumps(estimator))
     assert_params_equal(estimator.__dict__, loaded.__dict__)
 
     for method in [
@@ -514,7 +503,7 @@ def test_can_persist_fitted(estimator, dump_method, request, tmp_path):
 @pytest.mark.parametrize(
     "estimator", _unsupported_estimators(), ids=_get_check_estimator_ids
 )
-def test_unsupported_type_raises(estimator, tmp_path):
+def test_unsupported_type_raises(estimator):
     """Estimators that are known to fail should raise an error"""
     set_random_state(estimator, random_state=0)
 
@@ -530,8 +519,7 @@ def test_unsupported_type_raises(estimator, tmp_path):
 
     msg = f"Objects of type {estimator.__class__.__name__} are not supported yet"
     with pytest.raises(UnsupportedTypeException, match=msg):
-        f_name = tmp_path / "file.skops"
-        save_load_round(estimator, f_name)
+        dumps(estimator)
 
 
 class RandomStateEstimator(BaseEstimator):
@@ -557,7 +545,7 @@ class RandomStateEstimator(BaseEstimator):
         np.random.Generator(np.random.PCG64DXSM(seed=123)),
     ],
 )
-def test_random_state(random_state, tmp_path):
+def test_random_state(random_state):
     # Numpy random Generators
     # (https://numpy.org/doc/stable/reference/random/generator.html) are not
     # supported by sklearn yet but will be in the future, thus they're tested
@@ -565,8 +553,7 @@ def test_random_state(random_state, tmp_path):
     est = RandomStateEstimator(random_state=random_state).fit(None, None)
     est.random_state_.random(123)  # move RNG forwards
 
-    f_name = tmp_path / "file.skops"
-    loaded = save_load_round(est, f_name)
+    loaded = loads(dumps(est))
     rand_floats_expected = est.random_state_.random(100)
     rand_floats_loaded = loaded.random_state_.random(100)
     np.testing.assert_equal(rand_floats_loaded, rand_floats_expected)
@@ -594,10 +581,9 @@ class CVEstimator(BaseEstimator):
         ShuffleSplit(6, random_state=np.random.RandomState(123)),
     ],
 )
-def test_cross_validator(cv, tmp_path):
+def test_cross_validator(cv):
     est = CVEstimator(cv=cv).fit(None, None)
-    f_name = tmp_path / "file.skops"
-    loaded = save_load_round(est, f_name)
+    loaded = loads(dumps(est))
     X, y = make_classification(
         n_samples=N_SAMPLES, n_features=N_FEATURES, random_state=0
     )
@@ -629,7 +615,7 @@ class EstimatorWith2dObjectArray(BaseEstimator):
         pytest.param(True, marks=pytest.mark.xfail(raises=AssertionError)),
     ],
 )
-def test_numpy_object_dtype_2d_array(transpose, tmp_path):
+def test_numpy_object_dtype_2d_array(transpose):
     # Explicitly test multi-dimensional (i.e. more than 1) object arrays, since
     # those use json instead of numpy.save/load and some errors may only occur
     # with multi-dimensional arrays (e.g. mismatched contiguity). For
@@ -639,12 +625,11 @@ def test_numpy_object_dtype_2d_array(transpose, tmp_path):
     if transpose:
         est.obj_array_ = est.obj_array_.T
 
-    f_name = tmp_path / "file.skops"
-    loaded = save_load_round(est, f_name)
+    loaded = loads(dumps(est))
     assert_params_equal(est.__dict__, loaded.__dict__)
 
 
-def test_metainfo(tmp_path):
+def test_metainfo():
     class MyEstimator(BaseEstimator):
         """Estimator with attributes of different supported types"""
 
@@ -666,9 +651,8 @@ def test_metainfo(tmp_path):
 
     # safe and load the schema
     estimator = MyEstimator().fit(None)
-    f_name = tmp_path / "file.skops"
-    dump(file=f_name, obj=estimator)
-    schema = json.loads(ZipFile(f_name).read("schema.json"))
+    dumped = dumps(estimator)
+    schema = json.loads(ZipFile(io.BytesIO(dumped)).read("schema.json"))
 
     # check some schema metainfo
     assert schema["protocol"] == skops.io._utils.DEFAULT_PROTOCOL
@@ -751,16 +735,16 @@ class EstimatorIdenticalArrays(BaseEstimator):
         return self
 
 
-def test_identical_numpy_arrays_not_duplicated(tmp_path):
+def test_identical_numpy_arrays_not_duplicated():
     # Test that identical numpy arrays are not stored multiple times
     X = np.random.random((10, 5))
     estimator = EstimatorIdenticalArrays().fit(X)
-    f_name = tmp_path / "file.skops"
-    loaded = save_load_round(estimator, f_name)
+    dumped = dumps(estimator)
+    loaded = loads(dumped)
     assert_params_equal(estimator.__dict__, loaded.__dict__)
 
     # check number of numpy arrays stored on disk
-    with ZipFile(f_name, "r") as input_zip:
+    with ZipFile(io.BytesIO(dumped), "r") as input_zip:
         files = input_zip.namelist()
     # expected number of files are:
     # schema, X, X_copy, X_t, 2 vectors, 2 scalars, X_sparse = 9
@@ -777,7 +761,7 @@ class NumpyDtypeObjectEstimator(BaseEstimator):
         return self
 
 
-def test_numpy_dtype_object_does_not_store_broken_file(tmp_path):
+def test_numpy_dtype_object_does_not_store_broken_file():
     # This addresses a specific bug where trying to store an object numpy array
     # resulted in the creation of a broken .npy file being left over. This is
     # because numpy tries to write to the file until it encounters an error and
@@ -785,9 +769,8 @@ def test_numpy_dtype_object_does_not_store_broken_file(tmp_path):
     # would include that broken file in the zip archive, although we wouldn't do
     # anything with it. Here we test that no such file exists.
     estimator = NumpyDtypeObjectEstimator().fit(None)
-    f_name = tmp_path / "file.skops"
-    save_load_round(estimator, f_name)
-    with ZipFile(f_name, "r") as input_zip:
+    dumped = dumps(estimator)
+    with ZipFile(io.BytesIO(dumped), "r") as input_zip:
         files = input_zip.namelist()
 
     # this estimator should not have any numpy file
@@ -879,3 +862,73 @@ class TestPersistingBoundMethods:
 
         self.assert_transformer_persisted_correctly(loaded_transformer, transformer)
         self.assert_bound_method_holder_persisted_correctly(obj, loaded_obj)
+
+        
+class CustomEstimator(BaseEstimator):
+    """Estimator with np array, np scalar, and sparse matrix attribute"""
+
+    def fit(self, X, y=None):
+        self.numpy_array = np.zeros(3)
+        self.numpy_scalar = np.ones(1)[0]
+        self.sparse_matrix = sparse.csr_matrix(np.arange(3))
+        return self
+
+
+def test_dump_to_and_load_from_disk(tmp_path):
+    # Test saving to and loading from disk. Functionality-wise, this is almost
+    # identical to saving to and loading from memory using dumps and loads.
+    # Therefore, only test functionality that is specific to dump and load.
+
+    estimator = CustomEstimator().fit(None)
+    f_name = tmp_path / "estimator.skops"
+    dump(estimator, f_name)
+    file = Path(f_name)
+    assert file.exists()
+
+    with ZipFile(f_name, "r") as input_zip:
+        files = input_zip.namelist()
+
+    # there should be 4 files in total, schema.json, 2 np arrays, and 1 sparse matrix
+    assert len(files) == 4
+    assert "schema.json" in files
+
+    num_array_files = sum(1 for file in files if file.endswith(".npy"))
+    assert num_array_files == 2
+    num_sparse_files = sum(1 for file in files if file.endswith(".npz"))
+    assert num_sparse_files == 1
+
+    # check that schema is valid json by loading it
+    json.loads(ZipFile(f_name).read("schema.json"))
+
+    # load and compare the actual estimator
+    loaded = load(f_name)
+    assert_params_equal(loaded.__dict__, estimator.__dict__)
+
+
+def test_disk_and_memory_are_identical(tmp_path):
+    # Test that model hashes are the same for models stored on disk and in
+    # memory.
+    # Use a somewhat complex model.
+    # fmt: off
+    estimator = Pipeline([
+        ("features", FeatureUnion([
+            ("scaler", StandardScaler()),
+            ("scaled-poly", Pipeline([
+                ("polys", FeatureUnion([
+                    ("poly1", PolynomialFeatures()),
+                    ("poly2", PolynomialFeatures(degree=3, include_bias=False))
+                ])),
+                ("square-root", FunctionTransformer(np.sqrt)),
+                ("scale", MinMaxScaler()),
+            ])),
+        ])),
+        ("clf", LogisticRegression(random_state=0, solver="liblinear")),
+    ]).fit([[0, 1], [2, 3], [4, 5]], [0, 1, 2])
+    # fmt: on
+
+    f_name = tmp_path / "estimator.skops"
+    dump(estimator, f_name)
+    loaded_disk = load(f_name)
+    loaded_memory = loads(dumps(estimator))
+
+    assert joblib.hash(loaded_disk) == joblib.hash(loaded_memory)
