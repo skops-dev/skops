@@ -863,7 +863,7 @@ class TestPersistingBoundMethods:
         self.assert_transformer_persisted_correctly(loaded_transformer, transformer)
         self.assert_bound_method_holder_persisted_correctly(obj, loaded_obj)
 
-        
+
 class CustomEstimator(BaseEstimator):
     """Estimator with np array, np scalar, and sparse matrix attribute"""
 
