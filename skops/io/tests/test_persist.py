@@ -9,6 +9,7 @@ from functools import partial, wraps
 from pathlib import Path
 from zipfile import ZipFile
 
+import joblib
 import numpy as np
 import pytest
 from scipy import sparse, special
@@ -830,3 +831,32 @@ def test_dump_to_and_load_from_disk(tmp_path):
     # load and compare the actual estimator
     loaded = load(f_name)
     assert_params_equal(loaded.__dict__, estimator.__dict__)
+
+
+def test_disk_and_memory_are_identical(tmp_path):
+    # Test that model hashes are the same for models stored on disk and in
+    # memory.
+    # Use a somewhat complex model.
+    # fmt: off
+    estimator = Pipeline([
+        ("features", FeatureUnion([
+            ("scaler", StandardScaler()),
+            ("scaled-poly", Pipeline([
+                ("polys", FeatureUnion([
+                    ("poly1", PolynomialFeatures()),
+                    ("poly2", PolynomialFeatures(degree=3, include_bias=False))
+                ])),
+                ("square-root", FunctionTransformer(np.sqrt)),
+                ("scale", MinMaxScaler()),
+            ])),
+        ])),
+        ("clf", LogisticRegression(random_state=0, solver="liblinear")),
+    ]).fit([[0, 1], [2, 3], [4, 5]], [0, 1, 2])
+    # fmt: on
+
+    f_name = tmp_path / "estimator.skops"
+    dump(estimator, f_name)
+    loaded_disk = load(f_name)
+    loaded_memory = loads(dumps(estimator))
+
+    assert joblib.hash(loaded_disk) == joblib.hash(loaded_memory)
