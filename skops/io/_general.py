@@ -7,7 +7,8 @@ from typing import Any
 
 import numpy as np
 
-from ._dispatch import get_instance
+from ._audit import check_type
+from ._dispatch import Node, get_tree
 from ._utils import SaveState, _import_obj, get_module, get_state, gettype
 from .exceptions import UnsupportedTypeException
 
@@ -16,7 +17,7 @@ def dict_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
-        "__loader__": "dict_get_instance",
+        "__loader__": "DictNode",
     }
 
     key_types = get_state([type(key) for key in obj.keys()], save_state)
@@ -33,12 +34,25 @@ def dict_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     return res
 
 
-def dict_get_instance(state, src):
-    content = gettype(state)()
-    key_types = get_instance(state["key_types"], src)
-    for k_type, item in zip(key_types, state["content"].items()):
-        content[k_type(item[0])] = get_instance(item[1], src)
-    return content
+class DictNode(Node):
+    def __init__(self, state, src, trusted=None):
+        super().__init__(state, src, trusted)
+        self.trusted = trusted or ["builtins.dict"]
+        self.children = {"key_types": list, "content": dict}
+        self.key_types = get_tree(state["key_types"], src)
+        self.content = {
+            key: get_tree(value, src) for key, value in state["content"].items()
+        }
+
+    def construct(self):
+        content_type = gettype(self.module_name, self.class_name)
+        key_types = self.key_types.construct()
+        return content_type(
+            {
+                k_type(item[0]): item[1].construct()
+                for k_type, item in zip(key_types, self.content.items())
+            }
+        )
 
 
 def list_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
@@ -47,18 +61,21 @@ def list_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
         "__module__": get_module(type(obj)),
         "__loader__": "list_get_instance",
     }
-    content = []
-    for value in obj:
-        content.append(get_state(value, save_state))
+    content = [get_state(value, save_state) for value in obj]
     res["content"] = content
     return res
 
 
-def list_get_instance(state, src):
-    content = gettype(state)()
-    for value in state["content"]:
-        content.append(get_instance(value, src))
-    return content
+class ListNode(Node):
+    def __init__(self, state, src, trusted=None):
+        super().__init__(state, src, trusted)
+        self.trusted = trusted or ["builtins.list"]
+        self.children = {"content": list}
+        self.content = [get_tree(value, src) for value in state["content"]]
+
+    def construct(self):
+        content_type = gettype(self.module_name, self.class_name)
+        return content_type([item.construct() for item in self.content])
 
 
 def tuple_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
@@ -72,9 +89,24 @@ def tuple_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     return res
 
 
-def tuple_get_instance(state, src):
-    # Returns a tuple or a namedtuple instance.
-    def isnamedtuple(t):
+class TupleNode(Node):
+    def __init__(self, state, src, trusted=None):
+        super().__init__(state, src, trusted)
+        self.trusted = trusted or ["builtins.tuple"]
+        self.children = {"content": list}
+        self.content = [get_tree(value, src) for value in state["content"]]
+
+    def construct(self):
+        # Returns a tuple or a namedtuple instance.
+
+        cls = gettype(self.module_name, self.class_name)
+        content = tuple(value.construct() for value in self.content)
+
+        if self.isnamedtuple(cls):
+            return cls(*content)
+        return content
+
+    def isnamedtuple(self, t):
         # This is needed since namedtuples need to have the args when
         # initialized.
         b = t.__bases__
@@ -84,13 +116,6 @@ def tuple_get_instance(state, src):
         if not isinstance(f, tuple):
             return False
         return all(type(n) == str for n in f)
-
-    cls = gettype(state)
-    content = tuple(get_instance(value, src) for value in state["content"])
-
-    if isnamedtuple(cls):
-        return cls(*content)
-    return content
 
 
 def function_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
@@ -106,9 +131,26 @@ def function_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     return res
 
 
-def function_get_instance(state, src):
-    loaded = _import_obj(state["content"]["module_path"], state["content"]["function"])
-    return loaded
+class FunctionNode(Node):
+    def __init__(self, state, src, trusted=None):
+        super().__init__(state, src, trusted)
+        # TODO: what do we trust?
+        # self.trusted = trusted or []
+        self.children = {"content": FunctionType}
+        self.content = state["content"]
+
+    def construct(self):
+        return _import_obj(self.content["module_path"], self.content["function"])
+
+    @property
+    def is_safe(self):
+        return False
+
+    def get_safety_tree(self, report_safe=True):
+        raise NotImplementedError()
+
+    def get_unsafe_set(self):
+        raise NotImplementedError()
 
 
 def partial_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
