@@ -87,12 +87,12 @@ def reduce_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     return res
 
 
-def reduce_get_instance(state, src, constructor):
+def reduce_get_instance(state, src, load_state, constructor):
     reduce = state["__reduce__"]
-    args = get_instance(reduce["args"], src)
+    args = get_instance(reduce["args"], src, load_state)
     instance = constructor(*args)
 
-    attrs = get_instance(state["content"], src)
+    attrs = get_instance(state["content"], src, load_state)
     if not attrs:
         # nothing more to do
         return instance
@@ -116,8 +116,8 @@ def tree_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     return state
 
 
-def tree_get_instance(state, src):
-    return reduce_get_instance(state, src, constructor=Tree)
+def tree_get_instance(state, src, load_state):
+    return reduce_get_instance(state, src, load_state, constructor=Tree)
 
 
 def sgd_loss_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
@@ -126,11 +126,11 @@ def sgd_loss_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     return state
 
 
-def sgd_loss_get_instance(state, src):
+def sgd_loss_get_instance(state, src, load_state):
     cls = gettype(state)
     if cls not in ALLOWED_SGD_LOSSES:
         raise UnsupportedTypeException(f"Expected LossFunction, got {cls}")
-    return reduce_get_instance(state, src, constructor=cls)
+    return reduce_get_instance(state, src, load_state, constructor=cls)
 
 
 # TODO: remove once support for sklearn<1.2 is dropped.
@@ -152,11 +152,11 @@ def _DictWithDeprecatedKeys_get_state(
 
 
 # TODO: remove once support for sklearn<1.2 is dropped.
-def _DictWithDeprecatedKeys_get_instance(state, src):
+def _DictWithDeprecatedKeys_get_instance(state, src, load_state):
     # _DictWithDeprecatedKeys is just a wrapper for dict
-    content = dict_get_instance(state["content"]["main"], src)
+    content = dict_get_instance(state["content"]["main"], src, load_state)
     deprecated_key_to_new_key = dict_get_instance(
-        state["content"]["_deprecated_key_to_new_key"], src
+        state["content"]["_deprecated_key_to_new_key"], src, load_state
     )
     res = _DictWithDeprecatedKeys(**content)
     res._deprecated_key_to_new_key = deprecated_key_to_new_key

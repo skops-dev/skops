@@ -8,7 +8,7 @@ from zipfile import ZipFile
 import skops
 
 from ._dispatch import GET_INSTANCE_MAPPING, get_instance
-from ._utils import SaveState, _get_state, get_state
+from ._utils import LoadState, SaveState, _get_state, get_state
 
 # We load the dispatch functions from the corresponding modules and register
 # them.
@@ -115,7 +115,7 @@ def load(file):
     """
     with ZipFile(file, "r") as input_zip:
         schema = input_zip.read("schema.json")
-        instance = get_instance(json.loads(schema), input_zip)
+        instance = get_instance(json.loads(schema), input_zip, LoadState())
     return instance
 
 
@@ -141,5 +141,5 @@ def loads(data):
 
     with ZipFile(io.BytesIO(data), "r") as zip_file:
         schema = json.loads(zip_file.read("schema.json"))
-        instance = get_instance(schema, src=zip_file)
+        instance = get_instance(schema, src=zip_file, load_state=LoadState())
     return instance
