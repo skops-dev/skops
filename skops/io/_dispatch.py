@@ -13,7 +13,9 @@ def get_instance(state, src, load_state: LoadState):
         return json.loads(state["content"])
 
     saved_id = state.get("__id__")
+
     if saved_id and saved_id in load_state.memo:
+        # same instance already loaded elsewhere in tree
         return load_state.get_instance(saved_id)
 
     try:
@@ -25,6 +27,8 @@ def get_instance(state, src, load_state: LoadState):
         )
 
     loaded_obj = get_instance_func(state, src, load_state)
+
     if saved_id:
         load_state.memoize(loaded_obj, saved_id)
+
     return loaded_obj
