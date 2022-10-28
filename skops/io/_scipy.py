@@ -31,7 +31,7 @@ def sparse_matrix_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     return res
 
 
-def sparse_matrix_get_instance(state, src, load_state):
+def sparse_matrix_get_instance(state, src):
     if state["type"] != "scipy":
         raise TypeError(
             f"Cannot load object of type {state['__module__']}.{state['__class__']}"

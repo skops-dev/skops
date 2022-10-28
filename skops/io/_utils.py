@@ -5,7 +5,7 @@ import json  # type: ignore
 import sys
 from dataclasses import dataclass, field
 from functools import singledispatch
-from typing import Any, Optional
+from typing import Any
 from zipfile import ZipFile
 
 
@@ -121,37 +121,8 @@ class SaveState:
             self.memo[obj_id] = obj
         return obj_id
 
-    def get_memoized_state(self, obj: Any) -> Optional[dict]:
-        # Used in persisting a single object that is referenced in multiple places
-        obj_id = id(obj)
-        return self.memo.get(obj_id)
-
-    def store_state(self, obj: Any, state: dict) -> None:
-        obj_id = id(obj)
-        if obj_id not in self.memo:
-            self.memo[obj_id] = state
-
     def clear_memo(self) -> None:
         self.memo.clear()
-
-
-@dataclass(frozen=True)
-class LoadState:
-
-    """
-    State required for loading objects.
-    This state is passed to each ``get_instance_*`` function.
-    This is primarily used to hold references to objects which exist in multiple places
-    in the state tree.
-    """
-
-    memo: dict[int, Any] = field(default_factory=dict)
-
-    def memoize(self, obj: Any, id: int) -> None:
-        self.memo[id] = obj
-
-    def get_instance(self, id: int) -> Any:
-        return self.memo.get(id)
 
 
 @singledispatch

@@ -96,16 +96,16 @@ def debug_dispatch_functions():
     def debug_get_instance(func):
         # check consistency of argument names and input type
         signature = inspect.signature(func)
-        assert list(signature.parameters.keys()) == ["state", "src", "load_state"]
+        assert list(signature.parameters.keys()) == ["state", "src"]
 
         @wraps(func)
-        def wrapper(state, src, load_state):
+        def wrapper(state, src):
             assert "__class__" in state
             assert "__module__" in state
             assert "__loader__" in state
             assert isinstance(src, ZipFile)
 
-            result = func(state, src, load_state)
+            result = func(state, src)
             return result
 
         return wrapper
@@ -789,7 +789,7 @@ def test_get_instance_unknown_type_error_msg():
     state["__loader__"] = "this_get_instance_does_not_exist"
     msg = "Can't find loader this_get_instance_does_not_exist for type builtins.tuple."
     with pytest.raises(TypeError, match=msg):
-        get_instance(state, None, None)
+        get_instance(state, None)
 
 
 class _BoundMethodHolder:
@@ -803,21 +803,6 @@ class _BoundMethodHolder:
 
     def bound_method(self, x):
         return self.chosen_function(x)
-
-    def other_bound_method(self, x):
-        return self.chosen_function(x)
-
-
-class _MultipleMethodHolder:
-    """Used to test the ability to serialize and deserialize"""
-
-    def __init__(self, func1, func2):
-        self.func1 = func1
-        self.func2 = func2
-
-    def bound_method(self, x):
-        # arbitrary function that uses both funcs
-        return self.func1(x) + self.func2(x)
 
 
 class TestPersistingBoundMethods:
@@ -877,25 +862,6 @@ class TestPersistingBoundMethods:
 
         self.assert_transformer_persisted_correctly(loaded_transformer, transformer)
         self.assert_bound_method_holder_persisted_correctly(obj, loaded_obj)
-
-    def test_works_when_given_multiple_bound_methods_attached_to_single_instance(self):
-        initial_state = "Any arbitrary state"
-        original_obj = _BoundMethodHolder(object_state=initial_state)
-        multiple_bound_method = _MultipleMethodHolder(
-            original_obj.bound_method, original_obj.other_bound_method
-        )
-
-        bound_function = multiple_bound_method.bound_method
-
-        transformer = FunctionTransformer(func=bound_function)
-
-        loaded_transformer = loads(dumps(transformer))
-        loaded_obj = loaded_transformer.func.__self__
-
-        self.assert_transformer_persisted_correctly(loaded_transformer, transformer)
-
-        # check that both func1 and func2 are from the same object
-        assert loaded_obj.func1.__self__ == loaded_obj.func2.__self__
 
 
 class CustomEstimator(BaseEstimator):

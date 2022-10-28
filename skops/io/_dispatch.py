@@ -2,21 +2,13 @@ from __future__ import annotations
 
 import json
 
-from skops.io._utils import LoadState
-
 GET_INSTANCE_MAPPING = {}  # type: ignore
 
 
-def get_instance(state, src, load_state: LoadState):
+def get_instance(state, src):
     """Create instance based on the state, using json if possible"""
     if state.get("is_json"):
         return json.loads(state["content"])
-
-    saved_id = state.get("__id__")
-
-    if saved_id and saved_id in load_state.memo:
-        # same instance already loaded elsewhere in tree
-        return load_state.get_instance(saved_id)
 
     try:
         get_instance_func = GET_INSTANCE_MAPPING[state["__loader__"]]
@@ -25,10 +17,4 @@ def get_instance(state, src, load_state: LoadState):
         raise TypeError(
             f" Can't find loader {state['__loader__']} for type {type_name}."
         )
-
-    loaded_obj = get_instance_func(state, src, load_state)
-
-    if saved_id:
-        load_state.memoize(loaded_obj, saved_id)
-
-    return loaded_obj
+    return get_instance_func(state, src)
