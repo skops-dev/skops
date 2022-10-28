@@ -804,6 +804,10 @@ class _BoundMethodHolder:
     def bound_method(self, x):
         return self.chosen_function(x)
 
+    def other_bound_method(self, x):
+        # arbitrary other function, used for checking single instance loaded
+        return self.chosen_function(x)
+
 
 class TestPersistingBoundMethods:
     @staticmethod
@@ -862,6 +866,28 @@ class TestPersistingBoundMethods:
 
         self.assert_transformer_persisted_correctly(loaded_transformer, transformer)
         self.assert_bound_method_holder_persisted_correctly(obj, loaded_obj)
+
+    @pytest.mark.xfail(reason="Can't load one obj referenced multiple times")
+    def test_works_when_given_multiple_bound_methods_attached_to_single_instance(self):
+        obj = _BoundMethodHolder(object_state="")
+
+        transformer = FunctionTransformer(
+            func=obj.bound_method, inverse_func=obj.other_bound_method
+        )
+
+        loaded_transformer = loads(dumps(transformer))
+
+        # check that both func and inverse_func are from the same object instance
+        loaded_0 = loaded_transformer.func.__self__
+        loaded_1 = loaded_transformer.inverse_func.__self__
+        assert loaded_0 is loaded_1
+
+    @pytest.mark.xfail(reason="Failing due to circular self reference")
+    def test_scipy_stats(self, tmp_path):
+        from scipy import stats
+
+        estimator = FunctionTransformer(func=stats.zipf)
+        loads(dumps(estimator))
 
 
 class CustomEstimator(BaseEstimator):
