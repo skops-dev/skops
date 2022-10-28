@@ -10,11 +10,15 @@ from pathlib import Path
 from reprlib import Repr
 from typing import Any, Optional, Union
 
+import joblib
+from yaml import load
+
 from huggingface_hub import CardData, ModelCard
 from sklearn.utils import estimator_html_repr
 from tabulate import tabulate  # type: ignore
 
 import skops
+from skops.io import load
 
 # Repr attributes can be used to control the behavior of repr
 aRepr = Repr()
@@ -161,6 +165,40 @@ def metadata_from_config(config_path: Union[str, Path]) -> CardData:
 
     return card_data
 
+def _load_model(model:Any)->Any:
+    """Loads the mddel if provided a file path, if already a model instance return it unmodified.
+
+    Parameters
+    ----------
+    model : pathlib.path, str, or sklearn estimator 
+        Path/str or the actual model instance. if a Path or str, loads the model on first call.
+
+    Returns
+    -------
+    model : object 
+        Model instance.
+
+    """
+
+    if not isinstance(model, (Path, str)):
+        return model
+
+    model_path = Path(model)
+    if not model_path.exists():
+        raise ValueError("Model file does not exist")
+
+    if model_path.suffix in (".pkl", ".pickle"):
+        model = joblib.load(model_path)
+    elif model_path.suffix ==".skops":
+        model = load(model_path)
+    else:
+        msg = (
+            f"Cannot interpret model suffix {model_path.suffix}, should be"
+            "'.pkl', '.pickle', or '.skops'"
+         )
+        raise ValueError(msg)
+    
+    return model
 
 class Card:
     """Model card class that will be used to generate model card.
@@ -172,7 +210,7 @@ class Card:
 
     Parameters
     ----------
-    model: estimator object
+    model: pathlib.path, str, or sklearn estimator object
         Model that will be documented.
 
     model_diagram: bool, default=True
@@ -254,12 +292,27 @@ class Card:
         model_diagram: bool = True,
         metadata: Optional[CardData] = None,
     ) -> None:
-        self.model = model
+        self._model = model
         self.model_diagram = model_diagram
         self._eval_results = {}  # type: ignore
         self._template_sections: dict[str, str] = {}
         self._extra_sections: list[tuple[str, Any]] = []
         self.metadata = metadata or CardData()
+
+    @property
+    def model(self):
+        model = _load_model(self._model)
+        if model is not self._model:
+            self._model = model
+        return model
+
+    @model.setter
+    def model(self, model):
+        self._model = model
+
+    @model.deleter
+    def model(self):
+        del self._model
 
     def add(self, **kwargs: str) -> "Card":
         """Takes values to fill model card template.
@@ -372,6 +425,7 @@ class Card:
         for metric, value in kwargs.items():
             self._eval_results[metric] = value
         return self
+
 
     def _generate_card(self) -> ModelCard:
         """Generate the ModelCard object
