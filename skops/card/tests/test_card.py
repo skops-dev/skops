@@ -1,7 +1,6 @@
 import copy
 import os
 import pickle
-from pyexpat import model
 import tempfile
 from pathlib import Path
 
@@ -16,7 +15,7 @@ from sklearn.linear_model import LinearRegression, LogisticRegression
 import skops
 from skops import hub_utils
 from skops.card import Card, metadata_from_config
-from skops.card._model_card import _load_model, PlotSection, TableSection
+from skops.card._model_card import PlotSection, TableSection, _load_model
 from skops.io import dump
 
 
@@ -26,6 +25,7 @@ def fit_model():
     reg = LinearRegression().fit(X, y)
     return reg
 
+
 def save_model_to_file(model_instance, suffix):
     save_file = tempfile.mkstemp(suffix=suffix, prefix="skops-test")[1]
     if suffix in (".pkl", ".pickle"):
@@ -34,6 +34,7 @@ def save_model_to_file(model_instance, suffix):
     elif suffix == ".skops":
         dump(model_instance, save_file)
     return save_file
+
 
 @pytest.mark.parametrize("suffix", [".pkl", ".pickle", ".skops"])
 def test_load_model(suffix):
@@ -426,8 +427,8 @@ class TestCardRepr:
         result = meth(card)
         assert result == expected
 
-class TestModelCardFromPath:
 
+class TestModelCardFromPath:
     @pytest.mark.parametrize("suffix", [".pkl", ".pickle", ".skops"])
     def test_model_card_str(self, suffix):
         model0 = LinearRegression(n_jobs=123)
@@ -446,8 +447,6 @@ class TestModelCardFromPath:
         card_from_model0 = Card(model0)
 
         assert card_from_model0.model.n_jobs == card_from_path.model.n_jobs
-
-
 
 
 class TestCardModelAttribute:
@@ -490,6 +489,7 @@ class TestCardModelAttribute:
         card.model = f_name0
         assert isinstance(card.model, LinearRegression)
         assert card.model.n_jobs == 123
+
 
 class TestPlotSection:
     def test_format_path_is_str(self):

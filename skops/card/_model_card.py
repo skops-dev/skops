@@ -11,8 +11,6 @@ from reprlib import Repr
 from typing import Any, Optional, Union
 
 import joblib
-from yaml import load
-
 from huggingface_hub import CardData, ModelCard
 from sklearn.utils import estimator_html_repr
 from tabulate import tabulate  # type: ignore
@@ -165,17 +163,18 @@ def metadata_from_config(config_path: Union[str, Path]) -> CardData:
 
     return card_data
 
-def _load_model(model:Any)->Any:
+
+def _load_model(model: Any) -> Any:
     """Loads the mddel if provided a file path, if already a model instance return it unmodified.
 
     Parameters
     ----------
-    model : pathlib.path, str, or sklearn estimator 
+    model : pathlib.path, str, or sklearn estimator
         Path/str or the actual model instance. if a Path or str, loads the model on first call.
 
     Returns
     -------
-    model : object 
+    model : object
         Model instance.
 
     """
@@ -189,16 +188,17 @@ def _load_model(model:Any)->Any:
 
     if model_path.suffix in (".pkl", ".pickle"):
         model = joblib.load(model_path)
-    elif model_path.suffix ==".skops":
+    elif model_path.suffix == ".skops":
         model = load(model_path)
     else:
         msg = (
             f"Cannot interpret model suffix {model_path.suffix}, should be"
             "'.pkl', '.pickle', or '.skops'"
-         )
+        )
         raise ValueError(msg)
-    
+
     return model
+
 
 class Card:
     """Model card class that will be used to generate model card.
@@ -425,7 +425,6 @@ class Card:
         for metric, value in kwargs.items():
             self._eval_results[metric] = value
         return self
-
 
     def _generate_card(self) -> ModelCard:
         """Generate the ModelCard object
