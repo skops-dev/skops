@@ -792,6 +792,106 @@ def test_get_instance_unknown_type_error_msg():
         get_instance(state, None)
 
 
+class _BoundMethodHolder:
+    """Used to test the ability to serialize and deserialize bound methods"""
+
+    def __init__(self, object_state: str):
+        # Initialize with some state to make sure state is persisted
+        self.object_state = object_state
+        # bind some method to this object, could be any persistable function
+        self.chosen_function = np.log
+
+    def bound_method(self, x):
+        return self.chosen_function(x)
+
+    def other_bound_method(self, x):
+        # arbitrary other function, used for checking single instance loaded
+        return self.chosen_function(x)
+
+
+class TestPersistingBoundMethods:
+    @staticmethod
+    def assert_transformer_persisted_correctly(
+        loaded_transformer: FunctionTransformer,
+        original_transformer: FunctionTransformer,
+    ):
+        """Checks that a persisted and original transformer are equivalent, including
+        the func passed to it
+        """
+        assert loaded_transformer.func.__name__ == original_transformer.func.__name__
+
+        assert_params_equal(
+            loaded_transformer.func.__self__.__dict__,
+            original_transformer.func.__self__.__dict__,
+        )
+        assert_params_equal(loaded_transformer.__dict__, original_transformer.__dict__)
+
+    @staticmethod
+    def assert_bound_method_holder_persisted_correctly(
+        original_obj: _BoundMethodHolder, loaded_obj: _BoundMethodHolder
+    ):
+        """Checks that the persisted and original instances of _BoundMethodHolder are
+        equivalent
+        """
+        assert original_obj.bound_method.__name__ == loaded_obj.bound_method.__name__
+        assert original_obj.chosen_function == loaded_obj.chosen_function
+
+        assert_params_equal(original_obj.__dict__, loaded_obj.__dict__)
+
+    def test_for_base_case_returns_as_expected(self):
+        initial_state = "This is an arbitrary state"
+        obj = _BoundMethodHolder(object_state=initial_state)
+        bound_function = obj.bound_method
+        transformer = FunctionTransformer(func=bound_function)
+
+        loaded_transformer = loads(dumps(transformer))
+        loaded_obj = loaded_transformer.func.__self__
+
+        self.assert_transformer_persisted_correctly(loaded_transformer, transformer)
+        self.assert_bound_method_holder_persisted_correctly(obj, loaded_obj)
+
+    def test_when_object_is_changed_after_init_works_as_expected(self):
+        # given change to object with bound method after initialisation,
+        # make sure still persists correctly
+
+        initial_state = "This is an arbitrary state"
+        obj = _BoundMethodHolder(object_state=initial_state)
+        obj.chosen_function = np.sqrt
+        bound_function = obj.bound_method
+
+        transformer = FunctionTransformer(func=bound_function)
+
+        loaded_transformer = loads(dumps(transformer))
+        loaded_obj = loaded_transformer.func.__self__
+
+        self.assert_transformer_persisted_correctly(loaded_transformer, transformer)
+        self.assert_bound_method_holder_persisted_correctly(obj, loaded_obj)
+
+    @pytest.mark.xfail(
+        reason="Can't load an object as a single instance if referenced multiple times"
+    )
+    def test_works_when_given_multiple_bound_methods_attached_to_single_instance(self):
+        obj = _BoundMethodHolder(object_state="")
+
+        transformer = FunctionTransformer(
+            func=obj.bound_method, inverse_func=obj.other_bound_method
+        )
+
+        loaded_transformer = loads(dumps(transformer))
+
+        # check that both func and inverse_func are from the same object instance
+        loaded_0 = loaded_transformer.func.__self__
+        loaded_1 = loaded_transformer.inverse_func.__self__
+        assert loaded_0 is loaded_1
+
+    @pytest.mark.xfail(reason="Failing due to circular self reference")
+    def test_scipy_stats(self, tmp_path):
+        from scipy import stats
+
+        estimator = FunctionTransformer(func=stats.zipf)
+        loads(dumps(estimator))
+
+
 class CustomEstimator(BaseEstimator):
     """Estimator with np array, np scalar, and sparse matrix attribute"""
 
