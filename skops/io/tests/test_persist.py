@@ -867,7 +867,9 @@ class TestPersistingBoundMethods:
         self.assert_transformer_persisted_correctly(loaded_transformer, transformer)
         self.assert_bound_method_holder_persisted_correctly(obj, loaded_obj)
 
-    @pytest.mark.xfail(reason="Can't load one obj referenced multiple times")
+    @pytest.mark.xfail(
+        reason="Can't load an object as a single instance if referenced multiple times"
+    )
     def test_works_when_given_multiple_bound_methods_attached_to_single_instance(self):
         obj = _BoundMethodHolder(object_state="")
 
