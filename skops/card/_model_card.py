@@ -165,12 +165,14 @@ def metadata_from_config(config_path: Union[str, Path]) -> CardData:
 
 
 def _load_model(model: Any) -> Any:
-    """Loads the mddel if provided a file path, if already a model instance return it unmodified.
+    """Loads the mddel if provided a file path, if already a model instance return it
+       unmodified.
 
     Parameters
     ----------
     model : pathlib.path, str, or sklearn estimator
-        Path/str or the actual model instance. if a Path or str, loads the model on first call.
+        Path/str or the actual model instance. if a Path or str, loads the model on
+        first call.
 
     Returns
     -------
@@ -184,7 +186,7 @@ def _load_model(model: Any) -> Any:
 
     model_path = Path(model)
     if not model_path.exists():
-        raise ValueError("Model file does not exist")
+        raise FileNotFoundError(f"File is not present:{model_path}")
 
     if model_path.suffix in (".pkl", ".pickle"):
         model = joblib.load(model_path)

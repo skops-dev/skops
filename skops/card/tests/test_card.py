@@ -44,9 +44,9 @@ def test_load_model(suffix):
     save_file_path = Path(save_file)
     loaded_model_path = _load_model(save_file_path)
 
-    assert loaded_model_str.n_jobs is model0.n_jobs
-    assert loaded_model_path.n_jobs is model0.n_jobs
-    assert loaded_model_path.n_jobs is loaded_model_str.n_jobs
+    assert loaded_model_str.n_jobs == model0.n_jobs
+    assert loaded_model_path.n_jobs == model0.n_jobs
+    assert loaded_model_path.n_jobs == loaded_model_str.n_jobs
 
 
 @pytest.fixture
@@ -429,24 +429,17 @@ class TestCardRepr:
 
 
 class TestModelCardFromPath:
+    @pytest.mark.parametrize("file_type", [str, Path])
     @pytest.mark.parametrize("suffix", [".pkl", ".pickle", ".skops"])
-    def test_model_card_str(self, suffix):
+    def test_model_card_str(self, suffix, file_type):
         model0 = LinearRegression(n_jobs=123)
-        save_file_str = save_model_to_file(model0, suffix)
-        card_from_str = Card(save_file_str)
+        save_file = save_model_to_file(model0, suffix)
+        save_file = file_type(save_file)
+        print(type(save_file))
+        card_from_str = Card(save_file)
         card_from_model0 = Card(model0)
 
         assert card_from_model0.model.n_jobs == card_from_str.model.n_jobs
-
-    @pytest.mark.parametrize("suffix", [".pkl", ".pickle", ".skops"])
-    def test_model_card_path(self, suffix):
-        model0 = LinearRegression(n_jobs=123)
-        save_file = save_model_to_file(model0, suffix)
-        save_file_path = Path(save_file)
-        card_from_path = Card(save_file_path)
-        card_from_model0 = Card(model0)
-
-        assert card_from_model0.model.n_jobs == card_from_path.model.n_jobs
 
 
 class TestCardModelAttribute:
@@ -465,11 +458,9 @@ class TestCardModelAttribute:
         card.model = model0
         assert card.model is model0
 
-    def test_model_is_str_pickle(self, destination_path):
+    def test_model_is_str_pickle(self, suffix=".pickle"):
         model0 = LinearRegression(n_jobs=123)
-        f_name0 = destination_path / "lin_reg.pickle"
-        with open(f_name0, "wb") as f:
-            pickle.dump(model0, f)
+        f_name0 = save_model_to_file(model0, suffix)
 
         card = Card(f_name0)
         assert isinstance(card.model, LinearRegression)
@@ -477,9 +468,7 @@ class TestCardModelAttribute:
 
         # re-assigning the model works
         model1 = LogisticRegression(n_jobs=456)
-        f_name1 = destination_path / "log_reg.pickle"
-        with open(f_name1, "wb") as f:
-            pickle.dump(model1, f)
+        f_name1 = save_model_to_file(model1, suffix)
 
         card.model = f_name1
         assert isinstance(card.model, LogisticRegression)
@@ -489,6 +478,41 @@ class TestCardModelAttribute:
         card.model = f_name0
         assert isinstance(card.model, LinearRegression)
         assert card.model.n_jobs == 123
+
+    def test_model_is_loaded_once(self, suffix=".pickle"):
+        model0 = LinearRegression(n_jobs=123)
+        f_name0 = save_model_to_file(model0, suffix)
+
+        card = Card(f_name0)
+        assert isinstance(card.model, LinearRegression)
+        assert card.model.n_jobs == 123
+
+        os.remove(f_name0)
+
+        assert isinstance(card.model, LinearRegression)
+        assert card.model.n_jobs == 123
+
+    def test_load_model_file_not_found(self):
+        file_name = tempfile.mkstemp(suffix=".pkl", prefix="skops-test")[1]
+        os.remove(file_name)
+        with pytest.raises(FileNotFoundError, match=file_name):
+            card = Card(file_name)
+            card.model
+
+    def test_load_model_value_error(self):
+        file_name = tempfile.mkstemp(suffix=".abc", prefix="skops-test")[1]
+        file_name = Path(file_name)
+        model0 = LinearRegression(n_jobs=123)
+        with open(file_name, "wb") as f:
+            pickle.dump(model0, f)
+
+        msg = (
+            f"Cannot interpret model suffix {file_name.suffix}, should be"
+            "'.pkl', '.pickle', or '.skops'"
+        )
+        with pytest.raises(ValueError, match=msg):
+            card = Card(file_name)
+            card.model
 
 
 class TestPlotSection:
