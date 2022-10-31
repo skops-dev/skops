@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import textwrap
 from dataclasses import dataclass, field
 from pathlib import Path
 from reprlib import Repr
@@ -15,6 +16,43 @@ from skops.card._model_card import PlotSection, TableSection
 aRepr = Repr()
 aRepr.maxother = 79
 aRepr.maxstring = 79
+
+
+DEFAULT_TEMPLATE = {
+    "Model description": "[More Information Needed]",
+    "Model description/Intended uses & limitations": "[More Information Needed]",
+    "Model description/Training Procedure/Hyperparameters": """The model is trained with below hyperparameters.
+
+<details>
+<summary> Click to expand </summary>
+
+{{ hyperparameter_table }}
+
+</details>""",
+    "Model description/Training Procedure/Model Plot": "The model plot is below.",
+    "Model description/Evaluation Results": """You can find the details about evaluation process and the evaluation results.
+
+
+
+[More Information Needed]""",
+    "How to Get Started with the Model": """Use the code below to get started with the model.
+
+```python
+[More Information Needed]
+```""",
+    "Model Card Authors": """This model card is written by following authors:
+
+[More Information Needed]""",
+    "Model Card Contact": """You can contact the model card authors through following channels:
+[More Information Needed]""",
+    "Citation": """Below you can find information related to citation.
+
+**BibTeX:**
+```
+[More Information Needed]
+```
+""",
+}
 
 
 def split_subsection_names(key: str) -> list[str]:
@@ -47,27 +85,24 @@ class Formattable(Protocol):
 
 
 class Card:
-    @classmethod
-    def make_default(
-        cls, model, model_diagram: bool = True, metadata: CardData | None = None
-    ):
-        """Add a bunch of default sections, yet to be implemented"""
-        raise NotImplementedError
-
     def __init__(
-        self, model, model_diagram: bool = True, metadata: CardData | None = None
+        self,
+        model,
+        model_diagram: bool = True,
+        metadata: CardData | None = None,
+        prefill: bool = True,
     ):
         self.model = model
         self.model_diagram = model_diagram
         self.metadata = metadata or CardData()
 
         self._data: dict[str, Section] = {}
-        self._metrics: dict[str, float | int] = {}
+        if prefill:
+            self._fill_default_sections()
+        self._metrics: dict[str, str | float | int] = {}
         self._reset()
 
     def _reset(self) -> None:
-        self._add_model(self.model)
-
         model_file = self.metadata.to_dict().get("model_file")
         if model_file:
             self._add_get_started_code(model_file)
@@ -75,14 +110,22 @@ class Card:
         self._add_model_section()
         self._add_hyperparams()
 
+    def _fill_default_sections(self) -> None:
+        self.add(**DEFAULT_TEMPLATE)
+
     def add(self, **kwargs: str) -> "Card":
         for key, val in kwargs.items():
             self._add_single(key, val)
         return self
 
-    def _add_single(self, key: str, val: Formattable | str) -> None:
+    def _select(
+        self, subsection_names: list[str], create: bool = True
+    ) -> dict[str, Section]:
+        """TODO"""
         section = self._data
-        *subsection_names, leaf_node_name = split_subsection_names(key)
+        if not subsection_names:
+            return section
+
         for subsection_name in subsection_names:
             section_maybe = section.get(subsection_name)
 
@@ -91,10 +134,31 @@ class Card:
                 section = section_maybe.subsections
                 continue
 
-            # no subsection, create
-            entry = Section(title=subsection_name)
-            section[subsection_name] = entry
-            section = entry.subsections
+            if create:
+                # no subsection, create
+                entry = Section(title=subsection_name)
+                section[subsection_name] = entry
+                section = entry.subsections
+            else:
+                raise KeyError(f"Section titles {subsection_name} does not exist")
+
+        return section
+
+    def select(self, key: str | list[str]) -> Section:
+        assert key  # TODO
+
+        if isinstance(key, str):
+            subsection_names = split_subsection_names(key)
+        else:
+            subsection_names = key
+
+        parent_section = self._select(subsection_names[:-1], create=False)
+        return parent_section[subsection_names[-1]]
+
+    def _add_single(self, key: str, val: Formattable | str) -> None:
+        section = self._data
+        *subsection_names, leaf_node_name = split_subsection_names(key)
+        section = self._select(subsection_names)
 
         if leaf_node_name in section:
             # entry exists, only overwrite content
@@ -121,7 +185,11 @@ class Card:
             model_plot_div = model_plot_div.replace(
                 "sk-top-container", 'sk-top-container" style="overflow: auto;'
             )
-        self._add_single("Model Plot", model_plot_div)
+        template = "The model plot is below.\n\n{}"
+        self._add_single(
+            "Model description/Training Procedure/Model Plot",
+            template.format(model_plot_div),
+        )
 
     def _add_hyperparams(self) -> None:
         hyperparameter_dict = self.model.get_params(deep=True)
@@ -132,12 +200,26 @@ class Card:
                 tablefmt="github",
             )
         )
-        self._add_single("Model description/Training Procedure/Hyperparameters", table)
+        template = textwrap.dedent(
+            """        The model is trained with below hyperparameters.
+
+        <details>
+        <summary> Click to expand </summary>
+
+        {}
+
+        </details>"""
+        )
+        self._add_single(
+            "Model description/Training Procedure/Hyperparameters",
+            template.format(table),
+        )
 
     def add_plot(self, folded=False, **kwargs: str) -> "Card":
-        for plot_name, plot_path in kwargs.items():
+        for section_name, plot_path in kwargs.items():
+            plot_name = split_subsection_names(section_name)[-1]
             section = PlotSection(alt_text=plot_name, path=plot_path, folded=folded)
-            self._add_single(plot_name, section)
+            self._add_single(section_name, section)
         return self
 
     def add_table(self, folded: bool = False, **kwargs: dict["str", list[Any]]) -> Card:
@@ -146,18 +228,25 @@ class Card:
             self._add_single(key, section)
         return self
 
-    def add_metrics(self, **kwargs: int | float) -> "Card":
+    def add_metrics(self, **kwargs: str | int | float) -> "Card":
         self._metrics.update(kwargs)
         self._add_metrics(self._metrics)
         return self
 
-    def _add_metrics(self, metrics: dict[str, float | int]) -> None:
+    def _add_metrics(self, metrics: dict[str, str | float | int]) -> None:
         table = tabulate(
             list(metrics.items()),
             headers=["Metric", "Value"],
             tablefmt="github",
         )
-        self._add_single("Model description/Evaluation Results", table)
+        template = textwrap.dedent(
+            """        You can find the details about evaluation process and the evaluation results.
+
+
+
+        {}"""
+        )
+        self._add_single("Model description/Evaluation Results", template.format(table))
 
     def _generate_metadata(self, metadata: CardData) -> Iterator[str]:
         for key, val in metadata.to_dict().items() if metadata else {}:
@@ -174,7 +263,9 @@ class Card:
         text = re.sub(r"\s+", r" ", text)
         return text
 
-    def _generate_content(self, data, depth: int = 1) -> Iterator[str]:
+    def _generate_content(
+        self, data: dict[str, Section], depth: int = 1
+    ) -> Iterator[str]:
         for val in data.values():
             title = f"{depth * '#'} {val.title}"
             yield title
@@ -207,28 +298,41 @@ class Card:
         return complete_repr
 
     def _add_get_started_code(self, file_name: str, indent: str = "    ") -> None:
-        lines = [
+        is_skops_format = file_name.endswith(".skops")  # else, assume pickle
+
+        lines = ["```python"]
+        if is_skops_format:
+            lines += ["from skops.io import load"]
+        else:
+            lines += ["import joblib"]
+
+        lines += [
             "import json",
             "import pandas as pd",
         ]
-        if file_name.endswith(".skops"):
+        if is_skops_format:
             lines += [
                 "from skops.io import load",
                 f'model = load("{file_name}")',
             ]
         else:  # pickle
-            lines += [
-                "import pickle",
-                f"with open('{file_name}') as f:",
-                indent + "model = pickle.load(f)",
-            ]
+            lines += [f"model = joblib.load({file_name})"]
 
         lines += [
             'with open("config.json") as f:',
             indent + "config = json.load(f)",
-            'clf.predict(pd.DataFrame.from_dict(config["sklearn"]["example_input"]))',
+            'model.predict(pd.DataFrame.from_dict(config["sklearn"]["example_input"]))',
+            "```",
         ]
-        self._add_single("How to Get Started with the Model", "\n".join(lines))
+        template = textwrap.dedent(
+            """        Use the code below to get started with the model.
+
+        {}
+        """
+        )
+        self._add_single(
+            "How to Get Started with the Model", template.format("\n".join(lines))
+        )
 
     def _generate_card(self) -> Iterator[str]:
         if self.metadata:
@@ -261,7 +365,7 @@ class Card:
 
         Returns
         -------
-        card : str
+        result : str
             The rendered model card with all placeholders filled and all extra
             sections inserted.
         """

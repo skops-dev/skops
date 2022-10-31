@@ -395,20 +395,20 @@ class Card:
                     template_sections["get_started_code"] = (
                         "from skops.io import load\nimport json\n"
                         "import pandas as pd\n"
-                        f'clf = load("{model_file}")\n'
+                        f'model = load("{model_file}")\n'
                         'with open("config.json") as f:\n   '
                         " config ="
                         " json.load(f)\n"
-                        'clf.predict(pd.DataFrame.from_dict(config["sklearn"]["example_input"]))'
+                        'model.predict(pd.DataFrame.from_dict(config["sklearn"]["example_input"]))'
                     )
                 else:
                     template_sections["get_started_code"] = (
-                        "import joblib\nimport json\nimport pandas as pd\nclf ="
+                        "import joblib\nimport json\nimport pandas as pd\nmodel ="
                         f' joblib.load({model_file})\nwith open("config.json") as'
                         " f:\n   "
                         " config ="
                         " json.load(f)\n"
-                        'clf.predict(pd.DataFrame.from_dict(config["sklearn"]["example_input"]))'
+                        'model.predict(pd.DataFrame.from_dict(config["sklearn"]["example_input"]))'
                     )
         if self.model_diagram is True:
             model_plot_div = re.sub(r"\n\s+", "", str(estimator_html_repr(self.model)))
@@ -419,11 +419,13 @@ class Card:
             model_plot: str | None = model_plot_div
         else:
             model_plot = None
-        template_sections["eval_results"] = tabulate(
-            list(self._eval_results.items()),
-            headers=["Metric", "Value"],
-            tablefmt="github",
-        )
+
+        if self._eval_results:  # only add metrics if there are any
+            template_sections["eval_results"] = tabulate(
+                list(self._eval_results.items()),
+                headers=["Metric", "Value"],
+                tablefmt="github",
+            )
 
         # if template path is not given, use default
         if template_sections.get("template_path") is None:
