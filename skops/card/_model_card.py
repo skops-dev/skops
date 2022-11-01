@@ -420,12 +420,11 @@ class Card:
         else:
             model_plot = None
 
-        if self._eval_results:  # only add metrics if there are any
-            template_sections["eval_results"] = tabulate(
-                list(self._eval_results.items()),
-                headers=["Metric", "Value"],
-                tablefmt="github",
-            )
+        template_sections["eval_results"] = tabulate(
+            list(self._eval_results.items()),
+            headers=["Metric", "Value"],
+            tablefmt="github",
+        )
 
         # if template path is not given, use default
         if template_sections.get("template_path") is None:

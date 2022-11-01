@@ -17,41 +17,28 @@ aRepr = Repr()
 aRepr.maxother = 79
 aRepr.maxstring = 79
 
+CONTENT_PLACEHOLDER = "[More Information Needed]"
+"""When there is a section but no content, show this"""
 
 DEFAULT_TEMPLATE = {
-    "Model description": "[More Information Needed]",
-    "Model description/Intended uses & limitations": "[More Information Needed]",
-    "Model description/Training Procedure/Hyperparameters": """The model is trained with below hyperparameters.
-
-<details>
-<summary> Click to expand </summary>
-
-{{ hyperparameter_table }}
-
-</details>""",
-    "Model description/Training Procedure/Model Plot": "The model plot is below.",
-    "Model description/Evaluation Results": """You can find the details about evaluation process and the evaluation results.
-
-
-
-[More Information Needed]""",
-    "How to Get Started with the Model": """Use the code below to get started with the model.
-
-```python
-[More Information Needed]
-```""",
-    "Model Card Authors": """This model card is written by following authors:
-
-[More Information Needed]""",
-    "Model Card Contact": """You can contact the model card authors through following channels:
-[More Information Needed]""",
-    "Citation": """Below you can find information related to citation.
-
-**BibTeX:**
-```
-[More Information Needed]
-```
-""",
+    "Model description": CONTENT_PLACEHOLDER,
+    "Model description/Intended uses & limitations": CONTENT_PLACEHOLDER,
+    "Model description/Training Procedure": "",
+    "Model description/Training Procedure/Hyperparameters": CONTENT_PLACEHOLDER,
+    "Model description/Training Procedure/Model Plot": CONTENT_PLACEHOLDER,
+    "Model description/Evaluation Results": CONTENT_PLACEHOLDER,
+    "How to Get Started with the Model": CONTENT_PLACEHOLDER,
+    "Model Card Authors": (
+        f"This model card is written by following authors:\n\n{CONTENT_PLACEHOLDER}"
+    ),
+    "Model Card Contact": (
+        "You can contact the model card authors through following channels:\n"
+        f"{CONTENT_PLACEHOLDER}"
+    ),
+    "Citation": (
+        "Below you can find information related to citation.\n\n**BibTeX:**\n```\n"
+        f"{CONTENT_PLACEHOLDER}\n```"
+    ),
 }
 
 
@@ -75,7 +62,7 @@ def _clean_table(table: str) -> str:
 @dataclass
 class Section:
     title: str
-    content: Formattable | str | None = None
+    content: Formattable | str
     subsections: dict[str, Section] = field(default_factory=dict)
 
 
@@ -100,6 +87,9 @@ class Card:
         if prefill:
             self._fill_default_sections()
         self._metrics: dict[str, str | float | int] = {}
+        # TODO: This is for compatibility with old model card but having an
+        # empty table by default is kinda pointless
+        self.add_metrics()
         self._reset()
 
     def _reset(self) -> None:
@@ -113,7 +103,7 @@ class Card:
     def _fill_default_sections(self) -> None:
         self.add(**DEFAULT_TEMPLATE)
 
-    def add(self, **kwargs: str) -> "Card":
+    def add(self, **kwargs: str | Formattable) -> "Card":
         for key, val in kwargs.items():
             self._add_single(key, val)
         return self
@@ -136,7 +126,7 @@ class Card:
 
             if create:
                 # no subsection, create
-                entry = Section(title=subsection_name)
+                entry = Section(title=subsection_name, content="")
                 section[subsection_name] = entry
                 section = entry.subsections
             else:
@@ -177,7 +167,11 @@ class Card:
         self._add_single("Model description", model_repr)
 
     def _add_model_section(self) -> None:
+        section_title = "Model description/Training Procedure/Model Plot"
+        default_content = "The model plot is below."
+
         if not self.model_diagram:
+            self._add_single(section_title, default_content)
             return
 
         model_plot_div = re.sub(r"\n\s+", "", str(estimator_html_repr(self.model)))
@@ -185,11 +179,8 @@ class Card:
             model_plot_div = model_plot_div.replace(
                 "sk-top-container", 'sk-top-container" style="overflow: auto;'
             )
-        template = "The model plot is below.\n\n{}"
-        self._add_single(
-            "Model description/Training Procedure/Model Plot",
-            template.format(model_plot_div),
-        )
+        content = f"{default_content}\n\n{model_plot_div}"
+        self._add_single(section_title, content)
 
     def _add_hyperparams(self) -> None:
         hyperparameter_dict = self.model.get_params(deep=True)
@@ -256,13 +247,6 @@ class Card:
 
             yield aRepr.repr(f"metadata.{key}={val},").strip('"').strip("'")
 
-    @staticmethod
-    def _strip_blank(text) -> str:
-        # remove new lines and multiple spaces
-        text = text.replace("\n", " ")
-        text = re.sub(r"\s+", r" ", text)
-        return text
-
     def _generate_content(
         self, data: dict[str, Section], depth: int = 1
     ) -> Iterator[str]:
@@ -278,22 +262,74 @@ class Card:
             if val.subsections:
                 yield from self._generate_content(val.subsections, depth=depth + 1)
 
+    def _iterate_content(
+        self, data: dict[str, Section], parent_section: str = ""
+    ) -> Iterator[tuple[str, Formattable | str]]:
+        for val in data.values():
+            if parent_section:
+                title = "/".join((parent_section, val.title))
+            else:
+                title = val.title
+
+            yield title, val.content
+
+            if val.subsections:
+                yield from self._iterate_content(val.subsections, parent_section=title)
+
+    @staticmethod
+    def _strip_blank(text: str) -> str:
+        # remove new lines and multiple spaces
+        text = text.replace("\n", " ")
+        text = re.sub(r"\s+", r" ", text)
+        return text
+
+    def _format_repr(self, text: str) -> str:
+        # Remove new lines, multiple spaces, quotation marks, and cap line length
+        text = self._strip_blank(text)
+        return aRepr.repr(text).strip('"').strip("'")
+
     def __str__(self) -> str:
         return self.__repr__()
 
     def __repr__(self) -> str:
-        metadata_repr = "\n".join(
-            "  " + line for line in self._generate_metadata(self.metadata)
-        )
-        content_repr = "\n\n".join(
-            "  " + line for line in self._generate_content(self._data)
-        )
+        # repr for the model
+        model = getattr(self, "model", None)
+        if model:
+            model_repr = self._format_repr(f"model={repr(model)}")
+        else:
+            model_repr = None
 
+        # repr for metadata
+        metadata_reprs = []
+        for key, val in self.metadata.to_dict().items() if self.metadata else {}:
+            if key == "widget":
+                metadata_reprs.append("metadata.widget={...},")
+                continue
+
+            metadata_reprs.append(self._format_repr(f"metadata.{key}={val},"))
+        metadata_repr = "\n".join(metadata_reprs)
+
+        # repr for contents
+        content_reprs = []
+        for title, content in self._iterate_content(self._data):
+            if not content:
+                continue
+            if isinstance(content, str) and content.rstrip().endswith(
+                CONTENT_PLACEHOLDER
+            ):
+                # if content is just some default text, no need to show it
+                continue
+            content_reprs.append(self._format_repr(f"{title}={content},"))
+        content_repr = "\n".join(content_reprs)
+
+        # combine all parts
         complete_repr = "Card(\n"
-        if metadata_repr:
-            complete_repr += metadata_repr + "\n"
-        if content_repr:
-            complete_repr += content_repr + "\n"
+        if model_repr:
+            complete_repr += textwrap.indent(model_repr, "  ") + "\n"
+        if metadata_reprs:
+            complete_repr += textwrap.indent(metadata_repr, "  ") + "\n"
+        if content_reprs:
+            complete_repr += textwrap.indent(content_repr, "  ") + "\n"
         complete_repr += ")"
         return complete_repr
 
@@ -339,7 +375,8 @@ class Card:
             yield f"---\n{self.metadata.to_yaml()}\n---"
 
         for line in self._generate_content(self._data):
-            yield "\n" + line
+            if line:
+                yield "\n" + line
 
     def save(self, path: str | Path) -> None:
         """Save the model card.

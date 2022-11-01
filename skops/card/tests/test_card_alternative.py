@@ -2,6 +2,7 @@ import copy
 import os
 import pickle
 import tempfile
+import textwrap
 from itertools import zip_longest
 from pathlib import Path
 
@@ -335,7 +336,6 @@ def test_metadata_from_config_tabular_data(
         assert tag in metadata["tags"]
 
 
-@pytest.mark.skip  # FIXME
 class TestCardRepr:
     """Test __str__ and __repr__ methods of Card, which are identical for now"""
 
@@ -343,125 +343,75 @@ class TestCardRepr:
     def card(self):
         model = LinearRegression(fit_intercept=False)
         card = Card(model=model)
+        card.add(Figures="")
         card.add(
-            model_description="A description",
-            model_card_authors="Jane Doe",
+            **{
+                "Model Description": "A description",
+                "Model Card Authors": "Jane Doe",
+            }
         )
         card.add_plot(
-            roc_curve="ROC_curve.png",
-            confusion_matrix="confusion_matrix.jpg",
+            **{
+                "Figures/ROC": "ROC.png",
+                "Figures/Confusion matrix": "confusion_matrix.jpg",
+            }
         )
-        card.add_table(search_results={"split": [1, 2, 3], "score": [4, 5, 6]})
+        card.add_table(**{"Search Results": {"split": [1, 2, 3], "score": [4, 5, 6]}})
         return card
 
-    @pytest.mark.parametrize("meth", [repr, str])
-    def test_card_repr(self, card: Card, meth):
-        result = meth(card)
-        expected = (
-            "Card(\n"
-            "  model=LinearRegression(fit_intercept=False),\n"
-            "  model_description='A description',\n"
-            "  model_card_authors='Jane Doe',\n"
-            "  roc_curve='ROC_curve.png',\n"
-            "  confusion_matrix='confusion_matrix.jpg',\n"
-            "  search_results=Table(3x2),\n"
-            ")"
+    @pytest.fixture
+    def expected_lines(self):
+        card_repr = """
+        Card(
+          model=LinearRegression(fit_intercept=False)
+          Model description/Training Procedure/...ed | | positive | False | </details>,
+          Model description/Training Procedure/...</pre></div></div></div></div></div>,
+          Model description/Evaluation Results=...ric | Value | |----------|---------|,
+          Model Card Authors=Jane Doe,
+          Citation=Below you can find informati...** ``` [More Information Needed] ```,
+          Figures/ROC='ROC.png',
+          Figures/Confusion matrix='confusion_matrix.jpg',
+          Model Description=A description,
+          Search Results=Table(3x2),
         )
+        """
+        expected = textwrap.dedent(card_repr).strip()
+        return expected.split("\n")
+
+    @pytest.mark.parametrize("meth", [repr, str])
+    def test_card_repr(self, card: Card, meth, expected_lines):
+        result = meth(card)
+        expected = "\n".join(expected_lines)
         assert result == expected
 
     @pytest.mark.parametrize("meth", [repr, str])
-    def test_very_long_lines_are_shortened(self, card: Card, meth):
+    def test_very_long_lines_are_shortened(self, card: Card, meth, expected_lines):
         card.add(my_section="very long line " * 100)
-        result = meth(card)
-        expected = (
-            "Card(\n  model=LinearRegression(fit_intercept=False),\n"
-            "  model_description='A description',\n  model_card_authors='Jane Doe',\n"
-            "  my_section='very long line very lon...line very long line very long line"
-            " ',\n"
-            "  roc_curve='ROC_curve.png',\n"
-            "  confusion_matrix='confusion_matrix.jpg',\n"
-            "  search_results=Table(3x2),\n"
-            ")"
+
+        # expected results contain 1 line at the very end
+        extra_line = (
+            "  my_section=very long line very long l... "
+            "line very long line very long line ,"
         )
+        expected_lines.insert(-1, extra_line)
+        expected = "\n".join(expected_lines)
+
+        result = meth(card)
         assert result == expected
 
     @pytest.mark.parametrize("meth", [repr, str])
-    def test_without_model_attribute(self, card: Card, meth):
+    def test_without_model_attribute(self, card: Card, meth, expected_lines):
         del card.model
+
+        # remove line 1 from expected results, which corresponds to the model
+        del expected_lines[1]
+        expected = "\n".join(expected_lines)
+
         result = meth(card)
-        expected = (
-            "Card(\n"
-            "  model_description='A description',\n"
-            "  model_card_authors='Jane Doe',\n"
-            "  roc_curve='ROC_curve.png',\n"
-            "  confusion_matrix='confusion_matrix.jpg',\n"
-            "  search_results=Table(3x2),\n"
-            ")"
-        )
         assert result == expected
 
     @pytest.mark.parametrize("meth", [repr, str])
-    def test_no_template_sections(self, card: Card, meth):
-        card._template_sections = {}  # type: ignore
-        result = meth(card)
-        expected = (
-            "Card(\n"
-            "  model=LinearRegression(fit_intercept=False),\n"
-            "  roc_curve='ROC_curve.png',\n"
-            "  confusion_matrix='confusion_matrix.jpg',\n"
-            "  search_results=Table(3x2),\n"
-            ")"
-        )
-        assert result == expected
-
-    @pytest.mark.parametrize("meth", [repr, str])
-    def test_no_extra_sections(self, card: Card, meth):
-        card._extra_sections = []  # type: ignore
-        result = meth(card)
-        expected = (
-            "Card(\n"
-            "  model=LinearRegression(fit_intercept=False),\n"
-            "  model_description='A description',\n"
-            "  model_card_authors='Jane Doe',\n"
-            ")"
-        )
-        assert result == expected
-
-    @pytest.mark.parametrize("meth", [repr, str])
-    def test_template_section_val_not_str(self, card: Card, meth):
-        card._template_sections["model_description"] = [1, 2, 3]  # type: ignore
-        result = meth(card)
-        expected = (
-            "Card(\n"
-            "  model=LinearRegression(fit_intercept=False),\n"
-            "  model_description=[1, 2, 3],\n"
-            "  model_card_authors='Jane Doe',\n"
-            "  roc_curve='ROC_curve.png',\n"
-            "  confusion_matrix='confusion_matrix.jpg',\n"
-            "  search_results=Table(3x2),\n"
-            ")"
-        )
-        assert result == expected
-
-    @pytest.mark.parametrize("meth", [repr, str])
-    def test_extra_sections_val_not_str(self, card: Card, meth):
-        card._extra_sections.append(("some section", {1: 2}))  # type: ignore
-        result = meth(card)
-        expected = (
-            "Card(\n"
-            "  model=LinearRegression(fit_intercept=False),\n"
-            "  model_description='A description',\n"
-            "  model_card_authors='Jane Doe',\n"
-            "  roc_curve='ROC_curve.png',\n"
-            "  confusion_matrix='confusion_matrix.jpg',\n"
-            "  search_results=Table(3x2),\n"
-            "  some section={1: 2},\n"
-            ")"
-        )
-        assert result == expected
-
-    @pytest.mark.parametrize("meth", [repr, str])
-    def test_with_metadata(self, card: Card, meth):
+    def test_with_metadata(self, card: Card, meth, expected_lines):
         metadata = CardData(
             language="fr",
             license="bsd",
@@ -471,22 +421,18 @@ class TestCardRepr:
             widget={"something": "very-long"},
         )
         card.metadata = metadata
-        expected = (
-            "Card(\n"
-            "  model=LinearRegression(fit_intercept=False),\n"
-            "  metadata.language=fr,\n"
-            "  metadata.license=bsd,\n"
-            "  metadata.library_name=sklearn,\n"
-            "  metadata.tags=['sklearn', 'tabular-classification'],\n"
-            "  metadata.foo={'bar': 123},\n"
-            "  metadata.widget={...},\n"
-            "  model_description='A description',\n"
-            "  model_card_authors='Jane Doe',\n"
-            "  roc_curve='ROC_curve.png',\n"
-            "  confusion_matrix='confusion_matrix.jpg',\n"
-            "  search_results=Table(3x2),\n"
-            ")"
-        )
+
+        # metadata comes after model line, i.e. position 2
+        extra_lines = [
+            "  metadata.language=fr,",
+            "  metadata.license=bsd,",
+            "  metadata.library_name=sklearn,",
+            "  metadata.tags=['sklearn', 'tabular-classification'],",
+            "  metadata.foo={'bar': 123},",
+            "  metadata.widget={...},",
+        ]
+        expected = "\n".join(expected_lines[:2] + extra_lines + expected_lines[2:])
+
         result = meth(card)
         assert result == expected
 
