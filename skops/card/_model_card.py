@@ -411,9 +411,12 @@ class Card:
                         'clf.predict(pd.DataFrame.from_dict(config["sklearn"]["example_input"]))'
                     )
         if self.model_diagram is True:
-            model_plot: str | None = re.sub(
-                r"\n\s+", "", str(estimator_html_repr(self.model))
-            )
+            model_plot_div = re.sub(r"\n\s+", "", str(estimator_html_repr(self.model)))
+            if model_plot_div.count("sk-top-container") == 1:
+                model_plot_div = model_plot_div.replace(
+                    "sk-top-container", 'sk-top-container" style="overflow: auto;'
+                )
+            model_plot: str | None = model_plot_div
         else:
             model_plot = None
         template_sections["eval_results"] = tabulate(
