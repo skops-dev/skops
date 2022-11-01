@@ -1,17 +1,24 @@
 from __future__ import annotations
 
 import re
+import sys
 import textwrap
 from dataclasses import dataclass, field
 from pathlib import Path
 from reprlib import Repr
-from typing import Any, Iterator, Protocol
+from typing import Any, Iterator
 
 from huggingface_hub import CardData
 from sklearn.utils import estimator_html_repr
 from tabulate import tabulate  # type: ignore
 
 from skops.card._model_card import PlotSection, TableSection
+
+if sys.version_info >= (3, 8):
+    from typing import Protocol
+else:
+    from typing_extensions import Protocol
+
 
 aRepr = Repr()
 aRepr.maxother = 79
@@ -43,7 +50,40 @@ DEFAULT_TEMPLATE = {
 
 
 def split_subsection_names(key: str) -> list[str]:
-    return key.split("/")
+    placeholder = "$%!?"  # arbitrary sting that never appears naturally
+    key = key.replace("\\/", placeholder)
+    splits = key.split("/")
+    return [part.replace(placeholder, "/") for part in splits]
+
+
+def _getting_started_code(
+    file_name: str, is_skops_format: bool = False, indent="    "
+) -> list[str]:
+    # get lines of code required to load the model
+    lines: list[str] = []
+    if is_skops_format:
+        lines += ["from skops.io import load"]
+    else:
+        lines += ["import joblib"]
+
+    lines += [
+        "import json",
+        "import pandas as pd",
+    ]
+    if is_skops_format:
+        lines += [
+            "from skops.io import load",
+            f'model = load("{file_name}")',
+        ]
+    else:  # pickle
+        lines += [f"model = joblib.load({file_name})"]
+
+    lines += [
+        'with open("config.json") as f:',
+        indent + "config = json.load(f)",
+        'model.predict(pd.DataFrame.from_dict(config["sklearn"]["example_input"]))',
+    ]
+    return lines
 
 
 def _clean_table(table: str) -> str:
@@ -72,6 +112,129 @@ class Formattable(Protocol):
 
 
 class Card:
+    """Model card class that will be used to generate model card.
+
+    This class can be used to write information and plots to model card and save
+    it. This class by default generates an interactive plot of the model and a
+    table of hyperparameters. Some default sections are added by default.
+
+    Parameters
+    ----------
+    model: estimator object
+        Model that will be documented.
+
+    model_diagram: bool, default=True
+        Set to True if model diagram should be plotted in the card.
+
+    metadata: CardData, optional
+        ``CardData`` object. The contents of this object are saved as metadata
+        at the beginning of the output file, and used by Hugging Face Hub.
+
+        You can use :func:`~skops.card.metadata_from_config` to create an
+        instance pre-populated with necessary information based on the contents
+        of the ``config.json`` file, which itself is created by
+        :func:`skops.hub_utils.init`.
+
+    prefill: bool (default=True)
+        Whether to add default sections or not.
+
+    Attributes
+    ----------
+    model: estimator object
+        The scikit-learn compatible model that will be documented.
+
+    metadata: CardData
+        Metadata to be stored at the beginning of the saved model card, as
+        metadata to be understood by the Hugging Face Hub.
+
+    Examples
+    --------
+    >>> from sklearn.metrics import (
+    ...     ConfusionMatrixDisplay,
+    ...     confusion_matrix,
+    ...     accuracy_score,
+    ...     f1_score
+    ... )
+    >>> import tempfile
+    >>> from pathlib import Path
+    >>> from sklearn.datasets import load_iris
+    >>> from sklearn.linear_model import LogisticRegression
+    >>> from skops.card._card_alternative import Card  # TODO
+    >>> X, y = load_iris(return_X_y=True)
+    >>> model = LogisticRegression(solver="liblinear", random_state=0).fit(X, y)
+    >>> model_card = Card(model)
+    >>> model_card.metadata.license = "mit"
+    >>> y_pred = model.predict(X)
+    >>> model_card.add_metrics(**{
+    ...     "accuracy": accuracy_score(y, y_pred),
+    ...     "f1 score": f1_score(y, y_pred, average="micro"),
+    ... })
+    Card(
+      model=LogisticRegression(random_state=0, solver='liblinear')
+      metadata.license=mit,
+      Model description/Training Procedure/... | | warm_start | False | </details>,
+      Model description/Training Procedure/...</pre></div></div></div></div></div>,
+      Model description/Evaluation Results=...ccuracy | 0.96 | | f1 score | 0.96 |,
+    )
+    >>> cm = confusion_matrix(y, y_pred,labels=model.classes_)
+    >>> disp = ConfusionMatrixDisplay(
+    ...     confusion_matrix=cm,
+    ...     display_labels=model.classes_
+    ... )
+    >>> disp.plot()
+    <sklearn.metrics._plot.confusion_matrix.ConfusionMatrixDisplay object at ...>
+    >>> disp.figure_.savefig("confusion_matrix.png")
+    ...
+    >>> model_card.add_plot(confusion_matrix="confusion_matrix.png")
+    Card(
+      model=LogisticRegression(random_state=0, solver='liblinear')
+      metadata.license=mit,
+      Model description/Training Procedure/... | | warm_start | False | </details>,
+      Model description/Training Procedure/...</pre></div></div></div></div></div>,
+      Model description/Evaluation Results=...ccuracy | 0.96 | | f1 score | 0.96 |,
+      confusion_matrix='confusion_matrix.png',
+    )
+    >>> # add new content to the existing section "Model description"
+    >>> model_card.add(**{"Model description": "This is the best model"})
+    Card(
+      model=LogisticRegression(random_state=0, solver='liblinear')
+      metadata.license=mit,
+      Model description=This is the best model,
+      Model description/Training Procedure/... | | warm_start | False | </details>,
+      Model description/Training Procedure/...</pre></div></div></div></div></div>,
+      Model description/Evaluation Results=...ccuracy | 0.96 | | f1 score | 0.96 |,
+      confusion_matrix='confusion_matrix.png',
+    )
+    >>> # add content to a new section
+    >>> model_card.add(**{"A new section": "Please rate my model"})
+    Card(
+      model=LogisticRegression(random_state=0, solver='liblinear')
+      metadata.license=mit,
+      Model description=This is the best model,
+      Model description/Training Procedure/... | | warm_start | False | </details>,
+      Model description/Training Procedure/...</pre></div></div></div></div></div>,
+      Model description/Evaluation Results=...ccuracy | 0.96 | | f1 score | 0.96 |,
+      confusion_matrix='confusion_matrix.png',
+      A new section=Please rate my model,
+    )
+    >>> # add new subsection to an existing section by using "/"
+    >>> model_card.add(**{"Model description/Model name": "This model is called Bob"})
+    Card(
+      model=LogisticRegression(random_state=0, solver='liblinear')
+      metadata.license=mit,
+      Model description=This is the best model,
+      Model description/Training Procedure/... | | warm_start | False | </details>,
+      Model description/Training Procedure/...</pre></div></div></div></div></div>,
+      Model description/Evaluation Results=...ccuracy | 0.96 | | f1 score | 0.96 |,
+      Model description/Model name=This model is called Bob,
+      confusion_matrix='confusion_matrix.png',
+      A new section=Please rate my model,
+    )
+    >>> # save the card to a README.md file
+    >>> with tempfile.TemporaryDirectory() as tmpdir:
+    ...     model_card.save((Path(tmpdir) / "README.md"))
+    """
+
     def __init__(
         self,
         model,
@@ -84,13 +247,13 @@ class Card:
         self.metadata = metadata or CardData()
 
         self._data: dict[str, Section] = {}
+        self._metrics: dict[str, str | float | int] = {}
         if prefill:
             self._fill_default_sections()
-        self._metrics: dict[str, str | float | int] = {}
-        # TODO: This is for compatibility with old model card but having an
-        # empty table by default is kinda pointless
-        self.add_metrics()
-        self._reset()
+            # TODO: This is for compatibility with old model card but having an
+            # empty table by default is kinda pointless
+            self.add_metrics()
+            self._reset()
 
     def _reset(self) -> None:
         model_file = self.metadata.to_dict().get("model_file")
@@ -104,6 +267,37 @@ class Card:
         self.add(**DEFAULT_TEMPLATE)
 
     def add(self, **kwargs: str | Formattable) -> "Card":
+        """Add new section(s) to the model card.
+
+        Add one or multiple sections to the model card. The section names are
+        taken from the keys and the contents are taken from the values.
+
+        To add to an existing section, use a ``"/"`` in the section name, e.g.:
+
+        ``card.add(**{"Existing section/New section": "content"})``.
+
+        If the parent section does not exist, it will be added automatically.
+
+        To add a section with ``"/"`` in its title (i.e. not inteded as a
+        subsection), escape the slash like so, ``"\\/"``, e.g.:
+
+        ``card.add(**{"A section with\\/a slash in the title": "content"})``.
+
+        If a section of the given name already exists, its content will be
+        overwritten.
+
+        Parameters
+        ----------
+        **kwargs : dict
+            The keys of the dictionary serve as the section title and the values
+            as the section content. It's possible to add to existing sections.
+
+        Returns
+        -------
+        self : object
+            Card object.
+
+        """
         for key, val in kwargs.items():
             self._add_single(key, val)
         return self
@@ -111,7 +305,6 @@ class Card:
     def _select(
         self, subsection_names: list[str], create: bool = True
     ) -> dict[str, Section]:
-        """TODO"""
         section = self._data
         if not subsection_names:
             return section
@@ -130,23 +323,100 @@ class Card:
                 section[subsection_name] = entry
                 section = entry.subsections
             else:
-                raise KeyError(f"Section titles {subsection_name} does not exist")
+                raise KeyError(f"Section {subsection_name} does not exist")
 
         return section
 
     def select(self, key: str | list[str]) -> Section:
-        assert key  # TODO
+        """Select a section from the model card.
+
+        To select a subsection of an existing section, use a ``"/"`` in the
+        section name, e.g.:
+
+        ``card.select("Existing section/New section")``.
+
+        Alternatively, a list of strings can be passed:
+
+        ``card.select(["Existing section", "New section"])``.
+
+        Parameters
+        ----------
+        key : str or list of str
+            The name of the (sub)section to select. When selecting a subsection,
+            either use a ``"/"`` in the name to separate the parent and child
+            sections, or pass a list of strings.
+
+        Returns
+        -------
+        self : Section
+            A dataclass containing all information relevant to the selected
+            section. Those are the title, the content, and subsections (in a
+            dict).
+
+        Raises
+        ------
+        KeyError
+            If the given section name was not found, a ``KeyError`` is raised.
+
+        """
+        if not key:
+            msg = f"Section name cannot be empty but got '{key}'"
+            raise KeyError(msg)
 
         if isinstance(key, str):
-            subsection_names = split_subsection_names(key)
+            *subsection_names, leaf_node_name = split_subsection_names(key)
         else:
-            subsection_names = key
+            *subsection_names, leaf_node_name = key
 
-        parent_section = self._select(subsection_names[:-1], create=False)
-        return parent_section[subsection_names[-1]]
+        if not leaf_node_name:
+            msg = f"Section name cannot be empty but got '{key}'"
+            raise KeyError(msg)
+
+        parent_section = self._select(subsection_names, create=False)
+        return parent_section[leaf_node_name]
+
+    def delete(self, key: str | list[str]) -> None:
+        """Delete a section from the model card.
+
+        To delete a subsection of an existing section, use a ``"/"`` in the
+        section name, e.g.:
+
+        ``card.delete("Existing section/New section")``.
+
+        Alternatively, a list of strings can be passed:
+
+        ``card.delete(["Existing section", "New section"])``.
+
+        Parameters
+        ----------
+        key : str or list of str
+            The name of the (sub)section to select. When selecting a subsection,
+            either use a ``"/"`` in the name to separate the parent and child
+            sections, or pass a list of strings.
+
+        Raises
+        ------
+        KeyError
+            If the given section name was not found, a ``KeyError`` is raised.
+
+        """
+        if not key:
+            msg = f"Section name cannot be empty but got '{key}'"
+            raise KeyError(msg)
+
+        if isinstance(key, str):
+            *subsection_names, leaf_node_name = split_subsection_names(key)
+        else:
+            *subsection_names, leaf_node_name = key
+
+        if not key:
+            msg = f"Section name cannot be empty but got '{key}'"
+            raise KeyError(msg)
+
+        parent_section = self._select(subsection_names, create=False)
+        del parent_section[leaf_node_name]
 
     def _add_single(self, key: str, val: Formattable | str) -> None:
-        section = self._data
         *subsection_names, leaf_node_name = split_subsection_names(key)
         section = self._select(subsection_names)
 
@@ -207,6 +477,27 @@ class Card:
         )
 
     def add_plot(self, folded=False, **kwargs: str) -> "Card":
+        """Add plots to the model card.
+
+        Parameters
+        ----------
+        folded: bool (default=False)
+            If set to ``True``, the plot will be enclosed in a ``details`` tag.
+            That means the content is folded by default and users have to click
+            to show the content. This option is useful if the added plot is
+            large.
+
+        **kwargs : dict
+            The arguments should be of the form `name=plot_path`, where `name`
+            is the name of the plot and `plot_path` is the path to the plot,
+            relative to the root of the project. The plots should have already
+            been saved under the project's folder.
+
+        Returns
+        -------
+        self : object
+            Card object.
+        """
         for section_name, plot_path in kwargs.items():
             plot_name = split_subsection_names(section_name)[-1]
             section = PlotSection(alt_text=plot_name, path=plot_path, folded=folded)
@@ -214,12 +505,68 @@ class Card:
         return self
 
     def add_table(self, folded: bool = False, **kwargs: dict["str", list[Any]]) -> Card:
+        """Add a table to the model card.
+
+        Add a table to the model card. This can be especially useful when you
+        using cross validation with sklearn. E.g. you can directly pass the
+        result from calling :func:`sklearn.model_selection.cross_validate` or
+        the ``cv_results_`` attribute from any of the hyperparameter searches,
+        such as :class:`sklearn.model_selection.GridSearchCV`.
+
+        Morevoer, you can pass any pandas :class:`pandas.DataFrame` to this
+        method and it will be rendered in the model card. You may consider
+        selecting only a part of the table if it's too big:
+
+        .. code:: python
+
+            search = GridSearchCV(...)
+            search.fit(X, y)
+            df = pd.DataFrame(search.cv_results_)
+            # show only top 10 highest scores
+            df = df.sort_values(["mean_test_score"], ascending=False).head(10)
+            model_card = skops.card.Card(...)
+            model_card.add_table(**{"Hyperparameter search results top 10": df})
+
+        Parameters
+        ----------
+        folded: bool (default=False)
+            If set to ``True``, the table will be enclosed in a ``details`` tag.
+            That means the content is folded by default and users have to click
+            to show the content. This option is useful if the added table is
+            large.
+
+        **kwargs : dict
+            The keys should be strings, which will be used as the section
+            headers, and the values should be tables. Tables can be either dicts
+            with the key being strings that represent the column name, and the
+            values being lists that represent the entries for each row.
+            Alternatively, the table can be a :class:`pandas.DataFrame`. The
+            table must not be empty.
+
+        Returns
+        -------
+        self : object
+            Card object.
+
+        """
         for key, val in kwargs.items():
             section = TableSection(table=val, folded=folded)
             self._add_single(key, section)
         return self
 
     def add_metrics(self, **kwargs: str | int | float) -> "Card":
+        """Add metric values to the model card.
+
+        Parameters
+        ----------
+        **kwargs : dict
+            A dictionary of the form ``{metric name: metric value}``.
+
+        Returns
+        -------
+        self : object
+            Card object.
+        """
         self._metrics.update(kwargs)
         self._add_metrics(self._metrics)
         return self
@@ -314,7 +661,7 @@ class Card:
         for title, content in self._iterate_content(self._data):
             if not content:
                 continue
-            if isinstance(content, str) and content.rstrip().endswith(
+            if isinstance(content, str) and content.rstrip("`").rstrip().endswith(
                 CONTENT_PLACEHOLDER
             ):
                 # if content is just some default text, no need to show it
@@ -335,31 +682,11 @@ class Card:
 
     def _add_get_started_code(self, file_name: str, indent: str = "    ") -> None:
         is_skops_format = file_name.endswith(".skops")  # else, assume pickle
+        lines = _getting_started_code(
+            file_name, is_skops_format=is_skops_format, indent=indent
+        )
+        lines = ["```python"] + lines + ["```"]
 
-        lines = ["```python"]
-        if is_skops_format:
-            lines += ["from skops.io import load"]
-        else:
-            lines += ["import joblib"]
-
-        lines += [
-            "import json",
-            "import pandas as pd",
-        ]
-        if is_skops_format:
-            lines += [
-                "from skops.io import load",
-                f'model = load("{file_name}")',
-            ]
-        else:  # pickle
-            lines += [f"model = joblib.load({file_name})"]
-
-        lines += [
-            'with open("config.json") as f:',
-            indent + "config = json.load(f)",
-            'model.predict(pd.DataFrame.from_dict(config["sklearn"]["example_input"]))',
-            "```",
-        ]
         template = textwrap.dedent(
             """        Use the code below to get started with the model.
 

@@ -1,4 +1,3 @@
-import copy
 import os
 import pickle
 import tempfile
@@ -15,7 +14,6 @@ from sklearn.datasets import load_iris
 from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.tree import DecisionTreeClassifier
 
-import skops
 from skops import hub_utils
 from skops.card import metadata_from_config
 from skops.card._card_alternative import Card
@@ -115,17 +113,7 @@ def test_save_model_card(destination_path, model_card):
     assert (Path(destination_path) / "README.md").exists()
 
 
-def test_select_existing_section():
-    # TODO
-    pass
-
-
-def test_select_non_existing_section_raises():
-    # TODO
-    pass
-
-
-def test_hyperparameter_table(destination_path, model_card):
+def test_hyperparameter_table(model_card):
     section_name = "Model description/Training Procedure/Hyperparameters"
     text_hyperparams = model_card.select(section_name).content
     expected = "\n".join(
@@ -157,7 +145,7 @@ def _strip_multiple_chars(text, char):
     return text
 
 
-def test_hyperparameter_table_with_line_break(destination_path):
+def test_hyperparameter_table_with_line_break():
     # Hyperparameters can contain values with line breaks, "\n", in them. In
     # that case, the markdown table is broken. Check that the hyperparameter
     # table we create properly replaces the "\n" with "<br />".
@@ -174,7 +162,7 @@ def test_hyperparameter_table_with_line_break(destination_path):
     assert "| n_jobs | line<br />with<br />break |" in text_cleaned
 
 
-def test_plot_model(destination_path, model_card):
+def test_plot_model(model_card):
     text_plot = model_card.select(
         "Model description/Training Procedure/Model Plot"
     ).content
@@ -186,7 +174,7 @@ def test_plot_model(destination_path, model_card):
     )
 
 
-def test_plot_model_false(destination_path, model_card):
+def test_plot_model_false(model_card):
     model = fit_model()
     model_card = Card(model, model_diagram=False)
     text_plot = model_card.select(
@@ -195,31 +183,219 @@ def test_plot_model_false(destination_path, model_card):
     assert text_plot == "The model plot is below."
 
 
-def test_add_new_section(destination_path, model_card):
-    model_card = model_card.add(**{"A new section": "sklearn FTW"})
-    section = model_card.select("A new section")
-    assert section.content == "sklearn FTW"
+class TestSelect:
+    """Selecting sections from the model card"""
+
+    def test_select_existing_section(self, model_card):
+        section = model_card.select("Model description")
+        assert section.title == "Model description"
+
+    def test_select_existing_subsection(self, model_card):
+        section = model_card.select("Model description/Training Procedure")
+        assert section.title == "Training Procedure"
+
+        section = model_card.select(["Model description", "Training Procedure"])
+        assert section.title == "Training Procedure"
+
+    def test_select_non_existing_section_raises(self, model_card):
+        with pytest.raises(KeyError):
+            model_card.select("non-existing section")
+
+    def test_select_non_existing_subsection_raises(self, model_card):
+        with pytest.raises(KeyError):
+            model_card.select("Model description/non-existing subsection")
+
+        with pytest.raises(KeyError):
+            model_card.select(["Model description", "non-existing subsection"])
+
+    def test_select_non_existing_subsubsection_raises(self, model_card):
+        with pytest.raises(KeyError):
+            model_card.select(
+                "Model description/Training Procedure/non-existing sub-subsection"
+            )
+
+        with pytest.raises(KeyError):
+            model_card.select(
+                [
+                    "Model description",
+                    "Training Procedure",
+                    "non-existing sub-subsection",
+                ]
+            )
+
+    def test_select_non_existing_section_and_subsection_raises(self, model_card):
+        with pytest.raises(KeyError):
+            model_card.select(["non-existing section", "non-existing subsection"])
+
+    def test_select_empty_key_raises(self, model_card):
+        msg = r"Section name cannot be empty but got ''"
+        with pytest.raises(KeyError, match=msg):
+            model_card.select("")
+
+        msg = r"Section name cannot be empty but got '\[\]'"
+        with pytest.raises(KeyError, match=msg):
+            model_card.select([])
+
+    def test_select_empty_key_subsection_raises(self, model_card):
+        msg = r"Section name cannot be empty but got 'Model description/'"
+        with pytest.raises(KeyError, match=msg):
+            model_card.select("Model description/")
+
+        msg = r"Section name cannot be empty but got '\['Model description', ''\]'"
+        with pytest.raises(KeyError, match=msg):
+            model_card.select(["Model description", ""])
+
+    def test_default_sections_empty_card(self, model_card):
+        # Without prefill, the card should not contain the default sections
+        from skops.card._card_alternative import DEFAULT_TEMPLATE
+
+        # model_card (which is prefilled) contains all default sections
+        for key in DEFAULT_TEMPLATE:
+            model_card.select(key)
+
+        # empty card does not contain those sections
+        model = fit_model()
+        card_empty = Card(model, model_diagram=False, prefill=False)
+        for key in DEFAULT_TEMPLATE:
+            with pytest.raises(KeyError):
+                card_empty.select(key)
 
 
-def test_add_content_to_existing_section(destination_path, model_card):
-    section = model_card.select("Model description")
-    num_subsection_before = len(section.subsections)
+class TestAdd:
+    """Adding sections and subsections"""
 
-    # add content to "Model description" section
-    model_card = model_card.add(**{"Model description": "sklearn FTW"})
-    section = model_card.select("Model description")
-    num_subsection_after = len(section.subsections)
+    def test_add_new_section(self, model_card):
+        model_card = model_card.add(**{"A new section": "sklearn FTW"})
+        section = model_card.select("A new section")
+        assert section.title == "A new section"
+        assert section.content == "sklearn FTW"
 
-    assert num_subsection_before == num_subsection_after
-    assert section.content == "sklearn FTW"
+    def test_add_new_subsection(self, model_card):
+        model_card = model_card.add(
+            **{"Model description/A new section": "sklearn FTW"}
+        )
+        section = model_card.select("Model description/A new section")
+        assert section.title == "A new section"
+        assert section.content == "sklearn FTW"
+
+        # make sure that the new subsection is the last subsection
+        subsections = model_card._data["Model description"].subsections
+        assert len(subsections) > 1  # exclude trivial case of only one subsection
+
+        last_subsection = list(subsections.values())[-1]
+        assert last_subsection is section
+
+    def test_add_new_section_and_subsection(self, model_card):
+        model_card = model_card.add(**{"A new section/A new subsection": "sklearn FTW"})
+
+        section = model_card.select("A new section")
+        assert section.title == "A new section"
+        assert section.content == ""
+
+        subsection = model_card.select("A new section/A new subsection")
+        assert subsection.title == "A new subsection"
+        assert subsection.content == "sklearn FTW"
+
+    def test_add_new_section_with_slash_in_name(self, model_card):
+        model_card = model_card.add(**{"A new\\/section": "sklearn FTW"})
+        section = model_card.select("A new\\/section")
+        assert section.title == "A new/section"
+        assert section.content == "sklearn FTW"
+
+    def test_add_new_subsection_with_slash_in_name(self, model_card):
+        model_card = model_card.add(
+            **{"Model description/A new\\/section": "sklearn FTW"}
+        )
+        section = model_card.select("Model description/A new\\/section")
+        assert section.title == "A new/section"
+        assert section.content == "sklearn FTW"
+
+    def test_add_content_to_existing_section(self, model_card):
+        # Add content (not new sections) to an existing section. Make sure that
+        # existing subsections are not affected by this
+        section = model_card.select("Model description")
+        num_subsection_before = len(section.subsections)
+        assert num_subsection_before > 0  # exclude trivial case of empty sections
+
+        # add content to "Model description" section
+        model_card = model_card.add(**{"Model description": "sklearn FTW"})
+        section = model_card.select("Model description")
+        num_subsection_after = len(section.subsections)
+
+        assert num_subsection_before == num_subsection_after
+        assert section.content == "sklearn FTW"
 
 
-@pytest.mark.skip  # FIXME: remove
-def test_template_sections_not_mutated_by_save(destination_path, model_card):
-    template_sections_before = copy.deepcopy(model_card._template_sections)
-    model_card.save(Path(destination_path) / "README.md")
-    template_sections_after = copy.deepcopy(model_card._template_sections)
-    assert template_sections_before == template_sections_after
+class TestDelete:
+    """Deleting sections and subsections"""
+
+    def test_delete_section(self, model_card):
+        model_card.select("Model description")
+        model_card.delete("Model description")
+        with pytest.raises(KeyError):
+            model_card.select("Model description")
+
+    def test_delete_subsection(self, model_card):
+        model_card.select("Model description/Training Procedure")
+        model_card.delete("Model description/Training Procedure")
+        with pytest.raises(KeyError):
+            model_card.select("Model description/Training Procedure")
+        # parent section still exists
+        model_card.delete("Model description")
+
+    def test_delete_subsubsection(self, model_card):
+        model_card.select("Model description/Training Procedure/Hyperparameters")
+        model_card.delete("Model description/Training Procedure/Hyperparameters")
+        with pytest.raises(KeyError):
+            model_card.select("Model description/Training Procedure/Hyperparameters")
+        # parent section still exists
+        model_card.delete("Model description/Training Procedure")
+
+    def test_delete_section_with_slash_in_name(self, model_card):
+        model_card.add(**{"A new\\/section": "some content"})
+        model_card.select("A new\\/section")
+        model_card.delete("A new\\/section")
+        with pytest.raises(KeyError):
+            model_card.select("A new\\/section")
+
+    def test_delete_non_existing_section_raises(self, model_card):
+        with pytest.raises(KeyError):
+            model_card.delete("non-existing section")
+
+    def test_delete_non_existing_subsection_raises(self, model_card):
+        with pytest.raises(KeyError):
+            model_card.delete("Model description/non-existing subsection")
+
+        with pytest.raises(KeyError):
+            model_card.delete(["Model description", "non-existing subsection"])
+
+    def test_delete_non_existing_subsubsection_raises(self, model_card):
+        with pytest.raises(KeyError):
+            model_card.delete(
+                "Model description/Training Procedure/non-existing sub-subsection"
+            )
+
+        with pytest.raises(KeyError):
+            model_card.delete(
+                [
+                    "Model description",
+                    "Training Procedure",
+                    "non-existing sub-subsection",
+                ]
+            )
+
+    def test_delete_non_existing_section_and_subsection_raises(self, model_card):
+        with pytest.raises(KeyError):
+            model_card.delete(["non-existing section", "non-existing subsection"])
+
+    def test_delete_empty_key_raises(self, model_card):
+        msg = r"Section name cannot be empty but got ''"
+        with pytest.raises(KeyError, match=msg):
+            model_card.delete("")
+
+        msg = r"Section name cannot be empty but got '\[\]'"
+        with pytest.raises(KeyError, match=msg):
+            model_card.delete([])
 
 
 def test_add_plot(destination_path, model_card):
@@ -230,25 +406,15 @@ def test_add_plot(destination_path, model_card):
     assert plot_content == "![fig1](fig1.png)"
 
 
-@pytest.mark.skip  # FIXME: remove
-def test_temporary_plot(destination_path, model_card):
-    # test if the additions are made to a temporary template file
-    # and not to default template or template provided
-    root = skops.__path__
-    # read original template
-    with open(Path(root[0]) / "card" / "default_template.md") as f:
-        default_template = f.read()
+def test_add_plot_to_existing_section(destination_path, model_card):
     plt.plot([4, 5, 6, 7])
     plt.savefig(Path(destination_path) / "fig1.png")
-    model_card.add_plot(fig1="fig1.png")
-    model_card.save(Path(destination_path) / "README.md")
-    # check if default template is not modified
-    with open(Path(root[0]) / "card" / "default_template.md") as f:
-        default_template_post = f.read()
-    assert default_template == default_template_post
+    model_card = model_card.add_plot(**{"Model description/Figure 1": "fig1.png"})
+    plot_content = model_card.select("Model description/Figure 1").content.format()
+    assert plot_content == "![Figure 1](fig1.png)"
 
 
-def test_adding_metadata(destination_path, model_card):
+def test_adding_metadata(model_card):
     # test if the metadata is added to the card
     model_card.metadata.tags = "dummy"
     metadata = list(model_card._generate_metadata(model_card.metadata))
@@ -292,7 +458,9 @@ def test_add_metrics(destination_path, model_card):
     assert eval_metric_content.endswith(expected)
 
 
-def test_code_autogeneration(destination_path, pkl_model_card_metadata_from_config):
+def test_code_autogeneration(
+    model_card, destination_path, pkl_model_card_metadata_from_config
+):
     # test if getting started code is automatically generated
     metadata = metadata_load(local_path=Path(destination_path) / "README.md")
     filename = metadata["model_file"]
@@ -368,7 +536,6 @@ class TestCardRepr:
           Model description/Training Procedure/...</pre></div></div></div></div></div>,
           Model description/Evaluation Results=...ric | Value | |----------|---------|,
           Model Card Authors=Jane Doe,
-          Citation=Below you can find informati...** ``` [More Information Needed] ```,
           Figures/ROC='ROC.png',
           Figures/Confusion matrix='confusion_matrix.jpg',
           Model Description=A description,
@@ -382,6 +549,21 @@ class TestCardRepr:
     def test_card_repr(self, card: Card, meth, expected_lines):
         result = meth(card)
         expected = "\n".join(expected_lines)
+        assert result == expected
+
+    @pytest.mark.parametrize("meth", [repr, str])
+    def test_card_repr_empty_card(self, meth):
+        """Without prefill, the repr should be empty"""
+        model = fit_model()
+        card = Card(model, model_diagram=False, prefill=False)
+        result = meth(card)
+        expected = textwrap.dedent(
+            """
+        Card(
+          model=LinearRegression()
+        )
+        """
+        ).strip()
         assert result == expected
 
     @pytest.mark.parametrize("meth", [repr, str])
