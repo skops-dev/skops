@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from functools import partial
-from types import FunctionType
+from types import FunctionType, MethodType
 from typing import Any
 
 import numpy as np
@@ -242,6 +242,30 @@ def object_get_instance(state, src):
     return instance
 
 
+def method_get_state(obj: Any, save_state: SaveState):
+    # This method is used to persist bound methods, which are
+    # dependent on a specific instance of an object.
+    # It stores the state of the object the method is bound to,
+    # and prepares both to be persisted.
+    res = {
+        "__class__": obj.__class__.__name__,
+        "__module__": get_module(obj),
+        "__loader__": "method_get_instance",
+        "content": {
+            "func": obj.__func__.__name__,
+            "obj": get_state(obj.__self__, save_state),
+        },
+    }
+
+    return res
+
+
+def method_get_instance(state, src):
+    loaded_obj = object_get_instance(state["content"]["obj"], src)
+    method = getattr(loaded_obj, state["content"]["func"])
+    return method
+
+
 def unsupported_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     raise UnsupportedTypeException(obj)
 
@@ -253,6 +277,7 @@ GET_STATE_DISPATCH_FUNCTIONS = [
     (tuple, tuple_get_state),
     (slice, slice_get_state),
     (FunctionType, function_get_state),
+    (MethodType, method_get_state),
     (partial, partial_get_state),
     (type, type_get_state),
     (object, object_get_state),
@@ -264,6 +289,7 @@ GET_INSTANCE_DISPATCH_MAPPING = {
     "tuple_get_instance": tuple_get_instance,
     "slice_get_instance": slice_get_instance,
     "function_get_instance": function_get_instance,
+    "method_get_instance": method_get_instance,
     "partial_get_instance": partial_get_instance,
     "type_get_instance": type_get_instance,
     "object_get_instance": object_get_instance,
