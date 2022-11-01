@@ -8,8 +8,7 @@ import numpy as np
 
 from ._audit import Node
 from ._dispatch import get_tree
-from ._general import function_get_instance
-from ._utils import SaveState, _import_obj, get_module, get_state, gettype
+from ._utils import SaveState, get_module, get_state, gettype
 from .exceptions import UnsupportedTypeException
 
 
@@ -57,7 +56,7 @@ class NdArrayNode(Node):
         super().__init__(state, src, trusted)
         self.type = state["type"]
         if self.type == "numpy":
-            self.file = state["file"]
+            self.content = io.BytesIO(self.src.read(state["file"]))
             self.children = {}
         elif self.type == "json":
             self.shape = get_tree(state["shape"], src, trusted)
@@ -69,9 +68,9 @@ class NdArrayNode(Node):
     def construct(self):
         # Dealing with a regular numpy array, where dtype != object
         if self.type == "numpy":
-            content = np.load(self.file)
+            content = np.load(self.content, allow_pickle=False)
             if f"{self.module_name}.{self.class_name}" != "numpy.ndarray":
-                content = _import_obj(self.module_name, self.class_name)(content)
+                content = gettype(self.module_name, self.class_name)(content)
             return content
 
         elif self.type == "json":
@@ -222,10 +221,9 @@ GET_STATE_DISPATCH_FUNCTIONS = [
 ]
 # tuples of type and function that creates the instance of that type
 GET_INSTANCE_DISPATCH_MAPPING = {
-    "ndarray_get_instance": ndarray_get_instance,
-    "maskedarray_get_instance": maskedarray_get_instance,
-    "function_get_instance": function_get_instance,
-    "dtype_get_instance": dtype_get_instance,
-    "random_state_get_instance": random_state_get_instance,
-    "random_generator_get_instance": random_generator_get_instance,
+    "NdArrayNode": NdArrayNode,
+    "MaskedArrayNode": MaskedArrayNode,
+    "DTypeNode": DTypeNode,
+    "RandomStateNode": RandomStateNode,
+    "RandomGeneratorNode": RandomGeneratorNode,
 }
