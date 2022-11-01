@@ -59,7 +59,7 @@ def list_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
-        "__loader__": "list_get_instance",
+        "__loader__": "ListNode",
     }
     content = [get_state(value, save_state) for value in obj]
     res["content"] = content
@@ -82,7 +82,7 @@ def tuple_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
-        "__loader__": "tuple_get_instance",
+        "__loader__": "TupleNode",
     }
     content = tuple(get_state(value, save_state) for value in obj)
     res["content"] = content
@@ -122,7 +122,7 @@ def function_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(obj),
-        "__loader__": "function_get_instance",
+        "__loader__": "FunctionNode",
         "content": {
             "module_path": get_module(obj),
             "function": obj.__name__,
@@ -158,7 +158,7 @@ def partial_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     res = {
         "__class__": "partial",  # don't allow any subclass
         "__module__": get_module(type(obj)),
-        "__loader__": "partial_get_instance",
+        "__loader__": "PartialNode",
         "content": {
             "func": get_state(func, save_state),
             "args": get_state(args, save_state),
@@ -169,15 +169,23 @@ def partial_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     return res
 
 
-def partial_get_instance(state, src):
-    content = state["content"]
-    func = get_instance(content["func"], src)
-    args = get_instance(content["args"], src)
-    kwds = get_instance(content["kwds"], src)
-    namespace = get_instance(content["namespace"], src)
-    instance = partial(func, *args, **kwds)  # always use partial, not a subclass
-    instance.__setstate__((func, args, kwds, namespace))
-    return instance
+class PartialNode(Node):
+    def __init__(self, state, src, trusted=None):
+        super().__init__(state, src, trusted)
+        self.trusted = trusted or ["functools.partial"]
+        self.children = {"func": Node, "args": Node, "kwds": Node, "namespace": Node}
+        self.func = get_tree(state["content"]["func"], src)
+        self.args = get_tree(state["content"]["args"], src)
+        self.kwds = get_tree(state["content"]["kwds"], src)
+        self.namespace = get_tree(state["content"]["namespace"], src)
+
+    def construct(self):
+        func = self.func.construct()
+        args = self.args.construct()
+        kwds = self.kwds.construct()
+        namespace = self.namespace.construct()
+        instance = partial(func, *args, **kwds)  # always use partial, not a subclass
+        instance.__setstate__((func, args, kwds, namespace))
 
 
 def type_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
@@ -186,7 +194,7 @@ def type_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
-        "__loader__": "type_get_instance",
+        "__loader__": "TypeNode",
         "content": {
             "__class__": obj.__name__,
             "__module__": get_module(obj),
@@ -195,16 +203,33 @@ def type_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     return res
 
 
-def type_get_instance(state, src):
-    loaded = _import_obj(state["content"]["__module__"], state["content"]["__class__"])
-    return loaded
+class TypeNode(Node):
+    def __init__(self, state, src, trusted=None):
+        super().__init__(state, src, trusted)
+        # TODO: what do we trust?
+        # self.trusted = trusted or []
+        self.children = {"content": TypeNode}
+        self.content = state["content"]
+
+    def construct(self):
+        return _import_obj(self.content["__module__"], self.content["__class__"])
+
+    @property
+    def is_safe(self):
+        return False
+
+    def get_safety_tree(self, report_safe=True):
+        raise NotImplementedError()
+
+    def get_unsafe_set(self):
+        raise NotImplementedError()
 
 
 def slice_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
-        "__loader__": "slice_get_instance",
+        "__loader__": "SliceNode",
         "content": {
             "start": obj.start,
             "stop": obj.stop,
@@ -214,11 +239,17 @@ def slice_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     return res
 
 
-def slice_get_instance(state, src):
-    start = state["content"]["start"]
-    stop = state["content"]["stop"]
-    step = state["content"]["step"]
-    return slice(start, stop, step)
+class SliceNode(Node):
+    def __init__(self, state, src, trusted=None):
+        super().__init__(state, src, trusted)
+        self.trusted = trusted or ["builtins.slice"]
+        self.children = {}
+        self.start = state["content"]["start"]
+        self.stop = state["content"]["stop"]
+        self.step = state["content"]["step"]
+
+    def construct(self):
+        return slice(self.start, self.stop, self.step)
 
 
 def object_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
@@ -241,7 +272,7 @@ def object_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
-        "__loader__": "object_get_instance",
+        "__loader__": "ObjectNode",
     }
 
     # __getstate__ takes priority over __dict__, and if non exist, we only save
@@ -260,28 +291,30 @@ def object_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     return res
 
 
-def object_get_instance(state, src):
-    if state.get("is_json", False):
-        return json.loads(state["content"])
+class ObjectNode(Node):
+    def __init__(self, state, src, trusted=None):
+        super().__init__(state, src, trusted)
+        self.attrs = get_tree(state.get("content"), src)
+        self.children = {"attrs": Node}
 
-    cls = gettype(state)
+    def construct(self):
+        cls = gettype(self.module_name, self.class_name)
 
-    # Instead of simply constructing the instance, we use __new__, which
-    # bypasses the __init__, and then we set the attributes. This solves
-    # the issue of required init arguments.
-    instance = cls.__new__(cls)
+        # Instead of simply constructing the instance, we use __new__, which
+        # bypasses the __init__, and then we set the attributes. This solves
+        # the issue of required init arguments.
+        instance = cls.__new__(cls)
 
-    content = state.get("content")
-    if not content:  # nothing more to do
+        if not self.content:  # nothing more to do
+            return instance
+
+        attrs = self.attrs.construct()
+        if hasattr(instance, "__setstate__"):
+            instance.__setstate__(attrs)
+        else:
+            instance.__dict__.update(attrs)
+
         return instance
-
-    attrs = get_instance(content, src)
-    if hasattr(instance, "__setstate__"):
-        instance.__setstate__(attrs)
-    else:
-        instance.__dict__.update(attrs)
-
-    return instance
 
 
 def unsupported_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
@@ -301,12 +334,12 @@ GET_STATE_DISPATCH_FUNCTIONS = [
 ]
 
 GET_INSTANCE_DISPATCH_MAPPING = {
-    "dict_get_instance": dict_get_instance,
-    "list_get_instance": list_get_instance,
-    "tuple_get_instance": tuple_get_instance,
-    "slice_get_instance": slice_get_instance,
-    "function_get_instance": function_get_instance,
-    "partial_get_instance": partial_get_instance,
-    "type_get_instance": type_get_instance,
-    "object_get_instance": object_get_instance,
+    "DictNode": DictNode,
+    "ListNode": ListNode,
+    "TupleNode": TupleNode,
+    "SliceNode": SliceNode,
+    "FunctionNode": FunctionNode,
+    "PartialNode": PartialNode,
+    "TypeNode": TypeNode,
+    "ObjectNode": ObjectNode,
 }

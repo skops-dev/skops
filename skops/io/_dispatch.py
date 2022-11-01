@@ -31,6 +31,8 @@ class Node:
                 is_safe = is_safe and self._get_iterable_safety(child)
             elif _type is dict:
                 is_safe = is_safe and self._get_iterable_safety(child.values())
+            elif _type is Node:
+                is_safe = is_safe and getattr(self, child).is_safe
             else:
                 raise ValueError(f"Unknown type {_type}.")
 
