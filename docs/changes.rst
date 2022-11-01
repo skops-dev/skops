@@ -25,6 +25,8 @@ v0.3
 - Use ``huggingface_hub`` v0.10.1 for model cards, drop ``modelcards``
   dependency. :pr:`162` by `Benjamin Bossan`_.
 - Add source links to API documentation. :pr:`172` by `Ayyuce Demirbas`_.
+- Add support to load model if given Path/str to ``model`` argument in
+  :mod:`skops.card` . :pr:`205` by `prajjwal mishra`_.
 
 
 v0.2
@@ -59,4 +61,5 @@ Contributors
 ~~~~~~~~~~~~
 
 :user:`Adrin Jalali <adrinjalali>`, :user:`Merve Noyan <merveenoyan>`,
-:user:`Benjamin Bossan <BenjaminBossan>`, :user:`Ayyuce Demirbas <ayyucedemirbas>`
+:user:`Benjamin Bossan <BenjaminBossan>`, :user:`Ayyuce Demirbas <ayyucedemirbas>`,
+:user:`Prajjwal Mishra <p-mishra1>`

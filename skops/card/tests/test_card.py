@@ -435,7 +435,6 @@ class TestModelCardFromPath:
         model0 = LinearRegression(n_jobs=123)
         save_file = save_model_to_file(model0, suffix)
         save_file = file_type(save_file)
-        print(type(save_file))
         card_from_str = Card(save_file)
         card_from_model0 = Card(model0)
 
