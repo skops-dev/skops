@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any, List, MutableMapping, Optional, Union
 
 import numpy as np
-from huggingface_hub import HfApi, InferenceApi, snapshot_download
+from huggingface_hub import CardData, HfApi, InferenceApi, ModelCard, snapshot_download
 
 from ..utils.fixes import Literal
 
@@ -213,6 +213,83 @@ def _create_config(
     dump_json(Path(dst) / "config.json", config)
 
 
+def _create_readme(
+    *,
+    model_path: Union[str, Path],
+    requirements: List[str],
+    dst: Union[str, Path],
+    task: Literal[
+        "tabular-classification",
+        "tabular-regression",
+        "text-classification",
+        "text-regression",
+    ],
+    data,
+) -> None:
+    """Write the metadata into a ``README.md`` file
+
+    Parameters
+    ----------
+    model_path : str, or Path
+        The relative path (from the repo root) to the model file.
+
+    requirements : list of str
+        A list of required packages. The versions are then extracted from the
+        current environment.
+
+    dst : str, or Path
+        The path to an existing folder where the config file should be created.
+
+    task: "tabular-classification", "tabular-regression",
+    "text-classification", /
+            or "text-regression"
+        The task of the model, which determines the input and output type of
+        the model. It can be one of: ``tabular-classification``,
+        ``tabular-regression``, ``text-classification``, ``text-regression``.
+
+    data: array-like
+        The input to the model. This is used for two purposes:
+
+            1. Save an example input to the model, which is used by
+               HuggingFace's backend and shown in the widget of the model's
+               page.
+            2. Store the columns and their order of the input, which is used by
+               HuggingFace's backend to pass the data in the right form to the
+               model.
+
+        The first 3 input values are used as example inputs.
+
+    Returns
+    -------
+    None
+    """
+    card_data = CardData()
+    card_data.library_name = "sklearn"
+    card_data.tags = ["sklearn", "skops"]
+    card_data.task = task
+    if task:
+        card_data.tags += [task]
+    card_data.model_file = str(model_path)
+
+    if "tabular" in task:
+        example_input = _get_example_input(data)
+    elif "text" in task:
+        if isinstance(data, list) and all(isinstance(x, str) for x in data):
+            example_input = {"data": data[:3]}
+        else:
+            raise ValueError("The data needs to be a list of strings.")
+
+    # Documentation on what the widget expects:
+    # https://huggingface.co/docs/hub/models-widgets-examples
+    if example_input:
+        if "tabular" in task:
+            card_data.widget = {"structuredData": example_input}
+        # TODO: add text data example here.
+
+    card = ModelCard.from_template(card_data=card_data)
+    card.save(Path(dst) / "README.md")
+
+
 def _check_model_file(path: str | Path) -> Path:
     """Perform sanity checks on the model file
 
@@ -314,6 +391,13 @@ def init(
 
         model_name = model.name
         _create_config(
+            model_path=model_name,
+            requirements=requirements,
+            dst=dst,
+            task=task,
+            data=data,
+        )
+        _create_readme(
             model_path=model_name,
             requirements=requirements,
             dst=dst,
