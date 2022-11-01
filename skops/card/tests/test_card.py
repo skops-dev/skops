@@ -27,19 +27,19 @@ def fit_model():
 
 
 def save_model_to_file(model_instance, suffix):
-    save_file = tempfile.mkstemp(suffix=suffix, prefix="skops-test")[1]
+    save_file_handle, save_file = tempfile.mkstemp(suffix=suffix, prefix="skops-test")
     if suffix in (".pkl", ".pickle"):
         with open(save_file, "wb") as f:
             pickle.dump(model_instance, f)
     elif suffix == ".skops":
         dump(model_instance, save_file)
-    return save_file
+    return save_file_handle, save_file
 
 
 @pytest.mark.parametrize("suffix", [".pkl", ".pickle", ".skops"])
 def test_load_model(suffix):
     model0 = LinearRegression(n_jobs=123)
-    save_file = save_model_to_file(model0, suffix)
+    _, save_file = save_model_to_file(model0, suffix)
     loaded_model_str = _load_model(save_file)
     save_file_path = Path(save_file)
     loaded_model_path = _load_model(save_file_path)
@@ -433,7 +433,7 @@ class TestModelCardFromPath:
     @pytest.mark.parametrize("suffix", [".pkl", ".pickle", ".skops"])
     def test_model_card_str(self, suffix, file_type):
         model0 = LinearRegression(n_jobs=123)
-        save_file = save_model_to_file(model0, suffix)
+        _, save_file = save_model_to_file(model0, suffix)
         save_file = file_type(save_file)
         card_from_str = Card(save_file)
         card_from_model0 = Card(model0)
@@ -459,7 +459,7 @@ class TestCardModelAttribute:
 
     def test_model_is_str_pickle(self, suffix=".pickle"):
         model0 = LinearRegression(n_jobs=123)
-        f_name0 = save_model_to_file(model0, suffix)
+        _, f_name0 = save_model_to_file(model0, suffix)
 
         card = Card(f_name0)
         assert isinstance(card.model, LinearRegression)
@@ -467,7 +467,7 @@ class TestCardModelAttribute:
 
         # re-assigning the model works
         model1 = LogisticRegression(n_jobs=456)
-        f_name1 = save_model_to_file(model1, suffix)
+        _, f_name1 = save_model_to_file(model1, suffix)
 
         card.model = f_name1
         assert isinstance(card.model, LogisticRegression)
@@ -480,20 +480,24 @@ class TestCardModelAttribute:
 
     def test_model_is_loaded_once(self, suffix=".pickle"):
         model0 = LinearRegression(n_jobs=123)
-        f_name0 = save_model_to_file(model0, suffix)
+        file_handle, f_name0 = save_model_to_file(model0, suffix)
 
         card = Card(f_name0)
         assert isinstance(card.model, LinearRegression)
         assert card.model.n_jobs == 123
 
+        os.close(file_handle)
         os.remove(f_name0)
 
         assert isinstance(card.model, LinearRegression)
         assert card.model.n_jobs == 123
 
     def test_load_model_file_not_found(self):
-        file_name = tempfile.mkstemp(suffix=".pkl", prefix="skops-test")[1]
+        file_handle, file_name = tempfile.mkstemp(suffix=".pkl", prefix="skops-test")
+
+        os.close(file_handle)
         os.remove(file_name)
+
         with pytest.raises(FileNotFoundError, match=file_name):
             card = Card(file_name)
             card.model

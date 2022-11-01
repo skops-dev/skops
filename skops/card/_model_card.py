@@ -213,8 +213,10 @@ class Card:
     Parameters
     ----------
     model: pathlib.path, str, or sklearn estimator object
-        Path/str of the model or the actual model instance that will be documented.
-        if a Path or str is provided, model will be loaded.
+        ``Path``/``str`` of the model or the actual model instance that will be
+        documented. If a ``Path`` or ``str`` is provided, model will be loaded
+        on first use.
+
 
     model_diagram: bool, default=True
         Set to True if model diagram should be plotted in the card.
