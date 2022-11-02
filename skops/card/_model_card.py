@@ -279,16 +279,16 @@ class Card:
     ... )
     >>> disp.plot()
     <sklearn.metrics._plot.confusion_matrix.ConfusionMatrixDisplay object at ...>
-    >>> disp.figure_.savefig("confusion_matrix.png")
+    >>> tmp_path = Path(tempfile.mkdtemp(prefix="skops-"))
+    >>> disp.figure_.savefig(tmp_path / "confusion_matrix.png")
     ...
     >>> model_card.add_plot(confusion_matrix="confusion_matrix.png")
     Card(
       model=LogisticRegression(random_state=0, solver='liblinear'),
       metadata.license=mit,
-      confusion_matrix='confusion_matrix.png',
+      confusion_matrix='...confusion_matrix.png',
     )
-    >>> with tempfile.TemporaryDirectory() as tmpdir:
-    ...     model_card.save((Path(tmpdir) / "README.md"))
+    >>> model_card.save(tmp_path / "README.md")
     """
 
     def __init__(
