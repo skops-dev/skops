@@ -18,3 +18,14 @@ def check_type(module_name, class_name, trusted):
         True if the type is safe, False otherwise.
     """
     return module_name + class_name in trusted
+
+
+def audit_tree(tree, trusted):
+    if trusted is True:
+        return
+
+    unsafe = tree.get_unsafe_set()
+    if isinstance(trusted, (list, set)):
+        unsafe -= set(trusted)
+    if unsafe:
+        raise TypeError(f"Untrusted types found in the file: {unsafe}.")

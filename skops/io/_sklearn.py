@@ -22,9 +22,8 @@ from sklearn.linear_model._sgd_fast import (
 )
 from sklearn.tree._tree import Tree
 
-from ._audit import Node
-from ._dispatch import get_tree
-from ._general import dict_get_instance, dict_get_state, unsupported_get_state
+from ._dispatch import Node, get_tree
+from ._general import dict_get_state, unsupported_get_state
 from ._utils import SaveState, get_module, get_state, gettype
 from .exceptions import UnsupportedTypeException
 
@@ -87,15 +86,16 @@ def reduce_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     res["content"] = get_state(attrs, save_state)
     return res
 
+
 class ReduceNode(Node):
-    def __init__(self, state, src, constructor=None, trusted=None):
+    def __init__(self, state, src, constructor=None, trusted=False):
         super().__init__(state, src, trusted)
         reduce = state["__reduce__"]
-        self.args = get_tree(state, src)
+        self.args = get_tree(reduce["args"], src)
         self.constructor = constructor
         self.attrs = get_tree(state["content"], src)
 
-    def get_instance(self, src):
+    def construct(self):
         args = self.args.construct()
         instance = self.constructor(*args)
         attrs = self.attrs.construct()
@@ -113,7 +113,7 @@ class ReduceNode(Node):
         else:
             instance.__dict__.update(attrs)
 
-        return instance      
+        return instance
 
 
 def tree_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
@@ -123,7 +123,7 @@ def tree_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
 
 
 class TreeNode(ReduceNode):
-    def __init__(self, state, src, trusted=None):
+    def __init__(self, state, src, trusted=False):
         super().__init__(state, src, constructor=Tree, trusted=trusted)
 
 
@@ -132,10 +132,16 @@ def sgd_loss_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     state["__loader__"] = "SGDNode"
     return state
 
+
 class SGDNode(ReduceNode):
-    def __init__(self, state, src, trusted=None):
+    def __init__(self, state, src, trusted=False):
         # TODO: make sure trusted here makes sense and used.
-        super().__init__(state, src, constructor=gettype(state), trusted=ALLOWED_SGD_LOSSES)
+        super().__init__(
+            state,
+            src,
+            constructor=gettype(state.get("__module__"), state.get("__class__")),
+            trusted=ALLOWED_SGD_LOSSES,
+        )
 
 
 # TODO: remove once support for sklearn<1.2 is dropped.
@@ -148,7 +154,9 @@ def _DictWithDeprecatedKeys_get_state(
         "__loader__": "_DictWithDeprecatedKeysNode",
     }
     content = {}
-    content["main"] = dict_get_state(obj, save_state)
+    # explicitly pass a dict object instead of _DictWithDeprecatedKeys and
+    # later construct a _DictWithDeprecatedKeys object.
+    content["main"] = dict_get_state(dict(obj), save_state)
     content["_deprecated_key_to_new_key"] = dict_get_state(
         obj._deprecated_key_to_new_key, save_state
     )
@@ -159,16 +167,18 @@ def _DictWithDeprecatedKeys_get_state(
 # TODO: remove once support for sklearn<1.2 is dropped.
 class _DictWithDeprecatedKeysNode(Node):
     # _DictWithDeprecatedKeys is just a wrapper for dict
-    def __init__(self, state, src, trusted=None):
+    def __init__(self, state, src, trusted=False):
         super().__init__(state, src, trusted)
         self.main = get_tree(state["content"]["main"], src)
         self._deprecated_key_to_new_key = get_tree(
             state["content"]["_deprecated_key_to_new_key"], src
         )
 
-    def get_instance(self, src):
+    def construct(self):
         instance = _DictWithDeprecatedKeys(**self.main.construct())
-        instance._deprecated_key_to_new_key = self._deprecated_key_to_new_key.construct()
+        instance._deprecated_key_to_new_key = (
+            self._deprecated_key_to_new_key.construct()
+        )
         return instance
 
 
@@ -181,7 +191,7 @@ for type_ in UNSUPPORTED_TYPES:
     GET_STATE_DISPATCH_FUNCTIONS.append((type_, unsupported_get_state))
 
 # tuples of type and function that creates the instance of that type
-GET_INSTANCE_DISPATCH_MAPPING = {
+NODE_TYPE_MAPPING = {
     "SGDNode": SGDNode,
     "TreeNode": TreeNode,
 }
@@ -193,6 +203,6 @@ if _DictWithDeprecatedKeys is not None:
     GET_STATE_DISPATCH_FUNCTIONS.append(
         (_DictWithDeprecatedKeys, _DictWithDeprecatedKeys_get_state)
     )
-    GET_INSTANCE_DISPATCH_MAPPING[
+    NODE_TYPE_MAPPING[
         "_DictWithDeprecatedKeysNode"
-    ] = _DictWithDeprecatedKeysNode
+    ] = _DictWithDeprecatedKeysNode  # type: ignore

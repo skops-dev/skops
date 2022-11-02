@@ -8,10 +8,20 @@ NODE_TYPE_MAPPING = {}  # type: ignore
 
 
 class Node:
-    def __init__(self, state, src, trusted=None):
+    def __init__(self, state, src, trusted=False):
         self.class_name, self.module_name = state["__class__"], state["__module__"]
         self.trusted = trusted
         self._is_safe = None
+
+    def _get_trusted(self, trusted, default):
+        if trusted is True:
+            # if trusted is True, we trust the node
+            return True
+        elif trusted is False:
+            # if trusted is False, we only trust the defaults
+            return default
+        # otherwise we trust the given list
+        return trusted
 
     def _get_iterable_safety(self, values):
         is_safe = True
@@ -23,6 +33,10 @@ class Node:
     def is_safe(self):
         if self._is_safe is not None:
             return self._is_safe
+
+        if self.trusted is True:
+            self._is_safe = True
+            return True
 
         is_safe = check_type(self.module_name, self.class_name, trusted=self.trusted)
 
@@ -119,4 +133,4 @@ def get_tree(state, src):
         raise TypeError(
             f" Can't find loader {state['__loader__']} for type {type_name}."
         )
-    return node_cls(state, src)
+    return node_cls(state, src, trusted=False)

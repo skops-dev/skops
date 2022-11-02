@@ -5,7 +5,7 @@ from typing import Any
 
 from scipy.sparse import load_npz, save_npz, spmatrix
 
-from ._audit import Node
+from ._dispatch import Node
 from ._utils import SaveState, get_module
 
 
@@ -13,7 +13,7 @@ def sparse_matrix_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
-        "__loader__": "sparse_matrix_get_instance",
+        "__loader__": "SparseMatrixNode",
     }
 
     data_buffer = io.BytesIO()
@@ -33,9 +33,10 @@ def sparse_matrix_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
 
 
 class SparseMatrixNode(Node):
-    def __init__(self, state, src, trusted=None):
+    def __init__(self, state, src, trusted=False):
         super().__init__(state, src, trusted)
         self.type = state["type"]
+        self.trusted = self._get_trusted(trusted, ["scipy.sparse.spmatrix"])
         if self.type != "scipy":
             raise TypeError(
                 f"Cannot load object of type {self.module_name}.{self.class_name}"
@@ -56,7 +57,7 @@ GET_STATE_DISPATCH_FUNCTIONS = [
     (spmatrix, sparse_matrix_get_state),
 ]
 # tuples of type and function that creates the instance of that type
-GET_INSTANCE_DISPATCH_MAPPING = {
+NODE_TYPE_MAPPING = {
     # use 'spmatrix' to check if a matrix is a sparse matrix because that is
     # what scipy.sparse.issparse checks
     "SparseMatrixNode": SparseMatrixNode,
