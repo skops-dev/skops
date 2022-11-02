@@ -16,9 +16,9 @@ from skops.card import metadata_from_config
 from skops.card._model_card import PlotSection, TableSection
 
 if sys.version_info >= (3, 8):
-    from typing import Protocol
+    from typing import Protocol  # pragma: no cover
 else:
-    from typing_extensions import Protocol
+    from typing_extensions import Protocol  # pragma: no cover
 
 
 aRepr = Repr()
@@ -154,7 +154,7 @@ class Section:
 
 class Formattable(Protocol):
     def format(self) -> str:
-        ...
+        ...  # pragma: no cover
 
 
 class Card:
@@ -457,7 +457,7 @@ class Card:
         else:
             *subsection_names, leaf_node_name = key
 
-        if not key:
+        if not leaf_node_name:
             msg = f"Section name cannot be empty but got '{key}'"
             raise KeyError(msg)
 
@@ -474,15 +474,6 @@ class Card:
         else:
             # entry does not exist, create a new one
             section[leaf_node_name] = Section(title=leaf_node_name, content=val)
-
-    def _add_model(self, model) -> None:
-        model = getattr(self, "model", None)
-        if model is None:
-            return
-
-        model_str = self._strip_blank(repr(model))
-        model_repr = aRepr.repr(f"model={model_str},").strip('"').strip("'")
-        self._add_single("Model description", model_repr)
 
     def _add_model_section(self) -> None:
         section_title = "Model description/Training Procedure/Model Plot"
@@ -524,7 +515,7 @@ class Card:
             template.format(table),
         )
 
-    def add_plot(self, folded=False, **kwargs: str) -> "Card":
+    def add_plot(self, *, folded=False, **kwargs: str) -> "Card":
         """Add plots to the model card.
 
         The plot should be saved on the file system and the path passed as
@@ -557,7 +548,9 @@ class Card:
             self._add_single(section_name, section)
         return self
 
-    def add_table(self, folded: bool = False, **kwargs: dict["str", list[Any]]) -> Card:
+    def add_table(
+        self, *, folded: bool = False, **kwargs: dict["str", list[Any]]
+    ) -> Card:
         """Add a table to the model card.
 
         Add a table to the model card. This can be especially useful when you
@@ -642,10 +635,6 @@ class Card:
     def _generate_metadata(self, metadata: CardData) -> Iterator[str]:
         """Yield metadata in yaml format"""
         for key, val in metadata.to_dict().items() if metadata else {}:
-            if key == "widget":
-                yield "metadata.widget={...},"
-                continue
-
             yield aRepr.repr(f"metadata.{key}={val},").strip('"').strip("'")
 
     def _generate_content(
@@ -680,15 +669,10 @@ class Card:
                 yield from self._iterate_content(val.subsections, parent_section=title)
 
     @staticmethod
-    def _strip_blank(text: str) -> str:
-        # remove new lines and multiple spaces
+    def _format_repr(text: str) -> str:
+        # Remove new lines, multiple spaces, quotation marks, and cap line length
         text = text.replace("\n", " ")
         text = re.sub(r"\s+", r" ", text)
-        return text
-
-    def _format_repr(self, text: str) -> str:
-        # Remove new lines, multiple spaces, quotation marks, and cap line length
-        text = self._strip_blank(text)
         return aRepr.repr(text).strip('"').strip("'")
 
     def __str__(self) -> str:
@@ -754,7 +738,7 @@ class Card:
         )
 
     def _generate_card(self) -> Iterator[str]:
-        if self.metadata:
+        if self.metadata.to_dict():
             yield f"---\n{self.metadata.to_yaml()}\n---"
 
         for line in self._generate_content(self._data):
@@ -795,7 +779,8 @@ class Card:
         return "\n".join(self._generate_card())
 
 
-def main():
+def main():  # pragma: no cover
+    # TODO: remove
     import os
     import pickle
     import tempfile
@@ -886,4 +871,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main()  # pragma: no cover

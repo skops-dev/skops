@@ -200,6 +200,31 @@ def test_plot_model_false(model_card):
     assert text_plot == "The model plot is below."
 
 
+def test_render(model_card, destination_path):
+    file_name = destination_path / "README.md"
+    model_card.save(file_name)
+    with open(file_name, "r") as f:
+        loaded = f.read()
+
+    rendered = model_card.render()
+    assert loaded == rendered
+
+
+def test_with_metadata(model_card):
+    model_card.metadata.foo = "something"
+    model_card.metadata.bar = "something else"
+    rendered = model_card.render()
+    expected = textwrap.dedent(
+        """
+        ---
+        foo: something
+        bar: something else
+        ---
+        """
+    ).strip()
+    assert rendered.startswith(expected)
+
+
 class TestSelect:
     """Selecting sections from the model card"""
 
@@ -413,6 +438,15 @@ class TestDelete:
         msg = r"Section name cannot be empty but got '\[\]'"
         with pytest.raises(KeyError, match=msg):
             model_card.delete([])
+
+    def test_delete_empty_key_subsection_raises(self, model_card):
+        msg = r"Section name cannot be empty but got 'Model description/'"
+        with pytest.raises(KeyError, match=msg):
+            model_card.delete("Model description/")
+
+        msg = r"Section name cannot be empty but got '\['Model description', ''\]'"
+        with pytest.raises(KeyError, match=msg):
+            model_card.delete(["Model description", ""])
 
 
 def test_add_plot(destination_path, model_card):
