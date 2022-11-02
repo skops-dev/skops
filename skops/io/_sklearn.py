@@ -22,7 +22,8 @@ from sklearn.linear_model._sgd_fast import (
 )
 from sklearn.tree._tree import Tree
 
-from ._dispatch import get_instance
+from ._audit import Node
+from ._dispatch import get_tree
 from ._general import dict_get_instance, dict_get_state, unsupported_get_state
 from ._utils import SaveState, get_module, get_state, gettype
 from .exceptions import UnsupportedTypeException
@@ -86,51 +87,55 @@ def reduce_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     res["content"] = get_state(attrs, save_state)
     return res
 
+class ReduceNode(Node):
+    def __init__(self, state, src, constructor=None, trusted=None):
+        super().__init__(state, src, trusted)
+        reduce = state["__reduce__"]
+        self.args = get_tree(state, src)
+        self.constructor = constructor
+        self.attrs = get_tree(state["content"], src)
 
-def reduce_get_instance(state, src, constructor):
-    reduce = state["__reduce__"]
-    args = get_instance(reduce["args"], src)
-    instance = constructor(*args)
+    def get_instance(self, src):
+        args = self.args.construct()
+        instance = self.constructor(*args)
+        attrs = self.attrs.construct()
+        if not attrs:
+            # nothing more to do
+            return instance
 
-    attrs = get_instance(state["content"], src)
-    if not attrs:
-        # nothing more to do
-        return instance
+        if isinstance(args, tuple) and not hasattr(instance, "__setstate__"):
+            raise UnsupportedTypeException(
+                f"Objects of type {self.constructor} are not supported yet"
+            )
 
-    if isinstance(args, tuple) and not hasattr(instance, "__setstate__"):
-        raise UnsupportedTypeException(
-            f"Objects of type {constructor} are not supported yet"
-        )
+        if hasattr(instance, "__setstate__"):
+            instance.__setstate__(attrs)
+        else:
+            instance.__dict__.update(attrs)
 
-    if hasattr(instance, "__setstate__"):
-        instance.__setstate__(attrs)
-    else:
-        instance.__dict__.update(attrs)
-
-    return instance
+        return instance      
 
 
 def tree_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     state = reduce_get_state(obj, save_state)
-    state["__loader__"] = "tree_get_instance"
+    state["__loader__"] = "TreeNode"
     return state
 
 
-def tree_get_instance(state, src):
-    return reduce_get_instance(state, src, constructor=Tree)
+class TreeNode(ReduceNode):
+    def __init__(self, state, src, trusted=None):
+        super().__init__(state, src, constructor=Tree, trusted=trusted)
 
 
 def sgd_loss_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     state = reduce_get_state(obj, save_state)
-    state["__loader__"] = "sgd_loss_get_instance"
+    state["__loader__"] = "SGDNode"
     return state
 
-
-def sgd_loss_get_instance(state, src):
-    cls = gettype(state)
-    if cls not in ALLOWED_SGD_LOSSES:
-        raise UnsupportedTypeException(f"Expected LossFunction, got {cls}")
-    return reduce_get_instance(state, src, constructor=cls)
+class SGDNode(ReduceNode):
+    def __init__(self, state, src, trusted=None):
+        # TODO: make sure trusted here makes sense and used.
+        super().__init__(state, src, constructor=gettype(state), trusted=ALLOWED_SGD_LOSSES)
 
 
 # TODO: remove once support for sklearn<1.2 is dropped.
@@ -140,7 +145,7 @@ def _DictWithDeprecatedKeys_get_state(
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
-        "__loader__": "_DictWithDeprecatedKeys_get_instance",
+        "__loader__": "_DictWithDeprecatedKeysNode",
     }
     content = {}
     content["main"] = dict_get_state(obj, save_state)
@@ -152,15 +157,19 @@ def _DictWithDeprecatedKeys_get_state(
 
 
 # TODO: remove once support for sklearn<1.2 is dropped.
-def _DictWithDeprecatedKeys_get_instance(state, src):
+class _DictWithDeprecatedKeysNode(Node):
     # _DictWithDeprecatedKeys is just a wrapper for dict
-    content = dict_get_instance(state["content"]["main"], src)
-    deprecated_key_to_new_key = dict_get_instance(
-        state["content"]["_deprecated_key_to_new_key"], src
-    )
-    res = _DictWithDeprecatedKeys(**content)
-    res._deprecated_key_to_new_key = deprecated_key_to_new_key
-    return res
+    def __init__(self, state, src, trusted=None):
+        super().__init__(state, src, trusted)
+        self.main = get_tree(state["content"]["main"], src)
+        self._deprecated_key_to_new_key = get_tree(
+            state["content"]["_deprecated_key_to_new_key"], src
+        )
+
+    def get_instance(self, src):
+        instance = _DictWithDeprecatedKeys(**self.main.construct())
+        instance._deprecated_key_to_new_key = self._deprecated_key_to_new_key.construct()
+        return instance
 
 
 # tuples of type and function that gets the state of that type
@@ -173,8 +182,8 @@ for type_ in UNSUPPORTED_TYPES:
 
 # tuples of type and function that creates the instance of that type
 GET_INSTANCE_DISPATCH_MAPPING = {
-    "sgd_loss_get_instance": sgd_loss_get_instance,
-    "tree_get_instance": tree_get_instance,
+    "SGDNode": SGDNode,
+    "TreeNode": TreeNode,
 }
 
 # TODO: remove once support for sklearn<1.2 is dropped.
@@ -185,5 +194,5 @@ if _DictWithDeprecatedKeys is not None:
         (_DictWithDeprecatedKeys, _DictWithDeprecatedKeys_get_state)
     )
     GET_INSTANCE_DISPATCH_MAPPING[
-        "_DictWithDeprecatedKeys_get_instance"
-    ] = _DictWithDeprecatedKeys_get_instance
+        "_DictWithDeprecatedKeysNode"
+    ] = _DictWithDeprecatedKeysNode
