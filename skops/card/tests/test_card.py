@@ -498,9 +498,11 @@ class TestCardModelAttribute:
         os.close(file_handle)
         os.remove(file_name)
 
-        with pytest.raises(FileNotFoundError, match=file_name):
+        with pytest.raises(FileNotFoundError) as excinfo:
             card = Card(file_name)
             card.model
+
+        assert file_name in str(excinfo.value)
 
     def test_load_model_value_error(self):
         file_name = tempfile.mkstemp(suffix=".abc", prefix="skops-test")[1]
