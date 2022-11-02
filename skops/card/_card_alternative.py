@@ -51,7 +51,7 @@ DEFAULT_TEMPLATE = {
 
 
 def split_subsection_names(key: str) -> list[str]:
-    """Split a string containing multiple sections into a list of strings for
+    r"""Split a string containing multiple sections into a list of strings for
     each.
 
     The separator is ``"/"``. To avoid splitting on ``"/"``, escape it using
@@ -60,13 +60,13 @@ def split_subsection_names(key: str) -> list[str]:
     Examples
     --------
     >>> split_subsection_names("Section A")
-    ["Section A"]
+    ['Section A']
     >>> split_subsection_names("Section A/Section B/Section C")
-    ["Section A", "Section B", "Section C"]
+    ['Section A', 'Section B', 'Section C']
     >>> split_subsection_names("A section containg \\/ a slash")
-    ["A section containg \\/ a slash"]
+    ['A section containg / a slash']
     >>> split_subsection_names("Spaces are / stripped")
-    ["Spaces are", "stripped"]
+    ['Spaces are', 'stripped']
 
     Parameters
     ----------

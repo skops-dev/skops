@@ -115,49 +115,43 @@ def test_save_model_card(destination_path, model_card):
 
 def test_hyperparameter_table(model_card):
     section_name = "Model description/Training Procedure/Hyperparameters"
-    text_hyperparams = model_card.select(section_name).content
+    result = model_card.select(section_name).content
 
-    # expected outcome depends on sklearn version, since one parameter becomes
-    # deprecated.
-    # TODO: remove when dropping sklearn 0.24. "normalize" Parameter will be
-    # removed completely in sklearn 1.2.
-    expected_old = "\n".join(
-        [
-            "The model is trained with below hyperparameters.",
-            "",
-            "<details>",
-            "<summary> Click to expand </summary>",
-            "",
-            "| Hyperparameter   | Value   |",
-            "|------------------|---------|",
-            "| copy_X           | True    |",
-            "| fit_intercept    | True    |",
-            "| n_jobs           |         |",
-            "| normalize        | False   |",
-            "| positive         | False   |",
-            "",
-            "</details>",
-        ]
-    )
-    expected_new = "\n".join(
-        [
-            "The model is trained with below hyperparameters.",
-            "",
-            "<details>",
-            "<summary> Click to expand </summary>",
-            "",
-            "| Hyperparameter   | Value      |",
-            "|------------------|------------|",
-            "| copy_X           | True       |",
-            "| fit_intercept    | True       |",
-            "| n_jobs           |            |",
-            "| normalize        | deprecated |",
-            "| positive         | False      |",
-            "",
-            "</details>",
-        ]
-    )
-    assert (text_hyperparams == expected_old) or (text_hyperparams == expected_new)
+    lines = [
+        "The model is trained with below hyperparameters.",
+        "",
+        "<details>",
+        "<summary> Click to expand </summary>",
+        "",
+        "| Hyperparameter   | Value   |",
+        "|------------------|---------|",
+        "| copy_X           | True    |",
+        "| fit_intercept    | True    |",
+        "| n_jobs           |         |",
+        "| normalize        | False   |",
+        "| positive         | False   |",
+        "",
+        "</details>",
+    ]
+    # TODO: remove when dropping sklearn v0.24 and when dropping v1.1 and
+    # below. This is because the "normalize" parameter was changed after
+    # v0.24 will be removed completely in sklearn v1.2.
+    major, minor, *_ = sklearn.__version__.split(".")
+    major, minor = int(major), int(minor)
+    if (major >= 1) and (minor < 2):
+        lines[10] = "| normalize        | deprecated |"
+    elif (major >= 1) and (minor >= 2):
+        del lines[10]
+    expected = "\n".join(lines)
+
+    # remove multiple whitespaces and dashes, as they're not important and may
+    # differ depending on OS
+    expected = _strip_multiple_chars(expected, " ")
+    expected = _strip_multiple_chars(expected, "-")
+    result = _strip_multiple_chars(result, " ")
+    result = _strip_multiple_chars(result, "-")
+
+    assert result == expected
 
 
 def _strip_multiple_chars(text, char):
@@ -573,12 +567,17 @@ class TestCardRepr:
         # v0.24 will be removed completely in sklearn v1.2.
         major, minor, *_ = sklearn.__version__.split(".")
         if int(major) < 1:
+            # v0.24: "deprecated" -> "False"
             lines[2] = (
                 "  Model description/Training Procedure/...se | | positive | False | "
                 "</details>,"
             )
         elif int(minor) >= 2:
-            del lines[2]
+            # >= v1.2: remove argument completely
+            lines[2] = (
+                "  Model description/Training Procedure/... | | | positive | False | "
+                "</details>,"
+            )
         return lines
 
     @pytest.mark.parametrize("meth", [repr, str])
