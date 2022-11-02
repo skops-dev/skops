@@ -229,16 +229,19 @@ class Card:
     ... )
     >>> disp.plot()
     <sklearn.metrics._plot.confusion_matrix.ConfusionMatrixDisplay object at ...>
-    >>> disp.figure_.savefig("confusion_matrix.png")
+    >>> tmp_path = Path(tempfile.mkdtemp(prefix="skops-"))
+    >>> disp.figure_.savefig(tmp_path / "confusion_matrix.png")
     ...
-    >>> model_card.add_plot(confusion_matrix="confusion_matrix.png")
+    >>> model_card.add_plot(**{
+    ...     "Model description/Confusion Matrix": tmp_path / "confusion_matrix.png"
+    ... })
     Card(
       model=LogisticRegression(random_state=0, solver='liblinear')
       metadata.license=mit,
       Model description/Training Procedure/... | | warm_start | False | </details>,
       Model description/Training Procedure/...</pre></div></div></div></div></div>,
       Model description/Evaluation Results=...ccuracy | 0.96 | | f1 score | 0.96 |,
-      confusion_matrix='confusion_matrix.png',
+      Model description/Confusion Matrix=...confusion_matrix.png'),
     )
     >>> # add new content to the existing section "Model description"
     >>> model_card.add(**{"Model description": "This is the best model"})
@@ -249,7 +252,7 @@ class Card:
       Model description/Training Procedure/... | | warm_start | False | </details>,
       Model description/Training Procedure/...</pre></div></div></div></div></div>,
       Model description/Evaluation Results=...ccuracy | 0.96 | | f1 score | 0.96 |,
-      confusion_matrix='confusion_matrix.png',
+      Model description/Confusion Matrix=...confusion_matrix.png'),
     )
     >>> # add content to a new section
     >>> model_card.add(**{"A new section": "Please rate my model"})
@@ -260,7 +263,7 @@ class Card:
       Model description/Training Procedure/... | | warm_start | False | </details>,
       Model description/Training Procedure/...</pre></div></div></div></div></div>,
       Model description/Evaluation Results=...ccuracy | 0.96 | | f1 score | 0.96 |,
-      confusion_matrix='confusion_matrix.png',
+      Model description/Confusion Matrix=...confusion_matrix.png'),
       A new section=Please rate my model,
     )
     >>> # add new subsection to an existing section by using "/"
@@ -272,13 +275,12 @@ class Card:
       Model description/Training Procedure/... | | warm_start | False | </details>,
       Model description/Training Procedure/...</pre></div></div></div></div></div>,
       Model description/Evaluation Results=...ccuracy | 0.96 | | f1 score | 0.96 |,
+      Model description/Confusion Matrix=...confusion_matrix.png'),
       Model description/Model name=This model is called Bob,
-      confusion_matrix='confusion_matrix.png',
       A new section=Please rate my model,
     )
     >>> # save the card to a README.md file
-    >>> with tempfile.TemporaryDirectory() as tmpdir:
-    ...     model_card.save((Path(tmpdir) / "README.md"))
+    >>> model_card.save(tmp_path / "README.md")
     """
 
     def __init__(
