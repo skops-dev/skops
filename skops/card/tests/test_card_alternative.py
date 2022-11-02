@@ -116,7 +116,30 @@ def test_save_model_card(destination_path, model_card):
 def test_hyperparameter_table(model_card):
     section_name = "Model description/Training Procedure/Hyperparameters"
     text_hyperparams = model_card.select(section_name).content
-    expected = "\n".join(
+
+    # expected outcome depends on sklearn version, since one parameter becomes
+    # deprecated.
+    # TODO: remove when dropping sklearn 0.24. "normalize" Parameter will be
+    # removed completely in sklearn 1.2.
+    expected_old = "\n".join(
+        [
+            "The model is trained with below hyperparameters.",
+            "",
+            "<details>",
+            "<summary> Click to expand </summary>",
+            "",
+            "| Hyperparameter   | Value   |",
+            "|------------------|---------|",
+            "| copy_X           | True    |",
+            "| fit_intercept    | True    |",
+            "| n_jobs           |         |",
+            "| normalize        | False   |",
+            "| positive         | False   |",
+            "",
+            "</details>",
+        ]
+    )
+    expected_new = "\n".join(
         [
             "The model is trained with below hyperparameters.",
             "",
@@ -134,7 +157,7 @@ def test_hyperparameter_table(model_card):
             "</details>",
         ]
     )
-    assert text_hyperparams == expected
+    assert (text_hyperparams == expected_old) or (text_hyperparams == expected_new)
 
 
 def _strip_multiple_chars(text, char):
@@ -167,7 +190,7 @@ def test_plot_model(model_card):
         "Model description/Training Procedure/Model Plot"
     ).content
     # don't compare whole text, as it's quite long and non-deterministic
-    assert text_plot.startswith("The model plot is below.\n\n<style>#sk-container-id")
+    assert text_plot.startswith("The model plot is below.\n\n<style>#sk-")
     assert "<style>" in text_plot
     assert text_plot.endswith(
         "<pre>LinearRegression()</pre></div></div></div></div></div>"
@@ -543,7 +566,20 @@ class TestCardRepr:
         )
         """
         expected = textwrap.dedent(card_repr).strip()
-        return expected.split("\n")
+        lines = expected.split("\n")
+
+        # TODO: remove when dropping sklearn v0.24 and when dropping v1.1 and
+        # below. This is because the "normalize" parameter was changed after
+        # v0.24 will be removed completely in sklearn v1.2.
+        major, minor, *_ = sklearn.__version__.split(".")
+        if int(major) < 1:
+            lines[2] = (
+                "  Model description/Training Procedure/...se | | positive | False | "
+                "</details>,"
+            )
+        elif int(minor) >= 2:
+            del lines[2]
+        return lines
 
     @pytest.mark.parametrize("meth", [repr, str])
     def test_card_repr(self, card: Card, meth, expected_lines):
@@ -882,8 +918,8 @@ def test_old_and_new_card_identical(fill_content):
             continue
 
         # model diagram is not deterministic, e.g. ids
-        if line0.startswith("<style>#sk-container-id"):
-            assert line1.startswith("<style>#sk-container-id")
+        if line0.startswith("<style>#sk-"):
+            assert line1.startswith("<style>#sk-")
             continue
 
         assert line0 == line1
