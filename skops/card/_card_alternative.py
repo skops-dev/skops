@@ -6,12 +6,13 @@ import textwrap
 from dataclasses import dataclass, field
 from pathlib import Path
 from reprlib import Repr
-from typing import Any, Iterator
+from typing import Any, Iterator, Sequence
 
 from huggingface_hub import CardData
 from sklearn.utils import estimator_html_repr
 from tabulate import tabulate  # type: ignore
 
+from skops.card import metadata_from_config
 from skops.card._model_card import PlotSection, TableSection
 
 if sys.version_info >= (3, 8):
@@ -50,10 +51,39 @@ DEFAULT_TEMPLATE = {
 
 
 def split_subsection_names(key: str) -> list[str]:
+    """Split a string containing multiple sections into a list of strings for
+    each.
+
+    The separator is ``"/"``. To avoid splitting on ``"/"``, escape it using
+    ``"\\/"``.
+
+    Examples
+    --------
+    >>> split_subsection_names("Section A")
+    ["Section A"]
+    >>> split_subsection_names("Section A/Section B/Section C")
+    ["Section A", "Section B", "Section C"]
+    >>> split_subsection_names("A section containg \\/ a slash")
+    ["A section containg \\/ a slash"]
+    >>> split_subsection_names("Spaces are / stripped")
+    ["Spaces are", "stripped"]
+
+    Parameters
+    ----------
+    key : str
+        The section name consisting potentially of multiple subsections. It has
+        to be ensured beforhand that this is not an empty string.
+
+    Returns
+    -------
+    parts : list of str
+        The individual (sub)sections.
+
+    """
     placeholder = "$%!?"  # arbitrary sting that never appears naturally
     key = key.replace("\\/", placeholder)
-    splits = key.split("/")
-    return [part.replace(placeholder, "/") for part in splits]
+    parts = (part.strip() for part in key.split("/"))
+    return [part.replace(placeholder, "/") for part in parts]
 
 
 def _getting_started_code(
@@ -101,6 +131,22 @@ def _clean_table(table: str) -> str:
 
 @dataclass
 class Section:
+    """Building block of the model card.
+
+    The model card is represented internally as a dict with keys being strings
+    and values being Sections. The key is identical to the section title.
+
+    Additionally, the section may hold content in the form of strings (can be an
+    empty string) or a ``Formattable``, which is simply an object with a
+    ``format`` method that returns a string.
+
+    Finally, the section can contain subsections, which again are dicts of
+    string keys and section values (the dict can be empty). Therefore, the model
+    card representation forms a tree structure, making use of the fact that dict
+    order is preserved.
+
+    """
+
     title: str
     content: Formattable | str
     subsections: dict[str, Section] = field(default_factory=dict)
@@ -303,7 +349,7 @@ class Card:
         return self
 
     def _select(
-        self, subsection_names: list[str], create: bool = True
+        self, subsection_names: Sequence[str], create: bool = True
     ) -> dict[str, Section]:
         section = self._data
         if not subsection_names:
@@ -327,7 +373,7 @@ class Card:
 
         return section
 
-    def select(self, key: str | list[str]) -> Section:
+    def select(self, key: str | Sequence[str]) -> Section:
         """Select a section from the model card.
 
         To select a subsection of an existing section, use a ``"/"`` in the
@@ -375,7 +421,7 @@ class Card:
         parent_section = self._select(subsection_names, create=False)
         return parent_section[leaf_node_name]
 
-    def delete(self, key: str | list[str]) -> None:
+    def delete(self, key: str | Sequence[str]) -> None:
         """Delete a section from the model card.
 
         To delete a subsection of an existing section, use a ``"/"`` in the
@@ -479,6 +525,9 @@ class Card:
     def add_plot(self, folded=False, **kwargs: str) -> "Card":
         """Add plots to the model card.
 
+        The plot should be saved on the file system and the path passed as
+        value.
+
         Parameters
         ----------
         folded: bool (default=False)
@@ -488,15 +537,17 @@ class Card:
             large.
 
         **kwargs : dict
-            The arguments should be of the form `name=plot_path`, where `name`
-            is the name of the plot and `plot_path` is the path to the plot,
-            relative to the root of the project. The plots should have already
-            been saved under the project's folder.
+            The arguments should be of the form ``name=plot_path``, where
+            ``name`` is the name of the plot and section, and ``plot_path`` is
+            the path to the plot on the file system, relative to the root of the
+            project. The plots should have already been saved under the
+            project's folder.
 
         Returns
         -------
         self : object
             Card object.
+
         """
         for section_name, plot_path in kwargs.items():
             plot_name = split_subsection_names(section_name)[-1]
@@ -587,6 +638,7 @@ class Card:
         self._add_single("Model description/Evaluation Results", template.format(table))
 
     def _generate_metadata(self, metadata: CardData) -> Iterator[str]:
+        """Yield metadata in yaml format"""
         for key, val in metadata.to_dict().items() if metadata else {}:
             if key == "widget":
                 yield "metadata.widget={...},"
@@ -597,13 +649,14 @@ class Card:
     def _generate_content(
         self, data: dict[str, Section], depth: int = 1
     ) -> Iterator[str]:
+        """Yield title and (formatted) contents"""
         for val in data.values():
             title = f"{depth * '#'} {val.title}"
             yield title
 
             if isinstance(val.content, str):
                 yield val.content
-            elif val.content is not None:  # is Formattable
+            else:  # is a Formattable
                 yield val.content.format()
 
             if val.subsections:
@@ -612,6 +665,7 @@ class Card:
     def _iterate_content(
         self, data: dict[str, Section], parent_section: str = ""
     ) -> Iterator[tuple[str, Formattable | str]]:
+        """Yield tuples of title and (non-formatted) content"""
         for val in data.values():
             if parent_section:
                 title = "/".join((parent_section, val.title))
@@ -705,6 +759,9 @@ class Card:
             if line:
                 yield "\n" + line
 
+        # add an empty line add the end
+        yield ""
+
     def save(self, path: str | Path) -> None:
         """Save the model card.
 
@@ -751,7 +808,6 @@ def main():
     from sklearn.preprocessing import StandardScaler
 
     from skops import hub_utils
-    from skops.card import metadata_from_config
 
     X, y = load_iris(return_X_y=True, as_frame=True)
 
@@ -780,6 +836,8 @@ def main():
         card.add(hi="howdy")
         card.add(**{"parent section/child section": "child content"})
         card.add(**{"foo": "bar", "spam": "eggs"})
+        # add section with a "/" in title
+        card.add(**{"A section with a \\/ in the title": "This works"})
         # change content of "hi" section
         card.add(**{"hi/german": "guten tag", "hi/french": "salut"})
         card.add(**{"very/deeply/nested/section": "but why?"})
@@ -787,7 +845,7 @@ def main():
         # add metrics
         card.add_metrics(**{"acc": 0.1})
 
-        # insert the plot in the "Plot" section we inserted above
+        # insert the plot in the "Plot" section created above
         plt.plot([4, 5, 6, 7])
         plt.savefig(Path(destination_path) / "fig1.png")
         card.add_plot(**{"Plots/A beautiful plot": "fig1.png"})

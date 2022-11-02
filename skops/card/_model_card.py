@@ -32,7 +32,7 @@ def _clean_table(table: str) -> str:
     # replace line breaks "\n" with html tag <br />, however, leave end-of-line
     # line breaks (eol_lb) intact
     eol_lb = "|\n"
-    placeholder = "$%!?"  # arbitrary sting that never appears naturally
+    placeholder = "$%!?"  # arbitrary string that never appears naturally
     table = (
         table.replace(eol_lb, placeholder)
         .replace("\n", "<br />")
