@@ -203,7 +203,7 @@ def test_plot_model_false(model_card):
 def test_render(model_card, destination_path):
     file_name = destination_path / "README.md"
     model_card.save(file_name)
-    with open(file_name, "r") as f:
+    with open(file_name, "r", encoding="utf-8") as f:
         loaded = f.read()
 
     rendered = model_card.render()
