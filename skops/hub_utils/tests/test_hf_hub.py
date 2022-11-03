@@ -288,6 +288,32 @@ def test_init_modelcard_creation(classifier_pickle, config_json):
     assert os.path.isfile(Path(dir_path) / "README.md")
 
 
+def test_override_init_modelcard(classifier_pickle, config_json):
+    # create a temp directory and delete it, we just need a unique name.
+    dir_path = tempfile.mkdtemp()
+    shutil.rmtree(dir_path)
+
+    version = metadata.version("scikit-learn")
+    init(
+        model=classifier_pickle,
+        requirements=[f'scikit-learn="{version}"'],
+        dst=dir_path,
+        task="tabular-classification",
+        data=iris.data,
+    )
+    _validate_folder(path=dir_path)
+    t0 = os.path.getmtime(Path(dir_path) / "README.md")
+
+    # override existent modelcard created by init
+    model = get_classifier()
+    model_card = card.Card(model, metadata=card.metadata_from_config(Path(dir_path)))
+    model_card.save(Path(dir_path) / "README.md")
+    t1 = os.path.getmtime(Path(dir_path) / "README.md")
+
+    # compare the times at which the files were last modified
+    assert t0 != t1
+
+
 def test_init_no_warning_or_error(classifier_pickle, config_json):
     # for the happy path, there should be no warning
     dir_path = tempfile.mkdtemp()
