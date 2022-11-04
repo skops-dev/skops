@@ -98,6 +98,7 @@ def function_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
         "__class__": obj.__class__.__name__,
         "__module__": get_module(obj),
         "__loader__": "function_get_instance",
+        "__id__": id(obj),
         "content": {
             "module_path": get_module(obj),
             "function": obj.__name__,
@@ -192,6 +193,7 @@ def object_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
             "__loader__": "none",
             "content": obj_str,
             "is_json": True,
+            "__id__": id(obj),
         }
     except Exception:
         pass
@@ -200,6 +202,7 @@ def object_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
         "__loader__": "object_get_instance",
+        "__id__": id(obj),
     }
 
     # __getstate__ takes priority over __dict__, and if non exist, we only save
@@ -251,17 +254,17 @@ def method_get_state(obj: Any, save_state: SaveState):
         "__class__": obj.__class__.__name__,
         "__module__": get_module(obj),
         "__loader__": "method_get_instance",
+        "__id__": id(obj),
         "content": {
             "func": obj.__func__.__name__,
             "obj": get_state(obj.__self__, save_state),
         },
     }
-
     return res
 
 
 def method_get_instance(state, load_state: LoadState):
-    loaded_obj = object_get_instance(state["content"]["obj"], load_state)
+    loaded_obj = get_instance(state["content"]["obj"], load_state)
     method = getattr(loaded_obj, state["content"]["func"])
     return method
 
