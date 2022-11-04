@@ -5,7 +5,7 @@ from typing import Any
 
 from scipy.sparse import load_npz, save_npz, spmatrix
 
-from ._utils import SaveState, get_module
+from ._utils import LoadState, SaveState, get_module
 
 
 def sparse_matrix_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
@@ -31,7 +31,7 @@ def sparse_matrix_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     return res
 
 
-def sparse_matrix_get_instance(state, src):
+def sparse_matrix_get_instance(state, load_state: LoadState):
     if state["type"] != "scipy":
         raise TypeError(
             f"Cannot load object of type {state['__module__']}.{state['__class__']}"
@@ -39,7 +39,7 @@ def sparse_matrix_get_instance(state, src):
 
     # scipy load_npz uses numpy.save with allow_pickle=False under the hood, so
     # we're safe using it
-    val = load_npz(io.BytesIO(src.read(state["file"])))
+    val = load_npz(io.BytesIO(load_state.src.read(state["file"])))
     return val
 
 

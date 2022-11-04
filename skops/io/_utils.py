@@ -125,6 +125,29 @@ class SaveState:
         self.memo.clear()
 
 
+@dataclass(frozen=True)
+class LoadState:
+    """State required for loading an object
+
+    This state is passed to each ``get_instance_*`` function.
+
+    Parameters
+    ----------
+    src: zipfile.ZipFile
+        The zip file the target object is saved in
+
+    """
+
+    src: ZipFile
+    memo: dict[int, Any] = field(default_factory=dict)
+
+    def memoize(self, obj: Any, id: int) -> None:
+        self.memo[id] = obj
+
+    def get_instance(self, id: int) -> Any:
+        return self.memo.get(id)
+
+
 @singledispatch
 def _get_state(obj, save_state):
     # This function should never be called directly. Instead, it is used to

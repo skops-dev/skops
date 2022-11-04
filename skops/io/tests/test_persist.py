@@ -56,7 +56,7 @@ import skops
 from skops.io import dump, dumps, load, loads
 from skops.io._dispatch import GET_INSTANCE_MAPPING, get_instance
 from skops.io._sklearn import UNSUPPORTED_TYPES
-from skops.io._utils import _get_state, get_state
+from skops.io._utils import LoadState, _get_state, get_state
 from skops.io.exceptions import UnsupportedTypeException
 
 # Default settings for X
@@ -96,16 +96,16 @@ def debug_dispatch_functions():
     def debug_get_instance(func):
         # check consistency of argument names and input type
         signature = inspect.signature(func)
-        assert list(signature.parameters.keys()) == ["state", "src"]
+        assert list(signature.parameters.keys()) == ["state", "load_state"]
 
         @wraps(func)
-        def wrapper(state, src):
+        def wrapper(state, load_state):
             assert "__class__" in state
             assert "__module__" in state
             assert "__loader__" in state
-            assert isinstance(src, ZipFile)
+            assert isinstance(load_state, LoadState)
 
-            result = func(state, src)
+            result = func(state, load_state)
             return result
 
         return wrapper

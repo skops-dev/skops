@@ -7,7 +7,7 @@ import numpy as np
 
 from ._dispatch import get_instance
 from ._general import function_get_instance
-from ._utils import SaveState, _import_obj, get_module, get_state
+from ._utils import LoadState, SaveState, _import_obj, get_module, get_state
 from .exceptions import UnsupportedTypeException
 
 
@@ -50,10 +50,12 @@ def ndarray_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     return res
 
 
-def ndarray_get_instance(state, src):
+def ndarray_get_instance(state, load_state: LoadState):
     # Dealing with a regular numpy array, where dtype != object
     if state["type"] == "numpy":
-        val = np.load(io.BytesIO(src.read(state["file"])), allow_pickle=False)
+        val = np.load(
+            io.BytesIO(load_state.src.read(state["file"])), allow_pickle=False
+        )
         # Coerce type, because it may not be conserved by np.save/load. E.g. a
         # scalar will be loaded as a 0-dim array.
         if state["__class__"] != "ndarray":
@@ -63,8 +65,8 @@ def ndarray_get_instance(state, src):
 
     # We explicitly set the dtype to "O" since we only save object arrays in
     # json.
-    shape = get_instance(state["shape"], src)
-    tmp = [get_instance(s, src) for s in state["content"]]
+    shape = get_instance(state["shape"], load_state)
+    tmp = [get_instance(s, load_state) for s in state["content"]]
     # TODO: this is a hack to get the correct shape of the array. We should
     # find _a better way_ to do this.
     if len(shape) == 1:
@@ -89,9 +91,9 @@ def maskedarray_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     return res
 
 
-def maskedarray_get_instance(state, src):
-    data = get_instance(state["content"]["data"], src)
-    mask = get_instance(state["content"]["mask"], src)
+def maskedarray_get_instance(state, load_state: LoadState):
+    data = get_instance(state["content"]["data"], load_state)
+    mask = get_instance(state["content"]["mask"], load_state)
     return np.ma.MaskedArray(data, mask)
 
 
@@ -106,10 +108,10 @@ def random_state_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     return res
 
 
-def random_state_get_instance(state, src):
+def random_state_get_instance(state, load_state: LoadState):
     cls = _import_obj(state["__module__"], state["__class__"])
     random_state = cls()
-    content = get_instance(state["content"], src)
+    content = get_instance(state["content"], load_state)
     random_state.set_state(content)
     return random_state
 
@@ -125,7 +127,7 @@ def random_generator_get_state(obj: Any, save_state: SaveState) -> dict[str, Any
     return res
 
 
-def random_generator_get_instance(state, src):
+def random_generator_get_instance(state, load_state: LoadState):
     # first restore the state of the bit generator
     bit_generator_state = state["content"]["bit_generator"]
     bit_generator = _import_obj("numpy.random", bit_generator_state["bit_generator"])()
@@ -166,10 +168,10 @@ def dtype_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     return res
 
 
-def dtype_get_instance(state, src):
+def dtype_get_instance(state, load_state: LoadState):
     # we use numpy's internal save mechanism to store the dtype by
     # saving/loading an empty array with that dtype.
-    tmp = ndarray_get_instance(state["content"], src)
+    tmp = ndarray_get_instance(state["content"], load_state)
     return tmp.dtype
 
 
