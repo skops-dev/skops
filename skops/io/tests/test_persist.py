@@ -1,30 +1,33 @@
 import importlib
 import inspect
+import io
 import json
 import sys
 import warnings
 from collections import Counter
 from functools import partial, wraps
+from pathlib import Path
 from zipfile import ZipFile
 
+import joblib
 import numpy as np
 import pytest
 from scipy import sparse, special
-from sklearn.base import BaseEstimator
+from sklearn.base import BaseEstimator, is_regressor
 from sklearn.compose import ColumnTransformer
-from sklearn.datasets import load_sample_images, make_classification
+from sklearn.datasets import load_sample_images, make_classification, make_regression
 from sklearn.decomposition import SparseCoder
 from sklearn.exceptions import SkipTestWarning
 from sklearn.experimental import enable_halving_search_cv  # noqa
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import (
     GridSearchCV,
+    GroupKFold,
     HalvingGridSearchCV,
     HalvingRandomSearchCV,
     KFold,
     RandomizedSearchCV,
     ShuffleSplit,
-    StratifiedGroupKFold,
     check_cv,
 )
 from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
@@ -50,9 +53,10 @@ from sklearn.utils.estimator_checks import (
 )
 
 import skops
-from skops.io import load, save
+from skops.io import dump, dumps, load, loads
+from skops.io._dispatch import GET_INSTANCE_MAPPING, get_instance
 from skops.io._sklearn import UNSUPPORTED_TYPES
-from skops.io._utils import _get_instance, _get_state
+from skops.io._utils import _get_state, get_state
 from skops.io.exceptions import UnsupportedTypeException
 
 # Default settings for X
@@ -64,7 +68,7 @@ N_FEATURES = 20
 ATOL = 1e-6 if sys.platform == "darwin" else 1e-7
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(autouse=True, scope="module")
 def debug_dispatch_functions():
     # Patch the get_state and get_instance methods to add some sanity checks on
     # them. Specifically, we test that the arguments of the functions all follow
@@ -81,12 +85,10 @@ def debug_dispatch_functions():
         def wrapper(obj, save_state):
             result = func(obj, save_state)
 
-            if isinstance(result, dict):
-                assert "__class__" in result
-                assert "__module__" in result
-            else:
-                # should be a primitive type
-                assert isinstance(result, (int, float, str))
+            assert "__class__" in result
+            assert "__module__" in result
+            assert "__loader__" in result
+
             return result
 
         return wrapper
@@ -98,16 +100,12 @@ def debug_dispatch_functions():
 
         @wraps(func)
         def wrapper(state, src):
-            if isinstance(state, dict):
-                assert "__class__" in state
-                assert "__module__" in state
-            else:
-                # should be a primitive type
-                assert isinstance(state, (int, float, str))
+            assert "__class__" in state
+            assert "__module__" in state
+            assert "__loader__" in state
             assert isinstance(src, ZipFile)
 
             result = func(state, src)
-
             return result
 
         return wrapper
@@ -118,15 +116,8 @@ def debug_dispatch_functions():
         module = importlib.import_module(module_name, package="skops.io")
         for cls, method in getattr(module, "GET_STATE_DISPATCH_FUNCTIONS", []):
             _get_state.register(cls)(debug_get_state(method))
-        for cls, method in getattr(module, "GET_INSTANCE_DISPATCH_FUNCTIONS", []):
-            _get_instance.register(cls)(debug_get_instance(method))
-
-
-def save_load_round(estimator, f_name):
-    # save and then load the model, and return the loaded model.
-    save(file=f_name, obj=estimator)
-    loaded = load(file=f_name)
-    return loaded
+        for key, method in GET_INSTANCE_MAPPING.copy().items():
+            GET_INSTANCE_MAPPING[key] = debug_get_instance(method)
 
 
 def _tested_estimators(type_filter=None):
@@ -407,10 +398,9 @@ def assert_params_equal(params1, params2):
 @pytest.mark.parametrize(
     "estimator", _tested_estimators(), ids=_get_check_estimator_ids
 )
-def test_can_persist_non_fitted(estimator, tmp_path):
+def test_can_persist_non_fitted(estimator):
     """Check that non-fitted estimators can be persisted."""
-    f_name = tmp_path / "file.skops"
-    loaded = save_load_round(estimator, f_name)
+    loaded = loads(dumps(estimator))
     assert_params_equal(estimator.get_params(), loaded.get_params())
 
 
@@ -419,10 +409,16 @@ def get_input(estimator):
 
     # TODO: make this a parameter and test with sparse data
     # TODO: try with pandas.DataFrame as well
-    # This data can be used for a regression model as well.
-    X, y = make_classification(
-        n_samples=N_SAMPLES, n_features=N_FEATURES, random_state=0
-    )
+    if is_regressor(estimator):
+        # classifier data can lead to failure of certain regressors to fit, e.g.
+        # RANSAC in sklearn 0.24, so regression data is needed
+        X, y = make_regression(
+            n_samples=N_SAMPLES, n_features=N_FEATURES, random_state=0
+        )
+    else:
+        X, y = make_classification(
+            n_samples=N_SAMPLES, n_features=N_FEATURES, random_state=0
+        )
     y = _enforce_estimator_tags_y(estimator, y)
     tags = _safe_tags(estimator)
 
@@ -460,13 +456,17 @@ def get_input(estimator):
             "Is this the first document?",
         ], None
 
+    if tags["X_types"] == "sparse":
+        # TfidfTransformer in sklearn 0.24 needs this
+        return sparse.csr_matrix(X), y
+
     raise ValueError(f"Unsupported X type for estimator: {tags['X_types']}")
 
 
 @pytest.mark.parametrize(
     "estimator", _tested_estimators(), ids=_get_check_estimator_ids
 )
-def test_can_persist_fitted(estimator, request, tmp_path):
+def test_can_persist_fitted(estimator, request):
     """Check that fitted estimators can be persisted and return the right results."""
     set_random_state(estimator, random_state=0)
 
@@ -480,8 +480,7 @@ def test_can_persist_fitted(estimator, request, tmp_path):
             else:
                 estimator.fit(X)
 
-    f_name = tmp_path / "file.skops"
-    loaded = save_load_round(estimator, f_name)
+    loaded = loads(dumps(estimator))
     assert_params_equal(estimator.__dict__, loaded.__dict__)
 
     for method in [
@@ -504,7 +503,7 @@ def test_can_persist_fitted(estimator, request, tmp_path):
 @pytest.mark.parametrize(
     "estimator", _unsupported_estimators(), ids=_get_check_estimator_ids
 )
-def test_unsupported_type_raises(estimator, tmp_path):
+def test_unsupported_type_raises(estimator):
     """Estimators that are known to fail should raise an error"""
     set_random_state(estimator, random_state=0)
 
@@ -520,8 +519,7 @@ def test_unsupported_type_raises(estimator, tmp_path):
 
     msg = f"Objects of type {estimator.__class__.__name__} are not supported yet"
     with pytest.raises(UnsupportedTypeException, match=msg):
-        f_name = tmp_path / "file.skops"
-        save_load_round(estimator, f_name)
+        dumps(estimator)
 
 
 class RandomStateEstimator(BaseEstimator):
@@ -547,7 +545,7 @@ class RandomStateEstimator(BaseEstimator):
         np.random.Generator(np.random.PCG64DXSM(seed=123)),
     ],
 )
-def test_random_state(random_state, tmp_path):
+def test_random_state(random_state):
     # Numpy random Generators
     # (https://numpy.org/doc/stable/reference/random/generator.html) are not
     # supported by sklearn yet but will be in the future, thus they're tested
@@ -555,8 +553,7 @@ def test_random_state(random_state, tmp_path):
     est = RandomStateEstimator(random_state=random_state).fit(None, None)
     est.random_state_.random(123)  # move RNG forwards
 
-    f_name = tmp_path / "file.skops"
-    loaded = save_load_round(est, f_name)
+    loaded = loads(dumps(est))
     rand_floats_expected = est.random_state_.random(100)
     rand_floats_loaded = loaded.random_state_.random(100)
     np.testing.assert_equal(rand_floats_loaded, rand_floats_expected)
@@ -579,15 +576,14 @@ class CVEstimator(BaseEstimator):
     [
         None,
         3,
-        KFold(4),
-        StratifiedGroupKFold(5, shuffle=True, random_state=42),
+        KFold(4, shuffle=True, random_state=42),
+        GroupKFold(5),
         ShuffleSplit(6, random_state=np.random.RandomState(123)),
     ],
 )
-def test_cross_validator(cv, tmp_path):
+def test_cross_validator(cv):
     est = CVEstimator(cv=cv).fit(None, None)
-    f_name = tmp_path / "file.skops"
-    loaded = save_load_round(est, f_name)
+    loaded = loads(dumps(est))
     X, y = make_classification(
         n_samples=N_SAMPLES, n_features=N_FEATURES, random_state=0
     )
@@ -619,7 +615,7 @@ class EstimatorWith2dObjectArray(BaseEstimator):
         pytest.param(True, marks=pytest.mark.xfail(raises=AssertionError)),
     ],
 )
-def test_numpy_object_dtype_2d_array(transpose, tmp_path):
+def test_numpy_object_dtype_2d_array(transpose):
     # Explicitly test multi-dimensional (i.e. more than 1) object arrays, since
     # those use json instead of numpy.save/load and some errors may only occur
     # with multi-dimensional arrays (e.g. mismatched contiguity). For
@@ -629,12 +625,11 @@ def test_numpy_object_dtype_2d_array(transpose, tmp_path):
     if transpose:
         est.obj_array_ = est.obj_array_.T
 
-    f_name = tmp_path / "file.skops"
-    loaded = save_load_round(est, f_name)
+    loaded = loads(dumps(est))
     assert_params_equal(est.__dict__, loaded.__dict__)
 
 
-def test_metainfo(tmp_path):
+def test_metainfo():
     class MyEstimator(BaseEstimator):
         """Estimator with attributes of different supported types"""
 
@@ -656,9 +651,8 @@ def test_metainfo(tmp_path):
 
     # safe and load the schema
     estimator = MyEstimator().fit(None)
-    f_name = tmp_path / "file.skops"
-    save(file=f_name, obj=estimator)
-    schema = json.loads(ZipFile(f_name).read("schema.json"))
+    dumped = dumps(estimator)
+    schema = json.loads(ZipFile(io.BytesIO(dumped)).read("schema.json"))
 
     # check some schema metainfo
     assert schema["protocol"] == skops.io._utils.DEFAULT_PROTOCOL
@@ -741,16 +735,16 @@ class EstimatorIdenticalArrays(BaseEstimator):
         return self
 
 
-def test_identical_numpy_arrays_not_duplicated(tmp_path):
+def test_identical_numpy_arrays_not_duplicated():
     # Test that identical numpy arrays are not stored multiple times
     X = np.random.random((10, 5))
     estimator = EstimatorIdenticalArrays().fit(X)
-    f_name = tmp_path / "file.skops"
-    loaded = save_load_round(estimator, f_name)
+    dumped = dumps(estimator)
+    loaded = loads(dumped)
     assert_params_equal(estimator.__dict__, loaded.__dict__)
 
     # check number of numpy arrays stored on disk
-    with ZipFile(f_name, "r") as input_zip:
+    with ZipFile(io.BytesIO(dumped), "r") as input_zip:
         files = input_zip.namelist()
     # expected number of files are:
     # schema, X, X_copy, X_t, 2 vectors, 2 scalars, X_sparse = 9
@@ -767,7 +761,7 @@ class NumpyDtypeObjectEstimator(BaseEstimator):
         return self
 
 
-def test_numpy_dtype_object_does_not_store_broken_file(tmp_path):
+def test_numpy_dtype_object_does_not_store_broken_file():
     # This addresses a specific bug where trying to store an object numpy array
     # resulted in the creation of a broken .npy file being left over. This is
     # because numpy tries to write to the file until it encounters an error and
@@ -775,10 +769,194 @@ def test_numpy_dtype_object_does_not_store_broken_file(tmp_path):
     # would include that broken file in the zip archive, although we wouldn't do
     # anything with it. Here we test that no such file exists.
     estimator = NumpyDtypeObjectEstimator().fit(None)
-    f_name = tmp_path / "file.skops"
-    save_load_round(estimator, f_name)
-    with ZipFile(f_name, "r") as input_zip:
+    dumped = dumps(estimator)
+    with ZipFile(io.BytesIO(dumped), "r") as input_zip:
         files = input_zip.namelist()
 
     # this estimator should not have any numpy file
     assert not any(file.endswith(".npy") for file in files)
+
+
+def test_loads_from_str():
+    # loads expects bytes, not str
+    msg = "Can't load skops format from string, pass bytes"
+    with pytest.raises(TypeError, match=msg):
+        loads("this is a string")
+
+
+def test_get_instance_unknown_type_error_msg():
+    state = get_state(("hi", [123]), None)
+    state["__loader__"] = "this_get_instance_does_not_exist"
+    msg = "Can't find loader this_get_instance_does_not_exist for type builtins.tuple."
+    with pytest.raises(TypeError, match=msg):
+        get_instance(state, None)
+
+
+class _BoundMethodHolder:
+    """Used to test the ability to serialize and deserialize bound methods"""
+
+    def __init__(self, object_state: str):
+        # Initialize with some state to make sure state is persisted
+        self.object_state = object_state
+        # bind some method to this object, could be any persistable function
+        self.chosen_function = np.log
+
+    def bound_method(self, x):
+        return self.chosen_function(x)
+
+    def other_bound_method(self, x):
+        # arbitrary other function, used for checking single instance loaded
+        return self.chosen_function(x)
+
+
+class TestPersistingBoundMethods:
+    @staticmethod
+    def assert_transformer_persisted_correctly(
+        loaded_transformer: FunctionTransformer,
+        original_transformer: FunctionTransformer,
+    ):
+        """Checks that a persisted and original transformer are equivalent, including
+        the func passed to it
+        """
+        assert loaded_transformer.func.__name__ == original_transformer.func.__name__
+
+        assert_params_equal(
+            loaded_transformer.func.__self__.__dict__,
+            original_transformer.func.__self__.__dict__,
+        )
+        assert_params_equal(loaded_transformer.__dict__, original_transformer.__dict__)
+
+    @staticmethod
+    def assert_bound_method_holder_persisted_correctly(
+        original_obj: _BoundMethodHolder, loaded_obj: _BoundMethodHolder
+    ):
+        """Checks that the persisted and original instances of _BoundMethodHolder are
+        equivalent
+        """
+        assert original_obj.bound_method.__name__ == loaded_obj.bound_method.__name__
+        assert original_obj.chosen_function == loaded_obj.chosen_function
+
+        assert_params_equal(original_obj.__dict__, loaded_obj.__dict__)
+
+    def test_for_base_case_returns_as_expected(self):
+        initial_state = "This is an arbitrary state"
+        obj = _BoundMethodHolder(object_state=initial_state)
+        bound_function = obj.bound_method
+        transformer = FunctionTransformer(func=bound_function)
+
+        loaded_transformer = loads(dumps(transformer))
+        loaded_obj = loaded_transformer.func.__self__
+
+        self.assert_transformer_persisted_correctly(loaded_transformer, transformer)
+        self.assert_bound_method_holder_persisted_correctly(obj, loaded_obj)
+
+    def test_when_object_is_changed_after_init_works_as_expected(self):
+        # given change to object with bound method after initialisation,
+        # make sure still persists correctly
+
+        initial_state = "This is an arbitrary state"
+        obj = _BoundMethodHolder(object_state=initial_state)
+        obj.chosen_function = np.sqrt
+        bound_function = obj.bound_method
+
+        transformer = FunctionTransformer(func=bound_function)
+
+        loaded_transformer = loads(dumps(transformer))
+        loaded_obj = loaded_transformer.func.__self__
+
+        self.assert_transformer_persisted_correctly(loaded_transformer, transformer)
+        self.assert_bound_method_holder_persisted_correctly(obj, loaded_obj)
+
+    @pytest.mark.xfail(
+        reason="Can't load an object as a single instance if referenced multiple times"
+    )
+    def test_works_when_given_multiple_bound_methods_attached_to_single_instance(self):
+        obj = _BoundMethodHolder(object_state="")
+
+        transformer = FunctionTransformer(
+            func=obj.bound_method, inverse_func=obj.other_bound_method
+        )
+
+        loaded_transformer = loads(dumps(transformer))
+
+        # check that both func and inverse_func are from the same object instance
+        loaded_0 = loaded_transformer.func.__self__
+        loaded_1 = loaded_transformer.inverse_func.__self__
+        assert loaded_0 is loaded_1
+
+    @pytest.mark.xfail(reason="Failing due to circular self reference")
+    def test_scipy_stats(self, tmp_path):
+        from scipy import stats
+
+        estimator = FunctionTransformer(func=stats.zipf)
+        loads(dumps(estimator))
+
+
+class CustomEstimator(BaseEstimator):
+    """Estimator with np array, np scalar, and sparse matrix attribute"""
+
+    def fit(self, X, y=None):
+        self.numpy_array = np.zeros(3)
+        self.numpy_scalar = np.ones(1)[0]
+        self.sparse_matrix = sparse.csr_matrix(np.arange(3))
+        return self
+
+
+def test_dump_to_and_load_from_disk(tmp_path):
+    # Test saving to and loading from disk. Functionality-wise, this is almost
+    # identical to saving to and loading from memory using dumps and loads.
+    # Therefore, only test functionality that is specific to dump and load.
+
+    estimator = CustomEstimator().fit(None)
+    f_name = tmp_path / "estimator.skops"
+    dump(estimator, f_name)
+    file = Path(f_name)
+    assert file.exists()
+
+    with ZipFile(f_name, "r") as input_zip:
+        files = input_zip.namelist()
+
+    # there should be 4 files in total, schema.json, 2 np arrays, and 1 sparse matrix
+    assert len(files) == 4
+    assert "schema.json" in files
+
+    num_array_files = sum(1 for file in files if file.endswith(".npy"))
+    assert num_array_files == 2
+    num_sparse_files = sum(1 for file in files if file.endswith(".npz"))
+    assert num_sparse_files == 1
+
+    # check that schema is valid json by loading it
+    json.loads(ZipFile(f_name).read("schema.json"))
+
+    # load and compare the actual estimator
+    loaded = load(f_name)
+    assert_params_equal(loaded.__dict__, estimator.__dict__)
+
+
+def test_disk_and_memory_are_identical(tmp_path):
+    # Test that model hashes are the same for models stored on disk and in
+    # memory.
+    # Use a somewhat complex model.
+    # fmt: off
+    estimator = Pipeline([
+        ("features", FeatureUnion([
+            ("scaler", StandardScaler()),
+            ("scaled-poly", Pipeline([
+                ("polys", FeatureUnion([
+                    ("poly1", PolynomialFeatures()),
+                    ("poly2", PolynomialFeatures(degree=3, include_bias=False))
+                ])),
+                ("square-root", FunctionTransformer(np.sqrt)),
+                ("scale", MinMaxScaler()),
+            ])),
+        ])),
+        ("clf", LogisticRegression(random_state=0, solver="liblinear")),
+    ]).fit([[0, 1], [2, 3], [4, 5]], [0, 1, 2])
+    # fmt: on
+
+    f_name = tmp_path / "estimator.skops"
+    dump(estimator, f_name)
+    loaded_disk = load(f_name)
+    loaded_memory = loads(dumps(estimator))
+
+    assert joblib.hash(loaded_disk) == joblib.hash(loaded_memory)

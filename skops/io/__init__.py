@@ -1,3 +1,3 @@
-from ._persist import load, save
+from ._persist import dump, dumps, load, loads
 
-__all__ = ["load", "save"]
+__all__ = ["dumps", "load", "loads", "dump"]

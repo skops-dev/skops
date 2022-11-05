@@ -16,7 +16,7 @@ import skops
 from skops import hub_utils
 from skops.card import Card, metadata_from_config
 from skops.card._model_card import PlotSection, TableSection
-from skops.io import save
+from skops.io import dump
 
 
 def fit_model():
@@ -59,7 +59,7 @@ def iris_skops_file(iris_estimator):
     skops_folder = tempfile.mkdtemp()
     model_name = "model.skops"
     skops_path = Path(skops_folder) / model_name
-    save(iris_estimator, skops_path)
+    dump(iris_estimator, skops_path)
     yield skops_path
 
 
@@ -221,7 +221,12 @@ def test_code_autogeneration_skops(
     metadata = metadata_load(local_path=Path(destination_path) / "README.md")
     filename = metadata["model_file"]
     with open(Path(destination_path) / "README.md") as f:
-        assert f'clf = load("{filename}")' in f.read()
+        read_buffer = f.read()
+        assert f'clf = load("{filename}")' in read_buffer
+
+        # test if the model doesn't overflow the huggingface models page
+        assert read_buffer.count("sk-top-container") == 1
+        assert 'style="overflow: auto;' in read_buffer
 
 
 def test_metadata_from_config_tabular_data(

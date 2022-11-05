@@ -11,6 +11,7 @@ from uuid import uuid4
 import numpy as np
 import pandas as pd
 import pytest
+import sklearn
 from flaky import flaky
 from huggingface_hub import HfApi
 from huggingface_hub.utils import RepositoryNotFoundError
@@ -41,6 +42,8 @@ from skops.utils.fixes import metadata, path_unlink
 
 iris = load_iris(as_frame=True, return_X_y=False)
 diabetes = load_diabetes(as_frame=True, return_X_y=False)
+
+IS_SKLEARN_DEV_BUILD = "dev" in sklearn.__version__
 
 
 @pytest.fixture
@@ -486,6 +489,9 @@ def repo_path_for_inference():
 
 
 @pytest.mark.network
+@pytest.mark.skipif(
+    IS_SKLEARN_DEV_BUILD, reason="Inference tests cannot run with sklearn dev build"
+)
 @flaky(max_runs=3)
 @pytest.mark.parametrize(
     "model_func, data, task",

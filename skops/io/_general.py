@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import json
 from functools import partial
-from types import FunctionType
+from types import FunctionType, MethodType
 from typing import Any
 
 import numpy as np
 
-from ._utils import SaveState, _import_obj, get_instance, get_module, get_state, gettype
+from ._dispatch import get_instance
+from ._utils import SaveState, _import_obj, get_module, get_state, gettype
 from .exceptions import UnsupportedTypeException
 
 
@@ -15,6 +16,7 @@ def dict_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
+        "__loader__": "dict_get_instance",
     }
 
     key_types = get_state([type(key) for key in obj.keys()], save_state)
@@ -43,6 +45,7 @@ def list_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
+        "__loader__": "list_get_instance",
     }
     content = []
     for value in obj:
@@ -62,6 +65,7 @@ def tuple_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
+        "__loader__": "tuple_get_instance",
     }
     content = tuple(get_state(value, save_state) for value in obj)
     res["content"] = content
@@ -93,6 +97,7 @@ def function_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(obj),
+        "__loader__": "function_get_instance",
         "content": {
             "module_path": get_module(obj),
             "function": obj.__name__,
@@ -111,6 +116,7 @@ def partial_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     res = {
         "__class__": "partial",  # don't allow any subclass
         "__module__": get_module(type(obj)),
+        "__loader__": "partial_get_instance",
         "content": {
             "func": get_state(func, save_state),
             "args": get_state(args, save_state),
@@ -138,6 +144,7 @@ def type_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
+        "__loader__": "type_get_instance",
         "content": {
             "__class__": obj.__name__,
             "__module__": get_module(obj),
@@ -155,6 +162,7 @@ def slice_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
+        "__loader__": "slice_get_instance",
         "content": {
             "start": obj.start,
             "stop": obj.stop,
@@ -181,6 +189,7 @@ def object_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
         return {
             "__class__": "str",
             "__module__": "builtins",
+            "__loader__": "none",
             "content": obj_str,
             "is_json": True,
         }
@@ -190,6 +199,7 @@ def object_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
+        "__loader__": "object_get_instance",
     }
 
     # __getstate__ takes priority over __dict__, and if non exist, we only save
@@ -232,6 +242,30 @@ def object_get_instance(state, src):
     return instance
 
 
+def method_get_state(obj: Any, save_state: SaveState):
+    # This method is used to persist bound methods, which are
+    # dependent on a specific instance of an object.
+    # It stores the state of the object the method is bound to,
+    # and prepares both to be persisted.
+    res = {
+        "__class__": obj.__class__.__name__,
+        "__module__": get_module(obj),
+        "__loader__": "method_get_instance",
+        "content": {
+            "func": obj.__func__.__name__,
+            "obj": get_state(obj.__self__, save_state),
+        },
+    }
+
+    return res
+
+
+def method_get_instance(state, src):
+    loaded_obj = object_get_instance(state["content"]["obj"], src)
+    method = getattr(loaded_obj, state["content"]["func"])
+    return method
+
+
 def unsupported_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     raise UnsupportedTypeException(obj)
 
@@ -243,18 +277,20 @@ GET_STATE_DISPATCH_FUNCTIONS = [
     (tuple, tuple_get_state),
     (slice, slice_get_state),
     (FunctionType, function_get_state),
+    (MethodType, method_get_state),
     (partial, partial_get_state),
     (type, type_get_state),
     (object, object_get_state),
 ]
-# tuples of type and function that creates the instance of that type
-GET_INSTANCE_DISPATCH_FUNCTIONS = [
-    (dict, dict_get_instance),
-    (list, list_get_instance),
-    (tuple, tuple_get_instance),
-    (slice, slice_get_instance),
-    (FunctionType, function_get_instance),
-    (partial, partial_get_instance),
-    (type, type_get_instance),
-    (object, object_get_instance),
-]
+
+GET_INSTANCE_DISPATCH_MAPPING = {
+    "dict_get_instance": dict_get_instance,
+    "list_get_instance": list_get_instance,
+    "tuple_get_instance": tuple_get_instance,
+    "slice_get_instance": slice_get_instance,
+    "function_get_instance": function_get_instance,
+    "method_get_instance": method_get_instance,
+    "partial_get_instance": partial_get_instance,
+    "type_get_instance": type_get_instance,
+    "object_get_instance": object_get_instance,
+}
