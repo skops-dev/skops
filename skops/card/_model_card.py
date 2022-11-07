@@ -30,6 +30,19 @@ def wrap_as_details(text: str, folded: bool) -> str:
     return f"<details>\n<summary> Click to expand </summary>\n\n{text}\n\n</details>"
 
 
+def _clean_table(table: str) -> str:
+    # replace line breaks "\n" with html tag <br />, however, leave end-of-line
+    # line breaks (eol_lb) intact
+    eol_lb = "|\n"
+    placeholder = "$%!?"  # arbitrary sting that never appears naturally
+    table = (
+        table.replace(eol_lb, placeholder)
+        .replace("\n", "<br />")
+        .replace(placeholder, eol_lb)
+    )
+    return table
+
+
 @dataclass
 class PlotSection:
     """Adds a link to a figure to the model card"""
@@ -50,7 +63,7 @@ class PlotSection:
 class TableSection:
     """Adds a table to the model card"""
 
-    table: dict["str", list[Any]]
+    table: dict[str, list[Any]]
     folded: bool = False
 
     def __post_init__(self) -> None:
@@ -80,8 +93,8 @@ class TableSection:
         else:
             headers = self.table.keys()
 
-        table = tabulate(
-            self.table, tablefmt="github", headers=headers, showindex=False
+        table = _clean_table(
+            tabulate(self.table, tablefmt="github", headers=headers, showindex=False)
         )
         return wrap_as_details(table, folded=self.folded)
 
@@ -99,10 +112,10 @@ class TableSection:
 def metadata_from_config(config_path: Union[str, Path]) -> CardData:
     """Construct a ``CardData`` object from a ``config.json`` file.
 
-    Most information needed for the metadata section of a ``README.md``
-    file on Hugging Face Hub is included in the ``config.json`` file. This
-    utility function constructs a ``CardData`` object which can then be
-    passed to the :class:`~skops.card.Card` object.
+    Most information needed for the metadata section of a ``README.md`` file on
+    Hugging Face Hub is included in the ``config.json`` file. This utility
+    function constructs a :class:`huggingface_hub.CardData` object which can
+    then be passed to the :class:`~skops.card.Card` object.
 
     This method populates the following attributes of the instance:
 
@@ -122,8 +135,9 @@ def metadata_from_config(config_path: Union[str, Path]) -> CardData:
 
     Returns
     -------
-    card_data: ``modelcards.CardData``
-        ``CardData`` object.
+    card_data: huggingface_hub.CardData
+        :class:`huggingface_hub.CardData` object.
+
     """
     config_path = Path(config_path)
     if not config_path.is_file():
@@ -224,16 +238,16 @@ class Card:
     ... )
     >>> disp.plot()
     <sklearn.metrics._plot.confusion_matrix.ConfusionMatrixDisplay object at ...>
-    >>> disp.figure_.savefig("confusion_matrix.png")
+    >>> tmp_path = Path(tempfile.mkdtemp(prefix="skops-"))
+    >>> disp.figure_.savefig(tmp_path / "confusion_matrix.png")
     ...
     >>> model_card.add_plot(confusion_matrix="confusion_matrix.png")
     Card(
       model=LogisticRegression(random_state=0, solver='liblinear'),
       metadata.license=mit,
-      confusion_matrix='confusion_matrix.png',
+      confusion_matrix='...confusion_matrix.png',
     )
-    >>> with tempfile.TemporaryDirectory() as tmpdir:
-    ...     model_card.save((Path(tmpdir) / "README.md"))
+    >>> model_card.save(tmp_path / "README.md")
     """
 
     def __init__(
@@ -243,15 +257,8 @@ class Card:
         metadata: Optional[CardData] = None,
     ) -> None:
         self.model = model
-        self._hyperparameter_table = self._extract_estimator_config()
-        # the spaces in the pipeline breaks markdown, so we replace them
+        self.model_diagram = model_diagram
         self._eval_results = {}  # type: ignore
-        if model_diagram is True:
-            self._model_plot: str | None = re.sub(
-                r"\n\s+", "", str(estimator_html_repr(model))
-            )
-        else:
-            self._model_plot = None
         self._template_sections: dict[str, str] = {}
         self._extra_sections: list[tuple[str, Any]] = []
         self.metadata = metadata or CardData()
@@ -400,30 +407,53 @@ class Card:
 
         Returns
         -------
-        card : modelcards.ModelCard
-            The final ``ModelCard`` object with all placeholders filled and all
-            extra sections inserted.
+        card : huggingface_hub.ModelCard
+            The final :class:`huggingface_hub.ModelCard` object with all
+            placeholders filled and all extra sections inserted.
         """
         root = skops.__path__
 
         # add evaluation results
 
         template_sections = copy.deepcopy(self._template_sections)
+
         if self.metadata:
-            model_file = self.metadata.to_dict().get("model_file")
-            if model_file:
-                template_sections["get_started_code"] = (
-                    "import joblib\nimport json\nimport pandas as pd\nclf ="
-                    f' joblib.load({model_file})\nwith open("config.json") as f:\n   '
-                    " config ="
-                    " json.load(f)\n"
-                    'clf.predict(pd.DataFrame.from_dict(config["sklearn"]["example_input"]))'
+            if self.metadata.to_dict().get("model_file"):
+                model_file = self.metadata.to_dict().get("model_file")
+                if model_file.endswith(".skops"):
+                    template_sections["get_started_code"] = (
+                        "from skops.io import load\nimport json\n"
+                        "import pandas as pd\n"
+                        f'clf = load("{model_file}")\n'
+                        'with open("config.json") as f:\n   '
+                        " config ="
+                        " json.load(f)\n"
+                        'clf.predict(pd.DataFrame.from_dict(config["sklearn"]["example_input"]))'
+                    )
+                else:
+                    template_sections["get_started_code"] = (
+                        "import joblib\nimport json\nimport pandas as pd\nclf ="
+                        f' joblib.load({model_file})\nwith open("config.json") as'
+                        " f:\n   "
+                        " config ="
+                        " json.load(f)\n"
+                        'clf.predict(pd.DataFrame.from_dict(config["sklearn"]["example_input"]))'
+                    )
+        if self.model_diagram is True:
+            model_plot_div = re.sub(r"\n\s+", "", str(estimator_html_repr(self.model)))
+            if model_plot_div.count("sk-top-container") == 1:
+                model_plot_div = model_plot_div.replace(
+                    "sk-top-container", 'sk-top-container" style="overflow: auto;'
                 )
+            model_plot: str | None = model_plot_div
+        else:
+            model_plot = None
         template_sections["eval_results"] = tabulate(
             list(self._eval_results.items()),
             headers=["Metric", "Value"],
             tablefmt="github",
         )
+
         # if template path is not given, use default
         if template_sections.get("template_path") is None:
             template_sections["template_path"] = str(
@@ -450,8 +480,8 @@ class Card:
 
             card = ModelCard.from_template(
                 card_data=self.metadata,
-                hyperparameter_table=self._hyperparameter_table,
-                model_plot=self._model_plot,
+                hyperparameter_table=self._extract_estimator_config(),
+                model_plot=model_plot,
                 **template_sections,
             )
         return card
@@ -496,10 +526,12 @@ class Card:
             Markdown table of hyperparameters.
         """
         hyperparameter_dict = self.model.get_params(deep=True)
-        return tabulate(
-            list(hyperparameter_dict.items()),
-            headers=["Hyperparameter", "Value"],
-            tablefmt="github",
+        return _clean_table(
+            tabulate(
+                list(hyperparameter_dict.items()),
+                headers=["Hyperparameter", "Value"],
+                tablefmt="github",
+            )
         )
 
     @staticmethod

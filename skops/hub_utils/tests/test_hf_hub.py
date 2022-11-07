@@ -11,6 +11,7 @@ from uuid import uuid4
 import numpy as np
 import pandas as pd
 import pytest
+import sklearn
 from flaky import flaky
 from huggingface_hub import HfApi
 from huggingface_hub.utils import RepositoryNotFoundError
@@ -26,6 +27,7 @@ from skops.hub_utils import (
     get_requirements,
     init,
     push,
+    update_env,
 )
 from skops.hub_utils._hf_hub import (
     _create_config,
@@ -38,6 +40,8 @@ from skops.utils.fixes import metadata, path_unlink
 
 iris = load_iris(as_frame=True, return_X_y=False)
 diabetes = load_diabetes(as_frame=True, return_X_y=False)
+
+IS_SKLEARN_DEV_BUILD = "dev" in sklearn.__version__
 
 
 @pytest.fixture
@@ -369,7 +373,7 @@ def test_push_download(
     with pytest.raises(OSError, match="None-empty dst path already exists!"):
         download(repo_id=repo_id, dst=destination_path, token=HF_HUB_TOKEN)
 
-    files = client.list_repo_files(repo_id=repo_id, token=HF_HUB_TOKEN)
+    files = client.list_repo_files(repo_id=repo_id, use_auth_token=HF_HUB_TOKEN)
     for f_name in [classifier_pickle.name, config_json.name]:
         assert f_name in files
 
@@ -391,6 +395,9 @@ def repo_path_for_inference():
 
 
 @pytest.mark.network
+@pytest.mark.skipif(
+    IS_SKLEARN_DEV_BUILD, reason="Inference tests cannot run with sklearn dev build"
+)
 @flaky(max_runs=3)
 @pytest.mark.parametrize(
     "model_func, data, task",
@@ -460,6 +467,13 @@ def test_get_config(repo_path):
     config = get_config(repo_path)
     assert config == CONFIG
     assert get_requirements(repo_path) == ['scikit-learn="1.1.1"']
+
+
+def test_update_env(repo_path, config_json):
+    # sanity check
+    assert get_requirements(repo_path) == ['scikit-learn="1.1.1"']
+    update_env(path=repo_path, requirements=['scikit-learn="1.1.2"'])
+    assert get_requirements(repo_path) == ['scikit-learn="1.1.2"']
 
 
 def test_get_example_input():
