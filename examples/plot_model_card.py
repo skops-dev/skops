@@ -149,7 +149,7 @@ disp.plot()
 disp.figure_.savefig(Path(local_repo) / "confusion_matrix.png")
 model_card.add_plot(**{"Confusion matrix": "confusion_matrix.png"})
 
-inportances = permutation_importance(model, X_test, y_test, n_repeats=10)
+importances = permutation_importance(model, X_test, y_test, n_repeats=10)
 model_card.add_feature_importances(importances)
 
 cv_results = model.cv_results_
