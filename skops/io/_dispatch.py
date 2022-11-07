@@ -13,6 +13,7 @@ def get_instance(state, load_state: LoadState):
         return json.loads(state["content"])
 
     saved_id = state.get("__id__")
+
     if saved_id and saved_id in load_state.memo:
         # an instance has already been loaded, just return the loaded instance
         return load_state.get_instance(saved_id)

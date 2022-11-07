@@ -94,7 +94,7 @@ def persist_id(func):
     Intended to be used as a decorator.
 
     NB: Not all get_state functions should include ids. Ephemeral objects
-    have their IDs reused, and so storing some objects (like dicts, lists, arrays
+    have their IDs reused, and so storing some objects (some dicts, lists, arrays
     etc.) can cause problems.
     """
 
@@ -165,9 +165,6 @@ class LoadState:
 
     def get_instance(self, id: int) -> Any:
         return self.memo.get(id)
-
-    def clear_memo(self):
-        self.memo.clear()
 
 
 @singledispatch

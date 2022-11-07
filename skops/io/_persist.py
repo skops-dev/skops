@@ -116,7 +116,6 @@ def load(file):
         schema = json.loads(input_zip.read("schema.json"))
         load_state = LoadState(src=input_zip)
         instance = get_instance(schema, load_state=load_state)
-        load_state.clear_memo()
     return instance
 
 
@@ -144,5 +143,4 @@ def loads(data):
         schema = json.loads(input_zip.read("schema.json"))
         load_state = LoadState(src=input_zip)
         instance = get_instance(schema, load_state=load_state)
-        load_state.clear_memo()
     return instance

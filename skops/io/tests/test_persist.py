@@ -789,7 +789,7 @@ def test_get_instance_unknown_type_error_msg():
     state["__loader__"] = "this_get_instance_does_not_exist"
     msg = "Can't find loader this_get_instance_does_not_exist for type builtins.tuple."
     with pytest.raises(TypeError, match=msg):
-        get_instance(state, None)
+        get_instance(state, LoadState(None))
 
 
 class _BoundMethodHolder:
