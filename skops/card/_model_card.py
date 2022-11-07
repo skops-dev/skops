@@ -374,15 +374,24 @@ class Card:
             self._eval_results[metric] = value
         return self
 
-    def add_feature_importances(self, feature_importances, data) -> "Card":
-        """Visualize permutation importance.
+    def add_feature_importances(
+        self, feature_importances, columns, plot_file, plot_name
+    ) -> "Card":
+        """Plots feature importance and saves it to model card.
 
         Parameters
         ----------
         feature_importances : sklearn.utils.Bunch
             Output of sklearn.inspection.permutation_importance()
 
-        data :
+        columns :
+            Column names of the data used to generate importances.
+
+        plot_file :
+            Filename for the plot.
+
+        plot_name :
+            Name of the plot.
 
         Returns
         -------
@@ -393,13 +402,17 @@ class Card:
         fig, ax = plt.subplots()
         ax.boxplot(
             x=feature_importances.importances[sorted_importances_idx].T,
-            labels=data.columns[sorted_importances_idx],
+            labels=columns[sorted_importances_idx],
             vert=False,
         )
         ax.set_title("Permutation Importances")
-        ax.set_xlabel("Decrease in Accuracy Score")
-        plt.savefig("feature_importances.png")
-        self.add_plot(**{"Feature Importances": "feature_importances.png"})
+        ax.set_xlabel("Decrease in Score")
+        if plot_name is not None and plot_file is not None:
+            plt.savefig(plot_file)
+            self.add_plot(**{plot_name: plot_file})
+        else:
+            plt.savefig("feature_importances.png")
+            self.add_plot(**{"Feature Importances": "feature_importances.png"})
         return self
 
     def _generate_card(self) -> ModelCard:
