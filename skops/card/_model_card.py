@@ -374,10 +374,10 @@ class Card:
             self._eval_results[metric] = value
         return self
 
-    def add_feature_importances(
+    def add_permutation_importances(
         self, feature_importances, columns, plot_file, plot_name
     ) -> "Card":
-        """Plots feature importance and saves it to model card.
+        """Plots permutation importance and saves it to model card.
 
         Parameters
         ----------

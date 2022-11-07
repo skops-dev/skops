@@ -170,12 +170,14 @@ def test_add_plot(destination_path, model_card):
     assert "![fig1](fig1.png)" in model_card
 
 
-def test_feature_importances(iris_estimator, iris_data, model_card, destination_path):
+def test_permutation_importances(
+    iris_estimator, iris_data, model_card, destination_path
+):
     X, y = iris_data
     result = permutation_importance(
         iris_estimator, X, y, n_repeats=10, random_state=42, n_jobs=2
     )
-    model_card.add_feature_importances(
+    model_card.add_permutation_importances(
         result, X.columns, "importance.png", "Permutation Importance"
     )
     assert "![Permutation Importance](importance.png)" in model_card.render()
