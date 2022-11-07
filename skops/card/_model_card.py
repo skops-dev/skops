@@ -11,7 +11,6 @@ from reprlib import Repr
 from typing import Any, Optional, Union
 
 import matplotlib.pyplot as plt
-import pandas as pd
 from modelcards import CardData, ModelCard
 from sklearn.utils import estimator_html_repr
 from tabulate import tabulate  # type: ignore
@@ -375,29 +374,30 @@ class Card:
             self._eval_results[metric] = value
         return self
 
-    def add_feature_importances(self, feature_importances) -> "Card":
+    def add_feature_importances(self, feature_importances, data) -> "Card":
         """Visualize permutation importance.
 
         Parameters
         ----------
-        self : object
-            Card object.
         feature_importances : sklearn.utils.Bunch
             Output of sklearn.inspection.permutation_importance()
+
+        data :
 
         Returns
         -------
         self : object
             Card object.
         """
-
-        importances = pd.DataFrame(
-            feature_importances.importances.T,
-            columns=self.model.feature_names_in_,
+        sorted_importances_idx = feature_importances.importances_mean.argsort()
+        fig, ax = plt.subplots()
+        ax.boxplot(
+            x=feature_importances.importances[sorted_importances_idx].T,
+            labels=data.columns[sorted_importances_idx],
+            vert=False,
         )
-        ax = importances.plot.box(vert=False, whis=10)
         ax.set_title("Permutation Importances")
-        ax.set_xlabel("Decrease in accuracy score")
+        ax.set_xlabel("Decrease in Accuracy Score")
         plt.savefig("feature_importances.png")
         self.add_plot(**{"Feature Importances": "feature_importances.png"})
         return self

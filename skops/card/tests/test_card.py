@@ -10,6 +10,7 @@ import pytest
 import sklearn
 from huggingface_hub import CardData, metadata_load
 from sklearn.datasets import load_iris
+from sklearn.inspection import permutation_importance
 from sklearn.linear_model import LinearRegression, LogisticRegression
 
 import skops
@@ -167,6 +168,15 @@ def test_add_plot(destination_path, model_card):
     plt.savefig(Path(destination_path) / "fig1.png")
     model_card = model_card.add_plot(fig1="fig1.png").render()
     assert "![fig1](fig1.png)" in model_card
+
+
+def test_feature_importances(iris_estimator, iris_data, model_card, destination_path):
+    X, y = iris_data
+    result = permutation_importance(
+        iris_estimator, X, y, n_repeats=10, random_state=42, n_jobs=2
+    )
+    model_card.add_feature_importances(result, X)
+    assert "![Feature Importances](feature_importances.png)" in model_card.render()
 
 
 def test_temporary_plot(destination_path, model_card):
