@@ -405,7 +405,7 @@ class Card:
             labels=columns[sorted_importances_idx],
             vert=False,
         )
-        ax.set_title("Permutation Importances")
+        ax.set_title(plot_name)
         ax.set_xlabel("Decrease in Score")
         if plot_name is not None and plot_file is not None:
             plt.savefig(plot_file)
