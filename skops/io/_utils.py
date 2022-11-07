@@ -87,6 +87,25 @@ def get_module(obj):
 DEFAULT_PROTOCOL = 0
 
 
+def persist_id(func):
+    """Wrapper to add __id__ to states we want to be able to persist as single
+    instances.
+
+    Intended to be used as a decorator.
+
+    NB: Not all get_state functions should include ids. Ephemeral objects
+    have their IDs reused, and so storing some objects (like dicts, lists, arrays
+    etc.) can cause problems.
+    """
+
+    def wrapper(obj: Any, save_state: SaveState):
+        result = func(obj, save_state)
+        result["__id__"] = id(obj)
+        return result
+
+    return wrapper
+
+
 @dataclass(frozen=True)
 class SaveState:
     """State required for saving the objects
@@ -146,6 +165,9 @@ class LoadState:
 
     def get_instance(self, id: int) -> Any:
         return self.memo.get(id)
+
+    def clear_memo(self):
+        self.memo.clear()
 
 
 @singledispatch

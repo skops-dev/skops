@@ -7,7 +7,7 @@ import numpy as np
 
 from ._dispatch import get_instance
 from ._general import function_get_instance
-from ._utils import LoadState, SaveState, _import_obj, get_module, get_state
+from ._utils import LoadState, SaveState, _import_obj, get_module, get_state, persist_id
 from .exceptions import UnsupportedTypeException
 
 
@@ -78,6 +78,7 @@ def ndarray_get_instance(state, load_state: LoadState):
     return val
 
 
+@persist_id
 def maskedarray_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
@@ -97,6 +98,7 @@ def maskedarray_get_instance(state, load_state: LoadState):
     return np.ma.MaskedArray(data, mask)
 
 
+@persist_id
 def random_state_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     content = get_state(obj.get_state(legacy=False), save_state)
     res = {
@@ -116,6 +118,7 @@ def random_state_get_instance(state, load_state: LoadState):
     return random_state
 
 
+@persist_id
 def random_generator_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     bit_generator_state = obj.bit_generator.state
     res = {
@@ -142,6 +145,7 @@ def random_generator_get_instance(state, load_state: LoadState):
 # For numpy.ufunc we need to get the type from the type's module, but for other
 # functions we get it from objet's module directly. Therefore sett a especial
 # get_state method for them here. The load is the same as other functions.
+@persist_id
 def ufunc_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,  # ufunc
@@ -155,6 +159,7 @@ def ufunc_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     return res
 
 
+@persist_id
 def dtype_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     # we use numpy's internal save mechanism to store the dtype by
     # saving/loading an empty array with that dtype.

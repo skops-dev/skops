@@ -8,10 +8,19 @@ from typing import Any
 import numpy as np
 
 from ._dispatch import get_instance
-from ._utils import LoadState, SaveState, _import_obj, get_module, get_state, gettype
+from ._utils import (
+    LoadState,
+    SaveState,
+    _import_obj,
+    get_module,
+    get_state,
+    gettype,
+    persist_id,
+)
 from .exceptions import UnsupportedTypeException
 
 
+@persist_id
 def dict_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
@@ -61,6 +70,7 @@ def list_get_instance(state, load_state: LoadState):
     return content
 
 
+@persist_id
 def tuple_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
@@ -93,12 +103,12 @@ def tuple_get_instance(state, load_state: LoadState):
     return content
 
 
+@persist_id
 def function_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(obj),
         "__loader__": "function_get_instance",
-        "__id__": id(obj),
         "content": {
             "module_path": get_module(obj),
             "function": obj.__name__,
@@ -112,6 +122,7 @@ def function_get_instance(state, load_state: LoadState):
     return loaded
 
 
+@persist_id
 def partial_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     _, _, (func, args, kwds, namespace) = obj.__reduce__()
     res = {
@@ -159,6 +170,7 @@ def type_get_instance(state, load_state: LoadState):
     return loaded
 
 
+@persist_id
 def slice_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
@@ -180,6 +192,7 @@ def slice_get_instance(state, load_state: LoadState):
     return slice(start, stop, step)
 
 
+@persist_id
 def object_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     # This method is for objects which can either be persisted with json, or
     # the ones for which we can get/set attributes through
@@ -193,7 +206,6 @@ def object_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
             "__loader__": "none",
             "content": obj_str,
             "is_json": True,
-            "__id__": id(obj),
         }
     except Exception:
         pass
@@ -202,7 +214,6 @@ def object_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
         "__loader__": "object_get_instance",
-        "__id__": id(obj),
     }
 
     # __getstate__ takes priority over __dict__, and if non exist, we only save
@@ -245,6 +256,7 @@ def object_get_instance(state, load_state: LoadState):
     return instance
 
 
+@persist_id
 def method_get_state(obj: Any, save_state: SaveState):
     # This method is used to persist bound methods, which are
     # dependent on a specific instance of an object.
@@ -254,7 +266,6 @@ def method_get_state(obj: Any, save_state: SaveState):
         "__class__": obj.__class__.__name__,
         "__module__": get_module(obj),
         "__loader__": "method_get_instance",
-        "__id__": id(obj),
         "content": {
             "func": obj.__func__.__name__,
             "obj": get_state(obj.__self__, save_state),

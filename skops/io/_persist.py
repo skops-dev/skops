@@ -32,7 +32,6 @@ def _save(obj):
 
         state["protocol"] = save_state.protocol
         state["_skops_version"] = skops.__version__
-
         zip_file.writestr("schema.json", json.dumps(state, indent=2))
 
     return buffer
@@ -117,6 +116,7 @@ def load(file):
         schema = json.loads(input_zip.read("schema.json"))
         load_state = LoadState(src=input_zip)
         instance = get_instance(schema, load_state=load_state)
+        load_state.clear_memo()
     return instance
 
 
@@ -144,4 +144,5 @@ def loads(data):
         schema = json.loads(input_zip.read("schema.json"))
         load_state = LoadState(src=input_zip)
         instance = get_instance(schema, load_state=load_state)
+        load_state.clear_memo()
     return instance
