@@ -11,7 +11,7 @@ from reprlib import Repr
 from typing import Any, Optional, Union
 
 import matplotlib.pyplot as plt
-from modelcards import CardData, ModelCard
+from huggingface_hub import CardData, ModelCard
 from sklearn.utils import estimator_html_repr
 from tabulate import tabulate  # type: ignore
 
