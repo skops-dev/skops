@@ -185,10 +185,8 @@ def test_permutation_importances(
         Path(destination_path) / "importance.png",
         "Permutation Importance",
     )
-    assert (
-        f"![Permutation Importance]({destination_path}/importance.png)"
-        in model_card.render()
-    )
+    temp_path = Path(destination_path) / "importance.png"
+    assert f"![Permutation Importance]({temp_path}" in model_card.render()
 
 
 def test_multiple_permutation_importances(
@@ -212,15 +210,11 @@ def test_multiple_permutation_importances(
         plot_name="Permutation Importance on f1",
     )
     # check for default one
-    assert (
-        f"![Permutation Importances]({Path(destination_path)}/importance.png)"
-        in model_card.render()
-    )
+    temp_path = Path(destination_path) / "importance.png"
+    assert f"![Permutation Importances]({temp_path}" in model_card.render()
     # check for F1
-    assert (
-        f"![Permutation Importance on f1]({Path(destination_path)}/f1_importance.png)"
-        in model_card.render()
-    )
+    temp_path_f1 = Path(destination_path) / "f1_importance.png"
+    assert f"![Permutation Importance on f1]({temp_path_f1}" in model_card.render()
 
 
 def test_temporary_plot(destination_path, model_card):
