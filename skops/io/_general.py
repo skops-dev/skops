@@ -8,6 +8,7 @@ from typing import Any
 import numpy as np
 
 from ._dispatch import Node, get_tree
+from ._trusted_types import PRIMITIVE_TYPE_NAMES
 from ._utils import SaveState, _import_obj, get_module, get_state, gettype
 from .exceptions import UnsupportedTypeException
 
@@ -37,7 +38,7 @@ class DictNode(Node):
     def __init__(self, state, src, trusted=False):
         super().__init__(state, src, trusted)
         self.trusted = self._get_trusted(trusted, ["builtins.dict"])
-        self.children = {"key_types": list, "content": dict}
+        self.children = {"key_types": Node, "content": dict}
         self.key_types = get_tree(state["key_types"], src)
         self.content = {
             key: get_tree(value, src) for key, value in state["content"].items()
@@ -213,6 +214,13 @@ def type_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     # To serialize a type, we first need to set the metadata to tell that it's
     # a type, then store the type's info itself in the content field.
     res = {
+        "__class__": obj.__name__,
+        "__module__": get_module(obj),
+        "__loader__": "TypeNode",
+    }
+    return res
+
+    res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
         "__loader__": "TypeNode",
@@ -228,22 +236,16 @@ class TypeNode(Node):
     def __init__(self, state, src, trusted=False):
         super().__init__(state, src, trusted)
         # TODO: what do we trust?
-        self.trusted = self._get_trusted(trusted, [])
-        self.children = {"content": TypeNode}
-        self.content = state["content"]
+        self.trusted = self._get_trusted(trusted, PRIMITIVE_TYPE_NAMES)
+        # We use a bare Node type here since a Node only checks the type in the
+        # dict using __class__ and __module__ keys.
+        # self.children = {"content": Node}
+        self.children = {}
+        # self.content = Node(state["content"]
 
     def construct(self):
+        return _import_obj(self.module_name, self.class_name)
         return _import_obj(self.content["__module__"], self.content["__class__"])
-
-    @property
-    def is_safe(self):
-        return False
-
-    def get_safety_tree(self, report_safe=True):
-        raise NotImplementedError()
-
-    def get_unsafe_set(self):
-        raise NotImplementedError()
 
 
 def slice_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
