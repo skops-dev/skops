@@ -75,7 +75,10 @@ plots, save them on disk and then add them to the card by passing the path name
 to the :meth:`.Card.add_plot` method. For tables, you can pass either
 dictionaries with the key being the header and the values being list of row
 entries, or a pandas ``DataFrame``; use the :meth:`.Card.add_table` method for
-this.
+this. If you would like to add permutation importance results, you can pass
+your importances to :meth:`.Card.add_permutation_importances`. If you want to
+have multiple importance plots, you should pass a file name and a title for the
+plot. This will create a boxplot and write it to the model card for you.
 
 To see how you can use the API in ``skops`` to create a model card, please
 refer to :ref:`sphx_glr_auto_examples_plot_model_card.py`.
