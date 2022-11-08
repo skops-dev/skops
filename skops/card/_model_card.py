@@ -388,13 +388,13 @@ class Card:
         permutation_importances : sklearn.utils.Bunch
             Output of sklearn.inspection.permutation_importance()
 
-        columns :
+        columns : Index
             Column names of the data used to generate importances.
 
-        plot_file :
+        plot_file : str
             Filename for the plot.
 
-        plot_name :
+        plot_name : str, or Path
             Name of the plot.
 
         Returns
