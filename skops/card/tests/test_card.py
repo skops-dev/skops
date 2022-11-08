@@ -12,6 +12,7 @@ from huggingface_hub import CardData, metadata_load
 from sklearn.datasets import load_iris
 from sklearn.inspection import permutation_importance
 from sklearn.linear_model import LinearRegression, LogisticRegression
+from sklearn.metrics import f1_score, make_scorer
 
 import skops
 from skops import hub_utils
@@ -181,6 +182,32 @@ def test_permutation_importances(
         result, X.columns, "importance.png", "Permutation Importance"
     )
     assert "![Permutation Importance](importance.png)" in model_card.render()
+
+
+def test_multiple_permutation_importances(
+    iris_estimator, iris_data, model_card, destination_path
+):
+    X, y = iris_data
+    result = permutation_importance(
+        iris_estimator, X, y, n_repeats=10, random_state=42, n_jobs=2
+    )
+    model_card.add_permutation_importances(result, X.columns)
+    f1 = make_scorer(f1_score, average="micro")
+    result = permutation_importance(
+        iris_estimator, X, y, scoring=f1, n_repeats=10, random_state=42, n_jobs=2
+    )
+    model_card.add_permutation_importances(
+        result,
+        X.columns,
+        plot_file="f1_importance.png",
+        plot_name="Permutation Importance on f1",
+    )
+    # check for default one
+    assert (
+        "![Permutation Importances](permutation_importances.png)" in model_card.render()
+    )
+    # check for F1
+    assert "![Permutation Importance on f1](f1_importance.png)" in model_card.render()
 
 
 def test_temporary_plot(destination_path, model_card):

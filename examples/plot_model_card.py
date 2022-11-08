@@ -151,7 +151,10 @@ model_card.add_plot(**{"Confusion matrix": "confusion_matrix.png"})
 
 importances = permutation_importance(model, X_test, y_test, n_repeats=10)
 model_card.add_permutation_importances(
-    importances, X_test.columns, "importance.png", "Permutation Importance"
+    importances,
+    X_test.columns,
+    plot_file="importance.png",
+    plot_name="Permutation Importance",
 )
 
 cv_results = model.cv_results_
