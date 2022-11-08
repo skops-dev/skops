@@ -178,10 +178,17 @@ def test_permutation_importances(
     result = permutation_importance(
         iris_estimator, X, y, n_repeats=10, random_state=42, n_jobs=2
     )
+
     model_card.add_permutation_importances(
-        result, X.columns, "importance.png", "Permutation Importance"
+        result,
+        X.columns,
+        Path(destination_path) / "importance.png",
+        "Permutation Importance",
     )
-    assert "![Permutation Importance](importance.png)" in model_card.render()
+    assert (
+        f"![Permutation Importance]({destination_path}/importance.png)"
+        in model_card.render()
+    )
 
 
 def test_multiple_permutation_importances(
@@ -191,7 +198,9 @@ def test_multiple_permutation_importances(
     result = permutation_importance(
         iris_estimator, X, y, n_repeats=10, random_state=42, n_jobs=2
     )
-    model_card.add_permutation_importances(result, X.columns)
+    model_card.add_permutation_importances(
+        result, X.columns, plot_file=(Path(destination_path) / "importance.png")
+    )
     f1 = make_scorer(f1_score, average="micro")
     result = permutation_importance(
         iris_estimator, X, y, scoring=f1, n_repeats=10, random_state=42, n_jobs=2
@@ -199,15 +208,19 @@ def test_multiple_permutation_importances(
     model_card.add_permutation_importances(
         result,
         X.columns,
-        plot_file="f1_importance.png",
+        plot_file=Path(destination_path) / "f1_importance.png",
         plot_name="Permutation Importance on f1",
     )
     # check for default one
     assert (
-        "![Permutation Importances](permutation_importances.png)" in model_card.render()
+        f"![Permutation Importances]({Path(destination_path)}/importance.png)"
+        in model_card.render()
     )
     # check for F1
-    assert "![Permutation Importance on f1](f1_importance.png)" in model_card.render()
+    assert (
+        f"![Permutation Importance on f1]({Path(destination_path)}/f1_importance.png)"
+        in model_card.render()
+    )
 
 
 def test_temporary_plot(destination_path, model_card):
