@@ -117,9 +117,6 @@ class SaveState:
     zip_file: zipfile.ZipFile
         The zip file to write the data to, must be in write mode.
 
-    path: pathlib.Path
-        The path to the directory to store the object in.
-
     protocol: int
         The protocol of the persistence format. Right now, there is only
         protocol 0, but this leaves the door open for future changes.
