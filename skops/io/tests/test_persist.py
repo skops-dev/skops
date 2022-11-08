@@ -972,7 +972,7 @@ def test_disk_and_memory_are_identical(tmp_path):
     ],
 )
 def test_when_given_object_referenced_twice_loads_as_one_object(obj):
-    some_thing = {"obj_1": obj, "obj_2": obj}
-    persisted_thing = loads(dumps(some_thing))
+    an_object = {"obj_1": obj, "obj_2": obj}
+    persisted_object = loads(dumps(an_object))
 
-    assert persisted_thing["obj_1"] is persisted_thing["obj_2"]
+    assert persisted_object["obj_1"] is persisted_object["obj_2"]
