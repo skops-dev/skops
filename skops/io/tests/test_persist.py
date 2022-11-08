@@ -968,6 +968,7 @@ def test_disk_and_memory_are_identical(tmp_path):
         [1, 2, 3],
         {1: 1, 2: 2},
         {1, 2, 3},
+        "A string",
         np.random.RandomState(42),
     ],
 )

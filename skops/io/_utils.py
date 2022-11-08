@@ -157,13 +157,15 @@ def get_state(value, save_state):
     # This is a helper function to try to get the state of an object. If it
     # fails with `get_state`, we try with json.dumps, if that fails, we raise
     # the original error alongside the json error.
+    __id__ = save_state.memoize(obj=value)
     try:
         res = _get_state(value, save_state)
-        __id__ = save_state.memoize(obj=value)
         res["__id__"] = __id__
         return res
     except TypeError as e1:
         try:
-            return json.dumps(value)
+            res = json.dumps(value)
+            res["__id__"] = __id__
+            return res
         except Exception as e2:
             raise e1 from e2
