@@ -135,7 +135,11 @@ def _get_column_names(data):
     # TODO: this is going to fail for Structured Arrays. We can add support for
     # them later if we see need for it.
     if isinstance(data, np.ndarray):
-        return [f"x{x}" for x in range(data.shape[1])]
+        if data.dtype.names:
+            return list(data.dtype.names)
+        return (
+            [f"x{x}" for x in range(data.shape[1])] if len(data.shape) > 1 else ["x0"]
+        )
 
     raise ValueError("The data is not a pandas.DataFrame or a numpy.ndarray.")
 
