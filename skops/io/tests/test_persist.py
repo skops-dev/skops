@@ -961,10 +961,18 @@ def test_disk_and_memory_are_identical(tmp_path):
     assert joblib.hash(loaded_disk) == joblib.hash(loaded_memory)
 
 
-def test_when_given_object_referenced_twice_loads_as_one_object():
-    some_function = np.array([1, 2]).shape
+@pytest.mark.parametrize(
+    "obj",
+    [
+        np.array([1, 2]),
+        [1, 2, 3],
+        {1: 1, 2: 2},
+        {1, 2, 3},
+        np.random.RandomState(42),
+    ],
+)
+def test_when_given_object_referenced_twice_loads_as_one_object(obj):
+    some_thing = {"obj_1": obj, "obj_2": obj}
+    persisted_thing = loads(dumps(some_thing))
 
-    transformer = FunctionTransformer(func=some_function, inverse_func=some_function)
-    loaded_transformer = loads(dumps(transformer))
-
-    assert loaded_transformer.func is loaded_transformer.inverse_func
+    assert persisted_thing["obj_1"] is persisted_thing["obj_2"]
