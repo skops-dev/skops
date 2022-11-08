@@ -87,25 +87,6 @@ def get_module(obj):
 DEFAULT_PROTOCOL = 0
 
 
-def persist_id(func):
-    """Wrapper to add __id__ to states we want to be able to persist as single
-    instances.
-
-    Intended to be used as a decorator.
-
-    NB: Not all get_state functions should include ids. Ephemeral objects
-    have their IDs reused, and so storing some objects (some dicts, lists, arrays
-    etc.) can cause problems.
-    """
-
-    def wrapper(obj: Any, save_state: SaveState):
-        result = func(obj, save_state)
-        result["__id__"] = id(obj)
-        return result
-
-    return wrapper
-
-
 @dataclass(frozen=True)
 class SaveState:
     """State required for saving the objects
@@ -180,7 +161,10 @@ def get_state(value, save_state):
     # fails with `get_state`, we try with json.dumps, if that fails, we raise
     # the original error alongside the json error.
     try:
-        return _get_state(value, save_state)
+        __id__ = save_state.memoize(obj=value)
+        res = _get_state(value, save_state)
+        res["__id__"] = __id__
+        return res
     except TypeError as e1:
         try:
             return json.dumps(value)

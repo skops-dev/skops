@@ -56,7 +56,7 @@ import skops
 from skops.io import dump, dumps, load, loads
 from skops.io._dispatch import GET_INSTANCE_MAPPING, get_instance
 from skops.io._sklearn import UNSUPPORTED_TYPES
-from skops.io._utils import LoadState, _get_state, get_state
+from skops.io._utils import LoadState, SaveState, _get_state, get_state
 from skops.io.exceptions import UnsupportedTypeException
 
 # Default settings for X
@@ -785,7 +785,9 @@ def test_loads_from_str():
 
 
 def test_get_instance_unknown_type_error_msg():
-    state = get_state(("hi", [123]), None)
+    val = ("hi", [123])
+    save_state = SaveState(None)
+    state = get_state(val, save_state)
     state["__loader__"] = "this_get_instance_does_not_exist"
     msg = "Can't find loader this_get_instance_does_not_exist for type builtins.tuple."
     with pytest.raises(TypeError, match=msg):
