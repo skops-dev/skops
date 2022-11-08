@@ -959,3 +959,12 @@ def test_disk_and_memory_are_identical(tmp_path):
     loaded_memory = loads(dumps(estimator))
 
     assert joblib.hash(loaded_disk) == joblib.hash(loaded_memory)
+
+
+def test_when_given_object_referenced_twice_loads_as_one_object():
+    some_function = np.array([1, 2]).shape
+
+    transformer = FunctionTransformer(func=some_function, inverse_func=some_function)
+    loaded_transformer = loads(dumps(transformer))
+
+    assert loaded_transformer.func is loaded_transformer.inverse_func
