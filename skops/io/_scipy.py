@@ -5,10 +5,10 @@ from typing import Any
 
 from scipy.sparse import load_npz, save_npz, spmatrix
 
-from ._utils import LoadState, SaveState, get_module
+from ._utils import LoadContext, SaveContext, get_module
 
 
-def sparse_matrix_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
+def sparse_matrix_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
@@ -21,17 +21,17 @@ def sparse_matrix_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     # the object id) already exists. If it does, there is no need to
     # save the object again. Memoizitation is necessary since for
     # ephemeral objects, the same id might otherwise be reused.
-    obj_id = save_state.memoize(obj)
+    obj_id = save_context.memoize(obj)
     f_name = f"{obj_id}.npz"
-    if f_name not in save_state.zip_file.namelist():
-        save_state.zip_file.writestr(f_name, data_buffer.getbuffer())
+    if f_name not in save_context.zip_file.namelist():
+        save_context.zip_file.writestr(f_name, data_buffer.getbuffer())
 
     res["type"] = "scipy"
     res["file"] = f_name
     return res
 
 
-def sparse_matrix_get_instance(state, load_state: LoadState):
+def sparse_matrix_get_instance(state, load_context: LoadContext):
     if state["type"] != "scipy":
         raise TypeError(
             f"Cannot load object of type {state['__module__']}.{state['__class__']}"
@@ -39,7 +39,7 @@ def sparse_matrix_get_instance(state, load_state: LoadState):
 
     # scipy load_npz uses numpy.save with allow_pickle=False under the hood, so
     # we're safe using it
-    val = load_npz(io.BytesIO(load_state.src.read(state["file"])))
+    val = load_npz(io.BytesIO(load_context.src.read(state["file"])))
     return val
 
 

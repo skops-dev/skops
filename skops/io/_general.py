@@ -8,18 +8,25 @@ from typing import Any
 import numpy as np
 
 from ._dispatch import get_instance
-from ._utils import LoadState, SaveState, _import_obj, get_module, get_state, gettype
+from ._utils import (
+    LoadContext,
+    SaveContext,
+    _import_obj,
+    get_module,
+    get_state,
+    gettype,
+)
 from .exceptions import UnsupportedTypeException
 
 
-def dict_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
+def dict_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
         "__loader__": "dict_get_instance",
     }
 
-    key_types = get_state([type(key) for key in obj.keys()], save_state)
+    key_types = get_state([type(key) for key in obj.keys()], save_context)
     content = {}
     for key, value in obj.items():
         if isinstance(value, property):
@@ -27,21 +34,21 @@ def dict_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
         if np.isscalar(key) and hasattr(key, "item"):
             # convert numpy value to python object
             key = key.item()  # type: ignore
-        content[key] = get_state(value, save_state)
+        content[key] = get_state(value, save_context)
     res["content"] = content
     res["key_types"] = key_types
     return res
 
 
-def dict_get_instance(state, load_state: LoadState):
+def dict_get_instance(state, load_context: LoadContext):
     content = gettype(state)()
-    key_types = get_instance(state["key_types"], load_state)
+    key_types = get_instance(state["key_types"], load_context)
     for k_type, item in zip(key_types, state["content"].items()):
-        content[k_type(item[0])] = get_instance(item[1], load_state)
+        content[k_type(item[0])] = get_instance(item[1], load_context)
     return content
 
 
-def list_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
+def list_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
@@ -49,30 +56,30 @@ def list_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     }
     content = []
     for value in obj:
-        content.append(get_state(value, save_state))
+        content.append(get_state(value, save_context))
     res["content"] = content
     return res
 
 
-def list_get_instance(state, load_state: LoadState):
+def list_get_instance(state, load_context: LoadContext):
     content = gettype(state)()
     for value in state["content"]:
-        content.append(get_instance(value, load_state))
+        content.append(get_instance(value, load_context))
     return content
 
 
-def tuple_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
+def tuple_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
         "__loader__": "tuple_get_instance",
     }
-    content = tuple(get_state(value, save_state) for value in obj)
+    content = tuple(get_state(value, save_context) for value in obj)
     res["content"] = content
     return res
 
 
-def tuple_get_instance(state, load_state: LoadState):
+def tuple_get_instance(state, load_context: LoadContext):
     # Returns a tuple or a namedtuple instance.
     def isnamedtuple(t):
         # This is needed since namedtuples need to have the args when
@@ -86,14 +93,14 @@ def tuple_get_instance(state, load_state: LoadState):
         return all(type(n) == str for n in f)
 
     cls = gettype(state)
-    content = tuple(get_instance(value, load_state) for value in state["content"])
+    content = tuple(get_instance(value, load_context) for value in state["content"])
 
     if isnamedtuple(cls):
         return cls(*content)
     return content
 
 
-def function_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
+def function_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(obj),
@@ -106,39 +113,39 @@ def function_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     return res
 
 
-def function_get_instance(state, load_state: LoadState):
+def function_get_instance(state, load_context: LoadContext):
     loaded = _import_obj(state["content"]["module_path"], state["content"]["function"])
     return loaded
 
 
-def partial_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
+def partial_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     _, _, (func, args, kwds, namespace) = obj.__reduce__()
     res = {
         "__class__": "partial",  # don't allow any subclass
         "__module__": get_module(type(obj)),
         "__loader__": "partial_get_instance",
         "content": {
-            "func": get_state(func, save_state),
-            "args": get_state(args, save_state),
-            "kwds": get_state(kwds, save_state),
-            "namespace": get_state(namespace, save_state),
+            "func": get_state(func, save_context),
+            "args": get_state(args, save_context),
+            "kwds": get_state(kwds, save_context),
+            "namespace": get_state(namespace, save_context),
         },
     }
     return res
 
 
-def partial_get_instance(state, load_state: LoadState):
+def partial_get_instance(state, load_context: LoadContext):
     content = state["content"]
-    func = get_instance(content["func"], load_state)
-    args = get_instance(content["args"], load_state)
-    kwds = get_instance(content["kwds"], load_state)
-    namespace = get_instance(content["namespace"], load_state)
+    func = get_instance(content["func"], load_context)
+    args = get_instance(content["args"], load_context)
+    kwds = get_instance(content["kwds"], load_context)
+    namespace = get_instance(content["namespace"], load_context)
     instance = partial(func, *args, **kwds)  # always use partial, not a subclass
     instance.__setstate__((func, args, kwds, namespace))  # type: ignore
     return instance
 
 
-def type_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
+def type_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     # To serialize a type, we first need to set the metadata to tell that it's
     # a type, then store the type's info itself in the content field.
     res = {
@@ -153,12 +160,12 @@ def type_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     return res
 
 
-def type_get_instance(state, load_state: LoadState):
+def type_get_instance(state, load_context: LoadContext):
     loaded = _import_obj(state["content"]["__module__"], state["content"]["__class__"])
     return loaded
 
 
-def slice_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
+def slice_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
@@ -172,14 +179,14 @@ def slice_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     return res
 
 
-def slice_get_instance(state, load_state: LoadState):
+def slice_get_instance(state, load_context: LoadContext):
     start = state["content"]["start"]
     stop = state["content"]["stop"]
     step = state["content"]["step"]
     return slice(start, stop, step)
 
 
-def object_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
+def object_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     # This method is for objects which can either be persisted with json, or
     # the ones for which we can get/set attributes through
     # __getstate__/__setstate__ or reading/writing to __dict__.
@@ -211,14 +218,14 @@ def object_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     else:
         return res
 
-    content = get_state(attrs, save_state)
+    content = get_state(attrs, save_context)
     # it's sufficient to store the "content" because we know that this dict can
     # only have str type keys
     res["content"] = content
     return res
 
 
-def object_get_instance(state, load_state: LoadState):
+def object_get_instance(state, load_context: LoadContext):
     if state.get("is_json", False):
         return json.loads(state["content"])
 
@@ -233,7 +240,7 @@ def object_get_instance(state, load_state: LoadState):
     if not content:  # nothing more to do
         return instance
 
-    attrs = get_instance(content, load_state)
+    attrs = get_instance(content, load_context)
     if hasattr(instance, "__setstate__"):
         instance.__setstate__(attrs)
     else:
@@ -242,7 +249,7 @@ def object_get_instance(state, load_state: LoadState):
     return instance
 
 
-def method_get_state(obj: Any, save_state: SaveState):
+def method_get_state(obj: Any, save_context: SaveContext):
     # This method is used to persist bound methods, which are
     # dependent on a specific instance of an object.
     # It stores the state of the object the method is bound to,
@@ -253,19 +260,19 @@ def method_get_state(obj: Any, save_state: SaveState):
         "__loader__": "method_get_instance",
         "content": {
             "func": obj.__func__.__name__,
-            "obj": get_state(obj.__self__, save_state),
+            "obj": get_state(obj.__self__, save_context),
         },
     }
     return res
 
 
-def method_get_instance(state, load_state: LoadState):
-    loaded_obj = get_instance(state["content"]["obj"], load_state)
+def method_get_instance(state, load_context: LoadContext):
+    loaded_obj = get_instance(state["content"]["obj"], load_context)
     method = getattr(loaded_obj, state["content"]["func"])
     return method
 
 
-def unsupported_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
+def unsupported_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     raise UnsupportedTypeException(obj)
 
 

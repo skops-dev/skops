@@ -56,7 +56,7 @@ import skops
 from skops.io import dump, dumps, load, loads
 from skops.io._dispatch import GET_INSTANCE_MAPPING, get_instance
 from skops.io._sklearn import UNSUPPORTED_TYPES
-from skops.io._utils import LoadState, SaveState, _get_state, get_state
+from skops.io._utils import LoadContext, SaveContext, _get_state, get_state
 from skops.io.exceptions import UnsupportedTypeException
 
 # Default settings for X
@@ -79,16 +79,17 @@ def debug_dispatch_functions():
         # Check consistency of argument names, output type, and that the output,
         # if a dict, has certain keys, or if not a dict, is a primitive type.
         signature = inspect.signature(func)
-        assert list(signature.parameters.keys()) == ["obj", "save_state"]
+        assert list(signature.parameters.keys()) == ["obj", "save_context"]
 
         @wraps(func)
-        def wrapper(obj, save_state):
-            result = func(obj, save_state)
+        def wrapper(obj, save_context):
+            # NB: __id__ set in main 'get_state' func, so no check here
+            result = func(obj, save_context)
 
             assert "__class__" in result
             assert "__module__" in result
             assert "__loader__" in result
-            assert "__id__" in result
+
             return result
 
         return wrapper
@@ -96,17 +97,17 @@ def debug_dispatch_functions():
     def debug_get_instance(func):
         # check consistency of argument names and input type
         signature = inspect.signature(func)
-        assert list(signature.parameters.keys()) == ["state", "load_state"]
+        assert list(signature.parameters.keys()) == ["state", "load_context"]
 
         @wraps(func)
-        def wrapper(state, load_state):
+        def wrapper(state, load_context):
             assert "__class__" in state
             assert "__module__" in state
             assert "__loader__" in state
             assert "__id__" in state
-            assert isinstance(load_state, LoadState)
+            assert isinstance(load_context, LoadContext)
 
-            result = func(state, load_state)
+            result = func(state, load_context)
             return result
 
         return wrapper
@@ -787,12 +788,12 @@ def test_loads_from_str():
 
 def test_get_instance_unknown_type_error_msg():
     val = ("hi", [123])
-    save_state = SaveState(None)
-    state = get_state(val, save_state)
+    save_context = SaveContext(None)
+    state = get_state(val, save_context)
     state["__loader__"] = "this_get_instance_does_not_exist"
     msg = "Can't find loader this_get_instance_does_not_exist for type builtins.tuple."
     with pytest.raises(TypeError, match=msg):
-        get_instance(state, LoadState(None))
+        get_instance(state, LoadContext(None))
 
 
 class _BoundMethodHolder:

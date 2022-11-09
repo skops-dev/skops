@@ -7,11 +7,11 @@ import numpy as np
 
 from ._dispatch import get_instance
 from ._general import function_get_instance
-from ._utils import LoadState, SaveState, _import_obj, get_module, get_state
+from ._utils import LoadContext, SaveContext, _import_obj, get_module, get_state
 from .exceptions import UnsupportedTypeException
 
 
-def ndarray_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
+def ndarray_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
@@ -23,10 +23,10 @@ def ndarray_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
         # allow_pickle=False, therefore we convert them to a list and
         # recursively call get_state on it.
         if obj.dtype == object:
-            obj_serialized = get_state(obj.tolist(), save_state)
+            obj_serialized = get_state(obj.tolist(), save_context)
             res["content"] = obj_serialized["content"]
             res["type"] = "json"
-            res["shape"] = get_state(obj.shape, save_state)
+            res["shape"] = get_state(obj.shape, save_context)
         else:
             data_buffer = io.BytesIO()
             np.save(data_buffer, obj)
@@ -34,10 +34,10 @@ def ndarray_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
             # the object id) already exists. If it does, there is no need to
             # save the object again. Memoizitation is necessary since for
             # ephemeral objects, the same id might otherwise be reused.
-            obj_id = save_state.memoize(obj)
+            obj_id = save_context.memoize(obj)
             f_name = f"{obj_id}.npy"
-            if f_name not in save_state.zip_file.namelist():
-                save_state.zip_file.writestr(f_name, data_buffer.getbuffer())
+            if f_name not in save_context.zip_file.namelist():
+                save_context.zip_file.writestr(f_name, data_buffer.getbuffer())
             res.update(type="numpy", file=f_name)
     except ValueError:
         # Couldn't save the numpy array with either method
@@ -50,11 +50,11 @@ def ndarray_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     return res
 
 
-def ndarray_get_instance(state, load_state: LoadState):
+def ndarray_get_instance(state, load_context: LoadContext):
     # Dealing with a regular numpy array, where dtype != object
     if state["type"] == "numpy":
         val = np.load(
-            io.BytesIO(load_state.src.read(state["file"])), allow_pickle=False
+            io.BytesIO(load_context.src.read(state["file"])), allow_pickle=False
         )
         # Coerce type, because it may not be conserved by np.save/load. E.g. a
         # scalar will be loaded as a 0-dim array.
@@ -65,8 +65,8 @@ def ndarray_get_instance(state, load_state: LoadState):
 
     # We explicitly set the dtype to "O" since we only save object arrays in
     # json.
-    shape = get_instance(state["shape"], load_state)
-    tmp = [get_instance(s, load_state) for s in state["content"]]
+    shape = get_instance(state["shape"], load_context)
+    tmp = [get_instance(s, load_context) for s in state["content"]]
     # TODO: this is a hack to get the correct shape of the array. We should
     # find _a better way_ to do this.
     if len(shape) == 1:
@@ -78,27 +78,27 @@ def ndarray_get_instance(state, load_state: LoadState):
     return val
 
 
-def maskedarray_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
+def maskedarray_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
         "__loader__": "maskedarray_get_instance",
         "content": {
-            "data": get_state(obj.data, save_state),
-            "mask": get_state(obj.mask, save_state),
+            "data": get_state(obj.data, save_context),
+            "mask": get_state(obj.mask, save_context),
         },
     }
     return res
 
 
-def maskedarray_get_instance(state, load_state: LoadState):
-    data = get_instance(state["content"]["data"], load_state)
-    mask = get_instance(state["content"]["mask"], load_state)
+def maskedarray_get_instance(state, load_context: LoadContext):
+    data = get_instance(state["content"]["data"], load_context)
+    mask = get_instance(state["content"]["mask"], load_context)
     return np.ma.MaskedArray(data, mask)
 
 
-def random_state_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
-    content = get_state(obj.get_state(legacy=False), save_state)
+def random_state_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
+    content = get_state(obj.get_state(legacy=False), save_context)
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
@@ -108,15 +108,15 @@ def random_state_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     return res
 
 
-def random_state_get_instance(state, load_state: LoadState):
+def random_state_get_instance(state, load_context: LoadContext):
     cls = _import_obj(state["__module__"], state["__class__"])
     random_state = cls()
-    content = get_instance(state["content"], load_state)
+    content = get_instance(state["content"], load_context)
     random_state.set_state(content)
     return random_state
 
 
-def random_generator_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
+def random_generator_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     bit_generator_state = obj.bit_generator.state
     res = {
         "__class__": obj.__class__.__name__,
@@ -127,7 +127,7 @@ def random_generator_get_state(obj: Any, save_state: SaveState) -> dict[str, Any
     return res
 
 
-def random_generator_get_instance(state, load_state: LoadState):
+def random_generator_get_instance(state, load_context: LoadContext):
     # first restore the state of the bit generator
     bit_generator_state = state["content"]["bit_generator"]
     bit_generator = _import_obj("numpy.random", bit_generator_state["bit_generator"])()
@@ -142,7 +142,7 @@ def random_generator_get_instance(state, load_state: LoadState):
 # For numpy.ufunc we need to get the type from the type's module, but for other
 # functions we get it from objet's module directly. Therefore sett a especial
 # get_state method for them here. The load is the same as other functions.
-def ufunc_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
+def ufunc_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,  # ufunc
         "__module__": get_module(type(obj)),  # numpy
@@ -155,7 +155,7 @@ def ufunc_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     return res
 
 
-def dtype_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
+def dtype_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     # we use numpy's internal save mechanism to store the dtype by
     # saving/loading an empty array with that dtype.
     tmp: np.typing.NDArray = np.ndarray(0, dtype=obj)
@@ -163,15 +163,15 @@ def dtype_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
         "__class__": "dtype",
         "__module__": "numpy",
         "__loader__": "dtype_get_instance",
-        "content": ndarray_get_state(tmp, save_state),
+        "content": ndarray_get_state(tmp, save_context),
     }
     return res
 
 
-def dtype_get_instance(state, load_state: LoadState):
+def dtype_get_instance(state, load_context: LoadContext):
     # we use numpy's internal save mechanism to store the dtype by
     # saving/loading an empty array with that dtype.
-    tmp = ndarray_get_instance(state["content"], load_state)
+    tmp = ndarray_get_instance(state["content"], load_context)
     return tmp.dtype
 
 

@@ -88,7 +88,7 @@ DEFAULT_PROTOCOL = 0
 
 
 @dataclass(frozen=True)
-class SaveState:
+class SaveContext:
     """State required for saving the objects
 
     This state is passed to each ``get_state_*`` function.
@@ -123,7 +123,7 @@ class SaveState:
 
 
 @dataclass(frozen=True)
-class LoadState:
+class LoadContext:
     """State required for loading an object
 
     This state is passed to each ``get_instance_*`` function.
@@ -146,21 +146,21 @@ class LoadState:
 
 
 @singledispatch
-def _get_state(obj, save_state):
+def _get_state(obj, save_context):
     # This function should never be called directly. Instead, it is used to
     # dispatch to the correct implementation of get_state for the given type of
     # its first argument.
     raise TypeError(f"Getting the state of type {type(obj)} is not supported yet")
 
 
-def get_state(value, save_state):
+def get_state(value, save_context):
     # This is a helper function to try to get the state of an object. If it
     # fails with `get_state`, we try with json.dumps, if that fails, we raise
     # the original error alongside the json error.
-    __id__ = save_state.memoize(obj=value)
+    __id__ = save_context.memoize(obj=value)
 
     try:
-        res = _get_state(value, save_state)
+        res = _get_state(value, save_context)
     except TypeError as e1:
         try:
             res = json.dumps(value)

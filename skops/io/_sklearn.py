@@ -24,7 +24,7 @@ from sklearn.tree._tree import Tree
 
 from ._dispatch import get_instance
 from ._general import dict_get_instance, dict_get_state, unsupported_get_state
-from ._utils import SaveState, get_module, get_state, gettype
+from ._utils import SaveContext, get_module, get_state, gettype
 from .exceptions import UnsupportedTypeException
 
 ALLOWED_SGD_LOSSES = {
@@ -41,7 +41,7 @@ ALLOWED_SGD_LOSSES = {
 UNSUPPORTED_TYPES = {Birch}
 
 
-def reduce_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
+def reduce_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     # This method is for objects for which we have to use the __reduce__
     # method to get the state.
     res = {
@@ -65,7 +65,7 @@ def reduce_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     # As a good example, this makes Tree object to be serializable.
     reduce = obj.__reduce__()
     res["__reduce__"] = {}
-    res["__reduce__"]["args"] = get_state(reduce[1], save_state)
+    res["__reduce__"]["args"] = get_state(reduce[1], save_context)
 
     if len(reduce) == 3:
         # reduce includes what's needed for __getstate__ and we don't need to
@@ -83,16 +83,16 @@ def reduce_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
             f"Objects of type {res['__class__']} not supported yet"
         )
 
-    res["content"] = get_state(attrs, save_state)
+    res["content"] = get_state(attrs, save_context)
     return res
 
 
-def reduce_get_instance(state, load_state, constructor):
+def reduce_get_instance(state, load_context, constructor):
     reduce = state["__reduce__"]
-    args = get_instance(reduce["args"], load_state)
+    args = get_instance(reduce["args"], load_context)
     instance = constructor(*args)
 
-    attrs = get_instance(state["content"], load_state)
+    attrs = get_instance(state["content"], load_context)
     if not attrs:
         # nothing more to do
         return instance
@@ -110,32 +110,32 @@ def reduce_get_instance(state, load_state, constructor):
     return instance
 
 
-def tree_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
-    state = reduce_get_state(obj, save_state)
+def tree_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
+    state = reduce_get_state(obj, save_context)
     state["__loader__"] = "tree_get_instance"
     return state
 
 
-def tree_get_instance(state, load_state):
-    return reduce_get_instance(state, load_state, constructor=Tree)
+def tree_get_instance(state, load_context):
+    return reduce_get_instance(state, load_context, constructor=Tree)
 
 
-def sgd_loss_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
-    state = reduce_get_state(obj, save_state)
+def sgd_loss_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
+    state = reduce_get_state(obj, save_context)
     state["__loader__"] = "sgd_loss_get_instance"
     return state
 
 
-def sgd_loss_get_instance(state, load_state):
+def sgd_loss_get_instance(state, load_context):
     cls = gettype(state)
     if cls not in ALLOWED_SGD_LOSSES:
         raise UnsupportedTypeException(f"Expected LossFunction, got {cls}")
-    return reduce_get_instance(state, load_state, constructor=cls)
+    return reduce_get_instance(state, load_context, constructor=cls)
 
 
 # TODO: remove once support for sklearn<1.2 is dropped.
 def _DictWithDeprecatedKeys_get_state(
-    obj: Any, save_state: SaveState
+    obj: Any, save_context: SaveContext
 ) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
@@ -143,20 +143,20 @@ def _DictWithDeprecatedKeys_get_state(
         "__loader__": "_DictWithDeprecatedKeys_get_instance",
     }
     content = {}
-    content["main"] = dict_get_state(obj, save_state)
+    content["main"] = dict_get_state(obj, save_context)
     content["_deprecated_key_to_new_key"] = dict_get_state(
-        obj._deprecated_key_to_new_key, save_state
+        obj._deprecated_key_to_new_key, save_context
     )
     res["content"] = content
     return res
 
 
 # TODO: remove once support for sklearn<1.2 is dropped.
-def _DictWithDeprecatedKeys_get_instance(state, load_state):
+def _DictWithDeprecatedKeys_get_instance(state, load_context):
     # _DictWithDeprecatedKeys is just a wrapper for dict
-    content = dict_get_instance(state["content"]["main"], load_state)
+    content = dict_get_instance(state["content"]["main"], load_context)
     deprecated_key_to_new_key = dict_get_instance(
-        state["content"]["_deprecated_key_to_new_key"], load_state
+        state["content"]["_deprecated_key_to_new_key"], load_context
     )
     res = _DictWithDeprecatedKeys(**content)
     res._deprecated_key_to_new_key = deprecated_key_to_new_key
