@@ -49,7 +49,7 @@ def audit_tree(tree, trusted):
     if trusted is True:
         return
 
-    breakpoint()
+    # breakpoint()
     unsafe = tree.get_unsafe_set()
     if isinstance(trusted, (list, set)):
         unsafe -= set(trusted)
