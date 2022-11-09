@@ -11,7 +11,7 @@ def get_instance(state, load_state: LoadState):
     """Create instance based on the state, using json if possible"""
 
     saved_id = state.get("__id__")
-    if saved_id and saved_id in load_state.memo:
+    if saved_id in load_state.memo:
         # an instance has already been loaded, just return the loaded instance
         return load_state.get_instance(saved_id)
 

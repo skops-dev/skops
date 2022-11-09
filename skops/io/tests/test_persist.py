@@ -88,7 +88,7 @@ def debug_dispatch_functions():
             assert "__class__" in result
             assert "__module__" in result
             assert "__loader__" in result
-
+            assert "__id__" in result
             return result
 
         return wrapper
@@ -103,6 +103,7 @@ def debug_dispatch_functions():
             assert "__class__" in state
             assert "__module__" in state
             assert "__loader__" in state
+            assert "__id__" in state
             assert isinstance(load_state, LoadState)
 
             result = func(state, load_state)
