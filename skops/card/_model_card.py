@@ -403,7 +403,7 @@ class Card:
             Card object.
         """
         sorted_importances_idx = permutation_importances.importances_mean.argsort()
-        fig, ax = plt.subplots()
+        _, ax = plt.subplots()
         ax.boxplot(
             x=permutation_importances.importances[sorted_importances_idx].T,
             labels=columns[sorted_importances_idx],
