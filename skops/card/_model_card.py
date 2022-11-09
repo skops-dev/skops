@@ -386,7 +386,7 @@ class Card:
         Parameters
         ----------
         permutation_importances : sklearn.utils.Bunch
-            Output of sklearn.inspection.permutation_importance()
+            Output of :func:`sklearn.inspection.permutation_importance`.
 
         columns : Index
             Column names of the data used to generate importances.
