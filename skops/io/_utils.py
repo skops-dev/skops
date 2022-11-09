@@ -89,9 +89,9 @@ DEFAULT_PROTOCOL = 0
 
 @dataclass(frozen=True)
 class SaveContext:
-    """State required for saving the objects
+    """Context required for saving the objects
 
-    This state is passed to each ``get_state_*`` function.
+    This context is passed to each ``get_state_*`` function.
 
     Parameters
     ----------
@@ -124,9 +124,9 @@ class SaveContext:
 
 @dataclass(frozen=True)
 class LoadContext:
-    """State required for loading an object
+    """Context required for loading an object
 
-    This state is passed to each ``get_instance_*`` function.
+    This context is passed to each ``get_instance_*`` function.
 
     Parameters
     ----------
