@@ -1,7 +1,7 @@
-import copy
 import os
 import pickle
 import tempfile
+import textwrap
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -11,11 +11,11 @@ import sklearn
 from huggingface_hub import CardData, metadata_load
 from sklearn.datasets import load_iris
 from sklearn.linear_model import LinearRegression, LogisticRegression
+from sklearn.tree import DecisionTreeClassifier
 
-import skops
 from skops import hub_utils
-from skops.card import Card, metadata_from_config
-from skops.card._model_card import PlotSection, TableSection
+from skops.card import metadata_from_config
+from skops.card._model_card import Card, PlotSection, TableSection
 from skops.io import dump
 
 
@@ -111,9 +111,45 @@ def test_save_model_card(destination_path, model_card):
     assert (Path(destination_path) / "README.md").exists()
 
 
-def test_hyperparameter_table(destination_path, model_card):
-    model_card = model_card.render()
-    assert "fit_intercept" in model_card
+def test_hyperparameter_table(model_card):
+    section_name = "Model description/Training Procedure/Hyperparameters"
+    result = model_card.select(section_name).content
+
+    lines = [
+        "The model is trained with below hyperparameters.",
+        "",
+        "<details>",
+        "<summary> Click to expand </summary>",
+        "",
+        "| Hyperparameter   | Value   |",
+        "|------------------|---------|",
+        "| copy_X           | True    |",
+        "| fit_intercept    | True    |",
+        "| n_jobs           |         |",
+        "| normalize        | False   |",
+        "| positive         | False   |",
+        "",
+        "</details>",
+    ]
+    # TODO: remove when dropping sklearn v0.24 and when dropping v1.1 and
+    # below. This is because the "normalize" parameter was changed after
+    # v0.24 will be removed completely in sklearn v1.2.
+    major, minor, *_ = sklearn.__version__.split(".")
+    major, minor = int(major), int(minor)
+    if (major >= 1) and (minor < 2):
+        lines[10] = "| normalize        | deprecated |"
+    elif (major >= 1) and (minor >= 2):
+        del lines[10]
+    expected = "\n".join(lines)
+
+    # remove multiple whitespaces and dashes, as they're not important and may
+    # differ depending on OS
+    expected = _strip_multiple_chars(expected, " ")
+    expected = _strip_multiple_chars(expected, "-")
+    result = _strip_multiple_chars(result, " ")
+    result = _strip_multiple_chars(result, "-")
+
+    assert result == expected
 
 
 def _strip_multiple_chars(text, char):
@@ -124,7 +160,7 @@ def _strip_multiple_chars(text, char):
     return text
 
 
-def test_hyperparameter_table_with_line_break(destination_path):
+def test_hyperparameter_table_with_line_break():
     # Hyperparameters can contain values with line breaks, "\n", in them. In
     # that case, the markdown table is broken. Check that the hyperparameter
     # table we create properly replaces the "\n" with "<br />".
@@ -133,80 +169,347 @@ def test_hyperparameter_table_with_line_break(destination_path):
             return {"fit_intercept": True, "n_jobs": "line\nwith\nbreak"}
 
     model_card = Card(EstimatorWithLbInParams())
-    model_card = model_card.render()
+    section_name = "Model description/Training Procedure/Hyperparameters"
+    text_hyperparams = model_card.select(section_name).content
+
     # remove multiple whitespaces, as they're not important
-    model_card = _strip_multiple_chars(model_card, " ")
-    assert "| n_jobs | line<br />with<br />break |" in model_card
+    text_cleaned = _strip_multiple_chars(text_hyperparams, " ")
+    assert "| n_jobs | line<br />with<br />break |" in text_cleaned
 
 
-def test_plot_model(destination_path, model_card):
-    model_card = model_card.render()
-    assert "<style>" in model_card
+def test_plot_model(model_card):
+    text_plot = model_card.select(
+        "Model description/Training Procedure/Model Plot"
+    ).content
+    # don't compare whole text, as it's quite long and non-deterministic
+    assert text_plot.startswith("The model plot is below.\n\n<style>#sk-")
+    assert "<style>" in text_plot
+    assert text_plot.endswith(
+        "<pre>LinearRegression()</pre></div></div></div></div></div>"
+    )
 
 
-def test_plot_model_false(destination_path, model_card):
+def test_plot_model_false(model_card):
     model = fit_model()
-    model_card = Card(model, model_diagram=False).render()
-    assert "<style>" not in model_card
+    model_card = Card(model, model_diagram=False)
+    text_plot = model_card.select(
+        "Model description/Training Procedure/Model Plot"
+    ).content
+    assert text_plot == "The model plot is below."
 
 
-def test_add(destination_path, model_card):
-    model_card = model_card.add(model_description="sklearn FTW").render()
-    assert "sklearn FTW" in model_card
+def test_render(model_card, destination_path):
+    file_name = destination_path / "README.md"
+    model_card.save(file_name)
+    with open(file_name, "r", encoding="utf-8") as f:
+        loaded = f.read()
+
+    rendered = model_card.render()
+    assert loaded == rendered
 
 
-def test_template_sections_not_mutated_by_save(destination_path, model_card):
-    template_sections_before = copy.deepcopy(model_card._template_sections)
-    model_card.save(Path(destination_path) / "README.md")
-    template_sections_after = copy.deepcopy(model_card._template_sections)
-    assert template_sections_before == template_sections_after
+def test_with_metadata(model_card):
+    model_card.metadata.foo = "something"
+    model_card.metadata.bar = "something else"
+    rendered = model_card.render()
+    expected = textwrap.dedent(
+        """
+        ---
+        foo: something
+        bar: something else
+        ---
+        """
+    ).strip()
+    assert rendered.startswith(expected)
+
+
+class TestSelect:
+    """Selecting sections from the model card"""
+
+    def test_select_existing_section(self, model_card):
+        section = model_card.select("Model description")
+        assert section.title == "Model description"
+
+    def test_select_existing_subsection(self, model_card):
+        section = model_card.select("Model description/Training Procedure")
+        assert section.title == "Training Procedure"
+
+        section = model_card.select(["Model description", "Training Procedure"])
+        assert section.title == "Training Procedure"
+
+    def test_select_non_existing_section_raises(self, model_card):
+        with pytest.raises(KeyError):
+            model_card.select("non-existing section")
+
+    def test_select_non_existing_subsection_raises(self, model_card):
+        with pytest.raises(KeyError):
+            model_card.select("Model description/non-existing subsection")
+
+        with pytest.raises(KeyError):
+            model_card.select(["Model description", "non-existing subsection"])
+
+    def test_select_non_existing_subsubsection_raises(self, model_card):
+        with pytest.raises(KeyError):
+            model_card.select(
+                "Model description/Training Procedure/non-existing sub-subsection"
+            )
+
+        with pytest.raises(KeyError):
+            model_card.select(
+                [
+                    "Model description",
+                    "Training Procedure",
+                    "non-existing sub-subsection",
+                ]
+            )
+
+    def test_select_non_existing_section_and_subsection_raises(self, model_card):
+        with pytest.raises(KeyError):
+            model_card.select(["non-existing section", "non-existing subsection"])
+
+    def test_select_empty_key_raises(self, model_card):
+        msg = r"Section name cannot be empty but got ''"
+        with pytest.raises(KeyError, match=msg):
+            model_card.select("")
+
+        msg = r"Section name cannot be empty but got '\[\]'"
+        with pytest.raises(KeyError, match=msg):
+            model_card.select([])
+
+    def test_select_empty_key_subsection_raises(self, model_card):
+        msg = r"Section name cannot be empty but got 'Model description/'"
+        with pytest.raises(KeyError, match=msg):
+            model_card.select("Model description/")
+
+        msg = r"Section name cannot be empty but got '\['Model description', ''\]'"
+        with pytest.raises(KeyError, match=msg):
+            model_card.select(["Model description", ""])
+
+    def test_default_sections_empty_card(self, model_card):
+        # Without prefill, the card should not contain the default sections
+        from skops.card._model_card import DEFAULT_TEMPLATE
+
+        # model_card (which is prefilled) contains all default sections
+        for key in DEFAULT_TEMPLATE:
+            model_card.select(key)
+
+        # empty card does not contain those sections
+        model = fit_model()
+        card_empty = Card(model, model_diagram=False, prefill=False)
+        for key in DEFAULT_TEMPLATE:
+            with pytest.raises(KeyError):
+                card_empty.select(key)
+
+
+class TestAdd:
+    """Adding sections and subsections"""
+
+    def test_add_new_section(self, model_card):
+        model_card = model_card.add(**{"A new section": "sklearn FTW"})
+        section = model_card.select("A new section")
+        assert section.title == "A new section"
+        assert section.content == "sklearn FTW"
+
+    def test_add_new_subsection(self, model_card):
+        model_card = model_card.add(
+            **{"Model description/A new section": "sklearn FTW"}
+        )
+        section = model_card.select("Model description/A new section")
+        assert section.title == "A new section"
+        assert section.content == "sklearn FTW"
+
+        # make sure that the new subsection is the last subsection
+        subsections = model_card._data["Model description"].subsections
+        assert len(subsections) > 1  # exclude trivial case of only one subsection
+
+        last_subsection = list(subsections.values())[-1]
+        assert last_subsection is section
+
+    def test_add_new_section_and_subsection(self, model_card):
+        model_card = model_card.add(**{"A new section/A new subsection": "sklearn FTW"})
+
+        section = model_card.select("A new section")
+        assert section.title == "A new section"
+        assert section.content == ""
+
+        subsection = model_card.select("A new section/A new subsection")
+        assert subsection.title == "A new subsection"
+        assert subsection.content == "sklearn FTW"
+
+    def test_add_new_section_with_slash_in_name(self, model_card):
+        model_card = model_card.add(**{"A new\\/section": "sklearn FTW"})
+        section = model_card.select("A new\\/section")
+        assert section.title == "A new/section"
+        assert section.content == "sklearn FTW"
+
+    def test_add_new_subsection_with_slash_in_name(self, model_card):
+        model_card = model_card.add(
+            **{"Model description/A new\\/section": "sklearn FTW"}
+        )
+        section = model_card.select("Model description/A new\\/section")
+        assert section.title == "A new/section"
+        assert section.content == "sklearn FTW"
+
+    def test_add_content_to_existing_section(self, model_card):
+        # Add content (not new sections) to an existing section. Make sure that
+        # existing subsections are not affected by this
+        section = model_card.select("Model description")
+        num_subsection_before = len(section.subsections)
+        assert num_subsection_before > 0  # exclude trivial case of empty sections
+
+        # add content to "Model description" section
+        model_card = model_card.add(**{"Model description": "sklearn FTW"})
+        section = model_card.select("Model description")
+        num_subsection_after = len(section.subsections)
+
+        assert num_subsection_before == num_subsection_after
+        assert section.content == "sklearn FTW"
+
+
+class TestDelete:
+    """Deleting sections and subsections"""
+
+    def test_delete_section(self, model_card):
+        model_card.select("Model description")
+        model_card.delete("Model description")
+        with pytest.raises(KeyError):
+            model_card.select("Model description")
+
+    def test_delete_subsection(self, model_card):
+        model_card.select("Model description/Training Procedure")
+        model_card.delete("Model description/Training Procedure")
+        with pytest.raises(KeyError):
+            model_card.select("Model description/Training Procedure")
+        # parent section still exists
+        model_card.delete("Model description")
+
+    def test_delete_subsubsection(self, model_card):
+        model_card.select("Model description/Training Procedure/Hyperparameters")
+        model_card.delete("Model description/Training Procedure/Hyperparameters")
+        with pytest.raises(KeyError):
+            model_card.select("Model description/Training Procedure/Hyperparameters")
+        # parent section still exists
+        model_card.delete("Model description/Training Procedure")
+
+    def test_delete_section_with_slash_in_name(self, model_card):
+        model_card.add(**{"A new\\/section": "some content"})
+        model_card.select("A new\\/section")
+        model_card.delete("A new\\/section")
+        with pytest.raises(KeyError):
+            model_card.select("A new\\/section")
+
+    def test_delete_non_existing_section_raises(self, model_card):
+        with pytest.raises(KeyError):
+            model_card.delete("non-existing section")
+
+    def test_delete_non_existing_subsection_raises(self, model_card):
+        with pytest.raises(KeyError):
+            model_card.delete("Model description/non-existing subsection")
+
+        with pytest.raises(KeyError):
+            model_card.delete(["Model description", "non-existing subsection"])
+
+    def test_delete_non_existing_subsubsection_raises(self, model_card):
+        with pytest.raises(KeyError):
+            model_card.delete(
+                "Model description/Training Procedure/non-existing sub-subsection"
+            )
+
+        with pytest.raises(KeyError):
+            model_card.delete(
+                [
+                    "Model description",
+                    "Training Procedure",
+                    "non-existing sub-subsection",
+                ]
+            )
+
+    def test_delete_non_existing_section_and_subsection_raises(self, model_card):
+        with pytest.raises(KeyError):
+            model_card.delete(["non-existing section", "non-existing subsection"])
+
+    def test_delete_empty_key_raises(self, model_card):
+        msg = r"Section name cannot be empty but got ''"
+        with pytest.raises(KeyError, match=msg):
+            model_card.delete("")
+
+        msg = r"Section name cannot be empty but got '\[\]'"
+        with pytest.raises(KeyError, match=msg):
+            model_card.delete([])
+
+    def test_delete_empty_key_subsection_raises(self, model_card):
+        msg = r"Section name cannot be empty but got 'Model description/'"
+        with pytest.raises(KeyError, match=msg):
+            model_card.delete("Model description/")
+
+        msg = r"Section name cannot be empty but got '\['Model description', ''\]'"
+        with pytest.raises(KeyError, match=msg):
+            model_card.delete(["Model description", ""])
 
 
 def test_add_plot(destination_path, model_card):
     plt.plot([4, 5, 6, 7])
     plt.savefig(Path(destination_path) / "fig1.png")
-    model_card = model_card.add_plot(fig1="fig1.png").render()
-    assert "![fig1](fig1.png)" in model_card
+    model_card = model_card.add_plot(fig1="fig1.png")
+    plot_content = model_card.select("fig1").content.format()
+    assert plot_content == "![fig1](fig1.png)"
 
 
-def test_temporary_plot(destination_path, model_card):
-    # test if the additions are made to a temporary template file
-    # and not to default template or template provided
-    root = skops.__path__
-    # read original template
-    with open(Path(root[0]) / "card" / "default_template.md") as f:
-        default_template = f.read()
+def test_add_plot_to_existing_section(destination_path, model_card):
     plt.plot([4, 5, 6, 7])
     plt.savefig(Path(destination_path) / "fig1.png")
-    model_card.add_plot(fig1="fig1.png")
-    model_card.save(Path(destination_path) / "README.md")
-    # check if default template is not modified
-    with open(Path(root[0]) / "card" / "default_template.md") as f:
-        default_template_post = f.read()
-    assert default_template == default_template_post
+    model_card = model_card.add_plot(**{"Model description/Figure 1": "fig1.png"})
+    plot_content = model_card.select("Model description/Figure 1").content.format()
+    assert plot_content == "![Figure 1](fig1.png)"
 
 
-def test_metadata_keys(destination_path, model_card):
-    # test if the metadata is added on top of the card
+def test_adding_metadata(model_card):
+    # test if the metadata is added to the card
     model_card.metadata.tags = "dummy"
-    model_card = model_card.render()
-    assert "tags: dummy" in model_card
+    metadata = list(model_card._generate_metadata(model_card.metadata))
+    assert len(metadata) == 1
+    assert metadata[0] == "metadata.tags=dummy,"
 
 
-def test_default_sections_save(model_card):
-    # test if the plot and hyperparameters are only added during save
-    assert "<style>" not in str(model_card)
-    assert "fit_intercept" not in str(model_card)
+@pytest.mark.xfail(reason="Waiting for update of model attribute")
+def test_override_model(model_card):
+    # test that the model can be overridden and dependent sections are updated
+    hyperparams_before = model_card.select(
+        "Model description/Training Procedure/Hyperparameters"
+    ).content
+    model_card.model = DecisionTreeClassifier()
+    hyperparams_after = model_card.select(
+        "Model description/Training Procedure/Hyperparameters"
+    ).content
+
+    assert hyperparams_before != hyperparams_after
+    assert "fit_intercept" not in hyperparams_before
+    assert "min_samples_leaf" in hyperparams_after
 
 
 def test_add_metrics(destination_path, model_card):
-    model_card.add_metrics(**{"acc": 0.1})
-    model_card.add_metrics(f1=0.1)
-    card = model_card.render()
-    assert ("acc" in card) and ("f1" in card) and ("0.1" in card)
+    model_card.add_metrics(**{"acc": "0.1"})  # str
+    model_card.add_metrics(f1=0.1)  # float
+    model_card.add_metrics(awesomeness=123)  # int
+
+    eval_metric_content = model_card.select(
+        "Model description/Evaluation Results"
+    ).content
+    expected = "\n".join(
+        [
+            "| Metric      |   Value |",
+            "|-------------|---------|",
+            "| acc         |     0.1 |",
+            "| f1          |     0.1 |",
+            "| awesomeness |   123   |",
+        ]
+    )
+    assert eval_metric_content.endswith(expected)
 
 
-def test_code_autogeneration(destination_path, pkl_model_card_metadata_from_config):
+def test_code_autogeneration(
+    model_card, destination_path, pkl_model_card_metadata_from_config
+):
     # test if getting started code is automatically generated
     metadata = metadata_load(local_path=Path(destination_path) / "README.md")
     filename = metadata["model_file"]
@@ -257,125 +560,107 @@ class TestCardRepr:
     def card(self):
         model = LinearRegression(fit_intercept=False)
         card = Card(model=model)
+        card.add(Figures="")
         card.add(
-            model_description="A description",
-            model_card_authors="Jane Doe",
+            **{
+                "Model Description": "A description",
+                "Model Card Authors": "Jane Doe",
+            }
         )
         card.add_plot(
-            roc_curve="ROC_curve.png",
-            confusion_matrix="confusion_matrix.jpg",
+            **{
+                "Figures/ROC": "ROC.png",
+                "Figures/Confusion matrix": "confusion_matrix.jpg",
+            }
         )
-        card.add_table(search_results={"split": [1, 2, 3], "score": [4, 5, 6]})
+        card.add_table(**{"Search Results": {"split": [1, 2, 3], "score": [4, 5, 6]}})
         return card
 
-    @pytest.mark.parametrize("meth", [repr, str])
-    def test_card_repr(self, card: Card, meth):
-        result = meth(card)
-        expected = (
-            "Card(\n"
-            "  model=LinearRegression(fit_intercept=False),\n"
-            "  model_description='A description',\n"
-            "  model_card_authors='Jane Doe',\n"
-            "  roc_curve='ROC_curve.png',\n"
-            "  confusion_matrix='confusion_matrix.jpg',\n"
-            "  search_results=Table(3x2),\n"
-            ")"
+    @pytest.fixture
+    def expected_lines(self):
+        card_repr = """
+        Card(
+          model=LinearRegression(fit_intercept=False)
+          Model description/Training Procedure/...ed | | positive | False | </details>,
+          Model description/Training Procedure/...</pre></div></div></div></div></div>,
+          Model description/Evaluation Results=...ric | Value | |----------|---------|,
+          Model Card Authors=Jane Doe,
+          Figures/ROC='ROC.png',
+          Figures/Confusion matrix='confusion_matrix.jpg',
+          Model Description=A description,
+          Search Results=Table(3x2),
         )
+        """
+        expected = textwrap.dedent(card_repr).strip()
+        lines = expected.split("\n")
+
+        # TODO: remove when dropping sklearn v0.24 and when dropping v1.1 and
+        # below. This is because the "normalize" parameter was changed after
+        # v0.24 will be removed completely in sklearn v1.2.
+        major, minor, *_ = sklearn.__version__.split(".")
+        if int(major) < 1:
+            # v0.24: "deprecated" -> "False"
+            lines[2] = (
+                "  Model description/Training Procedure/...se | | positive | False | "
+                "</details>,"
+            )
+        elif int(minor) >= 2:
+            # >= v1.2: remove argument completely
+            lines[2] = (
+                "  Model description/Training Procedure/... | | | positive | False | "
+                "</details>,"
+            )
+        return lines
+
+    @pytest.mark.parametrize("meth", [repr, str])
+    def test_card_repr(self, card: Card, meth, expected_lines):
+        result = meth(card)
+        expected = "\n".join(expected_lines)
         assert result == expected
 
     @pytest.mark.parametrize("meth", [repr, str])
-    def test_very_long_lines_are_shortened(self, card: Card, meth):
+    def test_card_repr_empty_card(self, meth):
+        """Without prefill, the repr should be empty"""
+        model = fit_model()
+        card = Card(model, model_diagram=False, prefill=False)
+        result = meth(card)
+        expected = textwrap.dedent(
+            """
+        Card(
+          model=LinearRegression()
+        )
+        """
+        ).strip()
+        assert result == expected
+
+    @pytest.mark.parametrize("meth", [repr, str])
+    def test_very_long_lines_are_shortened(self, card: Card, meth, expected_lines):
         card.add(my_section="very long line " * 100)
-        result = meth(card)
-        expected = (
-            "Card(\n  model=LinearRegression(fit_intercept=False),\n"
-            "  model_description='A description',\n  model_card_authors='Jane Doe',\n"
-            "  my_section='very long line very lon...line very long line very long line"
-            " ',\n"
-            "  roc_curve='ROC_curve.png',\n"
-            "  confusion_matrix='confusion_matrix.jpg',\n"
-            "  search_results=Table(3x2),\n"
-            ")"
+
+        # expected results contain 1 line at the very end
+        extra_line = (
+            "  my_section=very long line very long l... "
+            "line very long line very long line ,"
         )
+        expected_lines.insert(-1, extra_line)
+        expected = "\n".join(expected_lines)
+
+        result = meth(card)
         assert result == expected
 
     @pytest.mark.parametrize("meth", [repr, str])
-    def test_without_model_attribute(self, card: Card, meth):
+    def test_without_model_attribute(self, card: Card, meth, expected_lines):
         del card.model
+
+        # remove line 1 from expected results, which corresponds to the model
+        del expected_lines[1]
+        expected = "\n".join(expected_lines)
+
         result = meth(card)
-        expected = (
-            "Card(\n"
-            "  model_description='A description',\n"
-            "  model_card_authors='Jane Doe',\n"
-            "  roc_curve='ROC_curve.png',\n"
-            "  confusion_matrix='confusion_matrix.jpg',\n"
-            "  search_results=Table(3x2),\n"
-            ")"
-        )
         assert result == expected
 
     @pytest.mark.parametrize("meth", [repr, str])
-    def test_no_template_sections(self, card: Card, meth):
-        card._template_sections = {}
-        result = meth(card)
-        expected = (
-            "Card(\n"
-            "  model=LinearRegression(fit_intercept=False),\n"
-            "  roc_curve='ROC_curve.png',\n"
-            "  confusion_matrix='confusion_matrix.jpg',\n"
-            "  search_results=Table(3x2),\n"
-            ")"
-        )
-        assert result == expected
-
-    @pytest.mark.parametrize("meth", [repr, str])
-    def test_no_extra_sections(self, card: Card, meth):
-        card._extra_sections = []
-        result = meth(card)
-        expected = (
-            "Card(\n"
-            "  model=LinearRegression(fit_intercept=False),\n"
-            "  model_description='A description',\n"
-            "  model_card_authors='Jane Doe',\n"
-            ")"
-        )
-        assert result == expected
-
-    @pytest.mark.parametrize("meth", [repr, str])
-    def test_template_section_val_not_str(self, card: Card, meth):
-        card._template_sections["model_description"] = [1, 2, 3]  # type: ignore
-        result = meth(card)
-        expected = (
-            "Card(\n"
-            "  model=LinearRegression(fit_intercept=False),\n"
-            "  model_description=[1, 2, 3],\n"
-            "  model_card_authors='Jane Doe',\n"
-            "  roc_curve='ROC_curve.png',\n"
-            "  confusion_matrix='confusion_matrix.jpg',\n"
-            "  search_results=Table(3x2),\n"
-            ")"
-        )
-        assert result == expected
-
-    @pytest.mark.parametrize("meth", [repr, str])
-    def test_extra_sections_val_not_str(self, card: Card, meth):
-        card._extra_sections.append(("some section", {1: 2}))
-        result = meth(card)
-        expected = (
-            "Card(\n"
-            "  model=LinearRegression(fit_intercept=False),\n"
-            "  model_description='A description',\n"
-            "  model_card_authors='Jane Doe',\n"
-            "  roc_curve='ROC_curve.png',\n"
-            "  confusion_matrix='confusion_matrix.jpg',\n"
-            "  search_results=Table(3x2),\n"
-            "  some section={1: 2},\n"
-            ")"
-        )
-        assert result == expected
-
-    @pytest.mark.parametrize("meth", [repr, str])
-    def test_with_metadata(self, card: Card, meth):
+    def test_with_metadata(self, card: Card, meth, expected_lines):
         metadata = CardData(
             language="fr",
             license="bsd",
@@ -385,22 +670,18 @@ class TestCardRepr:
             widget={"something": "very-long"},
         )
         card.metadata = metadata
-        expected = (
-            "Card(\n"
-            "  model=LinearRegression(fit_intercept=False),\n"
-            "  metadata.language=fr,\n"
-            "  metadata.license=bsd,\n"
-            "  metadata.library_name=sklearn,\n"
-            "  metadata.tags=['sklearn', 'tabular-classification'],\n"
-            "  metadata.foo={'bar': 123},\n"
-            "  metadata.widget={...},\n"
-            "  model_description='A description',\n"
-            "  model_card_authors='Jane Doe',\n"
-            "  roc_curve='ROC_curve.png',\n"
-            "  confusion_matrix='confusion_matrix.jpg',\n"
-            "  search_results=Table(3x2),\n"
-            ")"
-        )
+
+        # metadata comes after model line, i.e. position 2
+        extra_lines = [
+            "  metadata.language=fr,",
+            "  metadata.license=bsd,",
+            "  metadata.library_name=sklearn,",
+            "  metadata.tags=['sklearn', 'tabular-classification'],",
+            "  metadata.foo={'bar': 123},",
+            "  metadata.widget={...},",
+        ]
+        expected = "\n".join(expected_lines[:2] + extra_lines + expected_lines[2:])
+
         result = meth(card)
         assert result == expected
 

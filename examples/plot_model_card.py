@@ -30,7 +30,7 @@ from sklearn.metrics import (
 from sklearn.model_selection import HalvingGridSearchCV, train_test_split
 
 from skops import hub_utils
-from skops.card._card_alternative import Card, metadata_from_config
+from skops.card import Card, metadata_from_config
 
 # %%
 # Data
