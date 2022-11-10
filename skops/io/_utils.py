@@ -5,7 +5,6 @@ import json  # type: ignore
 import sys
 from dataclasses import dataclass, field
 from functools import singledispatch
-from types import FunctionType
 from typing import Any
 from zipfile import ZipFile
 
@@ -61,10 +60,6 @@ def _import_obj(module, cls_or_func, package=None):
 
 def gettype(state):
     if "__module__" in state and "__class__" in state:
-        if state["__class__"] == "function":
-            # This special case is due to how functions are serialized. We
-            # could try to change it.
-            return FunctionType
         return _import_obj(state["__module__"], state["__class__"])
     return None
 
@@ -102,9 +97,6 @@ class SaveState:
     ----------
     zip_file: zipfile.ZipFile
         The zip file to write the data to, must be in write mode.
-
-    path: pathlib.Path
-        The path to the directory to store the object in.
 
     protocol: int
         The protocol of the persistence format. Right now, there is only
