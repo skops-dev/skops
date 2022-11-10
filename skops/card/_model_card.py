@@ -10,12 +10,12 @@ from pathlib import Path
 from reprlib import Repr
 from typing import Any, Optional, Union
 
-import matplotlib.pyplot as plt
 from huggingface_hub import CardData, ModelCard
 from sklearn.utils import estimator_html_repr
 from tabulate import tabulate  # type: ignore
 
 import skops
+from skops.utils.fixes import metadata
 
 # Repr attributes can be used to control the behavior of repr
 aRepr = Repr()
@@ -402,6 +402,15 @@ class Card:
         self : object
             Card object.
         """
+        try:
+            metadata.version("matplotlib")
+        except metadata.PackageNotFoundError:
+            raise ModuleNotFoundError(
+                "This feature requires matplotlib to be installed."
+            )
+
+        import matplotlib.pyplot as plt
+
         sorted_importances_idx = permutation_importances.importances_mean.argsort()
         _, ax = plt.subplots()
         ax.boxplot(

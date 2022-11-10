@@ -1,8 +1,10 @@
 import copy
 import os
 import pickle
+import sys
 import tempfile
 from pathlib import Path
+from unittest import mock
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -187,6 +189,24 @@ def test_permutation_importances(
     )
     temp_path = Path(destination_path) / "importance.png"
     assert f"![Permutation Importance]({temp_path}" in model_card.render()
+
+
+def test_matplotlib_dependency_error(
+    iris_estimator, iris_data, model_card, destination_path
+):
+    with mock.patch.dict(sys.modules):
+        sys.modules["matplotlib"] = None
+        X, y = iris_data
+        result = permutation_importance(
+            iris_estimator, X, y, n_repeats=10, random_state=42, n_jobs=2
+        )
+        with pytest.raises(ModuleNotFoundError):
+            model_card.add_permutation_importances(
+                result,
+                X.columns,
+                Path(destination_path) / "importance.png",
+                "Permutation Importance",
+            )
 
 
 def test_multiple_permutation_importances(
