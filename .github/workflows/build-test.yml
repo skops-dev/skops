@@ -33,7 +33,20 @@ jobs:
     timeout-minutes: 15
 
     steps:
+
+    # The following two steps are workarounds to retrieve the "real" commit
+    # message and make it available in later steps. This is because we want to
+    # check the content of the commit message, but on PRs, it's replaced by an
+    # artificial commit message. See https://github.com/skops-dev/skops/pull/147
     - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+        ref: ${{github.event.after}}
+
+    # - run: |
+    #     echo PR_COMMIT_MESSAGE=$(git log -1 --pretty=format:\"%s\") >> $GITHUB_ENV
+    #   shell: bash
+
     - name: Set up Python ${{ matrix.python }}
       uses: actions/setup-python@v3
       with:
@@ -63,10 +76,16 @@ jobs:
       env:
         SUPER_SECRET: ${{ secrets.HF_HUB_TOKEN }}
       run: |
-        python -m pytest -s -v --cov-report=xml skops/
+        python -m pytest -s -v --cov-report=xml -m "not inference" skops/
 
     - name: Mypy
       run: mypy --config-file pyproject.toml skops
+
+    - name: Inference tests (conditional)
+      # if: contains(env.PR_COMMIT_MESSAGE, '[CI inference]')
+      if: contains(github.event.head_commit.message, '[CI inference]')
+      run: |
+        python -m pytest -s -v -m "inference" skops/
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
