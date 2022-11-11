@@ -506,7 +506,18 @@ def test_get_column_names():
     expected_columns = [f"x{x}" for x in range(10)]
     assert _get_column_names(X_array) == expected_columns
 
-    expected_columns = [f"column{x}" for x in range(10)]
+    expected_columns = ["foo", "bar"]
+    X_array = np.array([(1, 2), (3, 4)], dtype=[("foo", "i8"), ("bar", "f4")])
+    assert _get_column_names(X_array) == expected_columns
+
+    expected_columns = ["f0", "f1", "f2"]  # Default names
+    X_array = np.zeros(3, dtype="int8, float32, float64")
+    assert _get_column_names(X_array) == expected_columns
+
+    expected_columns = ["x0"]
+    X_array = np.zeros(3)
+    assert _get_column_names(X_array) == expected_columns
+
     X_df = pd.DataFrame(X_array, columns=expected_columns)
     assert _get_column_names(X_df) == expected_columns
 
