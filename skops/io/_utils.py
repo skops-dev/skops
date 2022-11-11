@@ -132,7 +132,6 @@ class LoadContext:
     ----------
     src: zipfile.ZipFile
         The zip file the target object is saved in
-
     """
 
     src: ZipFile
