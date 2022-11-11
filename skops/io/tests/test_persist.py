@@ -53,7 +53,7 @@ from sklearn.utils.estimator_checks import (
 )
 
 import skops
-from skops.io import dump, dumps, load, loads
+from skops.io import dump, dumps, get_untrusted_types, load, loads
 from skops.io._dispatch import NODE_TYPE_MAPPING, get_tree
 from skops.io._sklearn import UNSUPPORTED_TYPES
 from skops.io._utils import _get_state, get_state
@@ -480,7 +480,12 @@ def test_can_persist_fitted(estimator, request):
             else:
                 estimator.fit(X)
 
-    loaded = loads(dumps(estimator), trusted=True)
+    # test that we can get a list of untrusted types. This is a smoke test
+    # to make sure there are no errors running this method.
+    # it is in this test to save time, as it requires a fitted estimator.
+    untrusted_types = get_untrusted_types(data=dumps(estimator))
+
+    loaded = loads(dumps(estimator), trusted=untrusted_types)
     assert_params_equal(estimator.__dict__, loaded.__dict__)
 
     for method in [
