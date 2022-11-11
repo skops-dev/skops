@@ -1,5 +1,6 @@
 import pytest
 
+from skops.io import dumps, get_untrusted_types
 from skops.io._audit import audit_tree, check_type
 from skops.io._general import DictNode, dict_get_state
 from skops.io._utils import SaveState
@@ -30,8 +31,11 @@ def test_audit_tree_untrusted():
     ):
         audit_tree(node, trusted=False)
 
+    untrusted_list = get_untrusted_types(data=dumps(var))
+    assert untrusted_list == ["test_audit.Test"]
+
     # passing the type would fix it.
-    audit_tree(node, trusted=["test_audit.Test"])
+    audit_tree(node, trusted=untrusted_list)
 
 
 def test_audit_tree_defaults():

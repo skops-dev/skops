@@ -64,7 +64,7 @@ using :func:`skops.io.get_untrusted_types`:
 .. code:: python
 
     from skops.io import get_untrusted_types
-    untrusted_types = get_untrusted_types("my-logistic-regression.skops")
+    untrusted_types = get_untrusted_types(file="my-logistic-regression.skops")
     print(untrusted_types)
 
 Once you check the list and you validate that everything in the list is safe,

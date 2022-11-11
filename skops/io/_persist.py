@@ -204,6 +204,6 @@ def get_untrusted_types(*, data=None, file=None):
     with ZipFile(content, "r") as zip_file:
         schema = json.loads(zip_file.read("schema.json"))
         tree = get_tree(schema, src=zip_file)
-        untrusted_types = tree.get_untrusted_types()
+        untrusted_types = tree.get_unsafe_set()
 
-    return untrusted_types
+    return list(untrusted_types)
