@@ -395,6 +395,7 @@ def repo_path_for_inference():
 
 
 @pytest.mark.network
+@pytest.mark.inference
 @pytest.mark.skipif(
     IS_SKLEARN_DEV_BUILD, reason="Inference tests cannot run with sklearn dev build"
 )
@@ -414,7 +415,8 @@ def test_inference(
     repo_path_for_inference,
     destination_path,
 ):
-    # test inference backend for classifier and regressor models.
+    # test inference backend for classifier and regressor models. This test can
+    # take a lot of time and be flaky.
     client = HfApi()
 
     repo_path = repo_path_for_inference
