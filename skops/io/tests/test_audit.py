@@ -51,7 +51,6 @@ def test_audit_tree_untrusted():
 
 def test_audit_tree_defaults():
     var = {"a": 1, 2: "b"}
-    # breakpoint()
     state = dict_get_state(var, SaveState(None, 0, {}))
     node = DictNode(state, None, trusted=False)
     audit_tree(node, trusted=[])

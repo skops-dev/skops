@@ -19,6 +19,8 @@ def check_type(module_name, type_name, trusted):
     is_safe : bool
         True if the type is safe, False otherwise.
     """
+    if trusted is True:
+        return True
     return module_name + "." + type_name in trusted
 
 
@@ -49,7 +51,6 @@ def audit_tree(tree, trusted):
     if trusted is True:
         return
 
-    # breakpoint()
     unsafe = tree.get_unsafe_set()
     if isinstance(trusted, (list, set)):
         unsafe -= set(trusted)

@@ -94,6 +94,7 @@ class ReduceNode(Node):
         self.args = get_tree(reduce["args"], src)
         self.constructor = constructor
         self.attrs = get_tree(state["content"], src)
+        self.children = {"attrs": Node, "args": Node}
 
     def construct(self):
         args = self.args.construct()
@@ -125,6 +126,7 @@ def tree_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
 class TreeNode(ReduceNode):
     def __init__(self, state, src, trusted=False):
         super().__init__(state, src, constructor=Tree, trusted=trusted)
+        self.trusted = self._get_trusted(trusted, [get_module(Tree) + ".Tree"])
 
 
 def sgd_loss_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
