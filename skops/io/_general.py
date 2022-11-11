@@ -162,15 +162,21 @@ class FunctionNode(Node):
     def construct(self):
         return _import_obj(self.content["module_path"], self.content["function"])
 
+    def _get_function_name(self):
+        return self.content["module_path"] + "." + self.content["function"]
+
     @property
     def is_safe(self):
-        return False
+        return self._get_function_name() in self.trusted
 
     def get_safety_tree(self, report_safe=True):
         raise NotImplementedError()
 
     def get_unsafe_set(self):
-        raise NotImplementedError()
+        if self.is_safe:
+            return set()
+
+        return {self._get_function_name()}
 
 
 def partial_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
