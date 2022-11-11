@@ -49,20 +49,37 @@ The code snippet below illustrates how to use :func:`skops.io.dump` and
     clf.fit(X_train, y_train)
     dump(clf, "my-logistic-regression.skops")
     # ...
-    loaded = load("my-logistic-regression.skops")
+    loaded = load("my-logistic-regression.skops", trusted=True)
     loaded.predict(X_test)
 
     # in memory
     from skops.io import dumps, loads
     serialized = dumps(clf)
-    loaded = loads(serialized)
+    loaded = loads(serialized, trusted=True)
 
-At the moment, we support the vast majority of sklearn estimators. This includes
-complex use cases such as :class:`sklearn.pipeline.Pipeline`,
+Note that you should only load files with ``trusted=True`` if you trust the
+source. Otherwise you can get a list of untrusted types present in the dump
+using :func:`skops.io.get_untrusted_types`:
+
+.. code:: python
+
+    from skops.io import get_untrusted_types
+    untrusted_types = get_untrusted_types("my-logistic-regression.skops")
+    print(untrusted_types)
+
+Once you check the list and you validate that everything in the list is safe,
+you can load the file with ``trusted=untrusted_types``:
+
+.. code:: python
+
+    loaded = load("my-logistic-regression.skops", trusted=untrusted_types)
+
+At the moment, we support the vast majority of sklearn estimators. This
+includes complex use cases such as :class:`sklearn.pipeline.Pipeline`,
 :class:`sklearn.model_selection.GridSearchCV`, classes using Cython code, such
-as :class:`sklearn.tree.DecisionTreeClassifier`, and more. If you discover an sklearn
-estimator that does not work, please open an issue on the skops `GitHub page
-<https://github.com/skops-dev/skops/issues>`_ and let us know.
+as :class:`sklearn.tree.DecisionTreeClassifier`, and more. If you discover an
+sklearn estimator that does not work, please open an issue on the skops `GitHub
+page <https://github.com/skops-dev/skops/issues>`_ and let us know.
 
 In contrast to ``pickle``, skops cannot persist arbitrary Python code. This
 means if you have custom functions (say, a custom function to be used with
@@ -74,16 +91,16 @@ Roadmap
 -------
 
 Currently, it is still possible to run insecure code when using skops
-persistence. For example, it's possible to load a save file that evaluates arbitrary
-code using :func:`eval`. However, we have concrete plans on how to mitigate
-this, so please stay updated.
+persistence. For example, it's possible to load a save file that evaluates
+arbitrary code using :func:`eval`. However, we have concrete plans on how to
+mitigate this, so please stay updated.
 
 On top of trying to support persisting all relevant sklearn objects, we plan on
-making persistence extensible for other libraries. As a user, this means that if
-you trust a certain library, you will be able to tell skops to load code from
-that library. As a library author, there will be a clear path of what needs to
-be done to add secure persistence to your library, such that skops can save and
-load code from your library.
+making persistence extensible for other libraries. As a user, this means that
+if you trust a certain library, you will be able to tell skops to load code
+from that library. As a library author, there will be a clear path of what
+needs to be done to add secure persistence to your library, such that skops can
+save and load code from your library.
 
 To follow what features are currently planned, filter for the `"persistence"
 label <https://github.com/skops-dev/skops/labels/persistence>`_ in our GitHub

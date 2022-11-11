@@ -144,7 +144,7 @@ def loads(data, trusted=False):
     Parameters
     ----------
     data: bytes
-        The file name of the object to be loaded.
+        The dumped data to be loaded in bytes format.
 
     trusted: bool, or list of str, default=False
         If ``True``, the object will be loaded without any security checks. If
@@ -168,3 +168,42 @@ def loads(data, trusted=False):
         instance = tree.construct()
 
     return instance
+
+
+def get_untrusted_types(*, data=None, file=None):
+    """Get a list of untrusted types in a skops dump.
+
+    Parameters
+    ----------
+    data: bytes
+        The data to be checked, in bytes format.
+
+    file: str or Path
+        The file to be checked.
+
+    Returns
+    -------
+    untrusted_types: list of str
+        The list of untrusted types in the dump.
+
+    Notes
+    -----
+    Only one of data or file should be passed.
+    """
+    if data and file:
+        raise ValueError("Only one of data or file should be passed.")
+
+    if data:
+        content = io.BytesIO(data)
+    else:
+        content = file
+
+    if isinstance(data, str):
+        raise TypeError("Can't load skops format from string, pass bytes")
+
+    with ZipFile(content, "r") as zip_file:
+        schema = json.loads(zip_file.read("schema.json"))
+        tree = get_tree(schema, src=zip_file)
+        untrusted_types = tree.get_untrusted_types()
+
+    return untrusted_types
