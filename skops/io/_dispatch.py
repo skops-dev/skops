@@ -14,7 +14,8 @@ class Node:
         self.trusted = trusted
         self._is_safe = None
 
-    def _get_trusted(self, trusted, default):
+    @classmethod
+    def _get_trusted(cls, trusted, default):
         """Return a trusted list, or True.
 
         If `trusted` is `False`, we return the `defaults`, otherwise the
@@ -31,14 +32,14 @@ class Node:
 
     def _get_iterable_safety(self, values):
         """Check if members of an iterable are all safe."""
-        is_safe = True
         for item in values:
             # primitive types are always trusted
             if type(item) in PRIMITIVES_TYPES:
                 continue
 
-            is_safe = is_safe and item.is_safe
-        return is_safe
+            if not item.is_safe:
+                return False
+        return True
 
     @property
     def is_self_safe(self):
