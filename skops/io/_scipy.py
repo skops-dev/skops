@@ -43,6 +43,7 @@ class SparseMatrixNode(Node):
             )
 
         self.content = io.BytesIO(src.read(state["file"]))
+        self.children = {}
 
     def construct(self):
         # scipy load_npz uses numpy.save with allow_pickle=False under the
