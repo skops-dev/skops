@@ -175,6 +175,10 @@ class _DictWithDeprecatedKeysNode(Node):
         self._deprecated_key_to_new_key = get_tree(
             state["content"]["_deprecated_key_to_new_key"], src
         )
+        self.trusted = [
+            get_module(_DictWithDeprecatedKeysNode) + "._DictWithDeprecatedKeys"
+        ]
+        self.children = {"main": Node, "_deprecated_key_to_new_key": Node}
 
     def construct(self):
         instance = _DictWithDeprecatedKeys(**self.main.construct())

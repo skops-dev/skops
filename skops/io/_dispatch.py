@@ -150,6 +150,8 @@ class Node:
             res.add(self.module_name + "." + self.class_name)
 
         for child, ch_type in self.children.items():
+            if getattr(self, child) is None:
+                continue
             if ch_type is list:
                 for value in getattr(self, child):
                     res.update(value.get_unsafe_set())
