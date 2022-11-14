@@ -391,27 +391,26 @@ class Card:
         template_sections = copy.deepcopy(self._template_sections)
 
         if self.metadata:
-            if self.metadata.to_dict().get("model_file"):
-                model_file = self.metadata.to_dict().get("model_file")
-                if model_file and model_file.endswith(".skops"):
-                    template_sections["get_started_code"] = (
-                        "from skops.io import load\nimport json\n"
-                        "import pandas as pd\n"
-                        f'clf = load("{model_file}")\n'
-                        'with open("config.json") as f:\n   '
-                        " config ="
-                        " json.load(f)\n"
-                        'clf.predict(pd.DataFrame.from_dict(config["sklearn"]["example_input"]))'
-                    )
-                else:
-                    template_sections["get_started_code"] = (
-                        "import joblib\nimport json\nimport pandas as pd\nclf ="
-                        f' joblib.load({model_file})\nwith open("config.json") as'
-                        " f:\n   "
-                        " config ="
-                        " json.load(f)\n"
-                        'clf.predict(pd.DataFrame.from_dict(config["sklearn"]["example_input"]))'
-                    )
+            model_file = self.metadata.to_dict().get("model_file")
+            if model_file and model_file.endswith(".skops"):
+                template_sections["get_started_code"] = (
+                    "from skops.io import load\nimport json\n"
+                    "import pandas as pd\n"
+                    f'clf = load("{model_file}")\n'
+                    'with open("config.json") as f:\n   '
+                    " config ="
+                    " json.load(f)\n"
+                    'clf.predict(pd.DataFrame.from_dict(config["sklearn"]["example_input"]))'
+                )
+            elif model_file is not None:
+                template_sections["get_started_code"] = (
+                    "import joblib\nimport json\nimport pandas as pd\nclf ="
+                    f' joblib.load({model_file})\nwith open("config.json") as'
+                    " f:\n   "
+                    " config ="
+                    " json.load(f)\n"
+                    'clf.predict(pd.DataFrame.from_dict(config["sklearn"]["example_input"]))'
+                )
         if self.model_diagram is True:
             model_plot_div = re.sub(r"\n\s+", "", str(estimator_html_repr(self.model)))
             if model_plot_div.count("sk-top-container") == 1:
