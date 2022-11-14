@@ -260,6 +260,8 @@ def test_init(classifier_pickle, config_json):
     )
     _validate_folder(path=dir_path)
 
+    assert os.path.isfile(Path(dir_path) / "README.md")
+
     # it should fail a second time since the folder is no longer empty.
     with pytest.raises(OSError, match="None-empty dst path already exists!"):
         init(
@@ -269,23 +271,6 @@ def test_init(classifier_pickle, config_json):
             task="tabular-classification",
             data=iris.data,
         )
-
-
-def test_init_modelcard_creation(classifier_pickle, config_json):
-    # create a temp directory and delete it, we just need a unique name.
-    dir_path = tempfile.mkdtemp()
-    shutil.rmtree(dir_path)
-
-    version = metadata.version("scikit-learn")
-    init(
-        model=classifier_pickle,
-        requirements=[f'scikit-learn="{version}"'],
-        dst=dir_path,
-        task="tabular-classification",
-        data=iris.data,
-    )
-    _validate_folder(path=dir_path)
-    assert os.path.isfile(Path(dir_path) / "README.md")
 
 
 def test_override_init_modelcard(classifier_pickle, config_json):
@@ -438,7 +423,6 @@ def repo_path_for_inference():
 
 
 @pytest.mark.network
-@pytest.mark.inference
 @pytest.mark.skipif(
     IS_SKLEARN_DEV_BUILD, reason="Inference tests cannot run with sklearn dev build"
 )
@@ -458,8 +442,7 @@ def test_inference(
     repo_path_for_inference,
     destination_path,
 ):
-    # test inference backend for classifier and regressor models. This test can
-    # take a lot of time and be flaky.
+    # test inference backend for classifier and regressor models.
     client = HfApi()
 
     repo_path = repo_path_for_inference
