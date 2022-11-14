@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 
 from ._audit import check_type
-from ._trusted_types import PRIMITIVES_TYPES
 
 NODE_TYPE_MAPPING = {}  # type: ignore
 
@@ -33,10 +32,6 @@ class Node:
     def _get_iterable_safety(self, values):
         """Check if members of an iterable are all safe."""
         for item in values:
-            # primitive types are always trusted
-            if type(item) in PRIMITIVES_TYPES:
-                continue
-
             if not item.is_safe:
                 return False
         return True

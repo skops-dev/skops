@@ -23,6 +23,7 @@ class CustomType:
     [
         ("sklearn", "Pipeline", ["sklearn.Pipeline"], True),
         ("sklearn", "Pipeline", ["sklearn.preprocessing.StandardScaler"], False),
+        ("sklearn", "Pipeline", True, True),
     ],
     ids=[True, False],
 )
