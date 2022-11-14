@@ -10,7 +10,7 @@ from pathlib import Path
 from reprlib import Repr
 from typing import Any, Optional, Union
 
-from huggingface_hub import CardData, ModelCard
+from huggingface_hub import ModelCard, ModelCardData
 from sklearn.utils import estimator_html_repr
 from tabulate import tabulate  # type: ignore
 
@@ -107,12 +107,12 @@ class TableSection:
         return f"Table({nrows}x{ncols})"
 
 
-def metadata_from_config(config_path: Union[str, Path]) -> CardData:
-    """Construct a ``CardData`` object from a ``config.json`` file.
+def metadata_from_config(config_path: Union[str, Path]) -> ModelCardData:
+    """Construct a ``ModelCardData`` object from a ``config.json`` file.
 
     Most information needed for the metadata section of a ``README.md`` file on
     Hugging Face Hub is included in the ``config.json`` file. This utility
-    function constructs a :class:`huggingface_hub.CardData` object which can
+    function constructs a :class:`huggingface_hub.ModelCardData` object which can
     then be passed to the :class:`~skops.card.Card` object.
 
     This method populates the following attributes of the instance:
@@ -133,8 +133,8 @@ def metadata_from_config(config_path: Union[str, Path]) -> CardData:
 
     Returns
     -------
-    card_data: huggingface_hub.CardData
-        :class:`huggingface_hub.CardData` object.
+    card_data: huggingface_hub.ModelCardData
+        :class:`huggingface_hub.ModelCardData` object.
 
     """
     config_path = Path(config_path)
@@ -144,19 +144,19 @@ def metadata_from_config(config_path: Union[str, Path]) -> CardData:
     with open(config_path) as f:
         config = json.load(f)
 
-    card_data = CardData()
+    card_data = ModelCardData()
     card_data.library_name = "sklearn"
     card_data.tags = ["sklearn", "skops"]
     task = config.get("sklearn", {}).get("task", None)
     if task:
         card_data.tags += [task]
-    card_data.model_file = config.get("sklearn", {}).get("model", {}).get("file")
+    card_data.model_file = config.get("sklearn", {}).get("model", {}).get("file")  # type: ignore
     example_input = config.get("sklearn", {}).get("example_input", None)
     # Documentation on what the widget expects:
     # https://huggingface.co/docs/hub/models-widgets-examples
     if example_input:
         if "tabular" in task:
-            card_data.widget = {"structuredData": example_input}
+            card_data.widget = {"structuredData": example_input}  # type: ignore
         # TODO: add text data example here.
 
     return card_data
@@ -178,9 +178,10 @@ class Card:
     model_diagram: bool, default=True
         Set to True if model diagram should be plotted in the card.
 
-    metadata: CardData, optional
-        ``CardData`` object. The contents of this object are saved as metadata
-        at the beginning of the output file, and used by Hugging Face Hub.
+    metadata: ModelCardData, optional
+        :class:`huggingface_hub.ModelCardData` object. The contents of this
+        object are saved as metadata at the beginning of the output file, and
+        used by Hugging Face Hub.
 
         You can use :func:`~skops.card.metadata_from_config` to create an
         instance pre-populated with necessary information based on the contents
@@ -192,7 +193,7 @@ class Card:
     model: estimator object
         The scikit-learn compatible model that will be documented.
 
-    metadata: CardData
+    metadata: ModelCardData
         Metadata to be stored at the beginning of the saved model card, as
         metadata to be understood by the Hugging Face Hub.
 
@@ -246,20 +247,21 @@ class Card:
       confusion_matrix='...confusion_matrix.png',
     )
     >>> model_card.save(tmp_path / "README.md")
+
     """
 
     def __init__(
         self,
         model: Any,
         model_diagram: bool = True,
-        metadata: Optional[CardData] = None,
+        metadata: Optional[ModelCardData] = None,
     ) -> None:
         self.model = model
         self.model_diagram = model_diagram
         self._eval_results = {}  # type: ignore
         self._template_sections: dict[str, str] = {}
         self._extra_sections: list[tuple[str, Any]] = []
-        self.metadata = metadata or CardData()
+        self.metadata = metadata or ModelCardData()
 
     def add(self, **kwargs: str) -> "Card":
         """Takes values to fill model card template.
@@ -391,7 +393,7 @@ class Card:
         if self.metadata:
             if self.metadata.to_dict().get("model_file"):
                 model_file = self.metadata.to_dict().get("model_file")
-                if model_file.endswith(".skops"):
+                if model_file and model_file.endswith(".skops"):
                     template_sections["get_started_code"] = (
                         "from skops.io import load\nimport json\n"
                         "import pandas as pd\n"
