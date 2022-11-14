@@ -8,7 +8,7 @@ from zipfile import ZipFile
 import skops
 
 from ._dispatch import GET_INSTANCE_MAPPING, get_instance
-from ._utils import SaveState, _get_state, get_state
+from ._utils import LoadContext, SaveContext, _get_state, get_state
 
 # We load the dispatch functions from the corresponding modules and register
 # them.
@@ -26,13 +26,12 @@ def _save(obj):
     buffer = io.BytesIO()
 
     with ZipFile(buffer, "w") as zip_file:
-        save_state = SaveState(zip_file=zip_file)
-        state = get_state(obj, save_state)
-        save_state.clear_memo()
+        save_context = SaveContext(zip_file=zip_file)
+        state = get_state(obj, save_context)
+        save_context.clear_memo()
 
-        state["protocol"] = save_state.protocol
+        state["protocol"] = save_context.protocol
         state["_skops_version"] = skops.__version__
-
         zip_file.writestr("schema.json", json.dumps(state, indent=2))
 
     return buffer
@@ -114,8 +113,9 @@ def load(file):
 
     """
     with ZipFile(file, "r") as input_zip:
-        schema = input_zip.read("schema.json")
-        instance = get_instance(json.loads(schema), input_zip)
+        schema = json.loads(input_zip.read("schema.json"))
+        load_context = LoadContext(src=input_zip)
+        instance = get_instance(schema, load_context=load_context)
     return instance
 
 
@@ -139,7 +139,8 @@ def loads(data):
     if isinstance(data, str):
         raise TypeError("Can't load skops format from string, pass bytes")
 
-    with ZipFile(io.BytesIO(data), "r") as zip_file:
-        schema = json.loads(zip_file.read("schema.json"))
-        instance = get_instance(schema, src=zip_file)
+    with ZipFile(io.BytesIO(data), "r") as input_zip:
+        schema = json.loads(input_zip.read("schema.json"))
+        load_context = LoadContext(src=input_zip)
+        instance = get_instance(schema, load_context=load_context)
     return instance
