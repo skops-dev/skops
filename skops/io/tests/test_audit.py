@@ -25,7 +25,7 @@ class CustomType:
         ("sklearn", "Pipeline", ["sklearn.preprocessing.StandardScaler"], False),
         ("sklearn", "Pipeline", True, True),
     ],
-    ids=[True, False],
+    ids=["list-True", "list-False", "True"],
 )
 def test_check_type(module_name, type_name, trusted, expected):
     assert check_type(module_name, type_name, trusted) == expected
