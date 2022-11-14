@@ -14,6 +14,7 @@ import pytest
 import sklearn
 from flaky import flaky
 from huggingface_hub import HfApi
+from huggingface_hub.repocard import RepoCard
 from huggingface_hub.utils import RepositoryNotFoundError
 from sklearn.datasets import load_diabetes, load_iris
 from sklearn.linear_model import LinearRegression, LogisticRegression
@@ -287,16 +288,21 @@ def test_override_init_modelcard(classifier_pickle, config_json):
         data=iris.data,
     )
     _validate_folder(path=dir_path)
-    t0 = os.path.getmtime(Path(dir_path) / "README.md")
 
-    # override existent modelcard created by init
+    # inital card does not have a license set
+    with pytest.raises(
+        AttributeError, match="'CardData' object has no attribute 'license'"
+    ):
+        model_card = RepoCard.load(Path(dir_path) / "README.md")
+        model_card.data.license
+
+    # override existent modelcard created by init with license attribute
     model = get_classifier()
     model_card = card.Card(model, metadata=card.metadata_from_config(Path(dir_path)))
+    model_card.metadata.license = "mit"
     model_card.save(Path(dir_path) / "README.md")
-    t1 = os.path.getmtime(Path(dir_path) / "README.md")
-
-    # compare the times at which the files were last modified
-    assert t0 != t1
+    new_card = RepoCard.load(Path(dir_path) / "README.md")
+    assert new_card.data.license == "mit"
 
 
 def test_init_no_warning_or_error(classifier_pickle, config_json):
