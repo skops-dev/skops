@@ -169,9 +169,6 @@ class FunctionNode(Node):
     def is_safe(self):
         return self._get_function_name() in self.trusted
 
-    def get_safety_tree(self, report_safe=True):
-        raise NotImplementedError()
-
     def get_unsafe_set(self):
         if self.is_safe:
             return set()

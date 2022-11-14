@@ -76,65 +76,6 @@ class Node:
         self._is_safe = is_safe
         return is_safe
 
-    def get_safety_tree(self, report_safe=True):
-        """Get the safety tree of the node.
-
-        Parameters
-        ----------
-        report_safe : bool, default=True
-            If True, the safety tree will contain all nodes, even the safe ones.
-            Otherwise, only unsafe nodes will be reported.
-
-        Returns
-        -------
-        safety_tree : dict
-            A dictionary containing the safety tree of the node.
-        """
-        if not report_safe and self.is_safe:
-            return None
-
-        res = dict()
-        res["self"] = self.module_name + "." + self.class_name
-
-        if report_safe or not self.is_safe:
-            res["safe"] = self.is_safe
-
-        res["children"] = {}
-
-        for child, ch_type in self.children.items():
-            if ch_type is list:
-                res["children"][child] = self._get_list_safety_tree(child, report_safe)
-                if not res["children"][child]:
-                    del res["children"][child]
-            elif ch_type is dict:
-                res["children"][child] = self._get_dict_safety_tree(child, report_safe)
-                if not res["children"][child]:
-                    del res["children"][child]
-            elif ch_type is Node:
-                res["children"][child] = getattr(self, child).get_safety_tree(
-                    report_safe
-                )
-                if not res["children"][child]:
-                    del res["children"][child]
-            else:
-                raise ValueError(f"Unknown type {ch_type}.")
-
-    def _get_list_safety_tree(self, child, report_safe):
-        """Get the safety tree of a list."""
-        res = []
-        for value in getattr(self, child):
-            if report_safe or not value.is_safe:
-                res.append(value.get_safety_tree())
-        return res
-
-    def _get_dict_safety_tree(self, child, report_safe):
-        """Get the safety tree of a dict."""
-        res = {}
-        for key, value in getattr(self, child):
-            if report_safe or not value.is_safe:
-                res[key] = value.get_safety_tree()
-        return res
-
     def get_unsafe_set(self):
         """Get the set of unsafe types.
 
@@ -172,9 +113,6 @@ class JsonNode:
 
     def get_unsafe_set(self):
         return set()
-
-    def get_safety_tree(self, report_safe=True):
-        return None
 
     def construct(self):
         return self.value
