@@ -112,8 +112,8 @@ def metadata_from_config(config_path: Union[str, Path]) -> ModelCardData:
 
     Most information needed for the metadata section of a ``README.md`` file on
     Hugging Face Hub is included in the ``config.json`` file. This utility
-    function constructs a :class:`huggingface_hub.ModelCardData` object which can
-    then be passed to the :class:`~skops.card.Card` object.
+    function constructs a :class:`huggingface_hub.ModelCardData` object which
+    can then be passed to the :class:`~skops.card.Card` object.
 
     This method populates the following attributes of the instance:
 
