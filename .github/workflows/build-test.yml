@@ -55,6 +55,8 @@ jobs:
     - name: Install dependencies
       run: |
         pip install .[docs,tests]
+        pip uninstall huggingface_hub
+        pip install huggingface_hub=="0.11.0rc0"
         pip install black=="22.6.0" isort=="5.10.1" mypy=="0.981"
         pip uninstall --yes scikit-learn
         if [ ${{ matrix.sklearn_version }} == "nightly" ];
