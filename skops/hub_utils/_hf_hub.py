@@ -643,7 +643,10 @@ def get_model_output(repo_id: str, data: Any, token: Optional[str] = None) -> An
         inputs = {"data": data.to_dict(orient="list")}
     except AttributeError:
         # the input is not a pandas DataFrame
-        inputs = {f"x{i}": data[:, i] for i in range(data.shape[1])}
+        inputs = {
+            col: (data[:, idx] if len(data.shape) > 1 else data[idx])
+            for idx, col in enumerate(_get_column_names(data))
+        }
         inputs = {"data": inputs}
 
     res = InferenceApi(repo_id=repo_id, task=model_info.pipeline_tag, token=token)(
