@@ -62,8 +62,8 @@ class NdArrayNode(Node):
         elif self.type == "json":
             self.shape = get_tree(state["shape"], load_context)
             self.content = [
-                get_tree(o, load_context) for o in state["content"]
-            ]  # type: ignore
+                get_tree(o, load_context) for o in state["content"]  # type: ignore
+            ]
             self.children = {"shape": Node, "content": list}
         else:
             raise ValueError(f"Unknown type {self.type}.")
