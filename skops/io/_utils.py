@@ -58,9 +58,9 @@ def _import_obj(module, cls_or_func, package=None):
     return getattr(importlib.import_module(module, package=package), cls_or_func)
 
 
-def gettype(module_name, class_name):
-    if module_name and class_name:
-        return _import_obj(module_name, class_name)
+def gettype(module_name, cls_or_func):
+    if module_name and cls_or_func:
+        return _import_obj(module_name, cls_or_func)
     return None
 
 

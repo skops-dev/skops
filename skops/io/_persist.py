@@ -199,9 +199,6 @@ def get_untrusted_types(*, data=None, file=None):
     else:
         content = file
 
-    if isinstance(data, str):
-        raise TypeError("Can't load skops format from string, pass bytes")
-
     with ZipFile(content, "r") as zip_file:
         schema = json.loads(zip_file.read("schema.json"))
         tree = get_tree(schema, load_context=LoadContext(src=zip_file))

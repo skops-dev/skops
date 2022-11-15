@@ -8,7 +8,7 @@ from skops.io import dumps, get_untrusted_types
 from skops.io._audit import audit_tree, check_type
 from skops.io._dispatch import Node, get_tree
 from skops.io._general import DictNode, dict_get_state
-from skops.io._utils import LoadContext, SaveContext
+from skops.io._utils import LoadContext, SaveContext, gettype
 
 
 class CustomType:
@@ -51,6 +51,7 @@ def test_audit_tree_untrusted():
 
 
 def test_audit_tree_defaults():
+    # test that the default types are trusted
     var = {"a": 1, 2: "b"}
     state = dict_get_state(var, SaveContext(None, 0, {}))
     node = DictNode(state, LoadContext(None), trusted=False)
@@ -86,3 +87,25 @@ def test_list_safety(values, is_safe):
         schema = json.loads(zip_file.read("schema.json"))
         tree = get_tree(schema, load_context=LoadContext(src=zip_file))
         assert tree.is_safe == is_safe
+
+
+def test_gettype():
+    # return None if one argument is None
+    assert gettype(module_name="test", cls_or_func=None) is None
+
+    # ImportError if the module cannot be imported
+    with pytest.raises(ImportError):
+        gettype(module_name="invalid-module", cls_or_func="invalid-type")
+
+
+@pytest.mark.parametrize(
+    "data, file, exception, message",
+    [
+        ("not-none", "not-none", ValueError, "Only one of data or file"),
+        ("string", None, TypeError, "a bytes-like object is required, not 'str'"),
+    ],
+    ids=["both", "string-data"],
+)
+def test_get_untrusted_types_validation(data, file, exception, message):
+    with pytest.raises(exception, match=message):
+        get_untrusted_types(data=data, file=file)
