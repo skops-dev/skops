@@ -3,15 +3,27 @@ from __future__ import annotations
 import json
 
 from ._audit import check_type
+from ._utils import LoadContext
 
 NODE_TYPE_MAPPING = {}  # type: ignore
 
 
 class Node:
-    def __init__(self, state, src, trusted=False):
+    def __init__(self, state, load_context: LoadContext, trusted=False):
         self.class_name, self.module_name = state["__class__"], state["__module__"]
         self.trusted = trusted
         self._is_safe = None
+        self._constructed = None
+
+    def construct(self):
+        """Construct the object.
+
+        We only construct the object once, and then cache the result.
+        """
+        if self._constructed is not None:
+            return self._constructed
+        self._constructed = self._construct()
+        return self._constructed
 
     @classmethod
     def _get_trusted(cls, trusted, default):
@@ -101,28 +113,48 @@ class Node:
         return res
 
 
-class JsonNode:
+class JsonNode(Node):
     def __init__(self, state):
         self.value = json.loads(state["content"])
-        self.is_safe = True
+        self._constructed = None
+
+    @property
+    def is_safe(self):
+        return True
+
+    @property
+    def is_self_safe(self):
+        return True
 
     def get_unsafe_set(self):
         return set()
 
-    def construct(self):
+    def _construct(self):
         return self.value
 
 
-def get_tree(state, src):
+def get_tree(state, load_context: LoadContext):
     """Create instance based on the state, using json if possible"""
-    if state.get("is_json"):
-        return JsonNode(state)
+    saved_id = state.get("__id__")
+    if saved_id in load_context.memo:
+        # an instance has already been loaded, just return the loaded instance
+        return load_context.get_object(saved_id)
 
-    try:
-        node_cls = NODE_TYPE_MAPPING[state["__loader__"]]
-    except KeyError:
-        type_name = f"{state['__module__']}.{state['__class__']}"
-        raise TypeError(
-            f" Can't find loader {state['__loader__']} for type {type_name}."
-        )
-    return node_cls(state, src, trusted=False)
+    if state.get("is_json"):
+        loaded_tree = JsonNode(state)
+    else:
+        try:
+            node_cls = NODE_TYPE_MAPPING[state["__loader__"]]
+        except KeyError:
+            type_name = f"{state['__module__']}.{state['__class__']}"
+            raise TypeError(
+                f" Can't find loader {state['__loader__']} for type {type_name}."
+            )
+
+        loaded_tree = node_cls(state, load_context, trusted=False)
+
+    # hold reference to obj in case same instance encountered again in save state
+    if saved_id:
+        load_context.memoize(loaded_tree, saved_id)
+
+    return loaded_tree

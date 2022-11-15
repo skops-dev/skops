@@ -23,8 +23,8 @@ from sklearn.linear_model._sgd_fast import (
 from sklearn.tree._tree import Tree
 
 from ._dispatch import Node, get_tree
-from ._general import dict_get_state, unsupported_get_state
-from ._utils import SaveState, get_module, get_state, gettype
+from ._general import unsupported_get_state
+from ._utils import LoadContext, SaveContext, get_module, get_state, gettype
 from .exceptions import UnsupportedTypeException
 
 ALLOWED_SGD_LOSSES = {
@@ -41,7 +41,7 @@ ALLOWED_SGD_LOSSES = {
 UNSUPPORTED_TYPES = {Birch}
 
 
-def reduce_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
+def reduce_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     # This method is for objects for which we have to use the __reduce__
     # method to get the state.
     res = {
@@ -65,7 +65,7 @@ def reduce_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
     # As a good example, this makes Tree object to be serializable.
     reduce = obj.__reduce__()
     res["__reduce__"] = {}
-    res["__reduce__"]["args"] = get_state(reduce[1], save_state)
+    res["__reduce__"]["args"] = get_state(reduce[1], save_context)
 
     if len(reduce) == 3:
         # reduce includes what's needed for __getstate__ and we don't need to
@@ -83,20 +83,22 @@ def reduce_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
             f"Objects of type {res['__class__']} not supported yet"
         )
 
-    res["content"] = get_state(attrs, save_state)
+    res["content"] = get_state(attrs, save_context)
     return res
 
 
 class ReduceNode(Node):
-    def __init__(self, state, src, constructor=None, trusted=False):
-        super().__init__(state, src, trusted)
+    def __init__(
+        self, state, load_context: LoadContext, constructor=None, trusted=False
+    ):
+        super().__init__(state, load_context, trusted)
         reduce = state["__reduce__"]
-        self.args = get_tree(reduce["args"], src)
+        self.args = get_tree(reduce["args"], load_context)
         self.constructor = constructor
-        self.attrs = get_tree(state["content"], src)
+        self.attrs = get_tree(state["content"], load_context)
         self.children = {"attrs": Node, "args": Node}
 
-    def construct(self):
+    def _construct(self):
         args = self.args.construct()
         instance = self.constructor(*args)
         attrs = self.attrs.construct()
@@ -117,30 +119,30 @@ class ReduceNode(Node):
         return instance
 
 
-def tree_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
-    state = reduce_get_state(obj, save_state)
+def tree_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
+    state = reduce_get_state(obj, save_context)
     state["__loader__"] = "TreeNode"
     return state
 
 
 class TreeNode(ReduceNode):
-    def __init__(self, state, src, trusted=False):
-        super().__init__(state, src, constructor=Tree, trusted=trusted)
+    def __init__(self, state, load_context: LoadContext, trusted=False):
+        super().__init__(state, load_context, constructor=Tree, trusted=trusted)
         self.trusted = self._get_trusted(trusted, [get_module(Tree) + ".Tree"])
 
 
-def sgd_loss_get_state(obj: Any, save_state: SaveState) -> dict[str, Any]:
-    state = reduce_get_state(obj, save_state)
+def sgd_loss_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
+    state = reduce_get_state(obj, save_context)
     state["__loader__"] = "SGDNode"
     return state
 
 
 class SGDNode(ReduceNode):
-    def __init__(self, state, src, trusted=False):
+    def __init__(self, state, load_context: LoadContext, trusted=False):
         # TODO: make sure trusted here makes sense and used.
         super().__init__(
             state,
-            src,
+            load_context,
             constructor=gettype(state.get("__module__"), state.get("__class__")),
             trusted=ALLOWED_SGD_LOSSES,
         )
@@ -148,7 +150,7 @@ class SGDNode(ReduceNode):
 
 # TODO: remove once support for sklearn<1.2 is dropped.
 def _DictWithDeprecatedKeys_get_state(
-    obj: Any, save_state: SaveState
+    obj: Any, save_context: SaveContext
 ) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
@@ -158,9 +160,9 @@ def _DictWithDeprecatedKeys_get_state(
     content = {}
     # explicitly pass a dict object instead of _DictWithDeprecatedKeys and
     # later construct a _DictWithDeprecatedKeys object.
-    content["main"] = dict_get_state(dict(obj), save_state)
-    content["_deprecated_key_to_new_key"] = dict_get_state(
-        obj._deprecated_key_to_new_key, save_state
+    content["main"] = get_state(dict(obj), save_context)
+    content["_deprecated_key_to_new_key"] = get_state(
+        obj._deprecated_key_to_new_key, save_context
     )
     res["content"] = content
     return res
@@ -169,18 +171,18 @@ def _DictWithDeprecatedKeys_get_state(
 # TODO: remove once support for sklearn<1.2 is dropped.
 class _DictWithDeprecatedKeysNode(Node):
     # _DictWithDeprecatedKeys is just a wrapper for dict
-    def __init__(self, state, src, trusted=False):
-        super().__init__(state, src, trusted)
-        self.main = get_tree(state["content"]["main"], src)
+    def __init__(self, state, load_context: LoadContext, trusted=False):
+        super().__init__(state, load_context, trusted)
+        self.main = get_tree(state["content"]["main"], load_context)
         self._deprecated_key_to_new_key = get_tree(
-            state["content"]["_deprecated_key_to_new_key"], src
+            state["content"]["_deprecated_key_to_new_key"], load_context
         )
         self.trusted = [
             get_module(_DictWithDeprecatedKeysNode) + "._DictWithDeprecatedKeys"
         ]
         self.children = {"main": Node, "_deprecated_key_to_new_key": Node}
 
-    def construct(self):
+    def _construct(self):
         instance = _DictWithDeprecatedKeys(**self.main.construct())
         instance._deprecated_key_to_new_key = (
             self._deprecated_key_to_new_key.construct()

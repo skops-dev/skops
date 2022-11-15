@@ -9,7 +9,7 @@ import skops
 
 from ._audit import audit_tree
 from ._dispatch import NODE_TYPE_MAPPING, get_tree
-from ._utils import SaveState, _get_state, get_state
+from ._utils import LoadContext, SaveContext, _get_state, get_state
 
 # We load the dispatch functions from the corresponding modules and register
 # them.
@@ -27,13 +27,12 @@ def _save(obj):
     buffer = io.BytesIO()
 
     with ZipFile(buffer, "w") as zip_file:
-        save_state = SaveState(zip_file=zip_file)
-        state = get_state(obj, save_state)
-        save_state.clear_memo()
+        save_context = SaveContext(zip_file=zip_file)
+        state = get_state(obj, save_context)
+        save_context.clear_memo()
 
-        state["protocol"] = save_state.protocol
+        state["protocol"] = save_context.protocol
         state["_skops_version"] = skops.__version__
-
         zip_file.writestr("schema.json", json.dumps(state, indent=2))
 
     return buffer
@@ -123,7 +122,8 @@ def load(file, trusted=False):
     """
     with ZipFile(file, "r") as input_zip:
         schema = input_zip.read("schema.json")
-        tree = get_tree(json.loads(schema), input_zip)
+        load_context = LoadContext(src=input_zip)
+        tree = get_tree(json.loads(schema), load_context)
         audit_tree(tree, trusted)
         instance = tree.construct()
 
@@ -163,7 +163,8 @@ def loads(data, trusted=False):
 
     with ZipFile(io.BytesIO(data), "r") as zip_file:
         schema = json.loads(zip_file.read("schema.json"))
-        tree = get_tree(schema, src=zip_file)
+        load_context = LoadContext(src=zip_file)
+        tree = get_tree(schema, load_context)
         audit_tree(tree, trusted)
         instance = tree.construct()
 
@@ -203,7 +204,7 @@ def get_untrusted_types(*, data=None, file=None):
 
     with ZipFile(content, "r") as zip_file:
         schema = json.loads(zip_file.read("schema.json"))
-        tree = get_tree(schema, src=zip_file)
+        tree = get_tree(schema, load_context=LoadContext(src=zip_file))
         untrusted_types = tree.get_unsafe_set()
 
     return list(untrusted_types)

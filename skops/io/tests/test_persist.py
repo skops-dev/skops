@@ -56,7 +56,7 @@ import skops
 from skops.io import dump, dumps, get_untrusted_types, load, loads
 from skops.io._dispatch import NODE_TYPE_MAPPING, get_tree
 from skops.io._sklearn import UNSUPPORTED_TYPES
-from skops.io._utils import _get_state, get_state
+from skops.io._utils import LoadContext, SaveContext, _get_state, get_state
 from skops.io.exceptions import UnsupportedTypeException
 
 # Default settings for X
@@ -79,11 +79,12 @@ def debug_dispatch_functions():
         # Check consistency of argument names, output type, and that the output,
         # if a dict, has certain keys, or if not a dict, is a primitive type.
         signature = inspect.signature(func)
-        assert list(signature.parameters.keys()) == ["obj", "save_state"]
+        assert list(signature.parameters.keys()) == ["obj", "save_context"]
 
         @wraps(func)
-        def wrapper(obj, save_state):
-            result = func(obj, save_state)
+        def wrapper(obj, save_context):
+            # NB: __id__ set in main 'get_state' func, so no check here
+            result = func(obj, save_context)
 
             assert "__class__" in result
             assert "__module__" in result
@@ -96,16 +97,17 @@ def debug_dispatch_functions():
     def debug_get_tree(func):
         # check consistency of argument names and input type
         signature = inspect.signature(func)
-        assert list(signature.parameters.keys()) == ["state", "src", "trusted"]
+        assert list(signature.parameters.keys()) == ["state", "load_context", "trusted"]
 
         @wraps(func)
-        def wrapper(state, src, trusted):
+        def wrapper(state, load_context, trusted):
             assert "__class__" in state
             assert "__module__" in state
             assert "__loader__" in state
-            assert isinstance(src, ZipFile)
+            assert "__id__" in state
+            assert isinstance(load_context, LoadContext)
 
-            result = func(state, src, trusted)
+            result = func(state, load_context, trusted)
             return result
 
         return wrapper
@@ -483,6 +485,7 @@ def test_can_persist_fitted(estimator, request):
     # test that we can get a list of untrusted types. This is a smoke test
     # to make sure there are no errors running this method.
     # it is in this test to save time, as it requires a fitted estimator.
+    # breakpoint()
     untrusted_types = get_untrusted_types(data=dumps(estimator))
 
     loaded = loads(dumps(estimator), trusted=untrusted_types)
@@ -791,11 +794,11 @@ def test_loads_from_str():
 
 
 def test_get_tree_unknown_type_error_msg():
-    state = get_state(("hi", [123]), None)
+    state = get_state(("hi", [123]), SaveContext(None))
     state["__loader__"] = "this_get_tree_does_not_exist"
     msg = "Can't find loader this_get_tree_does_not_exist for type builtins.tuple."
     with pytest.raises(TypeError, match=msg):
-        get_tree(state, None)
+        get_tree(state, LoadContext(None))
 
 
 class _BoundMethodHolder:
@@ -873,9 +876,6 @@ class TestPersistingBoundMethods:
         self.assert_transformer_persisted_correctly(loaded_transformer, transformer)
         self.assert_bound_method_holder_persisted_correctly(obj, loaded_obj)
 
-    @pytest.mark.xfail(
-        reason="Can't load an object as a single instance if referenced multiple times"
-    )
     def test_works_when_given_multiple_bound_methods_attached_to_single_instance(self):
         obj = _BoundMethodHolder(object_state="")
 
@@ -966,3 +966,21 @@ def test_disk_and_memory_are_identical(tmp_path):
     loaded_memory = loads(dumps(estimator), trusted=True)
 
     assert joblib.hash(loaded_disk) == joblib.hash(loaded_memory)
+
+
+@pytest.mark.parametrize(
+    "obj",
+    [
+        np.array([1, 2]),
+        [1, 2, 3],
+        {1: 1, 2: 2},
+        {1, 2, 3},
+        "A string",
+        np.random.RandomState(42),
+    ],
+)
+def test_when_given_object_referenced_twice_loads_as_one_object(obj):
+    an_object = {"obj_1": obj, "obj_2": obj}
+    persisted_object = loads(dumps(an_object), trusted=True)
+
+    assert persisted_object["obj_1"] is persisted_object["obj_2"]
