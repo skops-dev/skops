@@ -19,7 +19,12 @@ class Node:
 
     ``__init__`` takes care of traversing the state tree and to create the
     corresponding ``Node`` objects. It has access to the ``load_context`` which
-    in turn has access to the source zip file.
+    in turn has access to the source zip file. The child class's ``__init__``
+    must also set the ``children`` attribute, which is a dictionary of
+    ``{child_name: child_type}``. ``child_name`` is the name of the attribute
+    which can be checked for safety, and ``child_type`` is the type of the
+    attribute. ``child_type`` can be ``list``, ``dict``, or ``Node``. Note that
+    primitives are persisted as a ``JsonNode``.
 
     ``_construct`` takes care of constructing the object. It is only called
     once and the result is cached in ``construct`` which is implemented in this
@@ -183,6 +188,14 @@ class JsonNode(Node):
 
 def get_tree(state, load_context: LoadContext):
     """Get the tree of nodes.
+
+    This function returns the root node of the tree of nodes. The tree is
+    constructed recursively by traversing the state tree. No instances are
+    created during this process. One would need to call ``construct`` on the
+    root node to create the instances.
+
+    This function also handles memoization of the nodes. If a node has already
+    been created, it is returned instead of creating a new one.
 
     Parameters
     ----------

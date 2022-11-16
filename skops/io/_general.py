@@ -240,9 +240,7 @@ class TypeNode(Node):
         self.trusted = self._get_trusted(trusted, PRIMITIVE_TYPE_NAMES)
         # We use a bare Node type here since a Node only checks the type in the
         # dict using __class__ and __module__ keys.
-        # self.children = {"content": Node}
         self.children = {}  # type: ignore
-        # self.content = Node(state["content"]
 
     def _construct(self):
         return _import_obj(self.module_name, self.class_name)
