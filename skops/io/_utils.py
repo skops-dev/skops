@@ -156,6 +156,15 @@ def get_state(value, save_context):
     # This is a helper function to try to get the state of an object. If it
     # fails with `get_state`, we try with json.dumps, if that fails, we raise
     # the original error alongside the json error.
+
+    if id(value) in save_context.memo:
+        return {
+            "__module__": None,
+            "__class__": None,
+            "__id__": id(value),
+            "__loader__": "CachedNode",
+        }
+
     __id__ = save_context.memoize(obj=value)
 
     try:

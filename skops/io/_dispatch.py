@@ -57,6 +57,11 @@ class Node:
         self.trusted = trusted
         self._is_safe = None
         self._constructed = None
+        saved_id = state["__id__"]
+        if saved_id:
+            # hold reference to obj in case same instance encountered again in
+            # save state
+            load_context.memoize(self, saved_id)
 
     def construct(self):
         """Construct the object.
@@ -141,6 +146,13 @@ class Node:
         unsafe_set : set
             A set of unsafe types.
         """
+        if hasattr(self, "_computing_unsafe_set"):
+            # this means we're already computing this node's unsafe set, so we
+            # return an empty set and let the computation of the parent node
+            # continue. This is to avoid infinite recursion.
+            return set()
+        self._computing_unsafe_set = True
+
         res = set()
         if not self.is_self_safe:
             res.add(self.module_name + "." + self.class_name)
@@ -161,11 +173,28 @@ class Node:
                 res.update(getattr(self, child).get_unsafe_set())
             else:
                 raise ValueError(f"Unknown type {ch_type}.")
+
+        del self._computing_unsafe_set
         return res
 
 
+class CachedNode(Node):
+    def __init__(self, state, load_context: LoadContext, trusted=False):
+        super().__init__(state, load_context, trusted)
+        self.trusted = True
+        self.cached = load_context.get_object(state.get("__id__"))
+        self.children = {}  # type: ignore
+
+    def _construct(self):
+        # TODO: FIXME This causes a recursion error when loading a cached
+        # object if we call the cached object's `construct``. Some refactoring
+        # is needed to fix this.
+        return None
+
+
 class JsonNode(Node):
-    def __init__(self, state):
+    def __init__(self, state, load_context: LoadContext, trusted=False):
+        super().__init__(state, load_context, trusted)
         self.value = json.loads(state["content"])
         self._constructed = None
 
@@ -184,6 +213,9 @@ class JsonNode(Node):
 
     def _construct(self):
         return self.value
+
+
+NODE_TYPE_MAPPING.update({"JsonNode": JsonNode, "CachedNode": CachedNode})
 
 
 def get_tree(state, load_context: LoadContext):
@@ -215,7 +247,7 @@ def get_tree(state, load_context: LoadContext):
         return load_context.get_object(saved_id)
 
     if state.get("is_json"):
-        loaded_tree = JsonNode(state)
+        loaded_tree = JsonNode(state, load_context)
     else:
         try:
             node_cls = NODE_TYPE_MAPPING[state["__loader__"]]
@@ -225,10 +257,6 @@ def get_tree(state, load_context: LoadContext):
                 f" Can't find loader {state['__loader__']} for type {type_name}."
             )
 
-        loaded_tree = node_cls(state, load_context, trusted=False)
-
-    # hold reference to obj in case same instance encountered again in save state
-    if saved_id:
-        load_context.memoize(loaded_tree, saved_id)
+        loaded_tree = node_cls(state, load_context, trusted=False)  # type: ignore
 
     return loaded_tree
