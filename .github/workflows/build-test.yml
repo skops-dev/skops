@@ -54,7 +54,6 @@ jobs:
 
     - name: Install dependencies
       run: |
-        pip install huggingface_hub=="0.11.0rc1"
         pip install .[docs,tests]
         pip install black=="22.6.0" isort=="5.10.1" mypy=="0.981"
         pip uninstall --yes scikit-learn
