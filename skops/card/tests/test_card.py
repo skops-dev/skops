@@ -1,7 +1,6 @@
 import copy
 import os
 import pickle
-import sys
 import tempfile
 from pathlib import Path
 from unittest import mock
@@ -194,19 +193,31 @@ def test_permutation_importances(
 def test_matplotlib_dependency_error(
     iris_estimator, iris_data, model_card, destination_path
 ):
-    with mock.patch.dict(sys.modules):
-        sys.modules["matplotlib"] = None
-        X, y = iris_data
-        result = permutation_importance(
-            iris_estimator, X, y, n_repeats=10, random_state=42, n_jobs=2
-        )
-        with pytest.raises(ModuleNotFoundError):
-            model_card.add_permutation_importances(
-                result,
-                X.columns,
-                Path(destination_path) / "importance.png",
-                "Permutation Importance",
-            )
+    orig_import = __import__
+
+    def mock_import(name, *args):
+        if name == "matplotlib.pyplot":
+            pass
+        else:
+            return orig_import(name, *args)
+
+    X, y = iris_data
+    result = permutation_importance(
+        iris_estimator, X, y, n_repeats=10, random_state=42, n_jobs=2
+    )
+
+    with mock.patch("builtins.__import__", side_effect=mock_import):
+        with pytest.raises(ImportError, match="cannot import name*"):
+            with pytest.raises(
+                ModuleNotFoundError,
+                match="This feature requires matplotlib to be installed.",
+            ):
+                model_card.add_permutation_importances(
+                    result,
+                    X.columns,
+                    Path(destination_path) / "importance.png",
+                    "Permutation Importance",
+                )
 
 
 def test_multiple_permutation_importances(
