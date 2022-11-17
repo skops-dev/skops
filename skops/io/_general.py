@@ -55,8 +55,10 @@ class DictNode(Node):
     def _construct(self):
         content = gettype(self.module_name, self.class_name)()
         key_types = self.key_types.construct()
-        for k_type, item in zip(key_types, self.content.items()):
-            content[k_type(item[0])] = item[1].construct()
+        for k_type, (key, val) in zip(key_types, self.content.items()):
+            if key == "categories_":
+                pass
+            content[k_type(key)] = val.construct()
         return content
 
 
@@ -174,12 +176,11 @@ class FunctionNode(Node):
     def _get_function_name(self):
         return self.content["module_path"] + "." + self.content["function"]
 
-    @property
     def is_safe(self):
         return self._get_function_name() in self.trusted
 
     def get_unsafe_set(self):
-        if self.is_safe:
+        if self.is_safe():
             return set()
 
         return {self._get_function_name()}
@@ -283,7 +284,7 @@ def object_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
         return {
             "__class__": "str",
             "__module__": "builtins",
-            "__loader__": "none",
+            "__loader__": "JsonNode",
             "content": obj_str,
             "is_json": True,
         }
@@ -381,6 +382,27 @@ def unsupported_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]
     raise UnsupportedTypeException(obj)
 
 
+class JsonNode(Node):
+    def __init__(self, state, load_context: LoadContext, trusted=False):
+        super().__init__(state, load_context, trusted)
+        self.content = state["content"]
+        self._constructed = None
+
+    def is_safe(self):
+        # JsonNode is always considered safe.
+        # TODO: should we consider a JsonNode always safe?
+        return True
+
+    def is_self_safe(self):
+        return True
+
+    def get_unsafe_set(self):
+        return set()
+
+    def _construct(self):
+        return json.loads(self.content)
+
+
 # tuples of type and function that gets the state of that type
 GET_STATE_DISPATCH_FUNCTIONS = [
     (dict, dict_get_state),
@@ -406,4 +428,5 @@ NODE_TYPE_MAPPING = {
     "PartialNode": PartialNode,
     "TypeNode": TypeNode,
     "ObjectNode": ObjectNode,
+    "JsonNode": JsonNode,
 }

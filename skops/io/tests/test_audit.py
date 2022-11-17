@@ -24,8 +24,10 @@ class CustomType:
         ("sklearn", "Pipeline", ["sklearn.Pipeline"], True),
         ("sklearn", "Pipeline", ["sklearn.preprocessing.StandardScaler"], False),
         ("sklearn", "Pipeline", True, True),
+        ("builtins", "int", ["builtins.int"], True),
+        ("builtins", "int", [], False),
     ],
-    ids=["list-True", "list-False", "True"],
+    ids=["list-True", "list-False", "True", "int-True", "int-False"],
 )
 def test_check_type(module_name, type_name, trusted, expected):
     assert check_type(module_name, type_name, trusted) == expected
@@ -77,8 +79,10 @@ def test_Node_get_trusted(trusted, defaults, expected):
         ([1, 2], True),
         ([1, {1: 2}], True),
         ([1, {1: CustomType(1)}], False),
+        (eval, False),
+        (pytest.mark.parametrize, False),
     ],
-    ids=["int", "dict", "untrusted"],
+    ids=["int", "dict", "untrusted", "eval", "parametrize"],
 )
 def test_list_safety(values, is_safe):
     content = dumps(values)
@@ -86,7 +90,7 @@ def test_list_safety(values, is_safe):
     with ZipFile(io.BytesIO(content), "r") as zip_file:
         schema = json.loads(zip_file.read("schema.json"))
         tree = get_tree(schema, load_context=LoadContext(src=zip_file))
-        assert tree.is_safe == is_safe
+        assert tree.is_safe() == is_safe
 
 
 def test_gettype():

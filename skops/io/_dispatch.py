@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import json
-
 from ._audit import check_type
 from ._utils import LoadContext
 
@@ -34,7 +32,7 @@ class Node:
     The separation of ``__init__`` and ``_construct`` is necessary because
     audit methods are called after ``__init__`` and before ``construct``.
     Therefore ``__init__`` should avoid creating any instances or importing
-    any modules, to avoid running unwanted code.
+    any modules, to avoid running potentially untrusted code.
 
     Parameters
     ----------
@@ -44,21 +42,21 @@ class Node:
     load_context : LoadContext
         The context of the loading process.
 
-    trusted : bool or list, default=False
+    trusted : bool or list of str, default=False
         If ``True``, the object will be loaded without any security checks. If
         ``False``, the object will be loaded only if there are only trusted
         objects in the dumped file. If a list of strings, the object will be
-        loaded only if there are only trusted objects and objects of types
-        listed in ``trusted`` are in the dumped file.
+        loaded only if all of its required types are listed in ``trusted``
+        or are trusted by default.
     """
 
-    def __init__(self, state, load_context: LoadContext, trusted=False):
+    def __init__(self, state, load_context: LoadContext, trusted=False, memoize=True):
         self.class_name, self.module_name = state["__class__"], state["__module__"]
         self.trusted = trusted
         self._is_safe = None
         self._constructed = None
-        saved_id = state["__id__"]
-        if saved_id:
+        saved_id = state.get("__id__")
+        if saved_id and memoize:
             # hold reference to obj in case same instance encountered again in
             # save state
             load_context.memoize(self, saved_id)
@@ -73,32 +71,26 @@ class Node:
         self._constructed = self._construct()
         return self._constructed
 
-    @classmethod
-    def _get_trusted(cls, trusted, default):
+    @staticmethod
+    def _get_trusted(trusted, default):
         """Return a trusted list, or True.
 
-        If `trusted` is `False`, we return the `defaults`, otherwise the
-        `trusted` value is used.
+        If ``trusted`` is ``False``, we return the ``default``, otherwise the
+        ``trusted`` value is used.
 
         This is a convenience method called by child classes.
         """
         if trusted is True:
             # if trusted is True, we trust the node
             return True
-        elif trusted is False:
+
+        if trusted is False:
             # if trusted is False, we only trust the defaults
             return default
+
         # otherwise we trust the given list
         return trusted
 
-    def _get_iterable_safety(self, values):
-        """Check if members of an iterable are all safe."""
-        for item in values:
-            if not item.is_safe:
-                return False
-        return True
-
-    @property
     def is_self_safe(self):
         """True only if the node's type is considered safe.
 
@@ -106,34 +98,13 @@ class Node:
         """
         return check_type(self.module_name, self.class_name, self.trusted)
 
-    @property
     def is_safe(self):
-        """Trie only if the node and all its children are safe."""
-        # the safety value is cached.
-        if self._is_safe is not None:
-            return self._is_safe
-
+        """True only if the node and all its children are safe."""
         # if trusted is set to True, we don't do any safety checks.
         if self.trusted is True:
-            self._is_safe = True
             return True
 
-        is_safe = self.is_self_safe
-
-        for child, _type in self.children.items():
-            if _type is list:
-                is_safe = is_safe and self._get_iterable_safety(getattr(self, child))
-            elif _type is dict:
-                is_safe = is_safe and self._get_iterable_safety(
-                    getattr(self, child).values()
-                )
-            elif _type is Node:
-                is_safe = is_safe and getattr(self, child).is_safe
-            else:
-                raise ValueError(f"Unknown type {_type}.")
-
-        self._is_safe = is_safe
-        return is_safe
+        return len(self.get_unsafe_set()) == 0
 
     def get_unsafe_set(self):
         """Get the set of unsafe types.
@@ -154,7 +125,7 @@ class Node:
         self._computing_unsafe_set = True
 
         res = set()
-        if not self.is_self_safe:
+        if not self.is_self_safe():
             res.add(self.module_name + "." + self.class_name)
 
         for child, ch_type in self.children.items():
@@ -180,7 +151,9 @@ class Node:
 
 class CachedNode(Node):
     def __init__(self, state, load_context: LoadContext, trusted=False):
-        super().__init__(state, load_context, trusted)
+        # we pass memoize as False because we don't want to memoize the cached
+        # node.
+        super().__init__(state, load_context, trusted, memoize=False)
         self.trusted = True
         self.cached = load_context.get_object(state.get("__id__"))
         self.children = {}  # type: ignore
@@ -189,33 +162,10 @@ class CachedNode(Node):
         # TODO: FIXME This causes a recursion error when loading a cached
         # object if we call the cached object's `construct``. Some refactoring
         # is needed to fix this.
-        return None
+        return self.cached.construct()
 
 
-class JsonNode(Node):
-    def __init__(self, state, load_context: LoadContext, trusted=False):
-        super().__init__(state, load_context, trusted)
-        self.value = json.loads(state["content"])
-        self._constructed = None
-
-    @property
-    def is_safe(self):
-        # JsonNode is always considered safe.
-        # TODO: should we consider a JsonNode always safe?
-        return True
-
-    @property
-    def is_self_safe(self):
-        return True
-
-    def get_unsafe_set(self):
-        return set()
-
-    def _construct(self):
-        return self.value
-
-
-NODE_TYPE_MAPPING.update({"JsonNode": JsonNode, "CachedNode": CachedNode})
+NODE_TYPE_MAPPING.update({"CachedNode": CachedNode})
 
 
 def get_tree(state, load_context: LoadContext):
@@ -246,17 +196,14 @@ def get_tree(state, load_context: LoadContext):
         # ``construct`` method caches the instance.
         return load_context.get_object(saved_id)
 
-    if state.get("is_json"):
-        loaded_tree = JsonNode(state, load_context)
-    else:
-        try:
-            node_cls = NODE_TYPE_MAPPING[state["__loader__"]]
-        except KeyError:
-            type_name = f"{state['__module__']}.{state['__class__']}"
-            raise TypeError(
-                f" Can't find loader {state['__loader__']} for type {type_name}."
-            )
+    try:
+        node_cls = NODE_TYPE_MAPPING[state["__loader__"]]
+    except KeyError:
+        type_name = f"{state['__module__']}.{state['__class__']}"
+        raise TypeError(
+            f" Can't find loader {state['__loader__']} for type {type_name}."
+        )
 
-        loaded_tree = node_cls(state, load_context, trusted=False)  # type: ignore
+    loaded_tree = node_cls(state, load_context, trusted=False)  # type: ignore
 
     return loaded_tree

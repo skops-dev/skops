@@ -92,7 +92,6 @@ class NdArrayNode(Node):
                 content = np.array(tmp, dtype="O")
 
             return content
-            return np.array(self.content, dtype=object).reshape(self.shape)
 
 
 def maskedarray_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:

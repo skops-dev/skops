@@ -64,15 +64,15 @@ using :func:`skops.io.get_untrusted_types`:
 .. code:: python
 
     from skops.io import get_untrusted_types
-    untrusted_types = get_untrusted_types(file="my-logistic-regression.skops")
-    print(untrusted_types)
+    unknown_types = get_untrusted_types(file="my-logistic-regression.skops")
+    print(unknown_types)
 
 Once you check the list and you validate that everything in the list is safe,
-you can load the file with ``trusted=untrusted_types``:
+you can load the file with ``trusted=unknown_types``:
 
 .. code:: python
 
-    loaded = load("my-logistic-regression.skops", trusted=untrusted_types)
+    loaded = load("my-logistic-regression.skops", trusted=unknown_types)
 
 At the moment, we support the vast majority of sklearn estimators. This
 includes complex use cases such as :class:`sklearn.pipeline.Pipeline`,

@@ -1,3 +1,6 @@
+from skops.io.exceptions import UntrustedTypesFoundException
+
+
 def check_type(module_name, type_name, trusted):
     """Check if a type is safe to load.
 
@@ -11,8 +14,9 @@ def check_type(module_name, type_name, trusted):
     type_name : str
         The class name of the type.
 
-    trusted : list of str
-        A list of trusted types. If the type is in this list, it is considered safe.
+    trusted : bool, or list of str
+        If ``True``, the tree is considered safe. Otherwise trusted has to be
+        a list of trusted types.
 
     Returns
     -------
@@ -37,11 +41,10 @@ def audit_tree(tree, trusted):
 
     trusted : bool, or list of str
         If ``True``, the tree is considered safe. Otherwise trusted has to be
-        a list of trusted types.
+        a list of trusted types names.
 
-    Returns
-    -------
-    None
+        An entry in the list is typically of the form
+        ``skops.io._utils.get_module(obj) + "." + obj.__class__.__name__``.
 
     Raises
     ------
@@ -55,4 +58,4 @@ def audit_tree(tree, trusted):
     if isinstance(trusted, (list, set)):
         unsafe -= set(trusted)
     if unsafe:
-        raise TypeError(f"Untrusted types found in the file: {unsafe}.")
+        raise UntrustedTypesFoundException(unsafe)

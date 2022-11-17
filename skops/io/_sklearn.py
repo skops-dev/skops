@@ -88,9 +88,7 @@ def reduce_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
 
 
 class ReduceNode(Node):
-    def __init__(
-        self, state, load_context: LoadContext, constructor=None, trusted=False
-    ):
+    def __init__(self, state, load_context: LoadContext, constructor, trusted=False):
         super().__init__(state, load_context, trusted)
         reduce = state["__reduce__"]
         self.args = get_tree(reduce["args"], load_context)

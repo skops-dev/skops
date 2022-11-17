@@ -485,10 +485,10 @@ def test_can_persist_fitted(estimator, request):
     # test that we can get a list of untrusted types. This is a smoke test
     # to make sure there are no errors running this method.
     # it is in this test to save time, as it requires a fitted estimator.
-    # breakpoint()
-    untrusted_types = get_untrusted_types(data=dumps(estimator))
+    dumped = dumps(estimator)
+    untrusted_types = get_untrusted_types(data=dumped)
 
-    loaded = loads(dumps(estimator), trusted=untrusted_types)
+    loaded = loads(dumped, trusted=untrusted_types)
     assert_params_equal(estimator.__dict__, loaded.__dict__)
 
     for method in [

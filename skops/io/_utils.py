@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import importlib
-import json  # type: ignore
 import sys
 from dataclasses import dataclass, field
 from functools import singledispatch
@@ -157,23 +156,18 @@ def get_state(value, save_context):
     # fails with `get_state`, we try with json.dumps, if that fails, we raise
     # the original error alongside the json error.
 
-    if id(value) in save_context.memo:
-        return {
-            "__module__": None,
-            "__class__": None,
-            "__id__": id(value),
-            "__loader__": "CachedNode",
-        }
+    # TODO: This should help with fixing recursive references.
+    # if id(value) in save_context.memo:
+    #     return {
+    #         "__module__": None,
+    #         "__class__": None,
+    #         "__id__": id(value),
+    #         "__loader__": "CachedNode",
+    #     }
 
     __id__ = save_context.memoize(obj=value)
 
-    try:
-        res = _get_state(value, save_context)
-    except TypeError as e1:
-        try:
-            res = json.dumps(value)
-        except Exception as e2:
-            raise e1 from e2
+    res = _get_state(value, save_context)
 
     res["__id__"] = __id__
     return res
