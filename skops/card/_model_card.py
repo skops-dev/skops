@@ -403,13 +403,11 @@ class Card:
             Card object.
         """
         try:
-            metadata.version("matplotlib")
+            import matplotlib.pyplot as plt
         except metadata.PackageNotFoundError:
             raise ModuleNotFoundError(
                 "This feature requires matplotlib to be installed."
             )
-
-        import matplotlib.pyplot as plt
 
         sorted_importances_idx = permutation_importances.importances_mean.argsort()
         _, ax = plt.subplots()
