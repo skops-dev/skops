@@ -428,71 +428,73 @@ class TestCardRepr:
         assert result == expected
 
 
-class TestModelCardFromPath:
-    @pytest.mark.parametrize("file_type", [str, Path])
-    @pytest.mark.parametrize("suffix", [".pkl", ".pickle", ".skops"])
-    def test_model_card_str(self, suffix, file_type):
-        model0 = LinearRegression(n_jobs=123)
-        _, save_file = save_model_to_file(model0, suffix)
-        save_file = file_type(save_file)
-        card_from_str = Card(save_file)
-        card_from_model0 = Card(model0)
-
-        assert card_from_model0.model.n_jobs == card_from_str.model.n_jobs
-
-
 class TestCardModelAttribute:
-    def test_model_estimator(self):
-        model0 = LinearRegression()
+    @pytest.fixture
+    def card(self):
+        model = LinearRegression(fit_intercept=False)
+        card = Card(model=model)
+        card.add(
+            model_description="A description",
+            model_card_authors="Jane Doe",
+        )
+        card.add_plot(
+            roc_curve="ROC_curve.png",
+            confusion_matrix="confusion_matrix.jpg",
+        )
+        card.add_table(search_results={"split": [1, 2, 3], "score": [4, 5, 6]})
+        return card
 
-        card = Card(model0)
-        assert card.model is model0
+    def path_to_card(self, path):
+        card = Card(model=path)
+        card.add(
+            model_description="A description",
+            model_card_authors="Jane Doe",
+        )
+        card.add_plot(
+            roc_curve="ROC_curve.png",
+            confusion_matrix="confusion_matrix.jpg",
+        )
+        card.add_table(search_results={"split": [1, 2, 3], "score": [4, 5, 6]})
+        return card
 
-        # re-assigning the model works
-        model1 = LogisticRegression()
-        card.model = model1
-        assert card.model is model1
+    @pytest.mark.parametrize("meth", [repr, str])
+    @pytest.mark.parametrize("suffix", [".pkl", ".skops"])
+    def test_model_card_repr(self, card: Card, meth, suffix):
+        result_from_model = meth(card)
 
-        # re-assigning back to original works
-        card.model = model0
-        assert card.model is model0
-
-    def test_model_is_str_pickle(self, suffix=".pickle"):
-        model0 = LinearRegression(n_jobs=123)
-        _, f_name0 = save_model_to_file(model0, suffix)
-
-        card = Card(f_name0)
-        assert isinstance(card.model, LinearRegression)
-        assert card.model.n_jobs == 123
-
-        # re-assigning the model works
-        model1 = LogisticRegression(n_jobs=456)
-        _, f_name1 = save_model_to_file(model1, suffix)
-
-        card.model = f_name1
-        assert isinstance(card.model, LogisticRegression)
-        assert card.model.n_jobs == 456
-
-        # re-assigning back to original works
-        card.model = f_name0
-        assert isinstance(card.model, LinearRegression)
-        assert card.model.n_jobs == 123
-
-    def test_model_is_loaded_once(self, suffix=".pickle"):
-        model0 = LinearRegression(n_jobs=123)
-        file_handle, f_name0 = save_model_to_file(model0, suffix)
-
-        card = Card(f_name0)
-        assert isinstance(card.model, LinearRegression)
-        assert card.model.n_jobs == 123
+        file_handle, file_name = save_model_to_file(card.model, suffix)
 
         os.close(file_handle)
-        os.remove(f_name0)
 
-        assert isinstance(card.model, LinearRegression)
-        assert card.model.n_jobs == 123
+        card_from_path = self.path_to_card(file_name)
+        result_from_path = meth(card_from_path)
+        print(result_from_path)
+        expected = (
+            "Card(\n"
+            "  model=LinearRegression(fit_intercept=False),\n"
+            "  model_description='A description',\n"
+            "  model_card_authors='Jane Doe',\n"
+            "  roc_curve='ROC_curve.png',\n"
+            "  confusion_matrix='confusion_matrix.jpg',\n"
+            "  search_results=Table(3x2),\n"
+            ")"
+        )
+        assert result_from_model == expected
+        assert result_from_path == expected
 
-    def test_load_model_file_not_found(self):
+    @pytest.mark.parametrize("suffix", [".pkl", ".skops"])
+    @pytest.mark.parametrize("meth", [repr, str])
+    def test_load_model_exception(self, meth, suffix):
+        file_handle, file_name = tempfile.mkstemp(suffix=suffix, prefix="skops-test")
+
+        os.close(file_handle)
+
+        with pytest.raises(Exception, match="occured during model loading."):
+            card = Card(file_name)
+            meth(card)
+
+    @pytest.mark.parametrize("meth", [repr, str])
+    def test_load_model_file_not_found(self, meth):
         file_handle, file_name = tempfile.mkstemp(suffix=".pkl", prefix="skops-test")
 
         os.close(file_handle)
@@ -500,24 +502,9 @@ class TestCardModelAttribute:
 
         with pytest.raises(FileNotFoundError) as excinfo:
             card = Card(file_name)
-            card.model
+            meth(card)
 
         assert file_name in str(excinfo.value)
-
-    def test_load_model_value_error(self):
-        file_name = tempfile.mkstemp(suffix=".abc", prefix="skops-test")[1]
-        file_name = Path(file_name)
-        model0 = LinearRegression(n_jobs=123)
-        with open(file_name, "wb") as f:
-            pickle.dump(model0, f)
-
-        msg = (
-            f"Cannot interpret model suffix {file_name.suffix}, should be"
-            "'.pkl', '.pickle', or '.skops'"
-        )
-        with pytest.raises(ValueError, match=msg):
-            card = Card(file_name)
-            card.model
 
 
 class TestPlotSection:

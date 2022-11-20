@@ -5,6 +5,7 @@ import json
 import re
 import shutil
 import tempfile
+import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 from reprlib import Repr
@@ -171,8 +172,7 @@ def _load_model(model: Any) -> Any:
     Parameters
     ----------
     model : pathlib.path, str, or sklearn estimator
-        Path/str or the actual model instance. if a Path or str, loads the model on
-        first call.
+        Path/str or the actual model instance. if a Path or str, loads the model.
 
     Returns
     -------
@@ -186,18 +186,16 @@ def _load_model(model: Any) -> Any:
 
     model_path = Path(model)
     if not model_path.exists():
-        raise FileNotFoundError(f"File is not present:{model_path}")
+        raise FileNotFoundError(f"File is not present: {model_path}")
 
-    if model_path.suffix in (".pkl", ".pickle"):
-        model = joblib.load(model_path)
-    elif model_path.suffix == ".skops":
-        model = load(model_path)
-    else:
-        msg = (
-            f"Cannot interpret model suffix {model_path.suffix}, should be"
-            "'.pkl', '.pickle', or '.skops'"
-        )
-        raise ValueError(msg)
+    try:
+        if zipfile.is_zipfile(model_path):
+            model = load(model_path)
+        else:
+            model = joblib.load(model_path)
+    except Exception as ex:
+        msg = f'An "{type(ex).__name__}" occured during model loading.'
+        raise RuntimeError(msg) from ex
 
     return model
 
@@ -297,27 +295,24 @@ class Card:
         model_diagram: bool = True,
         metadata: Optional[CardData] = None,
     ) -> None:
-        self._model = model
+        self.model = model
         self.model_diagram = model_diagram
         self._eval_results = {}  # type: ignore
         self._template_sections: dict[str, str] = {}
         self._extra_sections: list[tuple[str, Any]] = []
         self.metadata = metadata or CardData()
 
-    @property
-    def model(self):
-        model = _load_model(self._model)
-        if model is not self._model:
-            self._model = model
+    def get_model(self) -> Any:
+        """Returns sklearn estimator object if ``Path``/``str``
+            is provided.
+
+        Returns
+        -------
+        model : Object
+            Model instance.
+        """
+        model = _load_model(self.model)
         return model
-
-    @model.setter
-    def model(self, model):
-        self._model = model
-
-    @model.deleter
-    def model(self):
-        del self._model
 
     def add(self, **kwargs: str) -> "Card":
         """Takes values to fill model card template.
@@ -469,7 +464,9 @@ class Card:
                         'clf.predict(pd.DataFrame.from_dict(config["sklearn"]["example_input"]))'
                     )
         if self.model_diagram is True:
-            model_plot_div = re.sub(r"\n\s+", "", str(estimator_html_repr(self.model)))
+            model_plot_div = re.sub(
+                r"\n\s+", "", str(estimator_html_repr(self.get_model()))
+            )
             if model_plot_div.count("sk-top-container") == 1:
                 model_plot_div = model_plot_div.replace(
                     "sk-top-container", 'sk-top-container" style="overflow: auto;'
@@ -554,7 +551,7 @@ class Card:
         str:
             Markdown table of hyperparameters.
         """
-        hyperparameter_dict = self.model.get_params(deep=True)
+        hyperparameter_dict = self.get_model().get_params(deep=True)
         return _clean_table(
             tabulate(
                 list(hyperparameter_dict.items()),
@@ -577,7 +574,7 @@ class Card:
         # create repr for model
         model = getattr(self, "model", None)
         if model:
-            model_str = self._strip_blank(repr(model))
+            model_str = self._strip_blank(repr(self.get_model()))
             model_repr = aRepr.repr(f"  model={model_str},").strip('"').strip("'")
         else:
             model_repr = None
