@@ -56,7 +56,7 @@ import skops
 from skops.io import dump, dumps, load, loads
 from skops.io._dispatch import GET_INSTANCE_MAPPING, get_instance
 from skops.io._sklearn import UNSUPPORTED_TYPES
-from skops.io._utils import _get_state, get_state
+from skops.io._utils import LoadContext, SaveContext, _get_state, get_state
 from skops.io.exceptions import UnsupportedTypeException
 
 # Default settings for X
@@ -79,11 +79,12 @@ def debug_dispatch_functions():
         # Check consistency of argument names, output type, and that the output,
         # if a dict, has certain keys, or if not a dict, is a primitive type.
         signature = inspect.signature(func)
-        assert list(signature.parameters.keys()) == ["obj", "save_state"]
+        assert list(signature.parameters.keys()) == ["obj", "save_context"]
 
         @wraps(func)
-        def wrapper(obj, save_state):
-            result = func(obj, save_state)
+        def wrapper(obj, save_context):
+            # NB: __id__ set in main 'get_state' func, so no check here
+            result = func(obj, save_context)
 
             assert "__class__" in result
             assert "__module__" in result
@@ -96,16 +97,17 @@ def debug_dispatch_functions():
     def debug_get_instance(func):
         # check consistency of argument names and input type
         signature = inspect.signature(func)
-        assert list(signature.parameters.keys()) == ["state", "src"]
+        assert list(signature.parameters.keys()) == ["state", "load_context"]
 
         @wraps(func)
-        def wrapper(state, src):
+        def wrapper(state, load_context):
             assert "__class__" in state
             assert "__module__" in state
             assert "__loader__" in state
-            assert isinstance(src, ZipFile)
+            assert "__id__" in state
+            assert isinstance(load_context, LoadContext)
 
-            result = func(state, src)
+            result = func(state, load_context)
             return result
 
         return wrapper
@@ -785,11 +787,13 @@ def test_loads_from_str():
 
 
 def test_get_instance_unknown_type_error_msg():
-    state = get_state(("hi", [123]), None)
+    val = ("hi", [123])
+    save_context = SaveContext(None)
+    state = get_state(val, save_context)
     state["__loader__"] = "this_get_instance_does_not_exist"
     msg = "Can't find loader this_get_instance_does_not_exist for type builtins.tuple."
     with pytest.raises(TypeError, match=msg):
-        get_instance(state, None)
+        get_instance(state, LoadContext(None))
 
 
 class _BoundMethodHolder:
@@ -867,9 +871,6 @@ class TestPersistingBoundMethods:
         self.assert_transformer_persisted_correctly(loaded_transformer, transformer)
         self.assert_bound_method_holder_persisted_correctly(obj, loaded_obj)
 
-    @pytest.mark.xfail(
-        reason="Can't load an object as a single instance if referenced multiple times"
-    )
     def test_works_when_given_multiple_bound_methods_attached_to_single_instance(self):
         obj = _BoundMethodHolder(object_state="")
 
@@ -960,3 +961,21 @@ def test_disk_and_memory_are_identical(tmp_path):
     loaded_memory = loads(dumps(estimator))
 
     assert joblib.hash(loaded_disk) == joblib.hash(loaded_memory)
+
+
+@pytest.mark.parametrize(
+    "obj",
+    [
+        np.array([1, 2]),
+        [1, 2, 3],
+        {1: 1, 2: 2},
+        {1, 2, 3},
+        "A string",
+        np.random.RandomState(42),
+    ],
+)
+def test_when_given_object_referenced_twice_loads_as_one_object(obj):
+    an_object = {"obj_1": obj, "obj_2": obj}
+    persisted_object = loads(dumps(an_object))
+
+    assert persisted_object["obj_1"] is persisted_object["obj_2"]
