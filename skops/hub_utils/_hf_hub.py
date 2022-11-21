@@ -7,6 +7,7 @@ from __future__ import annotations
 import collections
 import json
 import os
+import re
 import shutil
 from pathlib import Path
 from typing import Any, List, MutableMapping, Optional, Union
@@ -234,7 +235,7 @@ def _check_model_file(path: str | Path) -> Path:
         raise OSError(f"Model file '{path}' does not exist.")
 
     if os.path.getsize(path) == 0:
-        raise RuntimeError(f"Model file '{path}' is empty.")
+        raise RuntimeError(re.escape(f"Model file '{path}' is empty."))
 
     return Path(path)
 
