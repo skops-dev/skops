@@ -204,4 +204,4 @@ def get_untrusted_types(*, data=None, file=None):
         tree = get_tree(schema, load_context=LoadContext(src=zip_file))
         untrusted_types = tree.get_unsafe_set()
 
-    return list(untrusted_types)
+    return sorted(untrusted_types)

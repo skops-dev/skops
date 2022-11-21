@@ -36,7 +36,7 @@ def audit_tree(tree, trusted):
 
     Parameters
     ----------
-    tree : Node
+    tree : skops.io._dispatch.Node
         The tree to audit.
 
     trusted : bool, or list of str

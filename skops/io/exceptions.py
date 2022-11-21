@@ -11,4 +11,4 @@ class UntrustedTypesFoundException(TypeError):
     """Raise when some untrusted objects are found in the file."""
 
     def __init__(self, unsafe):
-        super().__init__(f"Untrusted types found in the file: {unsafe}.")
+        super().__init__(f"Untrusted types found in the file: {sorted(unsafe)}.")

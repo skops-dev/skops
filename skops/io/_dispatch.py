@@ -1,9 +1,34 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
+
 from ._audit import check_type
 from ._utils import LoadContext
 
 NODE_TYPE_MAPPING = {}  # type: ignore
+
+
+class UNINITIALIZED:
+    """Sentinel value to indicate that a value has not been initialized yet."""
+
+    ...
+
+
+@contextmanager
+def temp_setattr(obj, **kwargs):
+    """Context manager to temporarily set attributes on an object."""
+    has_attr = {k: hasattr(obj, k) for k in kwargs.keys()}
+    previous_values = {k: getattr(obj, k, None) for k in kwargs}
+    for k, v in kwargs.items():
+        setattr(obj, k, v)
+    try:
+        yield
+    finally:
+        for k, v in previous_values.items():
+            if has_attr[k]:
+                setattr(obj, k, v)
+            else:
+                delattr(obj, k)
 
 
 class Node:
@@ -54,7 +79,7 @@ class Node:
         self.class_name, self.module_name = state["__class__"], state["__module__"]
         self.trusted = trusted
         self._is_safe = None
-        self._constructed = None
+        self._constructed = UNINITIALIZED()
         saved_id = state.get("__id__")
         if saved_id and memoize:
             # hold reference to obj in case same instance encountered again in
@@ -66,7 +91,7 @@ class Node:
 
         We only construct the object once, and then cache the result.
         """
-        if self._constructed is not None:
+        if not isinstance(self._constructed, UNINITIALIZED):
             return self._constructed
         self._constructed = self._construct()
         return self._constructed
@@ -122,30 +147,29 @@ class Node:
             # return an empty set and let the computation of the parent node
             # continue. This is to avoid infinite recursion.
             return set()
-        self._computing_unsafe_set = True
 
-        res = set()
-        if not self.is_self_safe():
-            res.add(self.module_name + "." + self.class_name)
+        with temp_setattr(self, _computing_unsafe_set=True):
+            res = set()
+            if not self.is_self_safe():
+                res.add(self.module_name + "." + self.class_name)
 
-        for child, ch_type in self.children.items():
-            if getattr(self, child) is None:
-                continue
+            for child, ch_type in self.children.items():
+                if getattr(self, child) is None:
+                    continue
 
-            # Get the safety set based on the type of the child. In most cases
-            # other than ListNode and DictNode, children are all of type Node.
-            if ch_type is list:
-                for value in getattr(self, child):
-                    res.update(value.get_unsafe_set())
-            elif ch_type is dict:
-                for value in getattr(self, child).values():
-                    res.update(value.get_unsafe_set())
-            elif issubclass(ch_type, Node):
-                res.update(getattr(self, child).get_unsafe_set())
-            else:
-                raise ValueError(f"Unknown type {ch_type}.")
+                # Get the safety set based on the type of the child. In most cases
+                # other than ListNode and DictNode, children are all of type Node.
+                if ch_type is list:
+                    for value in getattr(self, child):
+                        res.update(value.get_unsafe_set())
+                elif ch_type is dict:
+                    for value in getattr(self, child).values():
+                        res.update(value.get_unsafe_set())
+                elif issubclass(ch_type, Node):
+                    res.update(getattr(self, child).get_unsafe_set())
+                else:
+                    raise ValueError(f"Unknown type {ch_type}.")
 
-        del self._computing_unsafe_set
         return res
 
 

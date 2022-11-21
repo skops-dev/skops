@@ -1,12 +1,14 @@
 import io
 import json
+import re
+from contextlib import suppress
 from zipfile import ZipFile
 
 import pytest
 
 from skops.io import dumps, get_untrusted_types
 from skops.io._audit import audit_tree, check_type
-from skops.io._dispatch import Node, get_tree
+from skops.io._dispatch import Node, get_tree, temp_setattr
 from skops.io._general import DictNode, dict_get_state
 from skops.io._utils import LoadContext, SaveContext, gettype
 
@@ -38,7 +40,10 @@ def test_audit_tree_untrusted():
     state = dict_get_state(var, SaveContext(None, 0, {}))
     node = DictNode(state, LoadContext(None), trusted=False)
     with pytest.raises(
-        TypeError, match="Untrusted types found in the file: {'test_audit.CustomType'}."
+        TypeError,
+        match=re.escape(
+            "Untrusted types found in the file: ['test_audit.CustomType']."
+        ),
     ):
         audit_tree(node, trusted=False)
 
@@ -113,3 +118,20 @@ def test_gettype():
 def test_get_untrusted_types_validation(data, file, exception, message):
     with pytest.raises(exception, match=message):
         get_untrusted_types(data=data, file=file)
+
+
+def test_temp_setattr():
+    # Test that temp_setattr works as expected
+    class A:
+        def __init__(self):
+            self.a = 1
+
+    temp = A()
+    with suppress(ValueError):
+        with temp_setattr(temp, a=2, b=3):
+            assert temp.a == 2
+            assert temp.b == 3
+            raise ValueError  # to make sure context manager handles exceptions
+
+    assert temp.a == 1
+    assert not hasattr(temp, "b")

@@ -386,7 +386,6 @@ class JsonNode(Node):
     def __init__(self, state, load_context: LoadContext, trusted=False):
         super().__init__(state, load_context, trusted)
         self.content = state["content"]
-        self._constructed = None
 
     def is_safe(self):
         # JsonNode is always considered safe.
