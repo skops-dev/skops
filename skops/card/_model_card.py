@@ -341,13 +341,7 @@ class Card:
     ...     "accuracy": accuracy_score(y, y_pred),
     ...     "f1 score": f1_score(y, y_pred, average="micro"),
     ... })
-    Card(
-      model=LogisticRegression(random_state=0, solver='liblinear')
-      metadata.license=mit,
-      Model description/Training Procedure/... | | warm_start | False | </details>,
-      Model description/Training Procedure/...</pre></div></div></div></div></div>,
-      Model description/Evaluation Results=...ccuracy | 0.96 | | f1 score | 0.96 |,
-    )
+    Card(...)
     >>> cm = confusion_matrix(y, y_pred,labels=model.classes_)
     >>> disp = ConfusionMatrixDisplay(
     ...     confusion_matrix=cm,
@@ -361,41 +355,17 @@ class Card:
     >>> model_card.add_plot(**{
     ...     "Model description/Confusion Matrix": tmp_path / "confusion_matrix.png"
     ... })
-    Card(
-      model=LogisticRegression(random_state=0, solver='liblinear')
-      metadata.license=mit,
-      Model description/Training Procedure/... | | warm_start | False | </details>,
-      Model description/Training Procedure/...</pre></div></div></div></div></div>,
-      Model description/Evaluation Results=...ccuracy | 0.96 | | f1 score | 0.96 |,
-      Model description/Confusion Matrix=...confusion_matrix.png'),
-    )
+    Card(...)
     >>> # add new content to the existing section "Model description"
     >>> model_card.add(**{"Model description": "This is the best model"})
-    Card(
-      model=LogisticRegression(random_state=0, solver='liblinear')
-      metadata.license=mit,
-      Model description=This is the best model,
-      Model description/Training Procedure/... | | warm_start | False | </details>,
-      Model description/Training Procedure/...</pre></div></div></div></div></div>,
-      Model description/Evaluation Results=...ccuracy | 0.96 | | f1 score | 0.96 |,
-      Model description/Confusion Matrix=...confusion_matrix.png'),
-    )
+    Card(...)
     >>> # add content to a new section
     >>> model_card.add(**{"A new section": "Please rate my model"})
-    Card(
-      model=LogisticRegression(random_state=0, solver='liblinear')
-      metadata.license=mit,
-      Model description=This is the best model,
-      Model description/Training Procedure/... | | warm_start | False | </details>,
-      Model description/Training Procedure/...</pre></div></div></div></div></div>,
-      Model description/Evaluation Results=...ccuracy | 0.96 | | f1 score | 0.96 |,
-      Model description/Confusion Matrix=...confusion_matrix.png'),
-      A new section=Please rate my model,
-    )
+    Card(...)
     >>> # add new subsection to an existing section by using "/"
     >>> model_card.add(**{"Model description/Model name": "This model is called Bob"})
     Card(
-      model=LogisticRegression(random_state=0, solver='liblinear')
+      model=LogisticRegression(random_state=0, solver='liblinear'),
       metadata.license=mit,
       Model description=This is the best model,
       Model description/Training Procedure/... | | warm_start | False | </details>,
@@ -479,6 +449,31 @@ class Card:
     def _select(
         self, subsection_names: Sequence[str], create: bool = True
     ) -> dict[str, Section]:
+        """Select a single section from the data
+
+        Parameters
+        ----------
+        subsection_names: list of str
+            The subsection names, already split into individual subsections.
+
+        create: bool (default=True)
+            Whether to create the subsection if it does not already exist or
+            not.
+
+        Returns
+        -------
+        section: dict of Section
+            A dict mapping the section key (identical to the title) to the
+            actual ``Section``, which is a dataclass that contains the actual
+            data of the section.
+
+        Raises
+        ------
+        KeyError
+            If the section does not exist and ``create=False``, raises a
+            ``KeyError``.
+
+        """
         section = self._data
         if not subsection_names:
             return section
@@ -591,6 +586,20 @@ class Card:
         del parent_section[leaf_node_name]
 
     def _add_single(self, key: str, val: Formattable | str) -> None:
+        """Add a single section
+
+        If the (sub)section does not exist, it is created. Otherwise, the
+        existing (sub)section is modified.
+
+        Parameters
+        ----------
+        key: str
+            The name of the (sub)section.
+
+        val: str or Formattable
+            The value to assign to the (sub)section.
+
+        """
         *subsection_names, leaf_node_name = split_subsection_names(key)
         section = self._select(subsection_names)
 
@@ -602,6 +611,7 @@ class Card:
             section[leaf_node_name] = Section(title=leaf_node_name, content=val)
 
     def _add_model_section(self) -> None:
+        """Add model plot section, if model_diagram is set"""
         section_title = "Model description/Training Procedure/Model Plot"
         default_content = "The model plot is below."
 
@@ -618,6 +628,7 @@ class Card:
         self._add_single(section_title, content)
 
     def _add_hyperparams(self) -> None:
+        """Add hyperparameter section"""
         hyperparameter_dict = self.model.get_params(deep=True)
         table = _clean_table(
             tabulate(
@@ -744,6 +755,7 @@ class Card:
         return self
 
     def _add_metrics(self, metrics: dict[str, str | float | int]) -> None:
+        """Add metrics to the Evaluation Results section"""
         table = tabulate(
             list(metrics.items()),
             headers=["Metric", "Value"],
@@ -808,7 +820,7 @@ class Card:
         # repr for the model
         model = getattr(self, "model", None)
         if model:
-            model_repr = self._format_repr(f"model={repr(model)}")
+            model_repr = self._format_repr(f"model={repr(model)},")
         else:
             model_repr = None
 
@@ -847,6 +859,7 @@ class Card:
         return complete_repr
 
     def _add_get_started_code(self, file_name: str, indent: str = "    ") -> None:
+        """Add getting started code to the corresponding section"""
         is_skops_format = file_name.endswith(".skops")  # else, assume pickle
         lines = _getting_started_code(
             file_name, is_skops_format=is_skops_format, indent=indent
@@ -864,6 +877,7 @@ class Card:
         )
 
     def _generate_card(self) -> Iterator[str]:
+        """Yield sections of the model card, including the metadata"""
         if self.metadata.to_dict():
             yield f"---\n{self.metadata.to_yaml()}\n---"
 

@@ -580,7 +580,7 @@ class TestCardRepr:
     def expected_lines(self):
         card_repr = """
         Card(
-          model=LinearRegression(fit_intercept=False)
+          model=LinearRegression(fit_intercept=False),
           Model description/Training Procedure/...ed | | positive | False | </details>,
           Model description/Training Procedure/...</pre></div></div></div></div></div>,
           Model description/Evaluation Results=...ric | Value | |----------|---------|,
@@ -627,7 +627,7 @@ class TestCardRepr:
         expected = textwrap.dedent(
             """
         Card(
-          model=LinearRegression()
+          model=LinearRegression(),
         )
         """
         ).strip()
