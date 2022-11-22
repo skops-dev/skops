@@ -88,18 +88,15 @@ DEFAULT_PROTOCOL = 0
 
 
 @dataclass(frozen=True)
-class SaveState:
-    """State required for saving the objects
+class SaveContext:
+    """Context required for saving the objects
 
-    This state is passed to each ``get_state_*`` function.
+    This context is passed to each ``get_state_*`` function.
 
     Parameters
     ----------
     zip_file: zipfile.ZipFile
         The zip file to write the data to, must be in write mode.
-
-    path: pathlib.Path
-        The path to the directory to store the object in.
 
     protocol: int
         The protocol of the persistence format. Right now, there is only
@@ -125,22 +122,49 @@ class SaveState:
         self.memo.clear()
 
 
+@dataclass(frozen=True)
+class LoadContext:
+    """Context required for loading an object
+
+    This context is passed to each ``get_instance_*`` function.
+
+    Parameters
+    ----------
+    src: zipfile.ZipFile
+        The zip file the target object is saved in
+    """
+
+    src: ZipFile
+    memo: dict[int, Any] = field(default_factory=dict)
+
+    def memoize(self, obj: Any, id: int) -> None:
+        self.memo[id] = obj
+
+    def get_instance(self, id: int) -> Any:
+        return self.memo.get(id)
+
+
 @singledispatch
-def _get_state(obj, save_state):
+def _get_state(obj, save_context):
     # This function should never be called directly. Instead, it is used to
     # dispatch to the correct implementation of get_state for the given type of
     # its first argument.
     raise TypeError(f"Getting the state of type {type(obj)} is not supported yet")
 
 
-def get_state(value, save_state):
+def get_state(value, save_context):
     # This is a helper function to try to get the state of an object. If it
     # fails with `get_state`, we try with json.dumps, if that fails, we raise
     # the original error alongside the json error.
+    __id__ = save_context.memoize(obj=value)
+
     try:
-        return _get_state(value, save_state)
+        res = _get_state(value, save_context)
     except TypeError as e1:
         try:
-            return json.dumps(value)
+            res = json.dumps(value)
         except Exception as e2:
             raise e1 from e2
+
+    res["__id__"] = __id__
+    return res
