@@ -8,7 +8,6 @@ import collections
 import json
 import os
 import shutil
-import warnings
 from pathlib import Path
 from pickle import load
 from typing import Any, List, MutableMapping, Optional, Union
@@ -238,7 +237,7 @@ def _check_model_file(path: str | Path) -> Path:
         raise OSError(f"Model file '{path}' does not exist.")
 
     if os.path.getsize(path) == 0:
-        warnings.warn(f"Model file '{path}' is empty.")
+        raise RuntimeError(f"Model file '{path}' is empty.")
 
     return Path(path)
 
