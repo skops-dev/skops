@@ -35,20 +35,19 @@ def sparse_matrix_get_state(obj: Any, save_context: SaveContext) -> dict[str, An
 class SparseMatrixNode(Node):
     def __init__(self, state, load_context: LoadContext, trusted=False):
         super().__init__(state, load_context, trusted)
-        self.type = state["type"]
+        type = state["type"]
         self.trusted = self._get_trusted(trusted, ["scipy.sparse.spmatrix"])
-        if self.type != "scipy":
+        if type != "scipy":
             raise TypeError(
                 f"Cannot load object of type {self.module_name}.{self.class_name}"
             )
 
-        self.content = io.BytesIO(load_context.src.read(state["file"]))
-        self.children = {}  # type: ignore
+        self.children = {"content": io.BytesIO(load_context.src.read(state["file"]))}
 
     def _construct(self):
         # scipy load_npz uses numpy.save with allow_pickle=False under the
         # hood, so we're safe using it
-        return load_npz(self.content)
+        return load_npz(self.children["content"])
 
 
 # tuples of type and function that gets the state of that type

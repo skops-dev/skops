@@ -91,15 +91,16 @@ class ReduceNode(Node):
     def __init__(self, state, load_context: LoadContext, constructor, trusted=False):
         super().__init__(state, load_context, trusted)
         reduce = state["__reduce__"]
-        self.args = get_tree(reduce["args"], load_context)
-        self.constructor = constructor
-        self.attrs = get_tree(state["content"], load_context)
-        self.children = {"attrs": Node, "args": Node}
+        self.children = {
+            "attrs": get_tree(state["content"], load_context),
+            "args": get_tree(reduce["args"], load_context),
+            "constructor": constructor,
+        }
 
     def _construct(self):
-        args = self.args.construct()
-        instance = self.constructor(*args)
-        attrs = self.attrs.construct()
+        args = self.children["args"].construct()
+        instance = self.children["constructor"](*args)
+        attrs = self.children["attrs"].construct()
         if not attrs:
             # nothing more to do
             return instance
@@ -142,7 +143,10 @@ class SGDNode(ReduceNode):
             state,
             load_context,
             constructor=gettype(state.get("__module__"), state.get("__class__")),
-            trusted=ALLOWED_SGD_LOSSES,
+            trusted=None,
+        )
+        self.trusted = self._get_trusted(
+            trusted, [get_module(x) + "." + x.__name__ for x in ALLOWED_SGD_LOSSES]
         )
 
 
@@ -171,20 +175,21 @@ class _DictWithDeprecatedKeysNode(Node):
     # _DictWithDeprecatedKeys is just a wrapper for dict
     def __init__(self, state, load_context: LoadContext, trusted=False):
         super().__init__(state, load_context, trusted)
-        self.main = get_tree(state["content"]["main"], load_context)
-        self._deprecated_key_to_new_key = get_tree(
-            state["content"]["_deprecated_key_to_new_key"], load_context
-        )
         self.trusted = [
             get_module(_DictWithDeprecatedKeysNode) + "._DictWithDeprecatedKeys"
         ]
-        self.children = {"main": Node, "_deprecated_key_to_new_key": Node}
+        self.children = {
+            "main": get_tree(state["content"]["main"], load_context),
+            "_deprecated_key_to_new_key": get_tree(
+                state["content"]["_deprecated_key_to_new_key"], load_context
+            ),
+        }
 
     def _construct(self):
-        instance = _DictWithDeprecatedKeys(**self.main.construct())
-        instance._deprecated_key_to_new_key = (
-            self._deprecated_key_to_new_key.construct()
-        )
+        instance = _DictWithDeprecatedKeys(**self.children["main"].construct())
+        instance._deprecated_key_to_new_key = self.children[
+            "_deprecated_key_to_new_key"
+        ].construct()
         return instance
 
 

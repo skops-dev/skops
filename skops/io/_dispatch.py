@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import io
 from contextlib import contextmanager
 
 from ._audit import check_type
-from ._utils import LoadContext
+from ._trusted_types import PRIMITIVE_TYPE_NAMES
+from ._utils import LoadContext, get_module
 
 NODE_TYPE_MAPPING = {}  # type: ignore
 
@@ -153,22 +155,43 @@ class Node:
             if not self.is_self_safe():
                 res.add(self.module_name + "." + self.class_name)
 
-            for child, ch_type in self.children.items():
-                if getattr(self, child) is None:
+            for child in self.children.values():
+                if child is None:
                     continue
 
                 # Get the safety set based on the type of the child. In most cases
                 # other than ListNode and DictNode, children are all of type Node.
-                if ch_type is list:
-                    for value in getattr(self, child):
+                if isinstance(child, list):
+                    # iterate through the list
+                    for value in child:
                         res.update(value.get_unsafe_set())
-                elif ch_type is dict:
-                    for value in getattr(self, child).values():
+                elif isinstance(child, dict):
+                    # iterate through the values of the dict only
+                    # TODO: should we check the types of the keys?
+                    for value in child.values():
                         res.update(value.get_unsafe_set())
-                elif issubclass(ch_type, Node):
-                    res.update(getattr(self, child).get_unsafe_set())
+                elif isinstance(child, Node):
+                    # delegate to the child Node
+                    res.update(child.get_unsafe_set())
+                elif type(child) is type:
+                    # the if condition bellow is not merged with the previous
+                    # one because if the above condition is True, the following
+                    # conditions about BytesIO, etc should be ignored.
+                    if not check_type(get_module(child), child.__name__, self.trusted):
+                        # if the child is a type, we check its safety
+                        res.add(get_module(child) + "." + child.__name__)
+                elif isinstance(child, io.BytesIO):
+                    # We trust BytesIO objects, which are read by other
+                    # libraries such as numpy, scipy.
+                    continue
+                elif check_type(
+                    get_module(child), child.__class__.__name__, PRIMITIVE_TYPE_NAMES
+                ):
+                    # if the child is a primitive type, we don't need to check its
+                    # safety.
+                    continue
                 else:
-                    raise ValueError(f"Unknown type {ch_type}.")
+                    raise ValueError(f"Unknown type {type(child)}.")
 
         return res
 

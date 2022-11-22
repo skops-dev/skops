@@ -45,19 +45,18 @@ class DictNode(Node):
     def __init__(self, state, load_context: LoadContext, trusted=False):
         super().__init__(state, load_context, trusted)
         self.trusted = self._get_trusted(trusted, ["builtins.dict"])
-        self.children = {"key_types": Node, "content": dict}
-        self.key_types = get_tree(state["key_types"], load_context)
-        self.content = {
-            key: get_tree(value, load_context)
-            for key, value in state["content"].items()
+        self.children = {
+            "key_types": get_tree(state["key_types"], load_context),
+            "content": {
+                key: get_tree(value, load_context)
+                for key, value in state["content"].items()
+            },
         }
 
     def _construct(self):
         content = gettype(self.module_name, self.class_name)()
-        key_types = self.key_types.construct()
-        for k_type, (key, val) in zip(key_types, self.content.items()):
-            if key == "categories_":
-                pass
+        key_types = self.children["key_types"].construct()
+        for k_type, (key, val) in zip(key_types, self.children["content"].items()):
             content[k_type(key)] = val.construct()
         return content
 
@@ -78,12 +77,13 @@ class ListNode(Node):
     def __init__(self, state, load_context: LoadContext, trusted=False):
         super().__init__(state, load_context, trusted)
         self.trusted = self._get_trusted(trusted, ["builtins.list"])
-        self.children = {"content": list}
-        self.content = [get_tree(value, load_context) for value in state["content"]]
+        self.children = {
+            "content": [get_tree(value, load_context) for value in state["content"]]
+        }
 
     def _construct(self):
         content_type = gettype(self.module_name, self.class_name)
-        return content_type([item.construct() for item in self.content])
+        return content_type([item.construct() for item in self.children["content"]])
 
 
 def set_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
@@ -101,12 +101,13 @@ class SetNode(Node):
     def __init__(self, state, load_context: LoadContext, trusted=False):
         super().__init__(state, load_context, trusted)
         self.trusted = self._get_trusted(trusted, ["builtins.set"])
-        self.children = {"content": list}
-        self.content = [get_tree(value, load_context) for value in state["content"]]
+        self.children = {
+            "content": [get_tree(value, load_context) for value in state["content"]]
+        }
 
     def _construct(self):
         content_type = gettype(self.module_name, self.class_name)
-        return content_type([item.construct() for item in self.content])
+        return content_type([item.construct() for item in self.children["content"]])
 
 
 def tuple_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
@@ -124,14 +125,15 @@ class TupleNode(Node):
     def __init__(self, state, load_context: LoadContext, trusted=False):
         super().__init__(state, load_context, trusted)
         self.trusted = self._get_trusted(trusted, ["builtins.tuple"])
-        self.children = {"content": list}
-        self.content = [get_tree(value, load_context) for value in state["content"]]
+        self.children = {
+            "content": [get_tree(value, load_context) for value in state["content"]]
+        }
 
     def _construct(self):
         # Returns a tuple or a namedtuple instance.
 
         cls = gettype(self.module_name, self.class_name)
-        content = tuple(value.construct() for value in self.content)
+        content = tuple(value.construct() for value in self.children["content"])
 
         if self.isnamedtuple(cls):
             return cls(*content)
@@ -167,14 +169,20 @@ class FunctionNode(Node):
         super().__init__(state, load_context, trusted)
         # TODO: what do we trust?
         self.trusted = self._get_trusted(trusted, [])
-        self.children = {"content": FunctionType}
-        self.content = state["content"]
+        self.children = {"content": state["content"]}
 
     def _construct(self):
-        return _import_obj(self.content["module_path"], self.content["function"])
+        return _import_obj(
+            self.children["content"]["module_path"],
+            self.children["content"]["function"],
+        )
 
     def _get_function_name(self):
-        return self.content["module_path"] + "." + self.content["function"]
+        return (
+            self.children["content"]["module_path"]
+            + "."
+            + self.children["content"]["function"]
+        )
 
     def is_safe(self):
         return self._get_function_name() in self.trusted
@@ -207,17 +215,18 @@ class PartialNode(Node):
         super().__init__(state, load_context, trusted)
         # TODO: should we trust anything?
         self.trusted = self._get_trusted(trusted, [])
-        self.children = {"func": Node, "args": Node, "kwds": Node, "namespace": Node}
-        self.func = get_tree(state["content"]["func"], load_context)
-        self.args = get_tree(state["content"]["args"], load_context)
-        self.kwds = get_tree(state["content"]["kwds"], load_context)
-        self.namespace = get_tree(state["content"]["namespace"], load_context)
+        self.children = {
+            "func": get_tree(state["content"]["func"], load_context),
+            "args": get_tree(state["content"]["args"], load_context),
+            "kwds": get_tree(state["content"]["kwds"], load_context),
+            "namespace": get_tree(state["content"]["namespace"], load_context),
+        }
 
     def _construct(self):
-        func = self.func.construct()
-        args = self.args.construct()
-        kwds = self.kwds.construct()
-        namespace = self.namespace.construct()
+        func = self.children["func"].construct()
+        args = self.children["args"].construct()
+        kwds = self.children["kwds"].construct()
+        namespace = self.children["namespace"].construct()
         instance = partial(func, *args, **kwds)  # always use partial, not a subclass
         instance.__setstate__((func, args, kwds, namespace))
         return instance
@@ -265,13 +274,19 @@ class SliceNode(Node):
     def __init__(self, state, load_context: LoadContext, trusted=False):
         super().__init__(state, load_context, trusted)
         self.trusted = self._get_trusted(trusted, ["builtins.slice"])
-        self.children = {}  # type: ignore
-        self.start = state["content"]["start"]
-        self.stop = state["content"]["stop"]
-        self.step = state["content"]["step"]
+        self.children = {
+            "start": state["content"]["start"],
+            "stop": state["content"]["stop"],
+            "step": state["content"]["step"],
+        }
 
     def _construct(self):
-        return slice(self.start, self.stop, self.step)
+        return slice(
+            self.children["start"], self.children["stop"], self.children["step"]
+        )
+
+    def get_unsafe_set(self):
+        return set()
 
 
 def object_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
@@ -318,11 +333,11 @@ class ObjectNode(Node):
         super().__init__(state, load_context, trusted)
 
         if "content" in state:
-            self.attrs = get_tree(state.get("content"), load_context)
+            attrs = get_tree(state.get("content"), load_context)
         else:
-            self.attrs = None
+            attrs = None
 
-        self.children = {"attrs": Node}
+        self.children = {"attrs": attrs}
         # TODO: what do we trust?
         self.trusted = self._get_trusted(trusted, [])
 
@@ -334,10 +349,11 @@ class ObjectNode(Node):
         # the issue of required init arguments.
         instance = cls.__new__(cls)
 
-        if not self.attrs:  # nothing more to do
+        if not self.children["attrs"]:
+            # nothing more to do
             return instance
 
-        attrs = self.attrs.construct()
+        attrs = self.children["attrs"].construct()
         if hasattr(instance, "__setstate__"):
             instance.__setstate__(attrs)
         else:
@@ -366,15 +382,16 @@ def method_get_state(obj: Any, save_context: SaveContext):
 class MethodNode(Node):
     def __init__(self, state, load_context: LoadContext, trusted=False):
         super().__init__(state, load_context, trusted)
-        self.children = {"obj": Node}
-        self.func = state["content"]["func"]
-        self.obj = get_tree(state["content"]["obj"], load_context)
+        self.children = {
+            "obj": get_tree(state["content"]["obj"], load_context),
+            "func": state["content"]["func"],
+        }
         # TODO: what do we trust?
         self.trusted = self._get_trusted(trusted, [])
 
     def _construct(self):
-        loaded_obj = self.obj.construct()
-        method = getattr(loaded_obj, self.func)
+        loaded_obj = self.children["obj"].construct()
+        method = getattr(loaded_obj, self.children["func"])
         return method
 
 
