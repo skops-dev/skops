@@ -316,7 +316,9 @@ def test_init_empty_model_file_errors(repo_path, config_json):
     shutil.rmtree(dir_path)
     version = metadata.version("scikit-learn")
 
-    with pytest.raises(RuntimeError, match=f"Model file '{model_path}' is empty."):
+    with pytest.raises(
+        RuntimeError, match=re.escape(f"Model file '{model_path}' is empty.")
+    ):
         init(
             model=model_path,
             requirements=[f'scikit-learn="{version}"'],
