@@ -380,6 +380,7 @@ class Card:
         columns,
         plot_file="permutation_importances.png",
         plot_name="Permutation Importances",
+        overwrite=False,
     ) -> "Card":
         """Plots permutation importance and saves it to model card.
 
@@ -397,6 +398,9 @@ class Card:
         plot_name : str, or Path
             Name of the plot.
 
+        overwrite : bool
+            Whether to overwrite the permutation importance plot, if exists.
+
         Returns
         -------
         self : object
@@ -408,7 +412,11 @@ class Card:
             raise ModuleNotFoundError(
                 "This feature requires matplotlib to be installed."
             )
-
+        if str(plot_file) in self.render() and overwrite is False:
+            raise ValueError(
+                f"{str(plot_file)} already exists. Set `overwrite` to `True` or pass a"
+                " different filename for the plot."
+            )
         sorted_importances_idx = permutation_importances.importances_mean.argsort()
         _, ax = plt.subplots()
         ax.boxplot(

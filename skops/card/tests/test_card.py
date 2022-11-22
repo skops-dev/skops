@@ -248,6 +248,50 @@ def test_multiple_permutation_importances(
     assert f"![Permutation Importance on f1]({temp_path_f1}" in model_card.render()
 
 
+def test_duplicate_permutation_importances(
+    iris_estimator, iris_data, model_card, destination_path
+):
+    X, y = iris_data
+    result = permutation_importance(
+        iris_estimator, X, y, n_repeats=10, random_state=42, n_jobs=2
+    )
+    plot_path = Path(destination_path) / "importance.png"
+    model_card.add_permutation_importances(result, X.columns, plot_file=plot_path)
+    with pytest.raises(
+        ValueError,
+        match=(
+            f"{str(plot_path)} already exists. Set `overwrite` to `True` or pass a"
+            " different filename for the plot."
+        ),
+    ):
+        model_card.add_permutation_importances(
+            result,
+            X.columns,
+            plot_file=plot_path,
+            plot_name="Permutation Importance on f1",
+        )
+
+
+def test_duplicate_permutation_importances_overwrite(
+    iris_estimator, iris_data, model_card, destination_path
+):
+    X, y = iris_data
+    result = permutation_importance(
+        iris_estimator, X, y, n_repeats=10, random_state=42, n_jobs=2
+    )
+    plot_path = Path(destination_path) / "importance.png"
+    model_card.add_permutation_importances(result, X.columns, plot_file=plot_path)
+
+    model_card.add_permutation_importances(
+        result,
+        X.columns,
+        plot_file=plot_path,
+        plot_name="Permutation Importance on f1",
+        overwrite=True,
+    )
+    assert f"![Permutation Importance on f1]({plot_path}" in model_card.render()
+
+
 def test_temporary_plot(destination_path, model_card):
     # test if the additions are made to a temporary template file
     # and not to default template or template provided
