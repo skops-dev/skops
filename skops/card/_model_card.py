@@ -210,7 +210,7 @@ class Card:
 
     Parameters
     ----------
-    model: pathlib.path, str, or sklearn estimator object
+    model: pathlib.Path, str, or sklearn estimator object
         ``Path``/``str`` of the model or the actual model instance that will be
         documented. If a ``Path`` or ``str`` is provided, model will be loaded.
 
