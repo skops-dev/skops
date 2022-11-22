@@ -260,10 +260,8 @@ def test_duplicate_permutation_importances(
     with pytest.raises(
         ValueError,
         match=(
-            (
-                rf"{plot_path} already exists. Set `overwrite` to `True` or pass a"
-                " different filename for the plot."
-            )
+            f"{plot_path} already exists. Set `overwrite` to `True` or pass a"
+            " different filename for the plot."
         ),
     ):
         model_card.add_permutation_importances(
