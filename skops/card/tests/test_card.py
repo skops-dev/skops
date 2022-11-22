@@ -43,10 +43,11 @@ def test_load_model(suffix):
     loaded_model_str = _load_model(save_file)
     save_file_path = Path(save_file)
     loaded_model_path = _load_model(save_file_path)
+    loaded_model_instance = _load_model(model0)
 
-    assert loaded_model_str.n_jobs == model0.n_jobs
-    assert loaded_model_path.n_jobs == model0.n_jobs
-    assert loaded_model_path.n_jobs == loaded_model_str.n_jobs
+    assert loaded_model_str.n_jobs == 123
+    assert loaded_model_path.n_jobs == 123
+    assert loaded_model_instance.n_jobs == 123
 
 
 @pytest.fixture
@@ -429,21 +430,6 @@ class TestCardRepr:
 
 
 class TestCardModelAttribute:
-    @pytest.fixture
-    def card(self):
-        model = LinearRegression(fit_intercept=False)
-        card = Card(model=model)
-        card.add(
-            model_description="A description",
-            model_card_authors="Jane Doe",
-        )
-        card.add_plot(
-            roc_curve="ROC_curve.png",
-            confusion_matrix="confusion_matrix.jpg",
-        )
-        card.add_table(search_results={"split": [1, 2, 3], "score": [4, 5, 6]})
-        return card
-
     def path_to_card(self, path):
         card = Card(model=path)
         card.add(
@@ -459,16 +445,12 @@ class TestCardModelAttribute:
 
     @pytest.mark.parametrize("meth", [repr, str])
     @pytest.mark.parametrize("suffix", [".pkl", ".skops"])
-    def test_model_card_repr(self, card: Card, meth, suffix):
-        result_from_model = meth(card)
-
-        file_handle, file_name = save_model_to_file(card.model, suffix)
-
+    def test_model_card_repr(self, meth, suffix):
+        model = LinearRegression(fit_intercept=False)
+        file_handle, file_name = save_model_to_file(model, suffix)
         os.close(file_handle)
-
         card_from_path = self.path_to_card(file_name)
         result_from_path = meth(card_from_path)
-        print(result_from_path)
         expected = (
             "Card(\n"
             "  model=LinearRegression(fit_intercept=False),\n"
@@ -479,7 +461,6 @@ class TestCardModelAttribute:
             "  search_results=Table(3x2),\n"
             ")"
         )
-        assert result_from_model == expected
         assert result_from_path == expected
 
     @pytest.mark.parametrize("suffix", [".pkl", ".skops"])

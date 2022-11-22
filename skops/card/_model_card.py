@@ -167,11 +167,11 @@ def metadata_from_config(config_path: Union[str, Path]) -> ModelCardData:
 
 def _load_model(model: Any) -> Any:
     """Loads the mddel if provided a file path, if already a model instance return it
-       unmodified.
+    unmodified.
 
     Parameters
     ----------
-    model : pathlib.path, str, or sklearn estimator
+    model : pathlib.Path, str, or sklearn estimator
         Path/str or the actual model instance. if a Path or str, loads the model.
 
     Returns
@@ -212,9 +212,7 @@ class Card:
     ----------
     model: pathlib.path, str, or sklearn estimator object
         ``Path``/``str`` of the model or the actual model instance that will be
-        documented. If a ``Path`` or ``str`` is provided, model will be loaded
-        on first use.
-
+        documented. If a ``Path`` or ``str`` is provided, model will be loaded.
 
     model_diagram: bool, default=True
         Set to True if model diagram should be plotted in the card.
@@ -306,7 +304,7 @@ class Card:
 
     def get_model(self) -> Any:
         """Returns sklearn estimator object if ``Path``/``str``
-            is provided.
+        is provided.
 
         Returns
         -------
