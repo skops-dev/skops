@@ -22,6 +22,8 @@ v0.3
   receive feedback from users.
 - Fix a bug that resulted in markdown tables being rendered incorrectly if
   entries contained line breaks. :pr:`156` by `Benjamin Bossan`_.
+- Raise an error instead of warning the user if a given model file is empty.
+  :pr:`214` by `Adrin Jalali`_.
 - Use ``huggingface_hub`` v0.10.1 for model cards, drop ``modelcards``
   dependency. :pr:`162` by `Benjamin Bossan`_.
 - Add source links to API documentation. :pr:`172` by `Ayyuce Demirbas`_.
