@@ -255,13 +255,15 @@ def test_duplicate_permutation_importances(
     result = permutation_importance(
         iris_estimator, X, y, n_repeats=10, random_state=42, n_jobs=2
     )
-    plot_path = Path(destination_path) / "importance.png"
+    plot_path = os.path.join(destination_path, "importance.png")
     model_card.add_permutation_importances(result, X.columns, plot_file=plot_path)
     with pytest.raises(
         ValueError,
         match=(
-            rf"{plot_path} already exists. Set `overwrite` to `True` or pass a"
-            " different filename for the plot."
+            (
+                rf"{plot_path} already exists. Set `overwrite` to `True` or pass a"
+                " different filename for the plot."
+            )
         ),
     ):
         model_card.add_permutation_importances(
@@ -279,7 +281,7 @@ def test_duplicate_permutation_importances_overwrite(
     result = permutation_importance(
         iris_estimator, X, y, n_repeats=10, random_state=42, n_jobs=2
     )
-    plot_path = Path(destination_path) / "importance.png"
+    plot_path = os.path.join(destination_path, "importance.png")
     model_card.add_permutation_importances(result, X.columns, plot_file=plot_path)
 
     model_card.add_permutation_importances(
