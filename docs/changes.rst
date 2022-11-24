@@ -22,9 +22,13 @@ v0.3
   receive feedback from users.
 - Fix a bug that resulted in markdown tables being rendered incorrectly if
   entries contained line breaks. :pr:`156` by `Benjamin Bossan`_.
+- Raise an error instead of warning the user if a given model file is empty.
+  :pr:`214` by `Adrin Jalali`_.
 - Use ``huggingface_hub`` v0.10.1 for model cards, drop ``modelcards``
   dependency. :pr:`162` by `Benjamin Bossan`_.
 - Add source links to API documentation. :pr:`172` by `Ayyuce Demirbas`_.
+- Add support to load model if given Path/str to ``model`` argument in
+  :mod:`skops.card` . :pr:`205` by `prajjwal mishra`_.
 
 
 v0.2
@@ -59,4 +63,5 @@ Contributors
 ~~~~~~~~~~~~
 
 :user:`Adrin Jalali <adrinjalali>`, :user:`Merve Noyan <merveenoyan>`,
-:user:`Benjamin Bossan <BenjaminBossan>`, :user:`Ayyuce Demirbas <ayyucedemirbas>`
+:user:`Benjamin Bossan <BenjaminBossan>`, :user:`Ayyuce Demirbas <ayyucedemirbas>`,
+:user:`Prajjwal Mishra <p-mishra1>`
