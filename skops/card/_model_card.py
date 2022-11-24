@@ -17,8 +17,8 @@ from sklearn.utils import estimator_html_repr
 from tabulate import tabulate  # type: ignore
 
 import skops
-from skops.utils.fixes import metadata
 from skops.io import load
+from skops.utils.fixes import metadata
 
 # Repr attributes can be used to control the behavior of repr
 aRepr = Repr()
@@ -465,7 +465,7 @@ class Card:
             raise ModuleNotFoundError(
                 "This feature requires matplotlib to be installed."
             )
-        if str(plot_file) in self.render() and overwrite is False:
+        if Path(plot_file).exists() and overwrite is False:
             raise ValueError(
                 f"{str(plot_file)} already exists. Set `overwrite` to `True` or pass a"
                 " different filename for the plot."
