@@ -18,7 +18,7 @@ from sklearn.metrics import f1_score, make_scorer
 import skops
 from skops import hub_utils
 from skops.card import Card, metadata_from_config
-from skops.card._model_card import PlotSection, TableSection
+from skops.card._model_card import PlotSection, TableSection, _load_model
 from skops.io import dump
 
 
@@ -27,6 +27,30 @@ def fit_model():
     y = np.dot(X, np.array([1, 2])) + 3
     reg = LinearRegression().fit(X, y)
     return reg
+
+
+def save_model_to_file(model_instance, suffix):
+    save_file_handle, save_file = tempfile.mkstemp(suffix=suffix, prefix="skops-test")
+    if suffix in (".pkl", ".pickle"):
+        with open(save_file, "wb") as f:
+            pickle.dump(model_instance, f)
+    elif suffix == ".skops":
+        dump(model_instance, save_file)
+    return save_file_handle, save_file
+
+
+@pytest.mark.parametrize("suffix", [".pkl", ".pickle", ".skops"])
+def test_load_model(suffix):
+    model0 = LinearRegression(n_jobs=123)
+    _, save_file = save_model_to_file(model0, suffix)
+    loaded_model_str = _load_model(save_file)
+    save_file_path = Path(save_file)
+    loaded_model_path = _load_model(save_file_path)
+    loaded_model_instance = _load_model(model0)
+
+    assert loaded_model_str.n_jobs == 123
+    assert loaded_model_path.n_jobs == 123
+    assert loaded_model_instance.n_jobs == 123
 
 
 @pytest.fixture
@@ -526,6 +550,65 @@ class TestCardRepr:
         )
         result = meth(card)
         assert result == expected
+
+
+class TestCardModelAttribute:
+    def path_to_card(self, path):
+        card = Card(model=path)
+        card.add(
+            model_description="A description",
+            model_card_authors="Jane Doe",
+        )
+        card.add_plot(
+            roc_curve="ROC_curve.png",
+            confusion_matrix="confusion_matrix.jpg",
+        )
+        card.add_table(search_results={"split": [1, 2, 3], "score": [4, 5, 6]})
+        return card
+
+    @pytest.mark.parametrize("meth", [repr, str])
+    @pytest.mark.parametrize("suffix", [".pkl", ".skops"])
+    def test_model_card_repr(self, meth, suffix):
+        model = LinearRegression(fit_intercept=False)
+        file_handle, file_name = save_model_to_file(model, suffix)
+        os.close(file_handle)
+        card_from_path = self.path_to_card(file_name)
+        result_from_path = meth(card_from_path)
+        expected = (
+            "Card(\n"
+            "  model=LinearRegression(fit_intercept=False),\n"
+            "  model_description='A description',\n"
+            "  model_card_authors='Jane Doe',\n"
+            "  roc_curve='ROC_curve.png',\n"
+            "  confusion_matrix='confusion_matrix.jpg',\n"
+            "  search_results=Table(3x2),\n"
+            ")"
+        )
+        assert result_from_path == expected
+
+    @pytest.mark.parametrize("suffix", [".pkl", ".skops"])
+    @pytest.mark.parametrize("meth", [repr, str])
+    def test_load_model_exception(self, meth, suffix):
+        file_handle, file_name = tempfile.mkstemp(suffix=suffix, prefix="skops-test")
+
+        os.close(file_handle)
+
+        with pytest.raises(Exception, match="occured during model loading."):
+            card = Card(file_name)
+            meth(card)
+
+    @pytest.mark.parametrize("meth", [repr, str])
+    def test_load_model_file_not_found(self, meth):
+        file_handle, file_name = tempfile.mkstemp(suffix=".pkl", prefix="skops-test")
+
+        os.close(file_handle)
+        os.remove(file_name)
+
+        with pytest.raises(FileNotFoundError) as excinfo:
+            card = Card(file_name)
+            meth(card)
+
+        assert file_name in str(excinfo.value)
 
 
 class TestPlotSection:
