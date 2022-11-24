@@ -76,7 +76,7 @@ class NdArrayNode(Node):
                 content = gettype(self.module_name, self.class_name)(content)
             return content
 
-        elif self.type == "json":
+        if self.type == "json":
             # We explicitly set the dtype to "O" since we only save object
             # arrays in json.
             shape = self.children["shape"].construct()
@@ -92,6 +92,8 @@ class NdArrayNode(Node):
                 content = np.array(tmp, dtype="O")
 
             return content
+
+        raise ValueError(f"Unknown type for a numpy object: {self.type}.")
 
 
 def maskedarray_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:

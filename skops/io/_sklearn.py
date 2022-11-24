@@ -143,7 +143,7 @@ class SGDNode(ReduceNode):
             state,
             load_context,
             constructor=gettype(state.get("__module__"), state.get("__class__")),
-            trusted=None,
+            trusted=False,
         )
         self.trusted = self._get_trusted(
             trusted, [get_module(x) + "." + x.__name__ for x in ALLOWED_SGD_LOSSES]

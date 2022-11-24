@@ -31,7 +31,7 @@ def check_type(module_name, type_name, trusted):
 def audit_tree(tree, trusted):
     """Audit a tree of nodes.
 
-    A tree is safe only if it contains trusted types. Audit is skipped if
+    A tree is safe if it only contains trusted types. Audit is skipped if
     trusted is ``True``.
 
     Parameters
@@ -48,7 +48,7 @@ def audit_tree(tree, trusted):
 
     Raises
     ------
-    TypeError
+    UntrustedTypesFoundException
         If the tree contains an untrusted type.
     """
     if trusted is True:

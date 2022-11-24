@@ -13,13 +13,11 @@ NODE_TYPE_MAPPING = {}  # type: ignore
 class UNINITIALIZED:
     """Sentinel value to indicate that a value has not been initialized yet."""
 
-    ...
-
 
 @contextmanager
 def temp_setattr(obj, **kwargs):
     """Context manager to temporarily set attributes on an object."""
-    has_attr = {k: hasattr(obj, k) for k in kwargs.keys()}
+    existing_attrs = {k for k in kwargs.keys() if hasattr(obj, k)}
     previous_values = {k: getattr(obj, k, None) for k in kwargs}
     for k, v in kwargs.items():
         setattr(obj, k, v)
@@ -27,7 +25,7 @@ def temp_setattr(obj, **kwargs):
         yield
     finally:
         for k, v in previous_values.items():
-            if has_attr[k]:
+            if k in existing_attrs:
                 setattr(obj, k, v)
             else:
                 delattr(obj, k)
@@ -45,11 +43,11 @@ class Node:
     ``__init__`` takes care of traversing the state tree and to create the
     corresponding ``Node`` objects. It has access to the ``load_context`` which
     in turn has access to the source zip file. The child class's ``__init__``
-    must also set the ``children`` attribute, which is a dictionary of
-    ``{child_name: child_type}``. ``child_name`` is the name of the attribute
-    which can be checked for safety, and ``child_type`` is the type of the
-    attribute. ``child_type`` can be ``list``, ``dict``, or ``Node``. Note that
-    primitives are persisted as a ``JsonNode``.
+    must load attributes into the the ``children`` attribute, which is a
+    dictionary of ``{child_name: unloaded_value/Node/list/etc}``. The
+    ``get_unsafe_set`` should be able to parse and validate the values set
+    under the ``children`` attribute. Note that primitives are persisted as a
+    ``JsonNode``.
 
     ``_construct`` takes care of constructing the object. It is only called
     once and the result is cached in ``construct`` which is implemented in this
@@ -75,13 +73,18 @@ class Node:
         objects in the dumped file. If a list of strings, the object will be
         loaded only if all of its required types are listed in ``trusted``
         or are trusted by default.
+
+    memoize : bool, default=True
+        If ``True``, the object will be memoized in the load context, if it has
+        the ``__id__`` set. This is used to avoid loading the same object
+        multiple times.
     """
 
     def __init__(self, state, load_context: LoadContext, trusted=False, memoize=True):
         self.class_name, self.module_name = state["__class__"], state["__module__"]
         self.trusted = trusted
         self._is_safe = None
-        self._constructed = UNINITIALIZED()
+        self._constructed = UNINITIALIZED
         saved_id = state.get("__id__")
         if saved_id and memoize:
             # hold reference to obj in case same instance encountered again in
@@ -93,7 +96,7 @@ class Node:
 
         We only construct the object once, and then cache the result.
         """
-        if not isinstance(self._constructed, UNINITIALIZED):
+        if self._constructed is not UNINITIALIZED:
             return self._constructed
         self._constructed = self._construct()
         return self._constructed
@@ -191,7 +194,11 @@ class Node:
                     # safety.
                     continue
                 else:
-                    raise ValueError(f"Unknown type {type(child)}.")
+                    raise ValueError(
+                        f"Cannot determine the safety of type {type(child)}. Please"
+                        " open an issue at https://github.com/skops-dev/skops/issues"
+                        " for us to fix the issue."
+                    )
 
         return res
 
@@ -212,7 +219,7 @@ class CachedNode(Node):
         return self.cached.construct()
 
 
-NODE_TYPE_MAPPING.update({"CachedNode": CachedNode})
+NODE_TYPE_MAPPING["CachedNode"] = CachedNode
 
 
 def get_tree(state, load_context: LoadContext):
@@ -236,11 +243,11 @@ def get_tree(state, load_context: LoadContext):
     """
     saved_id = state.get("__id__")
     if saved_id in load_context.memo:
-        # The Node is already loaded. We return the node. Note that the node is
-        # not constructed at this point. It will be constructed when the parent
-        # node's ``construct`` method is called, and for this node it'll be
-        # called more than once. But that's not an issue since the node's
-        # ``construct`` method caches the instance.
+        # This means the node is already loaded, so we return it. Note that the
+        # node is not constructed at this point. It will be constructed when
+        # the parent node's ``construct`` method is called, and for this node
+        # it'll be called more than once. But that's not an issue since the
+        # node's ``construct`` method caches the instance.
         return load_context.get_object(saved_id)
 
     try:

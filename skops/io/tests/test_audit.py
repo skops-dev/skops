@@ -157,6 +157,12 @@ def test_complex_pipeline_untrusted_set():
 
     untrusted = get_untrusted_types(data=dumps(clf))
     type_names = [x.split(".")[-1] for x in untrusted]
-    assert "FunctionTransformer" in type_names
-    assert "sqrt" in type_names
-    assert "square" in type_names
+    assert type_names == [
+        "sqrt",
+        "square",
+        "LogisticRegression",
+        "FeatureUnion",
+        "Pipeline",
+        "StandardScaler",
+        "FunctionTransformer",
+    ]
