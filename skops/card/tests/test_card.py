@@ -40,10 +40,10 @@ def save_model_to_file(model_instance, suffix):
 def test_load_model(suffix):
     model0 = LinearRegression(n_jobs=123)
     _, save_file = save_model_to_file(model0, suffix)
-    loaded_model_str = _load_model(save_file)
+    loaded_model_str = _load_model(save_file, trusted=True)
     save_file_path = Path(save_file)
-    loaded_model_path = _load_model(save_file_path)
-    loaded_model_instance = _load_model(model0)
+    loaded_model_path = _load_model(save_file_path, trusted=True)
+    loaded_model_instance = _load_model(model0, trusted=True)
 
     assert loaded_model_str.n_jobs == 123
     assert loaded_model_path.n_jobs == 123
@@ -431,7 +431,7 @@ class TestCardRepr:
 
 class TestCardModelAttribute:
     def path_to_card(self, path):
-        card = Card(model=path)
+        card = Card(model=path, trusted=True)
         card.add(
             model_description="A description",
             model_card_authors="Jane Doe",
@@ -470,7 +470,7 @@ class TestCardModelAttribute:
 
         os.close(file_handle)
 
-        with pytest.raises(Exception, match="occured during model loading."):
+        with pytest.raises(Exception, match="occurred during model loading."):
             card = Card(file_name)
             meth(card)
 

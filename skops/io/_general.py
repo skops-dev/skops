@@ -7,7 +7,8 @@ from typing import Any
 
 import numpy as np
 
-from ._dispatch import get_instance
+from ._dispatch import Node, get_tree
+from ._trusted_types import PRIMITIVE_TYPE_NAMES
 from ._utils import (
     LoadContext,
     SaveContext,
@@ -23,7 +24,7 @@ def dict_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
-        "__loader__": "dict_get_instance",
+        "__loader__": "DictNode",
     }
 
     key_types = get_state([type(key) for key in obj.keys()], save_context)
@@ -40,48 +41,105 @@ def dict_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     return res
 
 
-def dict_get_instance(state, load_context: LoadContext):
-    content = gettype(state)()
-    key_types = get_instance(state["key_types"], load_context)
-    for k_type, item in zip(key_types, state["content"].items()):
-        content[k_type(item[0])] = get_instance(item[1], load_context)
-    return content
+class DictNode(Node):
+    def __init__(self, state, load_context: LoadContext, trusted=False):
+        super().__init__(state, load_context, trusted)
+        self.trusted = self._get_trusted(trusted, ["builtins.dict"])
+        self.children = {
+            "key_types": get_tree(state["key_types"], load_context),
+            "content": {
+                key: get_tree(value, load_context)
+                for key, value in state["content"].items()
+            },
+        }
+
+    def _construct(self):
+        content = gettype(self.module_name, self.class_name)()
+        key_types = self.children["key_types"].construct()
+        for k_type, (key, val) in zip(key_types, self.children["content"].items()):
+            content[k_type(key)] = val.construct()
+        return content
 
 
 def list_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
-        "__loader__": "list_get_instance",
+        "__loader__": "ListNode",
     }
-    content = []
-    for value in obj:
-        content.append(get_state(value, save_context))
+    content = [get_state(value, save_context) for value in obj]
+
     res["content"] = content
     return res
 
 
-def list_get_instance(state, load_context: LoadContext):
-    content = gettype(state)()
-    for value in state["content"]:
-        content.append(get_instance(value, load_context))
-    return content
+class ListNode(Node):
+    def __init__(self, state, load_context: LoadContext, trusted=False):
+        super().__init__(state, load_context, trusted)
+        self.trusted = self._get_trusted(trusted, ["builtins.list"])
+        self.children = {
+            "content": [get_tree(value, load_context) for value in state["content"]]
+        }
+
+    def _construct(self):
+        content_type = gettype(self.module_name, self.class_name)
+        return content_type([item.construct() for item in self.children["content"]])
+
+
+def set_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
+    res = {
+        "__class__": obj.__class__.__name__,
+        "__module__": get_module(type(obj)),
+        "__loader__": "SetNode",
+    }
+    content = [get_state(value, save_context) for value in obj]
+    res["content"] = content
+    return res
+
+
+class SetNode(Node):
+    def __init__(self, state, load_context: LoadContext, trusted=False):
+        super().__init__(state, load_context, trusted)
+        self.trusted = self._get_trusted(trusted, ["builtins.set"])
+        self.children = {
+            "content": [get_tree(value, load_context) for value in state["content"]]
+        }
+
+    def _construct(self):
+        content_type = gettype(self.module_name, self.class_name)
+        return content_type([item.construct() for item in self.children["content"]])
 
 
 def tuple_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
-        "__loader__": "tuple_get_instance",
+        "__loader__": "TupleNode",
     }
     content = tuple(get_state(value, save_context) for value in obj)
     res["content"] = content
     return res
 
 
-def tuple_get_instance(state, load_context: LoadContext):
-    # Returns a tuple or a namedtuple instance.
-    def isnamedtuple(t):
+class TupleNode(Node):
+    def __init__(self, state, load_context: LoadContext, trusted=False):
+        super().__init__(state, load_context, trusted)
+        self.trusted = self._get_trusted(trusted, ["builtins.tuple"])
+        self.children = {
+            "content": [get_tree(value, load_context) for value in state["content"]]
+        }
+
+    def _construct(self):
+        # Returns a tuple or a namedtuple instance.
+
+        cls = gettype(self.module_name, self.class_name)
+        content = tuple(value.construct() for value in self.children["content"])
+
+        if self.isnamedtuple(cls):
+            return cls(*content)
+        return content
+
+    def isnamedtuple(self, t):
         # This is needed since namedtuples need to have the args when
         # initialized.
         b = t.__bases__
@@ -92,19 +150,12 @@ def tuple_get_instance(state, load_context: LoadContext):
             return False
         return all(type(n) == str for n in f)
 
-    cls = gettype(state)
-    content = tuple(get_instance(value, load_context) for value in state["content"])
-
-    if isnamedtuple(cls):
-        return cls(*content)
-    return content
-
 
 def function_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(obj),
-        "__loader__": "function_get_instance",
+        "__loader__": "FunctionNode",
         "content": {
             "module_path": get_module(obj),
             "function": obj.__name__,
@@ -113,9 +164,34 @@ def function_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     return res
 
 
-def function_get_instance(state, load_context: LoadContext):
-    loaded = _import_obj(state["content"]["module_path"], state["content"]["function"])
-    return loaded
+class FunctionNode(Node):
+    def __init__(self, state, load_context: LoadContext, trusted=False):
+        super().__init__(state, load_context, trusted)
+        # TODO: what do we trust?
+        self.trusted = self._get_trusted(trusted, [])
+        self.children = {"content": state["content"]}
+
+    def _construct(self):
+        return _import_obj(
+            self.children["content"]["module_path"],
+            self.children["content"]["function"],
+        )
+
+    def _get_function_name(self):
+        return (
+            self.children["content"]["module_path"]
+            + "."
+            + self.children["content"]["function"]
+        )
+
+    def is_safe(self):
+        return self._get_function_name() in self.trusted
+
+    def get_unsafe_set(self):
+        if self.is_safe():
+            return set()
+
+        return {self._get_function_name()}
 
 
 def partial_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
@@ -123,7 +199,7 @@ def partial_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     res = {
         "__class__": "partial",  # don't allow any subclass
         "__module__": get_module(type(obj)),
-        "__loader__": "partial_get_instance",
+        "__loader__": "PartialNode",
         "content": {
             "func": get_state(func, save_context),
             "args": get_state(args, save_context),
@@ -134,42 +210,57 @@ def partial_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     return res
 
 
-def partial_get_instance(state, load_context: LoadContext):
-    content = state["content"]
-    func = get_instance(content["func"], load_context)
-    args = get_instance(content["args"], load_context)
-    kwds = get_instance(content["kwds"], load_context)
-    namespace = get_instance(content["namespace"], load_context)
-    instance = partial(func, *args, **kwds)  # always use partial, not a subclass
-    instance.__setstate__((func, args, kwds, namespace))  # type: ignore
-    return instance
+class PartialNode(Node):
+    def __init__(self, state, load_context: LoadContext, trusted=False):
+        super().__init__(state, load_context, trusted)
+        # TODO: should we trust anything?
+        self.trusted = self._get_trusted(trusted, [])
+        self.children = {
+            "func": get_tree(state["content"]["func"], load_context),
+            "args": get_tree(state["content"]["args"], load_context),
+            "kwds": get_tree(state["content"]["kwds"], load_context),
+            "namespace": get_tree(state["content"]["namespace"], load_context),
+        }
+
+    def _construct(self):
+        func = self.children["func"].construct()
+        args = self.children["args"].construct()
+        kwds = self.children["kwds"].construct()
+        namespace = self.children["namespace"].construct()
+        instance = partial(func, *args, **kwds)  # always use partial, not a subclass
+        instance.__setstate__((func, args, kwds, namespace))
+        return instance
 
 
 def type_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     # To serialize a type, we first need to set the metadata to tell that it's
     # a type, then store the type's info itself in the content field.
     res = {
-        "__class__": obj.__class__.__name__,
-        "__module__": get_module(type(obj)),
-        "__loader__": "type_get_instance",
-        "content": {
-            "__class__": obj.__name__,
-            "__module__": get_module(obj),
-        },
+        "__class__": obj.__name__,
+        "__module__": get_module(obj),
+        "__loader__": "TypeNode",
     }
     return res
 
 
-def type_get_instance(state, load_context: LoadContext):
-    loaded = _import_obj(state["content"]["__module__"], state["content"]["__class__"])
-    return loaded
+class TypeNode(Node):
+    def __init__(self, state, load_context: LoadContext, trusted=False):
+        super().__init__(state, load_context, trusted)
+        # TODO: what do we trust?
+        self.trusted = self._get_trusted(trusted, PRIMITIVE_TYPE_NAMES)
+        # We use a bare Node type here since a Node only checks the type in the
+        # dict using __class__ and __module__ keys.
+        self.children = {}  # type: ignore
+
+    def _construct(self):
+        return _import_obj(self.module_name, self.class_name)
 
 
 def slice_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
-        "__loader__": "slice_get_instance",
+        "__loader__": "SliceNode",
         "content": {
             "start": obj.start,
             "stop": obj.stop,
@@ -179,11 +270,23 @@ def slice_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     return res
 
 
-def slice_get_instance(state, load_context: LoadContext):
-    start = state["content"]["start"]
-    stop = state["content"]["stop"]
-    step = state["content"]["step"]
-    return slice(start, stop, step)
+class SliceNode(Node):
+    def __init__(self, state, load_context: LoadContext, trusted=False):
+        super().__init__(state, load_context, trusted)
+        self.trusted = self._get_trusted(trusted, ["builtins.slice"])
+        self.children = {
+            "start": state["content"]["start"],
+            "stop": state["content"]["stop"],
+            "step": state["content"]["step"],
+        }
+
+    def _construct(self):
+        return slice(
+            self.children["start"], self.children["stop"], self.children["step"]
+        )
+
+    def get_unsafe_set(self):
+        return set()
 
 
 def object_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
@@ -196,7 +299,7 @@ def object_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
         return {
             "__class__": "str",
             "__module__": "builtins",
-            "__loader__": "none",
+            "__loader__": "JsonNode",
             "content": obj_str,
             "is_json": True,
         }
@@ -206,7 +309,7 @@ def object_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
-        "__loader__": "object_get_instance",
+        "__loader__": "ObjectNode",
     }
 
     # __getstate__ takes priority over __dict__, and if non exist, we only save
@@ -225,28 +328,38 @@ def object_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     return res
 
 
-def object_get_instance(state, load_context: LoadContext):
-    if state.get("is_json", False):
-        return json.loads(state["content"])
+class ObjectNode(Node):
+    def __init__(self, state, load_context: LoadContext, trusted=False):
+        super().__init__(state, load_context, trusted)
 
-    cls = gettype(state)
+        if "content" in state:
+            attrs = get_tree(state.get("content"), load_context)
+        else:
+            attrs = None
 
-    # Instead of simply constructing the instance, we use __new__, which
-    # bypasses the __init__, and then we set the attributes. This solves
-    # the issue of required init arguments.
-    instance = cls.__new__(cls)
+        self.children = {"attrs": attrs}
+        # TODO: what do we trust?
+        self.trusted = self._get_trusted(trusted, [])
 
-    content = state.get("content")
-    if not content:  # nothing more to do
+    def _construct(self):
+        cls = gettype(self.module_name, self.class_name)
+
+        # Instead of simply constructing the instance, we use __new__, which
+        # bypasses the __init__, and then we set the attributes. This solves
+        # the issue of required init arguments.
+        instance = cls.__new__(cls)
+
+        if not self.children["attrs"]:
+            # nothing more to do
+            return instance
+
+        attrs = self.children["attrs"].construct()
+        if hasattr(instance, "__setstate__"):
+            instance.__setstate__(attrs)
+        else:
+            instance.__dict__.update(attrs)
+
         return instance
-
-    attrs = get_instance(content, load_context)
-    if hasattr(instance, "__setstate__"):
-        instance.__setstate__(attrs)
-    else:
-        instance.__dict__.update(attrs)
-
-    return instance
 
 
 def method_get_state(obj: Any, save_context: SaveContext):
@@ -257,7 +370,7 @@ def method_get_state(obj: Any, save_context: SaveContext):
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(obj),
-        "__loader__": "method_get_instance",
+        "__loader__": "MethodNode",
         "content": {
             "func": obj.__func__.__name__,
             "obj": get_state(obj.__self__, save_context),
@@ -266,20 +379,51 @@ def method_get_state(obj: Any, save_context: SaveContext):
     return res
 
 
-def method_get_instance(state, load_context: LoadContext):
-    loaded_obj = get_instance(state["content"]["obj"], load_context)
-    method = getattr(loaded_obj, state["content"]["func"])
-    return method
+class MethodNode(Node):
+    def __init__(self, state, load_context: LoadContext, trusted=False):
+        super().__init__(state, load_context, trusted)
+        self.children = {
+            "obj": get_tree(state["content"]["obj"], load_context),
+            "func": state["content"]["func"],
+        }
+        # TODO: what do we trust?
+        self.trusted = self._get_trusted(trusted, [])
+
+    def _construct(self):
+        loaded_obj = self.children["obj"].construct()
+        method = getattr(loaded_obj, self.children["func"])
+        return method
 
 
 def unsupported_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     raise UnsupportedTypeException(obj)
 
 
+class JsonNode(Node):
+    def __init__(self, state, load_context: LoadContext, trusted=False):
+        super().__init__(state, load_context, trusted)
+        self.content = state["content"]
+
+    def is_safe(self):
+        # JsonNode is always considered safe.
+        # TODO: should we consider a JsonNode always safe?
+        return True
+
+    def is_self_safe(self):
+        return True
+
+    def get_unsafe_set(self):
+        return set()
+
+    def _construct(self):
+        return json.loads(self.content)
+
+
 # tuples of type and function that gets the state of that type
 GET_STATE_DISPATCH_FUNCTIONS = [
     (dict, dict_get_state),
     (list, list_get_state),
+    (set, set_get_state),
     (tuple, tuple_get_state),
     (slice, slice_get_state),
     (FunctionType, function_get_state),
@@ -289,14 +433,16 @@ GET_STATE_DISPATCH_FUNCTIONS = [
     (object, object_get_state),
 ]
 
-GET_INSTANCE_DISPATCH_MAPPING = {
-    "dict_get_instance": dict_get_instance,
-    "list_get_instance": list_get_instance,
-    "tuple_get_instance": tuple_get_instance,
-    "slice_get_instance": slice_get_instance,
-    "function_get_instance": function_get_instance,
-    "method_get_instance": method_get_instance,
-    "partial_get_instance": partial_get_instance,
-    "type_get_instance": type_get_instance,
-    "object_get_instance": object_get_instance,
+NODE_TYPE_MAPPING = {
+    "DictNode": DictNode,
+    "ListNode": ListNode,
+    "SetNode": SetNode,
+    "TupleNode": TupleNode,
+    "SliceNode": SliceNode,
+    "FunctionNode": FunctionNode,
+    "MethodNode": MethodNode,
+    "PartialNode": PartialNode,
+    "TypeNode": TypeNode,
+    "ObjectNode": ObjectNode,
+    "JsonNode": JsonNode,
 }
