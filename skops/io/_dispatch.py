@@ -43,7 +43,7 @@ class Node:
     ``__init__`` takes care of traversing the state tree and to create the
     corresponding ``Node`` objects. It has access to the ``load_context`` which
     in turn has access to the source zip file. The child class's ``__init__``
-    must load attributes into the the ``children`` attribute, which is a
+    must load attributes into the ``children`` attribute, which is a
     dictionary of ``{child_name: unloaded_value/Node/list/etc}``. The
     ``get_unsafe_set`` should be able to parse and validate the values set
     under the ``children`` attribute. Note that primitives are persisted as a
