@@ -103,3 +103,7 @@ using :meth:`Card.select`, and you can delete sections using
 
 To see how you can use the API in ``skops`` to create a model card, please
 refer to :ref:`sphx_glr_auto_examples_plot_model_card.py`.
+
+Templates
+---------
+TODO

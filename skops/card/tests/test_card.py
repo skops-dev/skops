@@ -285,20 +285,54 @@ class TestSelect:
         with pytest.raises(KeyError, match=msg):
             model_card.select(["Model description", ""])
 
-    def test_default_sections_empty_card(self, model_card):
-        # Without prefill, the card should not contain the default sections
-        from skops.card._model_card import DEFAULT_TEMPLATE
+    def test_default_skops_sections_present(self, model_card):
+        from skops.card._model_card import SKOPS_TEMPLATE
 
         # model_card (which is prefilled) contains all default sections
-        for key in DEFAULT_TEMPLATE:
+        for key in SKOPS_TEMPLATE:
             model_card.select(key)
+
+    def test_default_hub_sections_present(self, model_card):
+        from skops.card._model_card import HUB_TEMPLATE
+
+        model = fit_model()
+        model_card = Card(model, model_diagram=False, template="hub")
+
+        # model_card contains all default sections
+        for key in HUB_TEMPLATE:
+            model_card.select(key)
+
+    def test_custom_template_sections_present(self, model_card):
+        template = {
+            "My awesome model": "hello",
+            "My awesome model/More details": "123",
+            "More info": "Thanks",
+        }
+        model = fit_model()
+        model_card = Card(model, model_diagram=False, template=template)
+
+        # model_card contains all default sections
+        for key in template:
+            model_card.select(key)
+
+        # no other top level sections as those defined in the template
+        assert list(model_card._data.keys()) == ["My awesome model", "More info"]
+
+    def test_default_skops_sections_empty_card(self, model_card):
+        # Without prefilled template, the card should not contain the default sections
+        from skops.card._model_card import SKOPS_TEMPLATE
 
         # empty card does not contain those sections
         model = fit_model()
-        card_empty = Card(model, model_diagram=False, prefill=False)
-        for key in DEFAULT_TEMPLATE:
+        card_empty = Card(model, model_diagram=False, template=None)
+        for key in SKOPS_TEMPLATE:
             with pytest.raises(KeyError):
                 card_empty.select(key)
+
+    def test_invalid_template_name_raises(self):
+        msg = "Unknown template does-not-exist, must be one of"
+        with pytest.raises(ValueError, match=msg):
+            Card(model=None, template="does-not-exist")
 
 
 class TestAdd:
@@ -620,9 +654,9 @@ class TestCardRepr:
 
     @pytest.mark.parametrize("meth", [repr, str])
     def test_card_repr_empty_card(self, meth):
-        """Without prefill, the repr should be empty"""
+        """Without prefilled template, the repr should be empty"""
         model = fit_model()
-        card = Card(model, model_diagram=False, prefill=False)
+        card = Card(model, model_diagram=False, template=None)
         result = meth(card)
         expected = textwrap.dedent(
             """

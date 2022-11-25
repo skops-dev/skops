@@ -4,6 +4,7 @@ import json
 import re
 import sys
 import textwrap
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from reprlib import Repr
@@ -12,6 +13,13 @@ from typing import Any, Iterator, Sequence, Union
 from huggingface_hub import CardData
 from sklearn.utils import estimator_html_repr
 from tabulate import tabulate  # type: ignore
+
+from skops.card._templates import (
+    CONTENT_PLACEHOLDER,
+    HUB_TEMPLATE,
+    SKOPS_TEMPLATE,
+    Templates,
+)
 
 if sys.version_info >= (3, 8):
     from typing import Protocol
@@ -24,29 +32,7 @@ aRepr.maxother = 79
 aRepr.maxstring = 79
 
 
-CONTENT_PLACEHOLDER = "[More Information Needed]"
-"""When there is a section but no content, show this"""
-
-DEFAULT_TEMPLATE = {
-    "Model description": CONTENT_PLACEHOLDER,
-    "Model description/Intended uses & limitations": CONTENT_PLACEHOLDER,
-    "Model description/Training Procedure": "",
-    "Model description/Training Procedure/Hyperparameters": CONTENT_PLACEHOLDER,
-    "Model description/Training Procedure/Model Plot": CONTENT_PLACEHOLDER,
-    "Model description/Evaluation Results": CONTENT_PLACEHOLDER,
-    "How to Get Started with the Model": CONTENT_PLACEHOLDER,
-    "Model Card Authors": (
-        f"This model card is written by following authors:\n\n{CONTENT_PLACEHOLDER}"
-    ),
-    "Model Card Contact": (
-        "You can contact the model card authors through following channels:\n"
-        f"{CONTENT_PLACEHOLDER}"
-    ),
-    "Citation": (
-        "Below you can find information related to citation.\n\n**BibTeX:**\n```\n"
-        f"{CONTENT_PLACEHOLDER}\n```"
-    ),
-}
+VALID_TEMPLATES = {item.value for item in Templates}
 
 
 def wrap_as_details(text: str, folded: bool) -> str:
@@ -307,7 +293,7 @@ class Card:
         of the ``config.json`` file, which itself is created by
         :func:`skops.hub_utils.init`.
 
-    prefill: bool (default=True)
+    template: "hub", "skops" or None (default=TODO)
         Whether to add default sections or not.
 
     Attributes
@@ -384,22 +370,32 @@ class Card:
         model,
         model_diagram: bool = True,
         metadata: CardData | None = None,
-        prefill: bool = True,
+        template: str | dict[str, str] | None = "skops",
     ) -> None:
         self.model = model
         self.model_diagram = model_diagram
         self.metadata = metadata or CardData()
+        self.template = template
 
         self._data: dict[str, Section] = {}
         self._metrics: dict[str, str | float | int] = {}
-        if prefill:
+
+        if self.template:
+            if isinstance(self.template, str) and self.template not in VALID_TEMPLATES:
+                raise ValueError(
+                    f"Unknown template {self.template}, must be "
+                    f"one of {sorted(VALID_TEMPLATES)}"
+                )
+
             self._fill_default_sections()
             # TODO: This is for parity with old model card but having an empty
             # table by default is kinda pointless
             self.add_metrics()
-            self._reset()
+            self._reset_model_descriptions()
 
-    def _reset(self) -> None:
+    def _reset_model_descriptions(self) -> None:
+        # reset everything that depends on the self.model, in case self.model
+        # changed (or might have changed)
         model_file = self.metadata.to_dict().get("model_file")
         if model_file:
             self._add_get_started_code(model_file)
@@ -408,7 +404,12 @@ class Card:
         self._add_hyperparams()
 
     def _fill_default_sections(self) -> None:
-        self.add(**DEFAULT_TEMPLATE)
+        if self.template == Templates.skops.value:
+            self.add(**SKOPS_TEMPLATE)
+        elif self.template == Templates.hub.value:
+            self.add(**HUB_TEMPLATE)
+        elif isinstance(self.template, Mapping):
+            self.add(**self.template)
 
     def add(self, **kwargs: str | Formattable) -> "Card":
         """Add new section(s) to the model card.
@@ -612,6 +613,10 @@ class Card:
 
     def _add_model_section(self) -> None:
         """Add model plot section, if model_diagram is set"""
+        if self.template != Templates.skops.value:
+            # only skops template has a default section
+            return
+
         section_title = "Model description/Training Procedure/Model Plot"
         default_content = "The model plot is below."
 
@@ -629,6 +634,10 @@ class Card:
 
     def _add_hyperparams(self) -> None:
         """Add hyperparameter section"""
+        if self.template != Templates.skops.value:
+            # only skops template has a default hyper parameter section
+            return
+
         hyperparameter_dict = self.model.get_params(deep=True)
         table = _clean_table(
             tabulate(
@@ -756,6 +765,13 @@ class Card:
 
     def _add_metrics(self, metrics: dict[str, str | float | int]) -> None:
         """Add metrics to the Evaluation Results section"""
+        # when not using one of the default templates, there is no predetermined
+        # section to put the metrics
+        if self.template is None or isinstance(self.template, dict):
+            return
+        if self.template not in VALID_TEMPLATES:
+            return
+
         table = tabulate(
             list(metrics.items()),
             headers=["Metric", "Value"],
@@ -768,7 +784,15 @@ class Card:
 
         {}"""
         )
-        self._add_single("Model description/Evaluation Results", template.format(table))
+        if self.template == Templates.skops.value:
+            section = "Model description/Evaluation Results"
+        elif self.template == Templates.hub.value:
+            section = "Evaluation/Testing Data, Factors & Metrics/Metrics"
+        else:
+            # should be unreachable
+            raise ValueError(f"Unknown template {self.template}")
+
+        self._add_single(section, template.format(table))
 
     def _generate_metadata(self, metadata: CardData) -> Iterator[str]:
         """Yield metadata in yaml format"""
@@ -860,18 +884,37 @@ class Card:
 
     def _add_get_started_code(self, file_name: str, indent: str = "    ") -> None:
         """Add getting started code to the corresponding section"""
+        if self.template not in VALID_TEMPLATES:
+            # unknown template, cannot prefill
+            return
+
         is_skops_format = file_name.endswith(".skops")  # else, assume pickle
         lines = _getting_started_code(
             file_name, is_skops_format=is_skops_format, indent=indent
         )
         lines = ["```python"] + lines + ["```"]
 
-        template = textwrap.dedent(
-            """        Use the code below to get started with the model.
+        if self.template == "skops":
+            template = textwrap.dedent(
+                """            Use the code below to get started with the model.
 
-        {}
-        """
-        )
+            {}
+            """
+            )
+        elif self.template == "hub":
+            template = textwrap.dedent(
+                """               Use the code below to get started with the model.
+
+                <details>
+                <summary> Click to expand </summary>
+
+                {}
+
+                </details>"""
+            )
+        else:
+            # should be unreachable
+            raise ValueError(f"Unknown template {self.template}")
         self._add_single(
             "How to Get Started with the Model", template.format("\n".join(lines))
         )
