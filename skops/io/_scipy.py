@@ -5,6 +5,7 @@ from typing import Any
 
 from scipy.sparse import load_npz, save_npz, spmatrix
 
+from ._dispatch import Node
 from ._utils import LoadContext, SaveContext, get_module
 
 
@@ -12,7 +13,7 @@ def sparse_matrix_get_state(obj: Any, save_context: SaveContext) -> dict[str, An
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
-        "__loader__": "sparse_matrix_get_instance",
+        "__loader__": "SparseMatrixNode",
     }
 
     data_buffer = io.BytesIO()
@@ -31,16 +32,22 @@ def sparse_matrix_get_state(obj: Any, save_context: SaveContext) -> dict[str, An
     return res
 
 
-def sparse_matrix_get_instance(state, load_context: LoadContext):
-    if state["type"] != "scipy":
-        raise TypeError(
-            f"Cannot load object of type {state['__module__']}.{state['__class__']}"
-        )
+class SparseMatrixNode(Node):
+    def __init__(self, state, load_context: LoadContext, trusted=False):
+        super().__init__(state, load_context, trusted)
+        type = state["type"]
+        self.trusted = self._get_trusted(trusted, ["scipy.sparse.spmatrix"])
+        if type != "scipy":
+            raise TypeError(
+                f"Cannot load object of type {self.module_name}.{self.class_name}"
+            )
 
-    # scipy load_npz uses numpy.save with allow_pickle=False under the hood, so
-    # we're safe using it
-    val = load_npz(io.BytesIO(load_context.src.read(state["file"])))
-    return val
+        self.children = {"content": io.BytesIO(load_context.src.read(state["file"]))}
+
+    def _construct(self):
+        # scipy load_npz uses numpy.save with allow_pickle=False under the
+        # hood, so we're safe using it
+        return load_npz(self.children["content"])
 
 
 # tuples of type and function that gets the state of that type
@@ -50,8 +57,8 @@ GET_STATE_DISPATCH_FUNCTIONS = [
     (spmatrix, sparse_matrix_get_state),
 ]
 # tuples of type and function that creates the instance of that type
-GET_INSTANCE_DISPATCH_MAPPING = {
+NODE_TYPE_MAPPING = {
     # use 'spmatrix' to check if a matrix is a sparse matrix because that is
     # what scipy.sparse.issparse checks
-    "sparse_matrix_get_instance": sparse_matrix_get_instance,
+    "SparseMatrixNode": SparseMatrixNode,
 }

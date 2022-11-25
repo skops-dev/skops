@@ -5,9 +5,8 @@ from typing import Any
 
 import numpy as np
 
-from ._dispatch import get_instance
-from ._general import function_get_instance
-from ._utils import LoadContext, SaveContext, _import_obj, get_module, get_state
+from ._dispatch import Node, get_tree
+from ._utils import LoadContext, SaveContext, get_module, get_state, gettype
 from .exceptions import UnsupportedTypeException
 
 
@@ -15,7 +14,7 @@ def ndarray_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
-        "__loader__": "ndarray_get_instance",
+        "__loader__": "NdArrayNode",
     }
 
     try:
@@ -29,7 +28,7 @@ def ndarray_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
             res["shape"] = get_state(obj.shape, save_context)
         else:
             data_buffer = io.BytesIO()
-            np.save(data_buffer, obj)
+            np.save(data_buffer, obj, allow_pickle=False)
             # Memoize the object and then check if it's file name (containing
             # the object id) already exists. If it does, there is no need to
             # save the object again. Memoizitation is necessary since for
@@ -50,39 +49,58 @@ def ndarray_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     return res
 
 
-def ndarray_get_instance(state, load_context: LoadContext):
-    # Dealing with a regular numpy array, where dtype != object
-    if state["type"] == "numpy":
-        val = np.load(
-            io.BytesIO(load_context.src.read(state["file"])), allow_pickle=False
-        )
-        # Coerce type, because it may not be conserved by np.save/load. E.g. a
-        # scalar will be loaded as a 0-dim array.
-        if state["__class__"] != "ndarray":
-            cls = _import_obj(state["__module__"], state["__class__"])
-            val = cls(val)
-        return val
+class NdArrayNode(Node):
+    def __init__(self, state, load_context: LoadContext, trusted=False):
+        super().__init__(state, load_context, trusted)
+        self.type = state["type"]
+        self.trusted = self._get_trusted(trusted, ["numpy.ndarray"])
+        if self.type == "numpy":
+            self.children = {
+                "content": io.BytesIO(load_context.src.read(state["file"]))
+            }
+        elif self.type == "json":
+            self.children = {
+                "content": [  # type: ignore
+                    get_tree(o, load_context) for o in state["content"]  # type: ignore
+                ],
+                "shape": get_tree(state["shape"], load_context),
+            }
+        else:
+            raise ValueError(f"Unknown type {self.type}.")
 
-    # We explicitly set the dtype to "O" since we only save object arrays in
-    # json.
-    shape = get_instance(state["shape"], load_context)
-    tmp = [get_instance(s, load_context) for s in state["content"]]
-    # TODO: this is a hack to get the correct shape of the array. We should
-    # find _a better way_ to do this.
-    if len(shape) == 1:
-        val = np.ndarray(shape=len(tmp), dtype="O")
-        for i, v in enumerate(tmp):
-            val[i] = v
-    else:
-        val = np.array(tmp, dtype="O")
-    return val
+    def _construct(self):
+        # Dealing with a regular numpy array, where dtype != object
+        if self.type == "numpy":
+            content = np.load(self.children["content"], allow_pickle=False)
+            if f"{self.module_name}.{self.class_name}" != "numpy.ndarray":
+                content = gettype(self.module_name, self.class_name)(content)
+            return content
+
+        if self.type == "json":
+            # We explicitly set the dtype to "O" since we only save object
+            # arrays in json.
+            shape = self.children["shape"].construct()
+            tmp = [o.construct() for o in self.children["content"]]
+
+            # TODO: this is a hack to get the correct shape of the array. We
+            # should find _a better way_ to do this.
+            if len(shape) == 1:
+                content = np.ndarray(shape=len(tmp), dtype="O")
+                for i, v in enumerate(tmp):
+                    content[i] = v
+            else:
+                content = np.array(tmp, dtype="O")
+
+            return content
+
+        raise ValueError(f"Unknown type for a numpy object: {self.type}.")
 
 
 def maskedarray_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
-        "__loader__": "maskedarray_get_instance",
+        "__loader__": "MaskedArrayNode",
         "content": {
             "data": get_state(obj.data, save_context),
             "mask": get_state(obj.mask, save_context),
@@ -91,10 +109,19 @@ def maskedarray_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]
     return res
 
 
-def maskedarray_get_instance(state, load_context: LoadContext):
-    data = get_instance(state["content"]["data"], load_context)
-    mask = get_instance(state["content"]["mask"], load_context)
-    return np.ma.MaskedArray(data, mask)
+class MaskedArrayNode(Node):
+    def __init__(self, state, load_context: LoadContext, trusted=False):
+        super().__init__(state, load_context, trusted)
+        self.trusted = self._get_trusted(trusted, ["numpy.ma.MaskedArray"])
+        self.children = {
+            "data": get_tree(state["content"]["data"], load_context),
+            "mask": get_tree(state["content"]["mask"], load_context),
+        }
+
+    def _construct(self):
+        data = self.children["data"].construct()
+        mask = self.children["mask"].construct()
+        return np.ma.MaskedArray(data, mask)
 
 
 def random_state_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
@@ -102,18 +129,22 @@ def random_state_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
-        "__loader__": "random_state_get_instance",
+        "__loader__": "RandomStateNode",
         "content": content,
     }
     return res
 
 
-def random_state_get_instance(state, load_context: LoadContext):
-    cls = _import_obj(state["__module__"], state["__class__"])
-    random_state = cls()
-    content = get_instance(state["content"], load_context)
-    random_state.set_state(content)
-    return random_state
+class RandomStateNode(Node):
+    def __init__(self, state, load_context: LoadContext, trusted=False):
+        super().__init__(state, load_context, trusted)
+        self.children = {"content": get_tree(state["content"], load_context)}
+        self.trusted = self._get_trusted(trusted, ["numpy.random.RandomState"])
+
+    def _construct(self):
+        random_state = gettype(self.module_name, self.class_name)()
+        random_state.set_state(self.children["content"].construct())
+        return random_state
 
 
 def random_generator_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
@@ -121,22 +152,27 @@ def random_generator_get_state(obj: Any, save_context: SaveContext) -> dict[str,
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
-        "__loader__": "random_generator_get_instance",
+        "__loader__": "RandomGeneratorNode",
         "content": {"bit_generator": bit_generator_state},
     }
     return res
 
 
-def random_generator_get_instance(state, load_context: LoadContext):
-    # first restore the state of the bit generator
-    bit_generator_state = state["content"]["bit_generator"]
-    bit_generator = _import_obj("numpy.random", bit_generator_state["bit_generator"])()
-    bit_generator.state = bit_generator_state
+class RandomGeneratorNode(Node):
+    def __init__(self, state, load_context: LoadContext, trusted=False):
+        super().__init__(state, load_context, trusted)
+        self.children = {"bit_generator_state": state["content"]["bit_generator"]}
+        self.trusted = self._get_trusted(trusted, ["numpy.random.Generator"])
 
-    # next create the generator instance
-    cls = _import_obj(state["__module__"], state["__class__"])
-    random_generator = cls(bit_generator=bit_generator)
-    return random_generator
+    def _construct(self):
+        # first restore the state of the bit generator
+        bit_generator = gettype(
+            "numpy.random", self.children["bit_generator_state"]["bit_generator"]
+        )()
+        bit_generator.state = self.children["bit_generator_state"]
+
+        # next create the generator instance
+        return gettype(self.module_name, self.class_name)(bit_generator=bit_generator)
 
 
 # For numpy.ufunc we need to get the type from the type's module, but for other
@@ -146,7 +182,7 @@ def ufunc_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,  # ufunc
         "__module__": get_module(type(obj)),  # numpy
-        "__loader__": "function_get_instance",
+        "__loader__": "FunctionNode",
         "content": {
             "module_path": get_module(obj),
             "function": obj.__name__,
@@ -162,17 +198,23 @@ def dtype_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     res = {
         "__class__": "dtype",
         "__module__": "numpy",
-        "__loader__": "dtype_get_instance",
-        "content": ndarray_get_state(tmp, save_context),
+        "__loader__": "DTypeNode",
+        "content": get_state(tmp, save_context),
     }
     return res
 
 
-def dtype_get_instance(state, load_context: LoadContext):
-    # we use numpy's internal save mechanism to store the dtype by
-    # saving/loading an empty array with that dtype.
-    tmp = ndarray_get_instance(state["content"], load_context)
-    return tmp.dtype
+class DTypeNode(Node):
+    def __init__(self, state, load_context: LoadContext, trusted=False):
+        super().__init__(state, load_context, trusted)
+        self.children = {"content": get_tree(state["content"], load_context)}
+        # TODO: what should we trust?
+        self.trusted = self._get_trusted(trusted, [])
+
+    def _construct(self):
+        # we use numpy's internal save mechanism to store the dtype by
+        # saving/loading an empty array with that dtype.
+        return self.children["content"].construct().dtype
 
 
 # tuples of type and function that gets the state of that type
@@ -186,11 +228,10 @@ GET_STATE_DISPATCH_FUNCTIONS = [
     (np.random.Generator, random_generator_get_state),
 ]
 # tuples of type and function that creates the instance of that type
-GET_INSTANCE_DISPATCH_MAPPING = {
-    "ndarray_get_instance": ndarray_get_instance,
-    "maskedarray_get_instance": maskedarray_get_instance,
-    "function_get_instance": function_get_instance,
-    "dtype_get_instance": dtype_get_instance,
-    "random_state_get_instance": random_state_get_instance,
-    "random_generator_get_instance": random_generator_get_instance,
+NODE_TYPE_MAPPING = {
+    "NdArrayNode": NdArrayNode,
+    "MaskedArrayNode": MaskedArrayNode,
+    "DTypeNode": DTypeNode,
+    "RandomStateNode": RandomStateNode,
+    "RandomGeneratorNode": RandomGeneratorNode,
 }

@@ -5,16 +5,19 @@ import json
 import re
 import shutil
 import tempfile
+import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 from reprlib import Repr
 from typing import Any, Optional, Union
 
+import joblib
 from huggingface_hub import ModelCard, ModelCardData
 from sklearn.utils import estimator_html_repr
 from tabulate import tabulate  # type: ignore
 
 import skops
+from skops.io import load
 
 # Repr attributes can be used to control the behavior of repr
 aRepr = Repr()
@@ -162,6 +165,46 @@ def metadata_from_config(config_path: Union[str, Path]) -> ModelCardData:
     return card_data
 
 
+def _load_model(model: Any, trusted=False) -> Any:
+    """Return a model instance.
+
+    Loads the model if provided a file path, if already a model instance return
+    it unmodified.
+
+    Parameters
+    ----------
+    model : pathlib.Path, str, or sklearn estimator
+        Path/str or the actual model instance. if a Path or str, loads the model.
+
+    trusted : bool, default=False
+        Passed to :func:`skops.io.load` if the model is a file path and it's
+        a `skops` file.
+
+    Returns
+    -------
+    model : object
+        Model instance.
+    """
+
+    if not isinstance(model, (Path, str)):
+        return model
+
+    model_path = Path(model)
+    if not model_path.exists():
+        raise FileNotFoundError(f"File is not present: {model_path}")
+
+    try:
+        if zipfile.is_zipfile(model_path):
+            model = load(model_path, trusted=trusted)
+        else:
+            model = joblib.load(model_path)
+    except Exception as ex:
+        msg = f'An "{type(ex).__name__}" occurred during model loading.'
+        raise RuntimeError(msg) from ex
+
+    return model
+
+
 class Card:
     """Model card class that will be used to generate model card.
 
@@ -172,8 +215,9 @@ class Card:
 
     Parameters
     ----------
-    model: estimator object
-        Model that will be documented.
+    model: pathlib.Path, str, or sklearn estimator object
+        ``Path``/``str`` of the model or the actual model instance that will be
+        documented. If a ``Path`` or ``str`` is provided, model will be loaded.
 
     model_diagram: bool, default=True
         Set to True if model diagram should be plotted in the card.
@@ -187,6 +231,10 @@ class Card:
         instance pre-populated with necessary information based on the contents
         of the ``config.json`` file, which itself is created by
         :func:`skops.hub_utils.init`.
+
+    trusted: bool, default=False
+        Passed to :func:`skops.io.load` if the model is a file path and it's
+        a `skops` file.
 
     Attributes
     ----------
@@ -255,6 +303,7 @@ class Card:
         model: Any,
         model_diagram: bool = True,
         metadata: Optional[ModelCardData] = None,
+        trusted: bool = False,
     ) -> None:
         self.model = model
         self.model_diagram = model_diagram
@@ -262,6 +311,19 @@ class Card:
         self._template_sections: dict[str, str] = {}
         self._extra_sections: list[tuple[str, Any]] = []
         self.metadata = metadata or ModelCardData()
+        self.trusted = trusted
+
+    def get_model(self) -> Any:
+        """Returns sklearn estimator object if ``Path``/``str``
+        is provided.
+
+        Returns
+        -------
+        model : Object
+            Model instance.
+        """
+        model = _load_model(self.model, self.trusted)
+        return model
 
     def add(self, **kwargs: str) -> "Card":
         """Takes values to fill model card template.
@@ -412,7 +474,9 @@ class Card:
                     'clf.predict(pd.DataFrame.from_dict(config["sklearn"]["example_input"]))'
                 )
         if self.model_diagram is True:
-            model_plot_div = re.sub(r"\n\s+", "", str(estimator_html_repr(self.model)))
+            model_plot_div = re.sub(
+                r"\n\s+", "", str(estimator_html_repr(self.get_model()))
+            )
             if model_plot_div.count("sk-top-container") == 1:
                 model_plot_div = model_plot_div.replace(
                     "sk-top-container", 'sk-top-container" style="overflow: auto;'
@@ -497,7 +561,7 @@ class Card:
         str:
             Markdown table of hyperparameters.
         """
-        hyperparameter_dict = self.model.get_params(deep=True)
+        hyperparameter_dict = self.get_model().get_params(deep=True)
         return _clean_table(
             tabulate(
                 list(hyperparameter_dict.items()),
@@ -520,7 +584,7 @@ class Card:
         # create repr for model
         model = getattr(self, "model", None)
         if model:
-            model_str = self._strip_blank(repr(model))
+            model_str = self._strip_blank(repr(self.get_model()))
             model_repr = aRepr.repr(f"  model={model_str},").strip('"').strip("'")
         else:
             model_repr = None

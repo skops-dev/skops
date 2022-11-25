@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import importlib
-import json  # type: ignore
 import sys
 from dataclasses import dataclass, field
 from functools import singledispatch
@@ -58,9 +57,9 @@ def _import_obj(module, cls_or_func, package=None):
     return getattr(importlib.import_module(module, package=package), cls_or_func)
 
 
-def gettype(state):
-    if "__module__" in state and "__class__" in state:
-        return _import_obj(state["__module__"], state["__class__"])
+def gettype(module_name, cls_or_func):
+    if module_name and cls_or_func:
+        return _import_obj(module_name, cls_or_func)
     return None
 
 
@@ -126,7 +125,7 @@ class SaveContext:
 class LoadContext:
     """Context required for loading an object
 
-    This context is passed to each ``get_instance_*`` function.
+    This context is passed to each ``*Node`` class when loading an object.
 
     Parameters
     ----------
@@ -140,7 +139,7 @@ class LoadContext:
     def memoize(self, obj: Any, id: int) -> None:
         self.memo[id] = obj
 
-    def get_instance(self, id: int) -> Any:
+    def get_object(self, id: int) -> Any:
         return self.memo.get(id)
 
 
@@ -156,15 +155,19 @@ def get_state(value, save_context):
     # This is a helper function to try to get the state of an object. If it
     # fails with `get_state`, we try with json.dumps, if that fails, we raise
     # the original error alongside the json error.
+
+    # TODO: This should help with fixing recursive references.
+    # if id(value) in save_context.memo:
+    #     return {
+    #         "__module__": None,
+    #         "__class__": None,
+    #         "__id__": id(value),
+    #         "__loader__": "CachedNode",
+    #     }
+
     __id__ = save_context.memoize(obj=value)
 
-    try:
-        res = _get_state(value, save_context)
-    except TypeError as e1:
-        try:
-            res = json.dumps(value)
-        except Exception as e2:
-            raise e1 from e2
+    res = _get_state(value, save_context)
 
     res["__id__"] = __id__
     return res
