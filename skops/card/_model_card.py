@@ -15,7 +15,7 @@ from tabulate import tabulate  # type: ignore
 
 if sys.version_info >= (3, 8):
     from typing import Protocol
-else:
+else:  # TODO: remove when Python 3.7 is dropped
     from typing_extensions import Protocol
 
 # Repr attributes can be used to control the behavior of repr

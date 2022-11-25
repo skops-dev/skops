@@ -15,7 +15,7 @@ else:
 if sys.version_info >= (3, 8):
     # py>=3.8
     from typing import Literal  # noqa
-else:
+else:  # TODO: remove when Python 3.7 is dropped
     # older pythons, this requires typing_extensions to be installed.
     # if you're removing this, you should also remove the dependency from
     # _min_dependencies.py
