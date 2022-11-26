@@ -5,16 +5,19 @@ import json
 import re
 import shutil
 import tempfile
+import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 from reprlib import Repr
 from typing import Any, Optional, Union
 
-from huggingface_hub import CardData, ModelCard
+import joblib
+from huggingface_hub import ModelCard, ModelCardData
 from sklearn.utils import estimator_html_repr
 from tabulate import tabulate  # type: ignore
 
 import skops
+from skops.io import load
 
 # Repr attributes can be used to control the behavior of repr
 aRepr = Repr()
@@ -107,13 +110,13 @@ class TableSection:
         return f"Table({nrows}x{ncols})"
 
 
-def metadata_from_config(config_path: Union[str, Path]) -> CardData:
-    """Construct a ``CardData`` object from a ``config.json`` file.
+def metadata_from_config(config_path: Union[str, Path]) -> ModelCardData:
+    """Construct a ``ModelCardData`` object from a ``config.json`` file.
 
     Most information needed for the metadata section of a ``README.md`` file on
     Hugging Face Hub is included in the ``config.json`` file. This utility
-    function constructs a :class:`huggingface_hub.CardData` object which can
-    then be passed to the :class:`~skops.card.Card` object.
+    function constructs a :class:`huggingface_hub.ModelCardData` object which
+    can then be passed to the :class:`~skops.card.Card` object.
 
     This method populates the following attributes of the instance:
 
@@ -133,8 +136,8 @@ def metadata_from_config(config_path: Union[str, Path]) -> CardData:
 
     Returns
     -------
-    card_data: huggingface_hub.CardData
-        :class:`huggingface_hub.CardData` object.
+    card_data: huggingface_hub.ModelCardData
+        :class:`huggingface_hub.ModelCardData` object.
 
     """
     config_path = Path(config_path)
@@ -144,22 +147,62 @@ def metadata_from_config(config_path: Union[str, Path]) -> CardData:
     with open(config_path) as f:
         config = json.load(f)
 
-    card_data = CardData()
+    card_data = ModelCardData()
     card_data.library_name = "sklearn"
     card_data.tags = ["sklearn", "skops"]
     task = config.get("sklearn", {}).get("task", None)
     if task:
         card_data.tags += [task]
-    card_data.model_file = config.get("sklearn", {}).get("model", {}).get("file")
+    card_data.model_file = config.get("sklearn", {}).get("model", {}).get("file")  # type: ignore
     example_input = config.get("sklearn", {}).get("example_input", None)
     # Documentation on what the widget expects:
     # https://huggingface.co/docs/hub/models-widgets-examples
     if example_input:
         if "tabular" in task:
-            card_data.widget = {"structuredData": example_input}
+            card_data.widget = {"structuredData": example_input}  # type: ignore
         # TODO: add text data example here.
 
     return card_data
+
+
+def _load_model(model: Any, trusted=False) -> Any:
+    """Return a model instance.
+
+    Loads the model if provided a file path, if already a model instance return
+    it unmodified.
+
+    Parameters
+    ----------
+    model : pathlib.Path, str, or sklearn estimator
+        Path/str or the actual model instance. if a Path or str, loads the model.
+
+    trusted : bool, default=False
+        Passed to :func:`skops.io.load` if the model is a file path and it's
+        a `skops` file.
+
+    Returns
+    -------
+    model : object
+        Model instance.
+    """
+
+    if not isinstance(model, (Path, str)):
+        return model
+
+    model_path = Path(model)
+    if not model_path.exists():
+        raise FileNotFoundError(f"File is not present: {model_path}")
+
+    try:
+        if zipfile.is_zipfile(model_path):
+            model = load(model_path, trusted=trusted)
+        else:
+            model = joblib.load(model_path)
+    except Exception as ex:
+        msg = f'An "{type(ex).__name__}" occurred during model loading.'
+        raise RuntimeError(msg) from ex
+
+    return model
 
 
 class Card:
@@ -172,27 +215,33 @@ class Card:
 
     Parameters
     ----------
-    model: estimator object
-        Model that will be documented.
+    model: pathlib.Path, str, or sklearn estimator object
+        ``Path``/``str`` of the model or the actual model instance that will be
+        documented. If a ``Path`` or ``str`` is provided, model will be loaded.
 
     model_diagram: bool, default=True
         Set to True if model diagram should be plotted in the card.
 
-    metadata: CardData, optional
-        ``CardData`` object. The contents of this object are saved as metadata
-        at the beginning of the output file, and used by Hugging Face Hub.
+    metadata: ModelCardData, optional
+        :class:`huggingface_hub.ModelCardData` object. The contents of this
+        object are saved as metadata at the beginning of the output file, and
+        used by Hugging Face Hub.
 
         You can use :func:`~skops.card.metadata_from_config` to create an
         instance pre-populated with necessary information based on the contents
         of the ``config.json`` file, which itself is created by
         :func:`skops.hub_utils.init`.
 
+    trusted: bool, default=False
+        Passed to :func:`skops.io.load` if the model is a file path and it's
+        a `skops` file.
+
     Attributes
     ----------
     model: estimator object
         The scikit-learn compatible model that will be documented.
 
-    metadata: CardData
+    metadata: ModelCardData
         Metadata to be stored at the beginning of the saved model card, as
         metadata to be understood by the Hugging Face Hub.
 
@@ -246,20 +295,35 @@ class Card:
       confusion_matrix='...confusion_matrix.png',
     )
     >>> model_card.save(tmp_path / "README.md")
+
     """
 
     def __init__(
         self,
         model: Any,
         model_diagram: bool = True,
-        metadata: Optional[CardData] = None,
+        metadata: Optional[ModelCardData] = None,
+        trusted: bool = False,
     ) -> None:
         self.model = model
         self.model_diagram = model_diagram
         self._eval_results = {}  # type: ignore
         self._template_sections: dict[str, str] = {}
         self._extra_sections: list[tuple[str, Any]] = []
-        self.metadata = metadata or CardData()
+        self.metadata = metadata or ModelCardData()
+        self.trusted = trusted
+
+    def get_model(self) -> Any:
+        """Returns sklearn estimator object if ``Path``/``str``
+        is provided.
+
+        Returns
+        -------
+        model : Object
+            Model instance.
+        """
+        model = _load_model(self.model, self.trusted)
+        return model
 
     def add(self, **kwargs: str) -> "Card":
         """Takes values to fill model card template.
@@ -389,29 +453,30 @@ class Card:
         template_sections = copy.deepcopy(self._template_sections)
 
         if self.metadata:
-            if self.metadata.to_dict().get("model_file"):
-                model_file = self.metadata.to_dict().get("model_file")
-                if model_file.endswith(".skops"):
-                    template_sections["get_started_code"] = (
-                        "from skops.io import load\nimport json\n"
-                        "import pandas as pd\n"
-                        f'clf = load("{model_file}")\n'
-                        'with open("config.json") as f:\n   '
-                        " config ="
-                        " json.load(f)\n"
-                        'clf.predict(pd.DataFrame.from_dict(config["sklearn"]["example_input"]))'
-                    )
-                else:
-                    template_sections["get_started_code"] = (
-                        "import joblib\nimport json\nimport pandas as pd\nclf ="
-                        f' joblib.load({model_file})\nwith open("config.json") as'
-                        " f:\n   "
-                        " config ="
-                        " json.load(f)\n"
-                        'clf.predict(pd.DataFrame.from_dict(config["sklearn"]["example_input"]))'
-                    )
+            model_file = self.metadata.to_dict().get("model_file")
+            if model_file and model_file.endswith(".skops"):
+                template_sections["get_started_code"] = (
+                    "from skops.io import load\nimport json\n"
+                    "import pandas as pd\n"
+                    f'clf = load("{model_file}")\n'
+                    'with open("config.json") as f:\n   '
+                    " config ="
+                    " json.load(f)\n"
+                    'clf.predict(pd.DataFrame.from_dict(config["sklearn"]["example_input"]))'
+                )
+            elif model_file is not None:
+                template_sections["get_started_code"] = (
+                    "import joblib\nimport json\nimport pandas as pd\nclf ="
+                    f' joblib.load({model_file})\nwith open("config.json") as'
+                    " f:\n   "
+                    " config ="
+                    " json.load(f)\n"
+                    'clf.predict(pd.DataFrame.from_dict(config["sklearn"]["example_input"]))'
+                )
         if self.model_diagram is True:
-            model_plot_div = re.sub(r"\n\s+", "", str(estimator_html_repr(self.model)))
+            model_plot_div = re.sub(
+                r"\n\s+", "", str(estimator_html_repr(self.get_model()))
+            )
             if model_plot_div.count("sk-top-container") == 1:
                 model_plot_div = model_plot_div.replace(
                     "sk-top-container", 'sk-top-container" style="overflow: auto;'
@@ -496,7 +561,7 @@ class Card:
         str:
             Markdown table of hyperparameters.
         """
-        hyperparameter_dict = self.model.get_params(deep=True)
+        hyperparameter_dict = self.get_model().get_params(deep=True)
         return _clean_table(
             tabulate(
                 list(hyperparameter_dict.items()),
@@ -519,7 +584,7 @@ class Card:
         # create repr for model
         model = getattr(self, "model", None)
         if model:
-            model_str = self._strip_blank(repr(model))
+            model_str = self._strip_blank(repr(self.get_model()))
             model_repr = aRepr.repr(f"  model={model_str},").strip('"').strip("'")
         else:
             model_repr = None

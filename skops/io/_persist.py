@@ -7,32 +7,32 @@ from zipfile import ZipFile
 
 import skops
 
-from ._dispatch import GET_INSTANCE_MAPPING, get_instance
-from ._utils import SaveState, _get_state, get_state
+from ._audit import audit_tree
+from ._dispatch import NODE_TYPE_MAPPING, get_tree
+from ._utils import LoadContext, SaveContext, _get_state, get_state
 
 # We load the dispatch functions from the corresponding modules and register
 # them.
 modules = ["._general", "._numpy", "._scipy", "._sklearn"]
 for module_name in modules:
-    # register exposed functions for get_state and get_instance
+    # register exposed functions for get_state and get_tree
     module = importlib.import_module(module_name, package="skops.io")
     for cls, method in getattr(module, "GET_STATE_DISPATCH_FUNCTIONS", []):
         _get_state.register(cls)(method)
-    # populate the the dict used for dispatching get_instance functions
-    GET_INSTANCE_MAPPING.update(module.GET_INSTANCE_DISPATCH_MAPPING)
+    # populate the the dict used for dispatching get_tree functions
+    NODE_TYPE_MAPPING.update(module.NODE_TYPE_MAPPING)
 
 
 def _save(obj):
     buffer = io.BytesIO()
 
     with ZipFile(buffer, "w") as zip_file:
-        save_state = SaveState(zip_file=zip_file)
-        state = get_state(obj, save_state)
-        save_state.clear_memo()
+        save_context = SaveContext(zip_file=zip_file)
+        state = get_state(obj, save_context)
+        save_context.clear_memo()
 
-        state["protocol"] = save_state.protocol
+        state["protocol"] = save_context.protocol
         state["_skops_version"] = skops.__version__
-
         zip_file.writestr("schema.json", json.dumps(state, indent=2))
 
     return buffer
@@ -69,7 +69,7 @@ def dump(obj, file):
 
 
 def dumps(obj):
-    """Save an object uisng the skops persistence format as a bytes object.
+    """Save an object using the skops persistence format as a bytes object.
 
     .. warning::
 
@@ -88,7 +88,7 @@ def dumps(obj):
     return buffer.getbuffer().tobytes()
 
 
-def load(file):
+def load(file, trusted=False):
     """Load an object saved with the skops persistence format.
 
     Skops aims at providing a secure persistence feature that does not rely on
@@ -107,6 +107,13 @@ def load(file):
     file: str
         The file name of the object to be loaded.
 
+    trusted: bool, or list of str, default=False
+        If ``True``, the object will be loaded without any security checks. If
+        ``False``, the object will be loaded only if there are only trusted
+        objects in the dumped file. If a list of strings, the object will be
+        loaded only if there are only trusted objects and objects of types
+        listed in ``trusted`` are in the dumped file.
+
     Returns
     -------
     instance: object
@@ -115,11 +122,15 @@ def load(file):
     """
     with ZipFile(file, "r") as input_zip:
         schema = input_zip.read("schema.json")
-        instance = get_instance(json.loads(schema), input_zip)
+        load_context = LoadContext(src=input_zip)
+        tree = get_tree(json.loads(schema), load_context)
+        audit_tree(tree, trusted)
+        instance = tree.construct()
+
     return instance
 
 
-def loads(data):
+def loads(data, trusted=False):
     """Load an object saved with the skops persistence format from a bytes
     object.
 
@@ -133,13 +144,64 @@ def loads(data):
     Parameters
     ----------
     data: bytes
-        The file name of the object to be loaded.
+        The dumped data to be loaded in bytes format.
 
+    trusted: bool, or list of str, default=False
+        If ``True``, the object will be loaded without any security checks. If
+        ``False``, the object will be loaded only if there are only trusted
+        objects in the dumped file. If a list of strings, the object will be
+        loaded only if there are only trusted objects and objects of types
+        listed in ``trusted`` are in the dumped file.
+
+    Returns
+    -------
+    instance: object
+        The loaded object.
     """
     if isinstance(data, str):
         raise TypeError("Can't load skops format from string, pass bytes")
 
     with ZipFile(io.BytesIO(data), "r") as zip_file:
         schema = json.loads(zip_file.read("schema.json"))
-        instance = get_instance(schema, src=zip_file)
+        load_context = LoadContext(src=zip_file)
+        tree = get_tree(schema, load_context)
+        audit_tree(tree, trusted)
+        instance = tree.construct()
+
     return instance
+
+
+def get_untrusted_types(*, data=None, file=None):
+    """Get a list of untrusted types in a skops dump.
+
+    Parameters
+    ----------
+    data: bytes
+        The data to be checked, in bytes format.
+
+    file: str or Path
+        The file to be checked.
+
+    Returns
+    -------
+    untrusted_types: list of str
+        The list of untrusted types in the dump.
+
+    Notes
+    -----
+    Only one of data or file should be passed.
+    """
+    if data and file:
+        raise ValueError("Only one of data or file should be passed.")
+
+    if data:
+        content = io.BytesIO(data)
+    else:
+        content = file
+
+    with ZipFile(content, "r") as zip_file:
+        schema = json.loads(zip_file.read("schema.json"))
+        tree = get_tree(schema, load_context=LoadContext(src=zip_file))
+        untrusted_types = tree.get_unsafe_set()
+
+    return sorted(untrusted_types)
