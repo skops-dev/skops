@@ -3,7 +3,6 @@ from __future__ import annotations
 import io
 from typing import Any
 
-from scipy import sparse
 from scipy.sparse import load_npz, save_npz, spmatrix
 
 from ._dispatch import Node
@@ -37,7 +36,7 @@ class SparseMatrixNode(Node):
     def __init__(self, state, load_context: LoadContext, trusted=False):
         super().__init__(state, load_context, trusted)
         type = state["type"]
-        self.trusted = self._get_trusted(trusted, [sparse.spmatrix])
+        self.trusted = self._get_trusted(trusted, [spmatrix])
         if type != "scipy":
             raise TypeError(
                 f"Cannot load object of type {self.module_name}.{self.class_name}"
