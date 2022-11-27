@@ -4,7 +4,6 @@ import io
 from typing import Any
 
 import numpy as np
-import numpy.ma
 
 from ._dispatch import Node, get_tree
 from ._utils import LoadContext, SaveContext, get_module, get_state, gettype
