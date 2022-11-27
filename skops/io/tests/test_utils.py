@@ -19,7 +19,6 @@ class TestGetTypeName:
             (np.ndarray, "numpy.ndarray"),
             (np.ma.MaskedArray, "numpy.ma.core.MaskedArray"),
             # SciPy types
-            (scipy.sparse.spmatrix, "scipy.sparse._base.spmatrix"),
             (scipy.fft.fft, "scipy.fft._basic.fft"),
             # SKlearn types
             (
