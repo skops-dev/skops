@@ -180,7 +180,12 @@ def get_type_name(
     return f"{t.__module__}.{t.__name__}"
 
 
-def convert_defaults_to_string(defaults: List[Any]) -> List[str]:
+def cast_defaults_to_strings(defaults: List[Any]) -> List[str]:
     """Simple helper function that takes in a list of defaults,
     and converts any types found to strings"""
+    if not defaults:
+        return []
+    if not type(defaults) in [list, tuple]:
+        defaults = [defaults]
+
     return [get_type_name(t) if type(t) is not str else t for t in defaults]

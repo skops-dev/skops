@@ -44,7 +44,7 @@ def dict_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
 class DictNode(Node):
     def __init__(self, state, load_context: LoadContext, trusted=False):
         super().__init__(state, load_context, trusted)
-        self.trusted = self._get_trusted(trusted, ["builtins.dict"])
+        self.trusted = self._get_trusted(trusted, [dict])
         self.children = {
             "key_types": get_tree(state["key_types"], load_context),
             "content": {
@@ -76,7 +76,7 @@ def list_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
 class ListNode(Node):
     def __init__(self, state, load_context: LoadContext, trusted=False):
         super().__init__(state, load_context, trusted)
-        self.trusted = self._get_trusted(trusted, ["builtins.list"])
+        self.trusted = self._get_trusted(trusted, [list])
         self.children = {
             "content": [get_tree(value, load_context) for value in state["content"]]
         }
@@ -100,7 +100,7 @@ def set_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
 class SetNode(Node):
     def __init__(self, state, load_context: LoadContext, trusted=False):
         super().__init__(state, load_context, trusted)
-        self.trusted = self._get_trusted(trusted, ["builtins.set"])
+        self.trusted = self._get_trusted(trusted, [set])
         self.children = {
             "content": [get_tree(value, load_context) for value in state["content"]]
         }
@@ -124,7 +124,7 @@ def tuple_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
 class TupleNode(Node):
     def __init__(self, state, load_context: LoadContext, trusted=False):
         super().__init__(state, load_context, trusted)
-        self.trusted = self._get_trusted(trusted, ["builtins.tuple"])
+        self.trusted = self._get_trusted(trusted, [tuple])
         self.children = {
             "content": [get_tree(value, load_context) for value in state["content"]]
         }
@@ -273,7 +273,7 @@ def slice_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
 class SliceNode(Node):
     def __init__(self, state, load_context: LoadContext, trusted=False):
         super().__init__(state, load_context, trusted)
-        self.trusted = self._get_trusted(trusted, ["builtins.slice"])
+        self.trusted = self._get_trusted(trusted, [slice])
         self.children = {
             "start": state["content"]["start"],
             "stop": state["content"]["stop"],

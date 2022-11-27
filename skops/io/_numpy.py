@@ -4,6 +4,7 @@ import io
 from typing import Any
 
 import numpy as np
+import numpy.ma
 
 from ._dispatch import Node, get_tree
 from ._utils import LoadContext, SaveContext, get_module, get_state, gettype
@@ -53,7 +54,7 @@ class NdArrayNode(Node):
     def __init__(self, state, load_context: LoadContext, trusted=False):
         super().__init__(state, load_context, trusted)
         self.type = state["type"]
-        self.trusted = self._get_trusted(trusted, ["numpy.ndarray"])
+        self.trusted = self._get_trusted(trusted, [np.ndarray])
         if self.type == "numpy":
             self.children = {
                 "content": io.BytesIO(load_context.src.read(state["file"]))
@@ -112,7 +113,7 @@ def maskedarray_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]
 class MaskedArrayNode(Node):
     def __init__(self, state, load_context: LoadContext, trusted=False):
         super().__init__(state, load_context, trusted)
-        self.trusted = self._get_trusted(trusted, ["numpy.ma.MaskedArray"])
+        self.trusted = self._get_trusted(trusted, [np.ma.MaskedArray])
         self.children = {
             "data": get_tree(state["content"]["data"], load_context),
             "mask": get_tree(state["content"]["mask"], load_context),
@@ -139,7 +140,7 @@ class RandomStateNode(Node):
     def __init__(self, state, load_context: LoadContext, trusted=False):
         super().__init__(state, load_context, trusted)
         self.children = {"content": get_tree(state["content"], load_context)}
-        self.trusted = self._get_trusted(trusted, ["numpy.random.RandomState"])
+        self.trusted = self._get_trusted(trusted, [np.random.RandomState])
 
     def _construct(self):
         random_state = gettype(self.module_name, self.class_name)()
@@ -162,7 +163,7 @@ class RandomGeneratorNode(Node):
     def __init__(self, state, load_context: LoadContext, trusted=False):
         super().__init__(state, load_context, trusted)
         self.children = {"bit_generator_state": state["content"]["bit_generator"]}
-        self.trusted = self._get_trusted(trusted, ["numpy.random.Generator"])
+        self.trusted = self._get_trusted(trusted, [np.random.Generator])
 
     def _construct(self):
         # first restore the state of the bit generator

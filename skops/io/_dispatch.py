@@ -5,7 +5,7 @@ from contextlib import contextmanager
 
 from ._audit import check_type
 from ._trusted_types import PRIMITIVE_TYPE_NAMES
-from ._utils import LoadContext, get_module
+from ._utils import LoadContext, cast_defaults_to_strings, get_module
 
 NODE_TYPE_MAPPING = {}  # type: ignore
 
@@ -110,15 +110,17 @@ class Node:
 
         This is a convenience method called by child classes.
         """
+        _defaults = cast_defaults_to_strings(default)
+
         if trusted is True:
             # if trusted is True, we trust the node
             return True
 
         if trusted is False:
             # if trusted is False, we only trust the defaults
-            return default
+            return _defaults
 
-        # otherwise we trust the given list
+        # otherwise, we trust the given list
         return trusted
 
     def is_self_safe(self):

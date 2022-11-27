@@ -3,7 +3,7 @@ import pytest
 import scipy
 import sklearn.tree
 
-from skops.io._utils import convert_defaults_to_string, get_type_name
+from skops.io._utils import cast_defaults_to_strings, get_type_name
 
 
 class TestGetTypeName:
@@ -40,6 +40,19 @@ class TestConvertTypesToStrings:
             ([str, list], ["builtins.str", "builtins.list"]),
             ([np.ndarray, "builtins.str"], ["numpy.ndarray", "builtins.str"]),
         ],
+        ids=["as strings", "as types", "mixed"],
     )
     def test_for_normal_input_lists_returns_as_expected(self, input_list, output_list):
-        assert convert_defaults_to_string(input_list) == output_list
+        assert cast_defaults_to_strings(input_list) == output_list
+
+    @pytest.mark.parametrize(
+        "input, output",
+        [
+            (None, []),
+            (int, ["builtins.int"]),
+            ((list,), ["builtins.list"]),
+        ],
+        ids=["None", "single int type", "list in tuple"],
+    )
+    def test_for_edge_cases_handles_as_expected(self, input, output):
+        assert cast_defaults_to_strings(input) == output
