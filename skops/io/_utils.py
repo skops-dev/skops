@@ -4,7 +4,7 @@ import importlib
 import sys
 from dataclasses import dataclass, field
 from functools import singledispatch
-from typing import Any
+from typing import Any, List
 from zipfile import ZipFile
 
 
@@ -171,3 +171,16 @@ def get_state(value, save_context):
 
     res["__id__"] = __id__
     return res
+
+
+def get_type_name(
+    t: Any,
+) -> str:
+    """Simple helper function to take in a type, and return its name as a string"""
+    return f"{t.__module__}.{t.__name__}"
+
+
+def convert_defaults_to_string(defaults: List[Any]) -> List[str]:
+    """Simple helper function that takes in a list of defaults,
+    and converts any types found to strings"""
+    return [get_type_name(t) if type(t) is not str else t for t in defaults]
