@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import io
-from typing import Any
+from typing import Any, Sequence
 
 from scipy.sparse import load_npz, save_npz, spmatrix
 
-from ._dispatch import Node
+from ._audit import Node
 from ._utils import LoadContext, SaveContext, get_module
 
 
@@ -33,7 +33,12 @@ def sparse_matrix_get_state(obj: Any, save_context: SaveContext) -> dict[str, An
 
 
 class SparseMatrixNode(Node):
-    def __init__(self, state, load_context: LoadContext, trusted=False):
+    def __init__(
+        self,
+        state: dict[str, Any],
+        load_context: LoadContext,
+        trusted: bool | Sequence[str] = False,
+    ) -> None:
         super().__init__(state, load_context, trusted)
         type = state["type"]
         self.trusted = self._get_trusted(trusted, ["scipy.sparse.spmatrix"])
@@ -44,7 +49,7 @@ class SparseMatrixNode(Node):
 
         self.children = {"content": io.BytesIO(load_context.src.read(state["file"]))}
 
-    def _construct(self):
+    def _construct(self) -> Any:
         # scipy load_npz uses numpy.save with allow_pickle=False under the
         # hood, so we're safe using it
         return load_npz(self.children["content"])

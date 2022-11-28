@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Sequence, Type
 
 from sklearn.cluster import Birch
 
@@ -22,7 +22,7 @@ from sklearn.linear_model._sgd_fast import (
 )
 from sklearn.tree._tree import Tree
 
-from ._dispatch import Node, get_tree
+from ._audit import Node, get_tree
 from ._general import unsupported_get_state
 from ._utils import LoadContext, SaveContext, get_module, get_state, gettype
 from .exceptions import UnsupportedTypeException
@@ -88,7 +88,13 @@ def reduce_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
 
 
 class ReduceNode(Node):
-    def __init__(self, state, load_context: LoadContext, constructor, trusted=False):
+    def __init__(
+        self,
+        state: dict[str, Any],
+        load_context: LoadContext,
+        constructor: Type[Any],
+        trusted: bool | Sequence[str] = False,
+    ) -> None:
         super().__init__(state, load_context, trusted)
         reduce = state["__reduce__"]
         self.children = {
@@ -97,9 +103,10 @@ class ReduceNode(Node):
             "constructor": constructor,
         }
 
-    def _construct(self):
+    def _construct(self) -> Any:
         args = self.children["args"].construct()
-        instance = self.children["constructor"](*args)
+        constructor = self.children["constructor"]
+        instance = constructor(*args)
         attrs = self.children["attrs"].construct()
         if not attrs:
             # nothing more to do
@@ -107,7 +114,7 @@ class ReduceNode(Node):
 
         if isinstance(args, tuple) and not hasattr(instance, "__setstate__"):
             raise UnsupportedTypeException(
-                f"Objects of type {self.constructor} are not supported yet"
+                f"Objects of type {constructor} are not supported yet"
             )
 
         if hasattr(instance, "__setstate__"):
@@ -125,7 +132,12 @@ def tree_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
 
 
 class TreeNode(ReduceNode):
-    def __init__(self, state, load_context: LoadContext, trusted=False):
+    def __init__(
+        self,
+        state: dict[str, Any],
+        load_context: LoadContext,
+        trusted: bool | Sequence[str] = False,
+    ) -> None:
         super().__init__(state, load_context, constructor=Tree, trusted=trusted)
         self.trusted = self._get_trusted(trusted, [get_module(Tree) + ".Tree"])
 
@@ -137,12 +149,17 @@ def sgd_loss_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
 
 
 class SGDNode(ReduceNode):
-    def __init__(self, state, load_context: LoadContext, trusted=False):
+    def __init__(
+        self,
+        state: dict[str, Any],
+        load_context: LoadContext,
+        trusted: bool | Sequence[str] = False,
+    ) -> None:
         # TODO: make sure trusted here makes sense and used.
         super().__init__(
             state,
             load_context,
-            constructor=gettype(state.get("__module__"), state.get("__class__")),
+            constructor=gettype(state["__module__"], state["__class__"]),
             trusted=False,
         )
         self.trusted = self._get_trusted(
@@ -173,7 +190,12 @@ def _DictWithDeprecatedKeys_get_state(
 # TODO: remove once support for sklearn<1.2 is dropped.
 class _DictWithDeprecatedKeysNode(Node):
     # _DictWithDeprecatedKeys is just a wrapper for dict
-    def __init__(self, state, load_context: LoadContext, trusted=False):
+    def __init__(
+        self,
+        state: dict[str, Any],
+        load_context: LoadContext,
+        trusted: bool | Sequence[str] = False,
+    ) -> None:
         super().__init__(state, load_context, trusted)
         self.trusted = [
             get_module(_DictWithDeprecatedKeysNode) + "._DictWithDeprecatedKeys"
@@ -185,7 +207,7 @@ class _DictWithDeprecatedKeysNode(Node):
             ),
         }
 
-    def _construct(self):
+    def _construct(self) -> Any:
         instance = _DictWithDeprecatedKeys(**self.children["main"].construct())
         instance._deprecated_key_to_new_key = self.children[
             "_deprecated_key_to_new_key"
