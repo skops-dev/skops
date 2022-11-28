@@ -4,7 +4,7 @@ import importlib
 import sys
 from dataclasses import dataclass, field
 from functools import singledispatch
-from typing import Any, List
+from typing import Any
 from zipfile import ZipFile
 
 
@@ -176,16 +176,29 @@ def get_state(value, save_context):
 def get_type_name(
     t: Any,
 ) -> str:
-    """Simple helper function to take in a type, and return its name as a string"""
-    return f"{t.__module__}.{t.__name__}"
+    """Helper function to take in a type, and return its name as a string"""
+    return f"{get_module(t)}.{t.__name__}"
 
 
-def cast_defaults_to_strings(defaults: List[Any]) -> List[str]:
-    """Simple helper function that takes in a list of defaults,
-    and converts any types found to strings"""
-    if not defaults:
+def get_type_paths(types: Any) -> list[str]:
+    """Helper function that takes in a types,
+    and converts any the types found to a list of strings.
+
+    Parameters
+    ----------
+     types: Any
+        Types to get. Can be either a string, a single type, or a list of strings
+        and types.
+
+    Returns
+    ----------
+    types_list: list[str]
+        The list of types, all as strings
+
+    """
+    if not types:
         return []
-    if not type(defaults) in [list, tuple]:
-        defaults = [defaults]
+    if not type(types) in [list, tuple]:
+        types = [types]
 
-    return [get_type_name(t) if type(t) is not str else t for t in defaults]
+    return [get_type_name(t) if type(t) is not str else t for t in types]

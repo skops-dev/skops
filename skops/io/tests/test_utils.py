@@ -3,7 +3,11 @@ import pytest
 import scipy
 import sklearn.tree
 
-from skops.io._utils import cast_defaults_to_strings, get_type_name
+from skops.io._utils import get_type_name, get_type_paths
+
+
+class UserDefinedClass:
+    pass
 
 
 class TestGetTypeName:
@@ -25,6 +29,8 @@ class TestGetTypeName:
                 sklearn.linear_model.HuberRegressor,
                 "sklearn.linear_model._huber.HuberRegressor",
             ),
+            # User defined types
+            (UserDefinedClass, "test_utils.UserDefinedClass"),
         ],
     )
     def test_for_input_types_returns_as_expected(self, input_type, expected_output):
@@ -42,16 +48,12 @@ class TestConvertTypesToStrings:
         ids=["as strings", "as types", "mixed"],
     )
     def test_for_normal_input_lists_returns_as_expected(self, input_list, output_list):
-        assert cast_defaults_to_strings(input_list) == output_list
+        assert get_type_paths(input_list) == output_list
 
     @pytest.mark.parametrize(
         "input, output",
-        [
-            (None, []),
-            (int, ["builtins.int"]),
-            ((list,), ["builtins.list"]),
-        ],
-        ids=["None", "single int type", "list in tuple"],
+        [(None, []), (int, ["builtins.int"]), ((list,), ["builtins.list"]), ([], [])],
+        ids=["None", "single int type", "list in tuple", "empty list"],
     )
     def test_for_edge_cases_handles_as_expected(self, input, output):
-        assert cast_defaults_to_strings(input) == output
+        assert get_type_paths(input) == output
