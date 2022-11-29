@@ -1,8 +1,10 @@
 from importlib import import_module
+
 from skops.utils.fixes import metadata
 
+
 def import_or_raise(package):
-    """Raise error 
+    """Raise error
 
     Parameters
     ----------
@@ -17,6 +19,4 @@ def import_or_raise(package):
     try:
         import_module(package)
     except metadata.PackageNotFoundError:
-            raise ModuleNotFoundError(
-                f"This feature requires {package} to be installed."
-            )
+        raise ModuleNotFoundError(f"This feature requires {package} to be installed.")

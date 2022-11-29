@@ -1,6 +1,9 @@
-import pytest
 from unittest import mock
+
+import pytest
+
 from skops.utils.importutils import import_or_raise
+
 
 def test_import_or_raise():
     orig_import = __import__
