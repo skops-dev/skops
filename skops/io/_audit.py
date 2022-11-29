@@ -181,7 +181,7 @@ class Node:
 
     def _construct(self) -> Any:
         raise NotImplementedError(
-            f"{self.__class__.__name__} should implement a 'construct' method"
+            f"{self.__class__.__name__} should implement a '_construct' method"
         )
 
     @staticmethod
