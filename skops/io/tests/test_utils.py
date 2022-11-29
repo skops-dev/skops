@@ -48,18 +48,11 @@ class TestConvertTypesToStrings:
     @pytest.mark.parametrize(
         "input_list, output_list",
         [
+            # Happy path
             (["builtins.str", "builtins.list"], ["builtins.str", "builtins.list"]),
             ([str, list], ["builtins.str", "builtins.list"]),
             ([np.ndarray, "builtins.str"], ["numpy.ndarray", "builtins.str"]),
-        ],
-        ids=["as strings", "as types", "mixed"],
-    )
-    def test_for_normal_input_lists_returns_as_expected(self, input_list, output_list):
-        assert get_type_paths(input_list) == output_list
-
-    @pytest.mark.parametrize(
-        "input_obj, output",
-        [
+            # Edge cases
             (None, []),
             (int, ["builtins.int"]),
             ((list,), ["builtins.list"]),
@@ -68,6 +61,9 @@ class TestConvertTypesToStrings:
             (UserDefinedString("foo"), ["foo"]),
         ],
         ids=[
+            "as strings",
+            "as types",
+            "mixed",
             "None",
             "single int type",
             "list in tuple",
@@ -76,5 +72,5 @@ class TestConvertTypesToStrings:
             "UserDefinedString as instance",
         ],
     )
-    def test_for_edge_cases_handles_as_expected(self, input_obj, output):
-        assert get_type_paths(input_obj) == output
+    def test_for_normal_input_lists_returns_as_expected(self, input_list, output_list):
+        assert get_type_paths(input_list) == output_list
