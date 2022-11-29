@@ -459,8 +459,7 @@ class Card:
         self : object
             Card object.
         """
-        import_or_raise("matplotlib")
-        import matplotlib.pyplot as plt
+        plt = import_or_raise("matplotlib.pyplot", "permutation importance")
 
         if Path(plot_file).exists() and overwrite is False:
             raise ValueError(

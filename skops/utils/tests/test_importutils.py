@@ -10,14 +10,17 @@ def test_import_or_raise():
 
     def mock_import(name, *args):
         if name == "matplotlib":
-            pass
+            raise ImportError("No module named 'matplotlib'")
         else:
             return orig_import(name, *args)
 
-    with mock.patch("builtins.__import__", side_effect=mock_import):
-        with pytest.raises(ImportError, match="cannot import name*"):
-            with pytest.raises(
-                ModuleNotFoundError,
-                match="This feature requires matplotlib to be installed.",
-            ):
-                import_or_raise("matplotlib")
+    with mock.patch("importlib.import_module", side_effect=mock_import):
+        with pytest.raises(
+            ModuleNotFoundError,
+            match=(
+                "Permutation importance requires matplotlib to be installed. In order"
+                " to use permutation importance, you need to install the package in"
+                " your current python environment."
+            ),
+        ):
+            import_or_raise("matplotlib", "permutation importance")
