@@ -332,6 +332,11 @@ def get_tree(state: dict[str, Any], load_context: LoadContext) -> Node:
 
     load_context : LoadContext
         The context of the loading process.
+
+    Returns
+    -------
+    loaded_tree : Node
+        The tree containing all its (non-instantiated) child nodes.
     """
     saved_id = state.get("__id__")
     if saved_id in load_context.memo:
