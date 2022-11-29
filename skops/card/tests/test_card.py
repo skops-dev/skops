@@ -17,7 +17,7 @@ from sklearn.metrics import f1_score, make_scorer
 import skops
 from skops import hub_utils
 from skops.card import Card, metadata_from_config
-from skops.card._model_card import PlotSection, TableSection
+from skops.card._model_card import PlotSection, TableSection, _load_model
 from skops.io import dump
 
 
@@ -26,7 +26,6 @@ def fit_model():
     y = np.dot(X, np.array([1, 2])) + 3
     reg = LinearRegression().fit(X, y)
     return reg
-
 
 
 def save_model_to_file(model_instance, suffix):
@@ -51,7 +50,6 @@ def test_load_model(suffix):
     assert loaded_model_str.n_jobs == 123
     assert loaded_model_path.n_jobs == 123
     assert loaded_model_instance.n_jobs == 123
-
 
 
 @pytest.fixture
@@ -521,7 +519,6 @@ class TestCardRepr:
         )
         result = meth(card)
         assert result == expected
-
 
 
 class TestCardModelAttribute:
