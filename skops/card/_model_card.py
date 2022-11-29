@@ -18,6 +18,7 @@ from tabulate import tabulate  # type: ignore
 
 import skops
 from skops.io import load
+from skops.utils.importutils import import_or_raise
 from skops.utils.fixes import metadata
 
 # Repr attributes can be used to control the behavior of repr
@@ -459,12 +460,8 @@ class Card:
         self : object
             Card object.
         """
-        try:
-            import matplotlib.pyplot as plt
-        except metadata.PackageNotFoundError:
-            raise ModuleNotFoundError(
-                "This feature requires matplotlib to be installed."
-            )
+        import_or_raise("matplotlib")
+        import matplotlib.pyplot as plt
         if Path(plot_file).exists() and overwrite is False:
             raise ValueError(
                 f"{str(plot_file)} already exists. Set `overwrite` to `True` or pass a"
