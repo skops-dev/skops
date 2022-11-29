@@ -173,9 +173,7 @@ def get_state(value, save_context):
     return res
 
 
-def get_type_name(
-    t: Any,
-) -> str:
+def get_type_name(t: Any) -> str:
     """Helper function to take in a type, and return its name as a string"""
     return f"{get_module(t)}.{t.__name__}"
 
