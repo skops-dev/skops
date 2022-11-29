@@ -53,8 +53,8 @@ from sklearn.utils.estimator_checks import (
 )
 
 import skops
-from skops.io import dump, dumps, load, loads
-from skops.io._dispatch import GET_INSTANCE_MAPPING, get_instance
+from skops.io import dump, dumps, get_untrusted_types, load, loads
+from skops.io._dispatch import NODE_TYPE_MAPPING, get_tree
 from skops.io._sklearn import UNSUPPORTED_TYPES
 from skops.io._utils import LoadContext, SaveContext, _get_state, get_state
 from skops.io.exceptions import UnsupportedTypeException
@@ -70,7 +70,7 @@ ATOL = 1e-6 if sys.platform == "darwin" else 1e-7
 
 @pytest.fixture(autouse=True, scope="module")
 def debug_dispatch_functions():
-    # Patch the get_state and get_instance methods to add some sanity checks on
+    # Patch the get_state and get_tree methods to add some sanity checks on
     # them. Specifically, we test that the arguments of the functions all follow
     # the same pattern to enforce consistency and that the "state" is either a
     # dict with specified keys or a primitive type.
@@ -94,32 +94,32 @@ def debug_dispatch_functions():
 
         return wrapper
 
-    def debug_get_instance(func):
+    def debug_get_tree(func):
         # check consistency of argument names and input type
         signature = inspect.signature(func)
-        assert list(signature.parameters.keys()) == ["state", "load_context"]
+        assert list(signature.parameters.keys()) == ["state", "load_context", "trusted"]
 
         @wraps(func)
-        def wrapper(state, load_context):
+        def wrapper(state, load_context, trusted):
             assert "__class__" in state
             assert "__module__" in state
             assert "__loader__" in state
             assert "__id__" in state
             assert isinstance(load_context, LoadContext)
 
-            result = func(state, load_context)
+            result = func(state, load_context, trusted)
             return result
 
         return wrapper
 
     modules = ["._general", "._numpy", "._scipy", "._sklearn"]
     for module_name in modules:
-        # overwrite exposed functions for get_state and get_instance
+        # overwrite exposed functions for get_state and get_tree
         module = importlib.import_module(module_name, package="skops.io")
         for cls, method in getattr(module, "GET_STATE_DISPATCH_FUNCTIONS", []):
             _get_state.register(cls)(debug_get_state(method))
-        for key, method in GET_INSTANCE_MAPPING.copy().items():
-            GET_INSTANCE_MAPPING[key] = debug_get_instance(method)
+        for key, method in NODE_TYPE_MAPPING.copy().items():
+            NODE_TYPE_MAPPING[key] = debug_get_tree(method)
 
 
 def _tested_estimators(type_filter=None):
@@ -402,7 +402,7 @@ def assert_params_equal(params1, params2):
 )
 def test_can_persist_non_fitted(estimator):
     """Check that non-fitted estimators can be persisted."""
-    loaded = loads(dumps(estimator))
+    loaded = loads(dumps(estimator), trusted=True)
     assert_params_equal(estimator.get_params(), loaded.get_params())
 
 
@@ -482,7 +482,13 @@ def test_can_persist_fitted(estimator, request):
             else:
                 estimator.fit(X)
 
-    loaded = loads(dumps(estimator))
+    # test that we can get a list of untrusted types. This is a smoke test
+    # to make sure there are no errors running this method.
+    # it is in this test to save time, as it requires a fitted estimator.
+    dumped = dumps(estimator)
+    untrusted_types = get_untrusted_types(data=dumped)
+
+    loaded = loads(dumped, trusted=untrusted_types)
     assert_params_equal(estimator.__dict__, loaded.__dict__)
 
     for method in [
@@ -546,6 +552,7 @@ class RandomStateEstimator(BaseEstimator):
         np.random.default_rng(),
         np.random.Generator(np.random.PCG64DXSM(seed=123)),
     ],
+    ids=["None", "int", "RandomState", "default_rng", "Generator"],
 )
 def test_random_state(random_state):
     # Numpy random Generators
@@ -555,7 +562,7 @@ def test_random_state(random_state):
     est = RandomStateEstimator(random_state=random_state).fit(None, None)
     est.random_state_.random(123)  # move RNG forwards
 
-    loaded = loads(dumps(est))
+    loaded = loads(dumps(est), trusted=True)
     rand_floats_expected = est.random_state_.random(100)
     rand_floats_loaded = loaded.random_state_.random(100)
     np.testing.assert_equal(rand_floats_loaded, rand_floats_expected)
@@ -585,7 +592,7 @@ class CVEstimator(BaseEstimator):
 )
 def test_cross_validator(cv):
     est = CVEstimator(cv=cv).fit(None, None)
-    loaded = loads(dumps(est))
+    loaded = loads(dumps(est), trusted=True)
     X, y = make_classification(
         n_samples=N_SAMPLES, n_features=N_FEATURES, random_state=0
     )
@@ -627,7 +634,7 @@ def test_numpy_object_dtype_2d_array(transpose):
     if transpose:
         est.obj_array_ = est.obj_array_.T
 
-    loaded = loads(dumps(est))
+    loaded = loads(dumps(est), trusted=True)
     assert_params_equal(est.__dict__, loaded.__dict__)
 
 
@@ -742,7 +749,7 @@ def test_identical_numpy_arrays_not_duplicated():
     X = np.random.random((10, 5))
     estimator = EstimatorIdenticalArrays().fit(X)
     dumped = dumps(estimator)
-    loaded = loads(dumped)
+    loaded = loads(dumped, trusted=True)
     assert_params_equal(estimator.__dict__, loaded.__dict__)
 
     # check number of numpy arrays stored on disk
@@ -786,14 +793,12 @@ def test_loads_from_str():
         loads("this is a string")
 
 
-def test_get_instance_unknown_type_error_msg():
-    val = ("hi", [123])
-    save_context = SaveContext(None)
-    state = get_state(val, save_context)
-    state["__loader__"] = "this_get_instance_does_not_exist"
-    msg = "Can't find loader this_get_instance_does_not_exist for type builtins.tuple."
+def test_get_tree_unknown_type_error_msg():
+    state = get_state(("hi", [123]), SaveContext(None))
+    state["__loader__"] = "this_get_tree_does_not_exist"
+    msg = "Can't find loader this_get_tree_does_not_exist for type builtins.tuple."
     with pytest.raises(TypeError, match=msg):
-        get_instance(state, LoadContext(None))
+        get_tree(state, LoadContext(None))
 
 
 class _BoundMethodHolder:
@@ -848,7 +853,7 @@ class TestPersistingBoundMethods:
         bound_function = obj.bound_method
         transformer = FunctionTransformer(func=bound_function)
 
-        loaded_transformer = loads(dumps(transformer))
+        loaded_transformer = loads(dumps(transformer), trusted=True)
         loaded_obj = loaded_transformer.func.__self__
 
         self.assert_transformer_persisted_correctly(loaded_transformer, transformer)
@@ -865,7 +870,7 @@ class TestPersistingBoundMethods:
 
         transformer = FunctionTransformer(func=bound_function)
 
-        loaded_transformer = loads(dumps(transformer))
+        loaded_transformer = loads(dumps(transformer), trusted=True)
         loaded_obj = loaded_transformer.func.__self__
 
         self.assert_transformer_persisted_correctly(loaded_transformer, transformer)
@@ -878,7 +883,7 @@ class TestPersistingBoundMethods:
             func=obj.bound_method, inverse_func=obj.other_bound_method
         )
 
-        loaded_transformer = loads(dumps(transformer))
+        loaded_transformer = loads(dumps(transformer), trusted=True)
 
         # check that both func and inverse_func are from the same object instance
         loaded_0 = loaded_transformer.func.__self__
@@ -890,7 +895,7 @@ class TestPersistingBoundMethods:
         from scipy import stats
 
         estimator = FunctionTransformer(func=stats.zipf)
-        loads(dumps(estimator))
+        loads(dumps(estimator), trusted=True)
 
 
 class CustomEstimator(BaseEstimator):
@@ -930,7 +935,7 @@ def test_dump_to_and_load_from_disk(tmp_path):
     json.loads(ZipFile(f_name).read("schema.json"))
 
     # load and compare the actual estimator
-    loaded = load(f_name)
+    loaded = load(f_name, trusted=True)
     assert_params_equal(loaded.__dict__, estimator.__dict__)
 
 
@@ -957,8 +962,8 @@ def test_disk_and_memory_are_identical(tmp_path):
 
     f_name = tmp_path / "estimator.skops"
     dump(estimator, f_name)
-    loaded_disk = load(f_name)
-    loaded_memory = loads(dumps(estimator))
+    loaded_disk = load(f_name, trusted=True)
+    loaded_memory = loads(dumps(estimator), trusted=True)
 
     assert joblib.hash(loaded_disk) == joblib.hash(loaded_memory)
 
@@ -976,6 +981,6 @@ def test_disk_and_memory_are_identical(tmp_path):
 )
 def test_when_given_object_referenced_twice_loads_as_one_object(obj):
     an_object = {"obj_1": obj, "obj_2": obj}
-    persisted_object = loads(dumps(an_object))
+    persisted_object = loads(dumps(an_object), trusted=True)
 
     assert persisted_object["obj_1"] is persisted_object["obj_2"]
