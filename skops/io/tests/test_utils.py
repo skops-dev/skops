@@ -10,6 +10,12 @@ class UserDefinedClass:
     pass
 
 
+class UserDefinedString(str):
+    """Used to test behaviour of subclasses of strings"""
+
+    pass
+
+
 class TestGetTypeName:
     @pytest.mark.parametrize(
         "input_type, expected_output",
@@ -31,6 +37,7 @@ class TestGetTypeName:
             ),
             # User defined types
             (UserDefinedClass, "test_utils.UserDefinedClass"),
+            (UserDefinedString, "test_utils.UserDefinedString"),
         ],
     )
     def test_for_input_types_returns_as_expected(self, input_type, expected_output):
@@ -51,9 +58,23 @@ class TestConvertTypesToStrings:
         assert get_type_paths(input_list) == output_list
 
     @pytest.mark.parametrize(
-        "input, output",
-        [(None, []), (int, ["builtins.int"]), ((list,), ["builtins.list"]), ([], [])],
-        ids=["None", "single int type", "list in tuple", "empty list"],
+        "input_obj, output",
+        [
+            (None, []),
+            (int, ["builtins.int"]),
+            ((list,), ["builtins.list"]),
+            ([], []),
+            (UserDefinedString, ["test_utils.UserDefinedString"]),
+            (UserDefinedString("foo"), ["foo"]),
+        ],
+        ids=[
+            "None",
+            "single int type",
+            "list in tuple",
+            "empty list",
+            "UserDefinedString as type",
+            "UserDefinedString as instance",
+        ],
     )
-    def test_for_edge_cases_handles_as_expected(self, input, output):
-        assert get_type_paths(input) == output
+    def test_for_edge_cases_handles_as_expected(self, input_obj, output):
+        assert get_type_paths(input_obj) == output

@@ -198,7 +198,7 @@ def get_type_paths(types: Any) -> list[str]:
     """
     if not types:
         return []
-    if not type(types) in [list, tuple]:
+    if not isinstance(types, (list, tuple)):
         types = [types]
 
-    return [get_type_name(t) if type(t) is not str else t for t in types]
+    return [get_type_name(t) if not isinstance(t, str) else t for t in types]
