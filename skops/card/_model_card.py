@@ -586,7 +586,7 @@ class Card:
         parent_section = self._select(subsection_names, create=False)
         del parent_section[leaf_node_name]
 
-    def _add_single(self, key: str, val: Formattable | str) -> None:
+    def _add_single(self, key: str, val: Formattable | str) -> Section:
         """Add a single section
 
         If the (sub)section does not exist, it is created. Otherwise, the
@@ -610,6 +610,8 @@ class Card:
         else:
             # entry does not exist, create a new one
             section[leaf_node_name] = Section(title=leaf_node_name, content=val)
+
+        return section[leaf_node_name]
 
     def _add_model_section(self) -> None:
         """Add model plot section, if model_diagram is set"""
