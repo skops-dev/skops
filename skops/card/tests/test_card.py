@@ -793,16 +793,25 @@ class TestTableSection:
         expected = "Table(3x2)"
         assert meth(section) == expected
 
-    @pytest.mark.parametrize("table", [{}, {"col": []}, "pandas"])
+    @pytest.mark.parametrize("table", [{}, "pandas"])
     def test_raise_error_empty_table(self, table):
-        # Test no columns, no rows, empty df
+        # If there are no columns, raise
         if table == "pandas":
             pd = pytest.importorskip("pandas")
             table = pd.DataFrame([])
 
-        msg = "Empty table added"
+        msg = "Trying to add table with no columns"
         with pytest.raises(ValueError, match=msg):
             TableSection(table=table)
+
+    @pytest.mark.parametrize("table", [{"col0": []}, "pandas"])
+    def test_table_with_no_rows_works(self, table):
+        # If there are no rows, it's okay
+        if table == "pandas":
+            pd = pytest.importorskip("pandas")
+            table = pd.DataFrame(data=[], columns=["col0"])
+
+        TableSection(table=table).format()  # no error raised
 
     def test_pandas_not_installed(self, table_dict, pandas_not_installed):
         # use pandas_not_installed fixture from conftest.py to pretend that

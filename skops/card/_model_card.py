@@ -74,7 +74,7 @@ class PlotSection:
 class TableSection:
     """Adds a table to the model card"""
 
-    table: dict[str, list[Any]]
+    table: Mapping[str, Sequence[Any]]
     folded: bool = False
 
     def __post_init__(self) -> None:
@@ -86,17 +86,11 @@ class TableSection:
             self._is_pandas_df = False
 
         if self._is_pandas_df:
-            if self.table.empty:  # type: ignore
-                raise ValueError("Empty table added")
+            ncols = len(self.table.columns)  # type: ignore
         else:
             ncols = len(self.table)
-            if ncols == 0:
-                raise ValueError("Empty table added")
-
-            key = next(iter(self.table.keys()))
-            nrows = len(self.table[key])
-            if nrows == 0:
-                raise ValueError("Empty table added")
+        if ncols == 0:
+            raise ValueError("Trying to add table with no columns")
 
     def format(self) -> str:
         if self._is_pandas_df:
@@ -774,11 +768,14 @@ class Card:
         if self.template not in VALID_TEMPLATES:
             return
 
-        table = tabulate(
-            list(metrics.items()),
-            headers=["Metric", "Value"],
-            tablefmt="github",
-        )
+        if self._metrics:
+            data_transposed = zip(*self._metrics.items())  # make column oriented
+            inp = {key: val for key, val in zip(["Metric", "Value"], data_transposed)}
+            table = TableSection(inp).format()
+        else:
+            # create empty table
+            table = TableSection({"Metric": [], "Value": []}).format()
+
         template = textwrap.dedent(
             """        You can find the details about evaluation process and the evaluation results.
 
