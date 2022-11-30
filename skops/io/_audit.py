@@ -169,7 +169,7 @@ class Node:
         self.trusted = self._get_trusted(trusted, [])
         self.children: dict[str, Any] = {}
 
-    def construct(self) -> Any:
+    def construct(self):
         """Construct the object.
 
         We only construct the object once, and then cache the result.
@@ -179,7 +179,7 @@ class Node:
         self._constructed = self._construct()
         return self._constructed
 
-    def _construct(self) -> Any:
+    def _construct(self):
         raise NotImplementedError(
             f"{self.__class__.__name__} should implement a '_construct' method"
         )

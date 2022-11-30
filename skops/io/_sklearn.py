@@ -103,7 +103,7 @@ class ReduceNode(Node):
             "constructor": constructor,
         }
 
-    def _construct(self) -> Any:
+    def _construct(self):
         args = self.children["args"].construct()
         constructor = self.children["constructor"]
         instance = constructor(*args)
@@ -207,7 +207,7 @@ class _DictWithDeprecatedKeysNode(Node):
             ),
         }
 
-    def _construct(self) -> Any:
+    def _construct(self):
         instance = _DictWithDeprecatedKeys(**self.children["main"].construct())
         instance._deprecated_key_to_new_key = self.children[
             "_deprecated_key_to_new_key"

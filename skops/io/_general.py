@@ -58,7 +58,7 @@ class DictNode(Node):
             },
         }
 
-    def _construct(self) -> Any:
+    def _construct(self):
         content = gettype(self.module_name, self.class_name)()
         key_types = self.children["key_types"].construct()
         for k_type, (key, val) in zip(key_types, self.children["content"].items()):
@@ -120,7 +120,7 @@ class SetNode(Node):
             "content": [get_tree(value, load_context) for value in state["content"]]
         }
 
-    def _construct(self) -> Any:
+    def _construct(self):
         content_type = gettype(self.module_name, self.class_name)
         return content_type([item.construct() for item in self.children["content"]])
 
@@ -149,7 +149,7 @@ class TupleNode(Node):
             "content": [get_tree(value, load_context) for value in state["content"]]
         }
 
-    def _construct(self) -> Any:
+    def _construct(self):
         # Returns a tuple or a namedtuple instance.
 
         cls = gettype(self.module_name, self.class_name)
@@ -196,7 +196,7 @@ class FunctionNode(Node):
         self.trusted = self._get_trusted(trusted, [])
         self.children = {"content": state["content"]}
 
-    def _construct(self) -> Any:
+    def _construct(self):
         return _import_obj(
             self.children["content"]["module_path"],
             self.children["content"]["function"],
@@ -249,7 +249,7 @@ class PartialNode(Node):
             "namespace": get_tree(state["content"]["namespace"], load_context),
         }
 
-    def _construct(self) -> Any:
+    def _construct(self):
         func = self.children["func"].construct()
         args = self.children["args"].construct()
         kwds = self.children["kwds"].construct()
@@ -285,7 +285,7 @@ class TypeNode(Node):
         # dict using __class__ and __module__ keys.
         self.children = {}
 
-    def _construct(self) -> Any:
+    def _construct(self):
         return _import_obj(self.module_name, self.class_name)
 
 
@@ -318,7 +318,7 @@ class SliceNode(Node):
             "step": state["content"]["step"],
         }
 
-    def _construct(self) -> Any:
+    def _construct(self):
         return slice(
             self.children["start"], self.children["stop"], self.children["step"]
         )
@@ -385,7 +385,7 @@ class ObjectNode(Node):
         # TODO: what do we trust?
         self.trusted = self._get_trusted(trusted, [])
 
-    def _construct(self) -> Any:
+    def _construct(self):
         cls = gettype(self.module_name, self.class_name)
 
         # Instead of simply constructing the instance, we use __new__, which
@@ -439,7 +439,7 @@ class MethodNode(Node):
         # TODO: what do we trust?
         self.trusted = self._get_trusted(trusted, [])
 
-    def _construct(self) -> Any:
+    def _construct(self):
         loaded_obj = self.children["obj"].construct()
         method = getattr(loaded_obj, self.children["func"])
         return method
@@ -471,7 +471,7 @@ class JsonNode(Node):
     def get_unsafe_set(self) -> set[str]:
         return set()
 
-    def _construct(self) -> Any:
+    def _construct(self):
         return json.loads(self.content)
 
 

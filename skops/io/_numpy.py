@@ -73,7 +73,7 @@ class NdArrayNode(Node):
         else:
             raise ValueError(f"Unknown type {self.type}.")
 
-    def _construct(self) -> Any:
+    def _construct(self):
         # Dealing with a regular numpy array, where dtype != object
         if self.type == "numpy":
             content = np.load(self.children["content"], allow_pickle=False)
@@ -128,7 +128,7 @@ class MaskedArrayNode(Node):
             "mask": get_tree(state["content"]["mask"], load_context),
         }
 
-    def _construct(self) -> Any:
+    def _construct(self):
         data = self.children["data"].construct()
         mask = self.children["mask"].construct()
         return np.ma.MaskedArray(data, mask)
@@ -156,7 +156,7 @@ class RandomStateNode(Node):
         self.children = {"content": get_tree(state["content"], load_context)}
         self.trusted = self._get_trusted(trusted, ["numpy.random.RandomState"])
 
-    def _construct(self) -> Any:
+    def _construct(self):
         random_state = gettype(self.module_name, self.class_name)()
         random_state.set_state(self.children["content"].construct())
         return random_state
@@ -184,7 +184,7 @@ class RandomGeneratorNode(Node):
         self.children = {"bit_generator_state": state["content"]["bit_generator"]}
         self.trusted = self._get_trusted(trusted, ["numpy.random.Generator"])
 
-    def _construct(self) -> Any:
+    def _construct(self):
         # first restore the state of the bit generator
         bit_generator = gettype(
             "numpy.random", self.children["bit_generator_state"]["bit_generator"]
@@ -236,7 +236,7 @@ class DTypeNode(Node):
         # TODO: what should we trust?
         self.trusted = self._get_trusted(trusted, [])
 
-    def _construct(self) -> Any:
+    def _construct(self):
         # we use numpy's internal save mechanism to store the dtype by
         # saving/loading an empty array with that dtype.
         return self.children["content"].construct().dtype
