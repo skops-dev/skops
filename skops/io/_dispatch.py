@@ -117,11 +117,10 @@ class Node:
 
         if trusted is False:
             # if trusted is False, we only trust the defaults
-            _defaults = get_type_paths(default)
-            return _defaults
+            return get_type_paths(default)
 
         # otherwise, we trust the given list
-        return trusted
+        return get_type_paths(trusted)
 
     def is_self_safe(self):
         """True only if the node's type is considered safe.
