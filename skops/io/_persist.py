@@ -39,7 +39,7 @@ def _save(obj: Any) -> io.BytesIO:
     return buffer
 
 
-def dump(obj: Any, file: str) -> None:
+def dump(obj: Any, file: str | io.TextIOWrapper) -> None:
     """Save an object using the skops persistence format.
 
     Skops aims at providing a secure persistence feature that does not rely on
@@ -65,8 +65,12 @@ def dump(obj: Any, file: str) -> None:
 
     """
     buffer = _save(obj)
-    with open(file, "wb") as f:
-        f.write(buffer.getbuffer())
+
+    if hasattr(file, "write"):
+        file.write(buffer.getbuffer())  # type: ignore
+    else:
+        with open(file, "wb") as f:  # type: ignore
+            f.write(buffer.getbuffer())
 
 
 def dumps(obj: Any) -> bytes:
