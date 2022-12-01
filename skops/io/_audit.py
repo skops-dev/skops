@@ -187,7 +187,7 @@ class Node:
 
     @staticmethod
     def _get_trusted(
-        trusted: bool | Sequence[Union[str, Type]], default: list[Union[str, Type]]
+        trusted: bool | Sequence[Union[str, Type]], default: Sequence[Union[str, Type]]
     ) -> Literal[True] | list[str]:
         """Return a trusted list, or True.
 
