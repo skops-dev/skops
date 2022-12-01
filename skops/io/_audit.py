@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import io
 from contextlib import contextmanager
-from typing import Any, Generator, Sequence, Union, Type
+from typing import Any, Generator, Sequence, Type, Union
 
 from ..utils.fixes import Literal
 from ._trusted_types import PRIMITIVE_TYPE_NAMES
