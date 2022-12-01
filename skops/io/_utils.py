@@ -190,8 +190,8 @@ def get_type_paths(types: Any) -> list[str]:
 
     Returns
     ----------
-    types_list: list[str]
-        The list of types, all as strings
+    types_list: list of str
+        The list of types, all as strings, e.g. ``["builtins.list"]``.
 
     """
     if not types:
