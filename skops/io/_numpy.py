@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import io
-from typing import Any
+from typing import Any, Sequence
 
 import numpy as np
 
-from ._dispatch import Node, get_tree
+from ._audit import Node, get_tree
 from ._utils import LoadContext, SaveContext, get_module, get_state, gettype
 from .exceptions import UnsupportedTypeException
 
@@ -50,7 +50,12 @@ def ndarray_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
 
 
 class NdArrayNode(Node):
-    def __init__(self, state, load_context: LoadContext, trusted=False):
+    def __init__(
+        self,
+        state: dict[str, Any],
+        load_context: LoadContext,
+        trusted: bool | Sequence[str] = False,
+    ) -> None:
         super().__init__(state, load_context, trusted)
         self.type = state["type"]
         self.trusted = self._get_trusted(trusted, [np.ndarray])
@@ -110,7 +115,12 @@ def maskedarray_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]
 
 
 class MaskedArrayNode(Node):
-    def __init__(self, state, load_context: LoadContext, trusted=False):
+    def __init__(
+        self,
+        state: dict[str, Any],
+        load_context: LoadContext,
+        trusted: bool | Sequence[str] = False,
+    ) -> None:
         super().__init__(state, load_context, trusted)
         self.trusted = self._get_trusted(trusted, [np.ma.MaskedArray])
         self.children = {
@@ -136,7 +146,12 @@ def random_state_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any
 
 
 class RandomStateNode(Node):
-    def __init__(self, state, load_context: LoadContext, trusted=False):
+    def __init__(
+        self,
+        state: dict[str, Any],
+        load_context: LoadContext,
+        trusted: bool | Sequence[str] = False,
+    ) -> None:
         super().__init__(state, load_context, trusted)
         self.children = {"content": get_tree(state["content"], load_context)}
         self.trusted = self._get_trusted(trusted, [np.random.RandomState])
@@ -159,7 +174,12 @@ def random_generator_get_state(obj: Any, save_context: SaveContext) -> dict[str,
 
 
 class RandomGeneratorNode(Node):
-    def __init__(self, state, load_context: LoadContext, trusted=False):
+    def __init__(
+        self,
+        state: dict[str, Any],
+        load_context: LoadContext,
+        trusted: bool | Sequence[str] = False,
+    ) -> None:
         super().__init__(state, load_context, trusted)
         self.children = {"bit_generator_state": state["content"]["bit_generator"]}
         self.trusted = self._get_trusted(trusted, [np.random.Generator])
@@ -205,7 +225,12 @@ def dtype_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
 
 
 class DTypeNode(Node):
-    def __init__(self, state, load_context: LoadContext, trusted=False):
+    def __init__(
+        self,
+        state: dict[str, Any],
+        load_context: LoadContext,
+        trusted: bool | Sequence[str] = False,
+    ) -> None:
         super().__init__(state, load_context, trusted)
         self.children = {"content": get_tree(state["content"], load_context)}
         # TODO: what should we trust?

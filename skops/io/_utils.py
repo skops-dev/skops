@@ -4,7 +4,7 @@ import importlib
 import sys
 from dataclasses import dataclass, field
 from functools import singledispatch
-from typing import Any
+from typing import Any, Type
 from zipfile import ZipFile
 
 
@@ -28,7 +28,7 @@ def _getattribute(obj, name):
 
 # This function is particularly used to detect the path of functions such as
 # ufuncs. It returns the full path, instead of returning the module name.
-def whichmodule(obj, name):
+def whichmodule(obj: Any, name: str) -> str:
     """Find the module an object belong to."""
     module_name = getattr(obj, "__module__", None)
     if module_name is not None:
@@ -53,17 +53,18 @@ def whichmodule(obj, name):
 # ---------------------------------------------------------------------
 
 
-def _import_obj(module, cls_or_func, package=None):
+def _import_obj(module: str, cls_or_func: str, package: str | None = None) -> Any:
     return getattr(importlib.import_module(module, package=package), cls_or_func)
 
 
-def gettype(module_name, cls_or_func):
+def gettype(module_name: str, cls_or_func: str) -> Type[Any]:
     if module_name and cls_or_func:
         return _import_obj(module_name, cls_or_func)
-    return None
+
+    raise ValueError(f"Object {cls_or_func} of module {module_name} is unknown")
 
 
-def get_module(obj):
+def get_module(obj: Any) -> str:
     """Find module for given object
 
     If the module cannot be identified, it's assumed to be "__main__".
@@ -144,14 +145,14 @@ class LoadContext:
 
 
 @singledispatch
-def _get_state(obj, save_context):
+def _get_state(obj, save_context: SaveContext):
     # This function should never be called directly. Instead, it is used to
     # dispatch to the correct implementation of get_state for the given type of
     # its first argument.
     raise TypeError(f"Getting the state of type {type(obj)} is not supported yet")
 
 
-def get_state(value, save_context):
+def get_state(value, save_context: SaveContext) -> dict[str, Any]:
     # This is a helper function to try to get the state of an object. If it
     # fails with `get_state`, we try with json.dumps, if that fails, we raise
     # the original error alongside the json error.

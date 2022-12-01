@@ -85,7 +85,7 @@ In contrast to ``pickle``, skops cannot persist arbitrary Python code. This
 means if you have custom functions (say, a custom function to be used with
 :class:`sklearn.preprocessing.FunctionTransformer`), it will not work. However,
 most ``numpy`` and ``scipy`` functions should work. Therefore, you can actually
-save built-in functions like``numpy.sqrt``.
+save built-in functions like ``numpy.sqrt``.
 
 Roadmap
 -------
