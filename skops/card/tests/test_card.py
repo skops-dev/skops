@@ -541,6 +541,22 @@ def test_add_metrics(destination_path, model_card):
     assert eval_metric_content.endswith(expected)
 
 
+@pytest.mark.parametrize(
+    "template, msg",
+    [
+        (None, "Adding metrics is only possible with one of"),
+        ({"My custom template": ""}, "Adding metrics is only possible with one of"),
+        ("does-not-exist", "Unknown template does-not-exist, must be one of"),
+    ],
+)
+def test_add_metric_no_template_raises(template, msg):
+    # when the template is not one of the standard templates, we cannot know
+    # where to put the metric, so this should fail with a helpful error message
+    with pytest.raises(ValueError, match=msg):
+        card = Card(None, template=template)
+        card.add_metrics(f1=0.1)
+
+
 def test_code_autogeneration(
     model_card, destination_path, pkl_model_card_metadata_from_config
 ):
