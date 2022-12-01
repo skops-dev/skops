@@ -54,7 +54,7 @@ from sklearn.utils.estimator_checks import (
 
 import skops
 from skops.io import dump, dumps, get_untrusted_types, load, loads
-from skops.io._dispatch import NODE_TYPE_MAPPING, get_tree
+from skops.io._audit import NODE_TYPE_MAPPING, get_tree
 from skops.io._sklearn import UNSUPPORTED_TYPES
 from skops.io._utils import LoadContext, SaveContext, _get_state, get_state
 from skops.io.exceptions import UnsupportedTypeException
