@@ -184,7 +184,7 @@ def get_type_paths(types: Any) -> list[str]:
 
     Parameters
     ----------
-     types: Any
+    types: Any
         Types to get. Can be either a string, a single type, or a list of strings
         and types.
 
