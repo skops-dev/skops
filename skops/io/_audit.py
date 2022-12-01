@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import io
 from contextlib import contextmanager
-from typing import Any, Generator, Sequence
+from typing import Any, Generator, Sequence, Union, Type
 
 from ..utils.fixes import Literal
 from ._trusted_types import PRIMITIVE_TYPE_NAMES
@@ -187,7 +187,7 @@ class Node:
 
     @staticmethod
     def _get_trusted(
-        trusted: bool | Sequence[str], default: list[str]
+        trusted: bool | Sequence[Union[str, Type]], default: list[Union[str, Type]]
     ) -> Literal[True] | list[str]:
         """Return a trusted list, or True.
 
