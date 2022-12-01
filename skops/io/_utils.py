@@ -172,3 +172,32 @@ def get_state(value, save_context: SaveContext) -> dict[str, Any]:
 
     res["__id__"] = __id__
     return res
+
+
+def get_type_name(t: Any) -> str:
+    """Helper function to take in a type, and return its name as a string"""
+    return f"{get_module(t)}.{t.__name__}"
+
+
+def get_type_paths(types: Any) -> list[str]:
+    """Helper function that takes in a types,
+    and converts any the types found to a list of strings.
+
+    Parameters
+    ----------
+    types: Any
+        Types to get. Can be either a string, a single type, or a list of strings
+        and types.
+
+    Returns
+    ----------
+    types_list: list of str
+        The list of types, all as strings, e.g. ``["builtins.list"]``.
+
+    """
+    if not types:
+        return []
+    if not isinstance(types, (list, tuple)):
+        types = [types]
+
+    return [get_type_name(t) if not isinstance(t, str) else t for t in types]

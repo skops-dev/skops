@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import io
 from contextlib import contextmanager
-from typing import Any, Generator, Sequence
+from typing import Any, Generator, Sequence, Type, Union
 
 from ..utils.fixes import Literal
 from ._trusted_types import PRIMITIVE_TYPE_NAMES
-from ._utils import LoadContext, get_module
+from ._utils import LoadContext, get_module, get_type_paths
 from .exceptions import UntrustedTypesFoundException
 
 NODE_TYPE_MAPPING = {}  # type: ignore
@@ -187,7 +187,7 @@ class Node:
 
     @staticmethod
     def _get_trusted(
-        trusted: bool | Sequence[str], default: list[str]
+        trusted: bool | Sequence[Union[str, Type]], default: Sequence[Union[str, Type]]
     ) -> Literal[True] | list[str]:
         """Return a trusted list, or True.
 
@@ -202,10 +202,10 @@ class Node:
 
         if trusted is False:
             # if trusted is False, we only trust the defaults
-            return default
+            return get_type_paths(default)
 
-        # otherwise we trust the given list, call list in case it's a tuple
-        return list(trusted)
+        # otherwise, we trust the given list
+        return get_type_paths(trusted)
 
     def is_self_safe(self) -> bool:
         """True only if the node's type is considered safe.

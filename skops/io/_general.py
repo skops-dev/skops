@@ -49,7 +49,7 @@ class DictNode(Node):
         trusted: bool | Sequence[str] = False,
     ) -> None:
         super().__init__(state, load_context, trusted)
-        self.trusted = self._get_trusted(trusted, ["builtins.dict"])
+        self.trusted = self._get_trusted(trusted, [dict])
         self.children = {
             "key_types": get_tree(state["key_types"], load_context),
             "content": {
@@ -86,7 +86,7 @@ class ListNode(Node):
         trusted: bool | Sequence[str] = False,
     ) -> None:
         super().__init__(state, load_context, trusted)
-        self.trusted = self._get_trusted(trusted, ["builtins.list"])
+        self.trusted = self._get_trusted(trusted, [list])
         self.children = {
             "content": [get_tree(value, load_context) for value in state["content"]]
         }
@@ -115,7 +115,7 @@ class SetNode(Node):
         trusted: bool | Sequence[str] = False,
     ) -> None:
         super().__init__(state, load_context, trusted)
-        self.trusted = self._get_trusted(trusted, ["builtins.set"])
+        self.trusted = self._get_trusted(trusted, [set])
         self.children = {
             "content": [get_tree(value, load_context) for value in state["content"]]
         }
@@ -144,7 +144,7 @@ class TupleNode(Node):
         trusted: bool | Sequence[str] = False,
     ) -> None:
         super().__init__(state, load_context, trusted)
-        self.trusted = self._get_trusted(trusted, ["builtins.tuple"])
+        self.trusted = self._get_trusted(trusted, [tuple])
         self.children = {
             "content": [get_tree(value, load_context) for value in state["content"]]
         }
@@ -311,7 +311,7 @@ class SliceNode(Node):
         trusted: bool | Sequence[str] = False,
     ) -> None:
         super().__init__(state, load_context, trusted)
-        self.trusted = self._get_trusted(trusted, ["builtins.slice"])
+        self.trusted = self._get_trusted(trusted, [slice])
         self.children = {
             "start": state["content"]["start"],
             "stop": state["content"]["stop"],

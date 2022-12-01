@@ -58,7 +58,7 @@ class NdArrayNode(Node):
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.type = state["type"]
-        self.trusted = self._get_trusted(trusted, ["numpy.ndarray"])
+        self.trusted = self._get_trusted(trusted, [np.ndarray])
         if self.type == "numpy":
             self.children = {
                 "content": io.BytesIO(load_context.src.read(state["file"]))
@@ -122,7 +122,7 @@ class MaskedArrayNode(Node):
         trusted: bool | Sequence[str] = False,
     ) -> None:
         super().__init__(state, load_context, trusted)
-        self.trusted = self._get_trusted(trusted, ["numpy.ma.MaskedArray"])
+        self.trusted = self._get_trusted(trusted, [np.ma.MaskedArray])
         self.children = {
             "data": get_tree(state["content"]["data"], load_context),
             "mask": get_tree(state["content"]["mask"], load_context),
@@ -154,7 +154,7 @@ class RandomStateNode(Node):
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.children = {"content": get_tree(state["content"], load_context)}
-        self.trusted = self._get_trusted(trusted, ["numpy.random.RandomState"])
+        self.trusted = self._get_trusted(trusted, [np.random.RandomState])
 
     def _construct(self):
         random_state = gettype(self.module_name, self.class_name)()
@@ -182,7 +182,7 @@ class RandomGeneratorNode(Node):
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.children = {"bit_generator_state": state["content"]["bit_generator"]}
-        self.trusted = self._get_trusted(trusted, ["numpy.random.Generator"])
+        self.trusted = self._get_trusted(trusted, [np.random.Generator])
 
     def _construct(self):
         # first restore the state of the bit generator
