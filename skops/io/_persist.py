@@ -3,12 +3,13 @@ from __future__ import annotations
 import importlib
 import io
 import json
+from pathlib import Path
+from typing import Any, Sequence
 from zipfile import ZipFile
 
 import skops
 
-from ._audit import audit_tree
-from ._dispatch import NODE_TYPE_MAPPING, get_tree
+from ._audit import NODE_TYPE_MAPPING, audit_tree, get_tree
 from ._utils import LoadContext, SaveContext, _get_state, get_state
 
 # We load the dispatch functions from the corresponding modules and register
@@ -23,7 +24,7 @@ for module_name in modules:
     NODE_TYPE_MAPPING.update(module.NODE_TYPE_MAPPING)
 
 
-def _save(obj):
+def _save(obj: Any) -> io.BytesIO:
     buffer = io.BytesIO()
 
     with ZipFile(buffer, "w") as zip_file:
@@ -38,7 +39,7 @@ def _save(obj):
     return buffer
 
 
-def dump(obj, file):
+def dump(obj: Any, file: str) -> None:
     """Save an object using the skops persistence format.
 
     Skops aims at providing a secure persistence feature that does not rely on
@@ -68,7 +69,7 @@ def dump(obj, file):
         f.write(buffer.getbuffer())
 
 
-def dumps(obj):
+def dumps(obj: Any) -> bytes:
     """Save an object using the skops persistence format as a bytes object.
 
     .. warning::
@@ -88,7 +89,7 @@ def dumps(obj):
     return buffer.getbuffer().tobytes()
 
 
-def load(file, trusted=False):
+def load(file: str | Path, trusted: bool | Sequence[str] = False) -> Any:
     """Load an object saved with the skops persistence format.
 
     Skops aims at providing a secure persistence feature that does not rely on
@@ -104,7 +105,7 @@ def load(file, trusted=False):
 
     Parameters
     ----------
-    file: str
+    file: str or pathlib.Path
         The file name of the object to be loaded.
 
     trusted: bool, or list of str, default=False
@@ -130,7 +131,7 @@ def load(file, trusted=False):
     return instance
 
 
-def loads(data, trusted=False):
+def loads(data: bytes, trusted: bool | Sequence[str] = False) -> Any:
     """Load an object saved with the skops persistence format from a bytes
     object.
 
@@ -171,7 +172,9 @@ def loads(data, trusted=False):
     return instance
 
 
-def get_untrusted_types(*, data=None, file=None):
+def get_untrusted_types(
+    *, data: bytes | None = None, file: str | Path | None = None
+) -> list[str]:
     """Get a list of untrusted types in a skops dump.
 
     Parameters
@@ -193,11 +196,15 @@ def get_untrusted_types(*, data=None, file=None):
     """
     if data and file:
         raise ValueError("Only one of data or file should be passed.")
+    if not data and not file:
+        raise ValueError("Exactly one of data or file should be passed.")
 
+    content: io.BytesIO | str | Path
     if data:
         content = io.BytesIO(data)
     else:
-        content = file
+        # mypy doesn't understand that file cannot be None here, thus ignore
+        content = file  # type: ignore
 
     with ZipFile(content, "r") as zip_file:
         schema = json.loads(zip_file.read("schema.json"))

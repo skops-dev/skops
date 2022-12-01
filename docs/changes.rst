@@ -9,6 +9,9 @@ skops Changelog
     :depth: 1
     :local:
 
+v0.4
+----
+
 v0.3
 ----
 - Utility function to add arbitrary files to be uploaded to the hub by using
