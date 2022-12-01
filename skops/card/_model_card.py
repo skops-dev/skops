@@ -763,10 +763,19 @@ class Card:
         """Add metrics to the Evaluation Results section"""
         # when not using one of the default templates, there is no predetermined
         # section to put the metrics
-        if self.template is None or isinstance(self.template, dict):
+        if (not self.template) or isinstance(self.template, dict):
+            raise ValueError(
+                "Adding metrics is only possible with one of the default templates, "
+                f"i.e. one of {sorted(VALID_TEMPLATES)}. Instead, consider using the "
+                ".add method to add a metric to a section, or .add_table to add a "
+                "table of metrics."
+            )
             return
         if self.template not in VALID_TEMPLATES:
-            return
+            raise ValueError(
+                f"Unknown template {self.template}, must be "
+                f"one of {sorted(VALID_TEMPLATES)}"
+            )
 
         if self._metrics:
             data_transposed = zip(*self._metrics.items())  # make column oriented
@@ -789,7 +798,10 @@ class Card:
             section = "Evaluation/Testing Data, Factors & Metrics/Metrics"
         else:
             # should be unreachable
-            raise ValueError(f"Unknown template {self.template}")
+            raise ValueError(
+                f"Unknown template {self.template}, must be "
+                f"one of {sorted(VALID_TEMPLATES)}"
+            )
 
         self._add_single(section, template.format(table))
 
