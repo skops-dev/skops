@@ -74,7 +74,7 @@ def test_audit_tree_defaults():
     [
         (True, None, True),
         (False, int, ["builtins.int"]),
-        ([1], None, [1]),
+        ([int], None, ["builtins.int"]),
     ],
     ids=["trusted", "untrusted", "untrusted_list"],
 )
