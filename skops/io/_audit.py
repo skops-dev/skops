@@ -78,6 +78,7 @@ class UNINITIALIZED:
     """Sentinel value to indicate that a value has not been initialized yet."""
 
 
+# Node: types for Generator mean: YieldType, SendType, ReturnType
 @contextmanager
 def temp_setattr(obj: Any, **kwargs: Any) -> Generator[None, None, None]:
     """Context manager to temporarily set attributes on an object."""
