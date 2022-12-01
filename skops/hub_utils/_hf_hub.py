@@ -646,14 +646,14 @@ def get_model_output(repo_id: str, data: Any, token: Optional[str] = None) -> An
         # the input is not a pandas DataFrame
         if data.dtype.names:
             inputs = {
-                col: (
-                    [(x[0] if len(data.shape) > 1 else x) for x in data[idx].tolist()]
-                )
+                col: [x[0] for x in data[:, idx].tolist()]
+                if len(data.shape) > 1
+                else [x[0] for x in data.tolist()]
                 for idx, col in enumerate(_get_column_names(data))
             }
         else:
             inputs = {
-                col: data[:, idx].tolist()
+                col: data[:, idx].tolist() if len(data.shape) > 1 else data.tolist()
                 for idx, col in enumerate(_get_column_names(data))
             }
         inputs = {"data": inputs}
