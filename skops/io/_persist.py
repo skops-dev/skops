@@ -66,11 +66,11 @@ def dump(obj: Any, file: str | Path | BinaryIO) -> None:
     """
     buffer = _save(obj)
 
-    if hasattr(file, "write"):
-        file.write(buffer.getbuffer())  # type: ignore
-    else:
-        with open(file, "wb") as f:  # type: ignore
+    if isinstance(file, (str, Path)):
+        with open(file, "wb") as f:
             f.write(buffer.getbuffer())
+    else:
+        file.write(buffer.getbuffer())
 
 
 def dumps(obj: Any) -> bytes:
