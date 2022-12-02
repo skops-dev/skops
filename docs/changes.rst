@@ -11,6 +11,9 @@ skops Changelog
 
 v0.4
 ----
+- :func:`.io.dump` and :func:`.io.load` now work with file like objects,
+  which means you can use them with the ``with open(...) as f: dump(obj, f)``
+  pattern, like you'd do with ``pickle``. :pr:`234` by `Benjamin Bossan`_.
 
 v0.3
 ----

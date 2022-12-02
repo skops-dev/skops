@@ -968,6 +968,21 @@ def test_disk_and_memory_are_identical(tmp_path):
     assert joblib.hash(loaded_disk) == joblib.hash(loaded_memory)
 
 
+def test_dump_and_load_with_file_wrapper(tmp_path):
+    # The idea here is to make it possible to use dump and load with a file
+    # wrapper, i.e. using 'with open(...)'. This makes it easier to search and
+    # replace pickle dump and load by skops dump and load.
+    estimator = LogisticRegression().fit([[0, 1], [2, 3], [4, 5]], [0, 1, 1])
+    f_name = tmp_path / "estimator.skops"
+
+    with open(f_name, "wb") as f:
+        dump(estimator, f)
+    with open(f_name, "rb") as f:
+        loaded = load(f, trusted=True)
+
+    assert_params_equal(loaded.__dict__, estimator.__dict__)
+
+
 @pytest.mark.parametrize(
     "obj",
     [
