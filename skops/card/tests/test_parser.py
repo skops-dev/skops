@@ -1,3 +1,6 @@
+import os
+from pathlib import Path
+
 import numpy as np
 import pytest
 from sklearn.linear_model import LinearRegression
@@ -68,6 +71,23 @@ def test_parsed_card_identical(card, tmp_path):
     file0 = tmp_path / "readme-skops.md"
     card.save(file0)
 
+    parsed_card = parse_modelcard(file0)
+    file1 = tmp_path / "readme-parsed.md"
+    parsed_card.save(file1)
+
+    assert_readme_files_equal(file0, file1)
+
+
+@pytest.mark.xfail(reason="small diff, especially in tables")
+def test_bert_base_uncased(tmp_path):
+    file0 = (
+        Path(os.getcwd())
+        / "skops"
+        / "card"
+        / "tests"
+        / "examples"
+        / "bert-base-uncased.md"
+    )
     parsed_card = parse_modelcard(file0)
     file1 = tmp_path / "readme-parsed.md"
     parsed_card.save(file1)
