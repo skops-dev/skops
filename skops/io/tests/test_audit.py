@@ -9,11 +9,13 @@ import pytest
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import FeatureUnion, Pipeline
 from sklearn.preprocessing import FunctionTransformer, StandardScaler
+from sklearn.utils.estimator_checks import _get_check_estimator_ids
 
 from skops.io import dumps, get_untrusted_types
 from skops.io._audit import Node, audit_tree, check_type, get_tree, temp_setattr
 from skops.io._general import DictNode, dict_get_state
 from skops.io._utils import LoadContext, SaveContext, gettype
+from skops.io.tests.testing_utils import get_tested_estimators
 
 
 class CustomType:
@@ -146,16 +148,13 @@ def test_temp_setattr():
     assert not hasattr(temp, "b")
 
 
-def test_sklearn_trusted_set():
-    clf = Pipeline(
-        [
-            ("scaler", StandardScaler()),
-            ("clf", LogisticRegression(random_state=0, solver="liblinear")),
-        ]
-    )
-
-    untrusted = get_untrusted_types(data=dumps(clf))
-    assert len(untrusted) == 0
+@pytest.mark.parametrize(
+    "estimator", get_tested_estimators(), ids=_get_check_estimator_ids
+)
+def test_sklearn_trusted_types(estimator):
+    untrusted_types = get_untrusted_types(data=dumps(estimator))
+    sklearn_untrusted_types = [t for t in untrusted_types if t.startswith("skelarn.")]
+    assert len(sklearn_untrusted_types) == 0
 
 
 def test_complex_pipeline_untrusted_set():
