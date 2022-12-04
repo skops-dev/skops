@@ -9,6 +9,12 @@ skops Changelog
     :depth: 1
     :local:
 
+v0.4
+----
+- :func:`.io.dump` and :func:`.io.load` now work with file like objects,
+  which means you can use them with the ``with open(...) as f: dump(obj, f)``
+  pattern, like you'd do with ``pickle``. :pr:`234` by `Benjamin Bossan`_.
+
 v0.3
 ----
 - Utility function to add arbitrary files to be uploaded to the hub by using
@@ -26,9 +32,10 @@ v0.3
   :pr:`214` by `Adrin Jalali`_.
 - Use ``huggingface_hub`` v0.10.1 for model cards, drop ``modelcards``
   dependency. :pr:`162` by `Benjamin Bossan`_.
-- Add source links to API documentation. :pr:`172` by `Ayyuce Demirbas`_.
+- Add source links to API documentation. :pr:`172` by :user:`Ayyuce Demirbas
+  <ayyucedemirbas>`.
 - Add support to load model if given Path/str to ``model`` argument in
-  :mod:`skops.card` . :pr:`205` by `prajjwal mishra`_.
+  :mod:`skops.card` . :pr:`205` by :user:`Prajjwal Mishra <p-mishra1>`.
 
 
 v0.2
@@ -63,5 +70,5 @@ Contributors
 ~~~~~~~~~~~~
 
 :user:`Adrin Jalali <adrinjalali>`, :user:`Merve Noyan <merveenoyan>`,
-:user:`Benjamin Bossan <BenjaminBossan>`, :user:`Ayyuce Demirbas <ayyucedemirbas>`,
-:user:`Prajjwal Mishra <p-mishra1>`
+:user:`Benjamin Bossan <BenjaminBossan>`, :user:`Ayyuce Demirbas
+<ayyucedemirbas>`, :user:`Prajjwal Mishra <p-mishra1>`

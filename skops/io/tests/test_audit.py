@@ -11,8 +11,7 @@ from sklearn.pipeline import FeatureUnion, Pipeline
 from sklearn.preprocessing import FunctionTransformer, StandardScaler
 
 from skops.io import dumps, get_untrusted_types
-from skops.io._audit import audit_tree, check_type
-from skops.io._dispatch import Node, get_tree, temp_setattr
+from skops.io._audit import Node, audit_tree, check_type, get_tree, temp_setattr
 from skops.io._general import DictNode, dict_get_state
 from skops.io._utils import LoadContext, SaveContext, gettype
 
@@ -73,8 +72,8 @@ def test_audit_tree_defaults():
     "trusted, defaults, expected",
     [
         (True, None, True),
-        (False, 1, 1),
-        ([1], None, [1]),
+        (False, int, ["builtins.int"]),
+        ([int], None, ["builtins.int"]),
     ],
     ids=["trusted", "untrusted", "untrusted_list"],
 )
@@ -102,9 +101,14 @@ def test_list_safety(values, is_safe):
         assert tree.is_safe() == is_safe
 
 
-def test_gettype():
-    # return None if one argument is None
-    assert gettype(module_name="test", cls_or_func=None) is None
+def test_gettype_error():
+    msg = "Object None of module test is unknown"
+    with pytest.raises(ValueError, match=msg):
+        gettype(module_name="test", cls_or_func=None)
+
+    msg = "Object test of module None is unknown"
+    with pytest.raises(ValueError, match=msg):
+        gettype(module_name=None, cls_or_func="test")
 
     # ImportError if the module cannot be imported
     with pytest.raises(ImportError):
@@ -115,9 +119,10 @@ def test_gettype():
     "data, file, exception, message",
     [
         ("not-none", "not-none", ValueError, "Only one of data or file"),
+        (None, None, ValueError, "Exactly one of data or file should be passed"),
         ("string", None, TypeError, "a bytes-like object is required, not 'str'"),
     ],
-    ids=["both", "string-data"],
+    ids=["both", "neither", "string-data"],
 )
 def test_get_untrusted_types_validation(data, file, exception, message):
     with pytest.raises(exception, match=message):
