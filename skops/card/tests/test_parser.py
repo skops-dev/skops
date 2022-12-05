@@ -1,3 +1,4 @@
+import difflib
 import os
 from pathlib import Path
 
@@ -41,55 +42,60 @@ def card(fit_model, tmp_path):
     return card
 
 
-def assert_readme_files_equal(file0, file1):
-    """Check that the two model cards are identical, but allow differences in
-    line breaks."""
-    # exclude trivial case of both being empty
-    assert file0
-    assert file1
+EXAMPLE_CARDS = [
+    "bert-base-uncased.md",
+    "clip-vit-large-patch14.md",
+    "gpt2.md",
+    "specter.md",
+    "vit-base-patch32-224-in21k.md",
+]
 
+
+def assert_readme_files_almost_equal(file0, file1, diff):
+    """Check that the two model cards are identical, but allow differences as
+    defined in the ``diff`` file"""
     with open(file0, "r") as f:
         readme0 = f.readlines()
 
     with open(file1, "r") as f:
         readme1 = f.readlines()
 
-    # remove completely empty lines
-    readme0 = [line.strip() for line in readme0 if line.strip()]
-    readme1 = [line.strip() for line in readme1 if line.strip()]
+    # exclude trivial case of both being empty
+    assert readme0
+    assert readme1
 
-    readme_str0 = "\n".join(readme0)
-    readme_str1 = "\n".join(readme1)
+    diff_actual = list(difflib.unified_diff(readme0, readme1, n=0))
 
-    # a minuscule further difference is an excess empty line after </style>
-    readme_str1 = readme_str1.replace("</style>\n", "</style>")
+    with open(diff, "r") as f:
+        diff_expected = f.readlines()
 
-    assert readme_str0 == readme_str1
+    assert diff_actual == diff_expected
 
 
-def test_parsed_card_identical(card, tmp_path):
-    file0 = tmp_path / "readme-skops.md"
-    card.save(file0)
+@pytest.mark.parametrize("file_name", EXAMPLE_CARDS, ids=EXAMPLE_CARDS)
+def test_example_model_cards(tmp_path, file_name):
+    """Test that the difference between original and parsed model card is
+    acceptable
+
+    For this test, model cards for some of the most popular models on HF Hub
+    were retrieved and stored in the ./examples folder. This test checks that
+    these model cards can be successfully parsed and that the output is *almost*
+    the same.
+
+    We don't expect the output to be 100% identical, see the limitations listed
+    in ``parse_modelcard``. Instead, we assert that the diff corresponds to the
+    expected diff, which is also checked in.
+
+    So e.g. for "specter.md", we expect that the diff will be the same diff as
+    in "specter.md.diff".
+
+    """
+    path = Path(os.getcwd()) / "skops" / "card" / "tests" / "examples"
+    file0 = path / file_name
+    diff = (path / file_name).with_suffix(".md.diff")
 
     parsed_card = parse_modelcard(file0)
     file1 = tmp_path / "readme-parsed.md"
     parsed_card.save(file1)
 
-    assert_readme_files_equal(file0, file1)
-
-
-@pytest.mark.xfail(reason="small diff, especially in tables")
-def test_bert_base_uncased(tmp_path):
-    file0 = (
-        Path(os.getcwd())
-        / "skops"
-        / "card"
-        / "tests"
-        / "examples"
-        / "bert-base-uncased.md"
-    )
-    parsed_card = parse_modelcard(file0)
-    file1 = tmp_path / "readme-parsed.md"
-    parsed_card.save(file1)
-
-    assert_readme_files_equal(file0, file1)
+    assert_readme_files_almost_equal(file0, file1, diff)

@@ -75,16 +75,21 @@ class PandocParser:
         self._section_trace = self._section_trace[: level - 1] + [content]
         return content
 
+    def post_process(self, res: str) -> str:
+        # replace Latin1 space
+        res = res.replace("\xa0", " ")
+        return res
+
     def generate(self) -> Card:
         # Parsing the flat structure, not recursively as in pandocfilters.
         # After visiting the parent node, it's not necessary to visit its
         # child nodes, because that's already done during parsing.
         for item in json.loads(self.source)["blocks"]:
             if item["t"] == "Header":
-                res = self.parse_header(item)
+                res = self.post_process(self.parse_header(item))
                 self.add_section(res)
             else:
-                res = self.mapping(item)
+                res = self.post_process(self.mapping(item))
                 self.add_content(res)
 
         return self.card
@@ -188,6 +193,32 @@ def parse_modelcard(path: str | Path) -> Card:
     >>> parsed_card.add(**{"My new section": "My new content"})
     >>> # overwrite old card with new one
     >>> parsed_card.save("README.md")
+
+    Notes
+    -----
+    There are some **known limitations** to the parser that may result in the
+    model card generated from the parsed file not being 100% identical to the
+    original model card:
+
+    - In markdown, bold and italic text can be encoded in different fashions,
+      e.g. ``_like this_`` or ``*like this*`` for italic text. Pandoc doesn't
+      differentiate between the two. Therefore, the output may use one method
+      where the original card used the other. When rendered, the two results
+      should, however, be the same.
+    - Table alignment may be different. At the moment, skops does not make use
+      of column alignment information in tables, so that may differ.
+    - Quote symbols may differ, e.g. ``it’s`` becoming ``it's``.
+    - The number of empty lines may differ, e.g. two empty lines being
+      transformed into one empty line.
+    - Trailing whitespace is removed.
+    - Tab indentation may be removed, e.g. in raw html.
+    - The yaml part of the model card can have some non-semantic differences,
+      like omitting optional quotation marks.
+
+    For these reasons, please don't expect the output of a parsed card to be
+    100% identical to the original input. However, none of the listed changes
+    makes any _semantic_ difference. If you find that there is a semantic
+    difference in the output, please open an issue on GitHub.
 
     Parameters
     ----------

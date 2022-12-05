@@ -50,6 +50,7 @@ class Markdown:
             "Link": self.md_link,
             "BulletList": self.md_bullet_list,
             "Quoted": self.md_quoted,
+            "BlockQuote": self.md_block_quote,
         }
 
     @staticmethod
@@ -92,7 +93,8 @@ class Markdown:
 
     @staticmethod
     def md_str(value) -> str:
-        return value
+        # escape \
+        return value.replace("\\", "\\\\")
 
     @staticmethod
     def md_rawline(value) -> str:
@@ -233,6 +235,18 @@ class Markdown:
 
         text = "".join(self.__call__(i) for i in content)
         return f"{sym}{text}{sym}"
+
+    def md_block_quote(self, item: list[PandocItem]) -> str:
+        parts = []
+        for subitem in item:
+            content = self.__call__(subitem)
+            # add quote symbolx
+            content = content.replace("\n", "\n> ")
+            parts.append(content)
+
+        # add a quote symbol to the very start
+        text = "> " + "\n> ".join(parts)
+        return text
 
     def __call__(self, item: str | PandocItem) -> str:
         if isinstance(item, str):
