@@ -151,6 +151,11 @@ def _create_config(
         "text-regression",
     ],
     data,
+    save_format: Literal[  # type: ignore
+        "skops",
+        "pickle",
+        "auto",
+    ] = "auto",
 ) -> None:
     """Write the configuration into a ``config.json`` file.
 
@@ -184,7 +189,9 @@ def _create_config(
                model.
 
         The first 3 input values are used as example inputs.
-
+    save_format: str
+        The format used to persist the model. Can be ``"auto"``, ``"skops"``
+        or ``"pickle"``. Defaults to ``"auto"`` that relies on file extension.
     Returns
     -------
     None
@@ -195,10 +202,19 @@ def _create_config(
     def recursively_default_dict() -> MutableMapping:
         return collections.defaultdict(recursively_default_dict)
 
+    if save_format == "auto":
+        extension = str(model_path).split(".")[-1]
+        if extension in ["pkl", "pickle", "joblib"]:
+            save_format = "pickle"
+        elif extension == "skops":
+            save_format = "skops"
+        else:
+            raise UserWarning("File format should be either skops or pickle!")
     config = recursively_default_dict()
     config["sklearn"]["model"]["file"] = str(model_path)
     config["sklearn"]["environment"] = requirements
     config["sklearn"]["task"] = task
+    config["sklearn"]["save_format"] = save_format
 
     if "tabular" in task:
         config["sklearn"]["example_input"] = _get_example_input(data)
@@ -251,6 +267,11 @@ def init(
         "text-regression",
     ],
     data,
+    save_format: Literal[  # type: ignore
+        "skops",
+        "pickle",
+        "auto",
+    ] = "auto",
 ) -> None:
     """Initialize a scikit-learn based Hugging Face repo.
 
@@ -291,6 +312,9 @@ def init(
         :class:`numpy.ndarray`. If ``task`` is ``"text-classification"`` or
         ``"text-regression"``, the data needs to be a ``list`` of strings.
 
+    save_format: str
+        The format used to persist the model. Can be ``"auto"``, ``"skops"``
+        or ``"pickle"``. Defaults to ``"auto"`` that relies on file extension.
     Returns
     -------
     None
@@ -318,6 +342,7 @@ def init(
             dst=dst,
             task=task,
             data=data,
+            save_format=save_format,
         )
     except Exception:
         shutil.rmtree(dst)

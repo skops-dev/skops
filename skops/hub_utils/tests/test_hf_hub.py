@@ -74,11 +74,11 @@ def get_regressor():
     return model
 
 
-@pytest.fixture(scope="session")
-def classifier_pickle(repo_path):
+@pytest.fixture(scope="session", params=["model.skops", "model.pickle"])
+def classifier_pickle(repo_path, request):
     # Create a simple pickle file for the purpose of testing
     clf = get_classifier()
-    path = repo_path / "model.pickle"
+    path = repo_path / request.param
 
     try:
         with open(path, "wb") as f:
@@ -96,7 +96,7 @@ CONFIG = {
 }
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="session", params=["skops", "pickle"])
 def config_json(repo_path):
     path = repo_path / "config.json"
     try:
