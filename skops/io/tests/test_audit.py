@@ -153,7 +153,7 @@ def test_temp_setattr():
 )
 def test_sklearn_trusted_types(estimator):
     untrusted_types = get_untrusted_types(data=dumps(estimator))
-    sklearn_untrusted_types = [t for t in untrusted_types if t.startswith("skelarn.")]
+    sklearn_untrusted_types = [t for t in untrusted_types if t.startswith("sklearn.")]
     assert len(sklearn_untrusted_types) == 0
 
 
