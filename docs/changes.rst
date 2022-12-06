@@ -14,6 +14,11 @@ v0.4
 - :func:`.io.dump` and :func:`.io.load` now work with file like objects,
   which means you can use them with the ``with open(...) as f: dump(obj, f)``
   pattern, like you'd do with ``pickle``. :pr:`234` by `Benjamin Bossan`_.
+- :class:`.card.Card` now allows to add content to existing sections, using a
+  ``/`` to separate the subsections. E.g. use ``card.add(**{"Existing
+  section/New section": "content"})`` to add "content" a new subsection called
+  "New section" to an existing section called "Existing section". :pr:`203` by
+  `Benjamin Bossan`_.
 
 v0.3
 ----
