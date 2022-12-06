@@ -4,7 +4,7 @@ import importlib
 import io
 import json
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any, BinaryIO, Sequence
 from zipfile import ZipFile
 
 import skops
@@ -39,7 +39,7 @@ def _save(obj: Any) -> io.BytesIO:
     return buffer
 
 
-def dump(obj: Any, file: str) -> None:
+def dump(obj: Any, file: str | Path | BinaryIO) -> None:
     """Save an object using the skops persistence format.
 
     Skops aims at providing a secure persistence feature that does not rely on
@@ -58,15 +58,19 @@ def dump(obj: Any, file: str) -> None:
     obj: object
         The object to be saved. Usually a scikit-learn compatible model.
 
-    file: str
+    file: str, path, or file-like object
         The file name. A zip archive will automatically created. As a matter of
         convention, we recommend to use the ".skops" file extension, e.g.
         ``save(model, "my-model.skops")``.
 
     """
     buffer = _save(obj)
-    with open(file, "wb") as f:
-        f.write(buffer.getbuffer())
+
+    if isinstance(file, (str, Path)):
+        with open(file, "wb") as f:
+            f.write(buffer.getbuffer())
+    else:
+        file.write(buffer.getbuffer())
 
 
 def dumps(obj: Any) -> bytes:
