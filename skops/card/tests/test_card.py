@@ -760,39 +760,44 @@ class TestCardRepr:
         assert result == expected
 
 
-class TestCardModelAttribute:
+class TestCardModelAttributeIsPath:
     def path_to_card(self, path):
         card = Card(model=path, trusted=True)
-        card.add(
-            model_description="A description",
-            model_card_authors="Jane Doe",
-        )
-        card.add_plot(
-            roc_curve="ROC_curve.png",
-            confusion_matrix="confusion_matrix.jpg",
-        )
-        card.add_table(search_results={"split": [1, 2, 3], "score": [4, 5, 6]})
         return card
 
     @pytest.mark.parametrize("meth", [repr, str])
     @pytest.mark.parametrize("suffix", [".pkl", ".skops"])
     def test_model_card_repr(self, meth, suffix):
+        # Test that if the model is changed, Card takes this into account, if
+        # the model argument is a path to a model file. First, we test that if
+        # the model path changes, the Card changes. Then we test that if the
+        # file on disk changes, the Card changes.
         model = LinearRegression(fit_intercept=False)
         file_handle, file_name = save_model_to_file(model, suffix)
         os.close(file_handle)
         card_from_path = self.path_to_card(file_name)
-        result_from_path = meth(card_from_path)
-        expected = (
-            "Card(\n"
-            "  model=LinearRegression(fit_intercept=False),\n"
-            "  model_description='A description',\n"
-            "  model_card_authors='Jane Doe',\n"
-            "  roc_curve='ROC_curve.png',\n"
-            "  confusion_matrix='confusion_matrix.jpg',\n"
-            "  search_results=Table(3x2),\n"
-            ")"
-        )
-        assert result_from_path == expected
+
+        result0 = meth(card_from_path)
+        expected = "Card(\n  model=LinearRegression(fit_intercept=False),"
+        assert result0.startswith(expected)
+
+        # change file name, same card should show different result
+        model = LinearRegression()
+        file_handle, file_name = save_model_to_file(model, suffix)
+        card_from_path.model = file_name
+        result1 = meth(card_from_path)
+        expected = "Card(\n  model=LinearRegression(),"
+        assert result1.startswith(expected)
+
+        # change model on disk but keep same file name, should show different
+        # result
+        model = LinearRegression(fit_intercept=None)
+        with open(file_name, "wb") as f:
+            dump_fn = pickle.dump if suffix == ".pkl" else dump
+            dump_fn(model, f)
+        result2 = meth(card_from_path)
+        expected = "Card(\n  model=LinearRegression(fit_intercept=None),"
+        assert result2.startswith(expected)
 
     @pytest.mark.parametrize("suffix", [".pkl", ".skops"])
     @pytest.mark.parametrize("meth", [repr, str])

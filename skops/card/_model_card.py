@@ -332,8 +332,18 @@ class Card:
         of the ``config.json`` file, which itself is created by
         :func:`skops.hub_utils.init`.
 
-    template: "hub", "skops" or None (default=TODO)
-        Whether to add default sections or not.
+    template: "skops", "hub", dict, or None (default="skops")
+        Whether to add default sections or not. The template can be a predefined
+        template, in which case it should be one of "skops" or "hub". "skops" is
+        a template provided by ``skops`` that is geared towards typical sklearn
+        models, whereas ``hub`` is the template from Hugging Face Hub, which is
+        more geared towards deep learning models, especially language models. If
+        you don't want any prefilled sections, just pass ``None``. If you want
+        custom prefilled sections, pass a ``dict``, where keys are the sections
+        and values are the contents of the sections. Note that when you use a no
+        template or a custom template, some methods will not work, e.g.
+        :meth:`Card.add_metrics`, since it's not clear where to put those in
+        this case.
 
     trusted: bool, default=False
         Passed to :func:`skops.io.load` if the model is a file path and it's
@@ -426,28 +436,41 @@ class Card:
         self._data: dict[str, Section] = {}
         self._metrics: dict[str, str | float | int] = {}
 
-        if self.template:
-            if isinstance(self.template, str) and self.template not in VALID_TEMPLATES:
+        self._populate_template()
+
+    def _populate_template(self):
+        """If initialized with a template, use it to populate the card"""
+        if not self.template:
+            return
+
+        self._fill_default_sections()
+
+        if isinstance(self.template, str):
+            if self.template not in VALID_TEMPLATES:
                 raise ValueError(
                     f"Unknown template {self.template}, must be "
                     f"one of {sorted(VALID_TEMPLATES)}"
                 )
+            else:
+                # TODO: This is for parity with old model card but having an
+                # empty table by default is kinda pointless
+                self.add_metrics()
 
-            self._fill_default_sections()
-            # TODO: This is for parity with old model card but having an empty
-            # table by default is kinda pointless
-            self.add_metrics()
-            self._reset_model_descriptions()
+        self.get_model()  # resets the model description
 
-    def _reset_model_descriptions(self) -> None:
-        # reset everything that depends on the self.model, in case self.model
-        # changed (or might have changed)
+    def _reset_model_descriptions(self, model) -> None:
+        """Reset sections that depend on the model
+
+        This should be called in case the model was changed. The model argument
+        should be an sklearn model instance, not a path.
+
+        """
         model_file = self.metadata.to_dict().get("model_file")
         if model_file:
             self._add_get_started_code(model_file)
 
-        self._add_model_section()
-        self._add_hyperparams()
+        self._add_model_section(model)
+        self._add_hyperparams(model)
 
     def _fill_default_sections(self) -> None:
         if self.template == Templates.skops.value:
@@ -467,6 +490,7 @@ class Card:
             Model instance.
         """
         model = _load_model(self.model, self.trusted)
+        self._reset_model_descriptions(model)
         return model
 
     def add(self, **kwargs: str | Formattable) -> "Card":
@@ -671,8 +695,12 @@ class Card:
 
         return section[leaf_node_name]
 
-    def _add_model_section(self) -> None:
-        """Add model plot section, if model_diagram is set"""
+    def _add_model_section(self, model) -> None:
+        """Add model plot section, if model_diagram is set
+
+        The model should be a loaded sklearn model, not a path.
+
+        """
         if self.template != Templates.skops.value:
             # only skops template has a default section
             return
@@ -684,9 +712,7 @@ class Card:
             self._add_single(section_title, default_content)
             return
 
-        model_plot_div = re.sub(
-            r"\n\s+", "", str(estimator_html_repr(self.get_model()))
-        )
+        model_plot_div = re.sub(r"\n\s+", "", str(estimator_html_repr(model)))
         if model_plot_div.count("sk-top-container") == 1:
             model_plot_div = model_plot_div.replace(
                 "sk-top-container", 'sk-top-container" style="overflow: auto;'
@@ -694,13 +720,17 @@ class Card:
         content = f"{default_content}\n\n{model_plot_div}"
         self._add_single(section_title, content)
 
-    def _add_hyperparams(self) -> None:
-        """Add hyperparameter section"""
+    def _add_hyperparams(self, model) -> None:
+        """Add hyperparameter section
+
+        The model should be a loaded sklearn model, not a path.
+
+        """
         if self.template != Templates.skops.value:
             # only skops template has a default hyper parameter section
             return
 
-        hyperparameter_dict = self.get_model().get_params(deep=True)
+        hyperparameter_dict = model.get_params(deep=True)
         table = _clean_table(
             tabulate(
                 list(hyperparameter_dict.items()),
@@ -837,6 +867,7 @@ class Card:
                 "table of metrics."
             )
             return
+
         if self.template not in VALID_TEMPLATES:
             raise ValueError(
                 f"Unknown template {self.template}, must be "
