@@ -1,15 +1,35 @@
-"""Templates for model cards"""
+"""Templates for model cards
+
+To add a new template, define it as a dictionary where the key is the section
+and the value is the content of the section. If the content is empty but should
+be filled by the user, set it to be the ``CONTENT_PLACEHOLDER``.
+
+After defining the template itself, add it as another enum value in the
+``Templates`` enum.
+
+Finally, if there is a corresponding section in the new template, some methods
+on the ``Card`` class should be adjusted to make use of the template. First of
+all, ``_fill_default_sections`` should be used to populate the model card with
+the template.
+
+Furthermore, some specific methods might require adjusting. For example, the
+``Card._add_hyperparams`` method will add a table of model hyperparameters, but
+it needs to know in what section to put them. So if the template contains a
+corresponding section, modify the method to put the hyperparameters inside that
+section.
+
+"""
 
 from enum import Enum
 
 
 class Templates(Enum):
     skops = "skops"
-    hub = "hub"
 
 
 CONTENT_PLACEHOLDER = "[More Information Needed]"
-"""When there is a section but no content, show this"""
+"""When there is a section but content has yet to be added by the user, show
+this"""
 
 # fmt: off
 SKOPS_TEMPLATE = {
@@ -33,7 +53,10 @@ SKOPS_TEMPLATE = {
     ),
 }
 
-HUB_TEMPLATE = {
+# The template below corresponds to the HF Hub default template, but is geared
+# towards deep learning models, especially language models, and thus is not a
+# good fit for most sklearn models.
+_HUB_TEMPLATE = {
     "Model Card": "",
     # Provide a quick summary of what the model is/does.
     "Model Details": "",

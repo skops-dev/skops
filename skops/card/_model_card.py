@@ -16,18 +16,13 @@ from huggingface_hub import ModelCardData
 from sklearn.utils import estimator_html_repr
 from tabulate import tabulate  # type: ignore
 
-from skops.card._templates import (
-    CONTENT_PLACEHOLDER,
-    HUB_TEMPLATE,
-    SKOPS_TEMPLATE,
-    Templates,
-)
+from skops.card._templates import CONTENT_PLACEHOLDER, SKOPS_TEMPLATE, Templates
 from skops.io import load
 
 if sys.version_info >= (3, 8):
-    from typing import Protocol
+    from typing import Literal, Protocol
 else:  # TODO: remove when Python 3.7 is dropped
-    from typing_extensions import Protocol
+    from typing_extensions import Literal, Protocol
 
 # Repr attributes can be used to control the behavior of repr
 aRepr = Repr()
@@ -36,6 +31,37 @@ aRepr.maxstring = 79
 
 
 VALID_TEMPLATES = {item.value for item in Templates}
+
+
+def _make_invalid_template_error_msg(template: str | dict | None) -> str:
+    """Create an error message if an invalid template is used
+
+    This is often necessary when users want to add some specific content which
+    is only supported with a default template. This function takes care of
+    creating a nice error message indicating what went wrong and what the valid
+    templates are (phrasing works for one or multiple valid templates).
+
+    Parameters
+    ----------
+    template : str or dict or None
+        The template argument of the ``Card`` class.
+
+    Returns
+    -------
+    msg : str
+        The final error message.
+    """
+    if isinstance(template, dict):
+        msg = "Using a custom template, "
+    elif isinstance(template, str):
+        msg = f"Unknown template '{template}', "
+    else:  # None
+        msg = "Not using any template, "
+
+    msg += "template must be one of the following values: "
+    msg += ", ".join(f"'{val}'" for val in sorted(VALID_TEMPLATES))
+
+    return msg
 
 
 def wrap_as_details(text: str, folded: bool) -> str:
@@ -332,18 +358,16 @@ class Card:
         of the ``config.json`` file, which itself is created by
         :func:`skops.hub_utils.init`.
 
-    template: "skops", "hub", dict, or None (default="skops")
+    template: "skops", dict, or None (default="skops")
         Whether to add default sections or not. The template can be a predefined
-        template, in which case it should be one of "skops" or "hub". "skops" is
-        a template provided by ``skops`` that is geared towards typical sklearn
-        models, whereas ``hub`` is the template from Hugging Face Hub, which is
-        more geared towards deep learning models, especially language models. If
-        you don't want any prefilled sections, just pass ``None``. If you want
-        custom prefilled sections, pass a ``dict``, where keys are the sections
-        and values are the contents of the sections. Note that when you use a no
-        template or a custom template, some methods will not work, e.g.
-        :meth:`Card.add_metrics`, since it's not clear where to put those in
-        this case.
+        template, which at the moment can only be the string ``"skops"``, which
+        is a template provided by ``skops`` that is geared towards typical
+        sklearn models. If you don't want any prefilled sections, just pass
+        ``None``. If you want custom prefilled sections, pass a ``dict``, where
+        keys are the sections and values are the contents of the sections. Note
+        that when you use no template or a custom template, some methods will
+        not work, e.g. :meth:`Card.add_metrics`, since it's not clear where to
+        put the metrics when there is no template or a custom template.
 
     trusted: bool, default=False
         Passed to :func:`skops.io.load` if the model is a file path and it's
@@ -424,7 +448,7 @@ class Card:
         model,
         model_diagram: bool = True,
         metadata: ModelCardData | None = None,
-        template: str | dict[str, str] | None = "skops",
+        template: Literal["skops"] | dict[str, str] | None = "skops",
         trusted: bool = False,
     ) -> None:
         self.model = model
@@ -447,10 +471,8 @@ class Card:
 
         if isinstance(self.template, str):
             if self.template not in VALID_TEMPLATES:
-                raise ValueError(
-                    f"Unknown template {self.template}, must be "
-                    f"one of {sorted(VALID_TEMPLATES)}"
-                )
+                msg = _make_invalid_template_error_msg(self.template)
+                raise ValueError(msg)
             else:
                 # TODO: This is for parity with old model card but having an
                 # empty table by default is kinda pointless
@@ -475,8 +497,6 @@ class Card:
     def _fill_default_sections(self) -> None:
         if self.template == Templates.skops.value:
             self.add(**SKOPS_TEMPLATE)
-        elif self.template == Templates.hub.value:
-            self.add(**HUB_TEMPLATE)
         elif isinstance(self.template, Mapping):
             self.add(**self.template)
 
@@ -490,6 +510,8 @@ class Card:
             Model instance.
         """
         model = _load_model(self.model, self.trusted)
+        # Ideally, we would only call the method below if we *know* that the
+        # model has changed, but at the moment we have no way of knowing that
         self._reset_model_descriptions(model)
         return model
 
@@ -702,7 +724,7 @@ class Card:
 
         """
         if self.template != Templates.skops.value:
-            # only skops template has a default section
+            # only skops template has a default model plot section
             return
 
         section_title = "Model description/Training Procedure/Model Plot"
@@ -841,6 +863,8 @@ class Card:
     def add_metrics(self, **kwargs: str | int | float) -> "Card":
         """Add metric values to the model card.
 
+        This only works when using a default template.
+
         Parameters
         ----------
         **kwargs : dict
@@ -857,22 +881,19 @@ class Card:
 
     def _add_metrics(self, metrics: dict[str, str | float | int]) -> None:
         """Add metrics to the Evaluation Results section"""
-        # when not using one of the default templates, there is no predetermined
-        # section to put the metrics
-        if (not self.template) or isinstance(self.template, dict):
-            raise ValueError(
-                "Adding metrics is only possible with one of the default templates, "
-                f"i.e. one of {sorted(VALID_TEMPLATES)}. Instead, consider using the "
-                ".add method to add a metric to a section, or .add_table to add a "
-                "table of metrics."
+        # when not using a default templates, there is no predetermined section
+        # to put the metrics
+        if (
+            (not self.template)
+            or isinstance(self.template, dict)
+            or (self.template not in VALID_TEMPLATES)
+        ):
+            msg = _make_invalid_template_error_msg(self.template)
+            msg += (
+                ". Consider using the .add method to add a metric to a section, "
+                "or .add_table to add a table of metrics"
             )
-            return
-
-        if self.template not in VALID_TEMPLATES:
-            raise ValueError(
-                f"Unknown template {self.template}, must be "
-                f"one of {sorted(VALID_TEMPLATES)}"
-            )
+            raise ValueError(msg)
 
         if self._metrics:
             data_transposed = zip(*self._metrics.items())  # make column oriented
@@ -891,14 +912,10 @@ class Card:
         )
         if self.template == Templates.skops.value:
             section = "Model description/Evaluation Results"
-        elif self.template == Templates.hub.value:
-            section = "Evaluation/Testing Data, Factors & Metrics/Metrics"
         else:
             # should be unreachable
-            raise ValueError(
-                f"Unknown template {self.template}, must be "
-                f"one of {sorted(VALID_TEMPLATES)}"
-            )
+            msg = _make_invalid_template_error_msg(self.template)
+            raise ValueError(msg)
 
         self._add_single(section, template.format(table))
 
@@ -1002,27 +1019,18 @@ class Card:
         )
         lines = ["```python"] + lines + ["```"]
 
-        if self.template == "skops":
+        if self.template == Templates.skops.value:
             template = textwrap.dedent(
                 """            Use the code below to get started with the model.
 
             {}
             """
             )
-        elif self.template == "hub":
-            template = textwrap.dedent(
-                """               Use the code below to get started with the model.
-
-                <details>
-                <summary> Click to expand </summary>
-
-                {}
-
-                </details>"""
-            )
         else:
             # should be unreachable
-            raise ValueError(f"Unknown template {self.template}")
+            msg = _make_invalid_template_error_msg(self.template)
+            raise ValueError(msg)
+
         self._add_single(
             "How to Get Started with the Model", template.format("\n".join(lines))
         )

@@ -15,7 +15,12 @@ from sklearn.tree import DecisionTreeClassifier
 
 from skops import hub_utils
 from skops.card import Card, metadata_from_config
-from skops.card._model_card import PlotSection, TableSection, _load_model
+from skops.card._model_card import (
+    SKOPS_TEMPLATE,
+    PlotSection,
+    TableSection,
+    _load_model,
+)
 from skops.io import dump
 
 
@@ -310,20 +315,8 @@ class TestSelect:
             model_card.select(["Model description", ""])
 
     def test_default_skops_sections_present(self, model_card):
-        from skops.card._model_card import SKOPS_TEMPLATE
-
         # model_card (which is prefilled) contains all default sections
         for key in SKOPS_TEMPLATE:
-            model_card.select(key)
-
-    def test_default_hub_sections_present(self, model_card):
-        from skops.card._model_card import HUB_TEMPLATE
-
-        model = fit_model()
-        model_card = Card(model, model_diagram=False, template="hub")
-
-        # model_card contains all default sections
-        for key in HUB_TEMPLATE:
             model_card.select(key)
 
     def test_custom_template_sections_present(self, model_card):
@@ -344,9 +337,9 @@ class TestSelect:
 
     def test_default_skops_sections_empty_card(self, model_card):
         # Without prefilled template, the card should not contain the default sections
-        from skops.card._model_card import SKOPS_TEMPLATE
 
-        # empty card does not contain those sections
+        # empty card does not contain any sections, so trying to select them
+        # should raise a KeyError
         model = fit_model()
         card_empty = Card(model, model_diagram=False, template=None)
         for key in SKOPS_TEMPLATE:
@@ -354,7 +347,7 @@ class TestSelect:
                 card_empty.select(key)
 
     def test_invalid_template_name_raises(self):
-        msg = "Unknown template does-not-exist, must be one of"
+        msg = "Unknown template 'does-not-exist', template must be one of the following"
         with pytest.raises(ValueError, match=msg):
             Card(model=None, template="does-not-exist")
 
@@ -568,9 +561,27 @@ def test_add_metrics(destination_path, model_card):
 @pytest.mark.parametrize(
     "template, msg",
     [
-        (None, "Adding metrics is only possible with one of"),
-        ({"My custom template": ""}, "Adding metrics is only possible with one of"),
-        ("does-not-exist", "Unknown template does-not-exist, must be one of"),
+        (
+            # this one already errors out during initialization
+            "does-not-exist",
+            "Unknown template 'does-not-exist', template must be one of",
+        ),
+        (
+            None,
+            (
+                # this regex should work for 1 or multiple valid templates
+                r"Not using any template, template must be one of the following "
+                r"values: (\'\w+\'\,?\s?)+\. Consider using the \.add method to"
+            ),
+        ),
+        (
+            {"My custom template": ""},
+            (
+                # this regex should work for 1 or multiple valid templates
+                r"Using a custom template, template must be one of the following "
+                r"values: (\'\w+\'\,?\s?)+\. Consider using the \.add method to"
+            ),
+        ),
     ],
 )
 def test_add_metric_no_template_raises(template, msg):
