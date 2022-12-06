@@ -254,7 +254,7 @@ def _getting_started_code(
             f'model = load("{file_name}")',
         ]
     else:  # pickle
-        lines += [f"model = joblib.load({file_name})"]
+        lines += [f'model = joblib.load("{file_name}")']
 
     lines += [
         'with open("config.json") as f:',

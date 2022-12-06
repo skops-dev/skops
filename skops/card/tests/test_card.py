@@ -599,7 +599,7 @@ def test_code_autogeneration(
     metadata = metadata_load(local_path=Path(destination_path) / "README.md")
     filename = metadata["model_file"]
     with open(Path(destination_path) / "README.md") as f:
-        assert f"joblib.load({filename})" in f.read()
+        assert f'joblib.load("{filename}")' in f.read()
 
 
 def test_code_autogeneration_skops(
