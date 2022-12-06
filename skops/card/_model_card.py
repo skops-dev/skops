@@ -4,13 +4,15 @@ import json
 import re
 import sys
 import textwrap
+import zipfile
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from reprlib import Repr
 from typing import Any, Iterator, Sequence, Union
 
-from huggingface_hub import CardData
+import joblib
+from huggingface_hub import ModelCardData
 from sklearn.utils import estimator_html_repr
 from tabulate import tabulate  # type: ignore
 
@@ -20,6 +22,7 @@ from skops.card._templates import (
     SKOPS_TEMPLATE,
     Templates,
 )
+from skops.io import load
 
 if sys.version_info >= (3, 8):
     from typing import Protocol
@@ -114,13 +117,13 @@ class TableSection:
         return f"Table({nrows}x{ncols})"
 
 
-def metadata_from_config(config_path: Union[str, Path]) -> CardData:
-    """Construct a ``CardData`` object from a ``config.json`` file.
+def metadata_from_config(config_path: Union[str, Path]) -> ModelCardData:
+    """Construct a ``ModelCardData`` object from a ``config.json`` file.
 
     Most information needed for the metadata section of a ``README.md`` file on
     Hugging Face Hub is included in the ``config.json`` file. This utility
-    function constructs a :class:`huggingface_hub.CardData` object which can
-    then be passed to the :class:`~skops.card.Card` object.
+    function constructs a :class:`huggingface_hub.ModelCardData` object which
+    can then be passed to the :class:`~skops.card.Card` object.
 
     This method populates the following attributes of the instance:
 
@@ -140,8 +143,8 @@ def metadata_from_config(config_path: Union[str, Path]) -> CardData:
 
     Returns
     -------
-    card_data: huggingface_hub.CardData
-        :class:`huggingface_hub.CardData` object.
+    card_data: huggingface_hub.ModelCardData
+        :class:`huggingface_hub.ModelCardData` object.
 
     """
     config_path = Path(config_path)
@@ -151,19 +154,19 @@ def metadata_from_config(config_path: Union[str, Path]) -> CardData:
     with open(config_path) as f:
         config = json.load(f)
 
-    card_data = CardData()
+    card_data = ModelCardData()
     card_data.library_name = "sklearn"
     card_data.tags = ["sklearn", "skops"]
     task = config.get("sklearn", {}).get("task", None)
     if task:
         card_data.tags += [task]
-    card_data.model_file = config.get("sklearn", {}).get("model", {}).get("file")
+    card_data.model_file = config.get("sklearn", {}).get("model", {}).get("file")  # type: ignore
     example_input = config.get("sklearn", {}).get("example_input", None)
     # Documentation on what the widget expects:
     # https://huggingface.co/docs/hub/models-widgets-examples
     if example_input:
         if "tabular" in task:
-            card_data.widget = {"structuredData": example_input}
+            card_data.widget = {"structuredData": example_input}  # type: ignore
         # TODO: add text data example here.
 
     return card_data
@@ -263,6 +266,46 @@ class Formattable(Protocol):
         ...  # pragma: no cover
 
 
+def _load_model(model: Any, trusted=False) -> Any:
+    """Return a model instance.
+
+    Loads the model if provided a file path, if already a model instance return
+    it unmodified.
+
+    Parameters
+    ----------
+    model : pathlib.Path, str, or sklearn estimator
+        Path/str or the actual model instance. if a Path or str, loads the model.
+
+    trusted : bool, default=False
+        Passed to :func:`skops.io.load` if the model is a file path and it's
+        a `skops` file.
+
+    Returns
+    -------
+    model : object
+        Model instance.
+    """
+
+    if not isinstance(model, (Path, str)):
+        return model
+
+    model_path = Path(model)
+    if not model_path.exists():
+        raise FileNotFoundError(f"File is not present: {model_path}")
+
+    try:
+        if zipfile.is_zipfile(model_path):
+            model = load(model_path, trusted=trusted)
+        else:
+            model = joblib.load(model_path)
+    except Exception as ex:
+        msg = f'An "{type(ex).__name__}" occurred during model loading.'
+        raise RuntimeError(msg) from ex
+
+    return model
+
+
 class Card:
     """Model card class that will be used to generate model card.
 
@@ -272,15 +315,17 @@ class Card:
 
     Parameters
     ----------
-    model: estimator object
-        Model that will be documented.
+    model: pathlib.Path, str, or sklearn estimator object
+        ``Path``/``str`` of the model or the actual model instance that will be
+        documented. If a ``Path`` or ``str`` is provided, model will be loaded.
 
     model_diagram: bool, default=True
         Set to True if model diagram should be plotted in the card.
 
-    metadata: CardData, optional
-        ``CardData`` object. The contents of this object are saved as metadata
-        at the beginning of the output file, and used by Hugging Face Hub.
+    metadata: ModelCardData, optional
+        :class:`huggingface_hub.ModelCardData` object. The contents of this
+        object are saved as metadata at the beginning of the output file, and
+        used by Hugging Face Hub.
 
         You can use :func:`~skops.card.metadata_from_config` to create an
         instance pre-populated with necessary information based on the contents
@@ -290,12 +335,16 @@ class Card:
     template: "hub", "skops" or None (default=TODO)
         Whether to add default sections or not.
 
+    trusted: bool, default=False
+        Passed to :func:`skops.io.load` if the model is a file path and it's
+        a `skops` file.
+
     Attributes
     ----------
     model: estimator object
         The scikit-learn compatible model that will be documented.
 
-    metadata: CardData
+    metadata: ModelCardData
         Metadata to be stored at the beginning of the saved model card, as
         metadata to be understood by the Hugging Face Hub.
 
@@ -357,19 +406,22 @@ class Card:
     )
     >>> # save the card to a README.md file
     >>> model_card.save(tmp_path / "README.md")
+
     """
 
     def __init__(
         self,
         model,
         model_diagram: bool = True,
-        metadata: CardData | None = None,
+        metadata: ModelCardData | None = None,
         template: str | dict[str, str] | None = "skops",
+        trusted: bool = False,
     ) -> None:
         self.model = model
         self.model_diagram = model_diagram
-        self.metadata = metadata or CardData()
+        self.metadata = metadata or ModelCardData()
         self.template = template
+        self.trusted = trusted
 
         self._data: dict[str, Section] = {}
         self._metrics: dict[str, str | float | int] = {}
@@ -404,6 +456,18 @@ class Card:
             self.add(**HUB_TEMPLATE)
         elif isinstance(self.template, Mapping):
             self.add(**self.template)
+
+    def get_model(self) -> Any:
+        """Returns sklearn estimator object if ``Path``/``str``
+        is provided.
+
+        Returns
+        -------
+        model : Object
+            Model instance.
+        """
+        model = _load_model(self.model, self.trusted)
+        return model
 
     def add(self, **kwargs: str | Formattable) -> "Card":
         """Add new section(s) to the model card.
@@ -620,7 +684,9 @@ class Card:
             self._add_single(section_title, default_content)
             return
 
-        model_plot_div = re.sub(r"\n\s+", "", str(estimator_html_repr(self.model)))
+        model_plot_div = re.sub(
+            r"\n\s+", "", str(estimator_html_repr(self.get_model()))
+        )
         if model_plot_div.count("sk-top-container") == 1:
             model_plot_div = model_plot_div.replace(
                 "sk-top-container", 'sk-top-container" style="overflow: auto;'
@@ -634,7 +700,7 @@ class Card:
             # only skops template has a default hyper parameter section
             return
 
-        hyperparameter_dict = self.model.get_params(deep=True)
+        hyperparameter_dict = self.get_model().get_params(deep=True)
         table = _clean_table(
             tabulate(
                 list(hyperparameter_dict.items()),
@@ -805,7 +871,7 @@ class Card:
 
         self._add_single(section, template.format(table))
 
-    def _generate_metadata(self, metadata: CardData) -> Iterator[str]:
+    def _generate_metadata(self, metadata: ModelCardData) -> Iterator[str]:
         """Yield metadata in yaml format"""
         for key, val in metadata.to_dict().items() if metadata else {}:
             yield aRepr.repr(f"metadata.{key}={val},").strip('"').strip("'")
@@ -855,7 +921,7 @@ class Card:
         # repr for the model
         model = getattr(self, "model", None)
         if model:
-            model_repr = self._format_repr(f"model={repr(model)},")
+            model_repr = self._format_repr(f"model={repr(self.get_model())},")
         else:
             model_repr = None
 

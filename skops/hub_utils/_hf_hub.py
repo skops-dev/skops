@@ -8,7 +8,6 @@ import collections
 import json
 import os
 import shutil
-import warnings
 from pathlib import Path
 from typing import Any, List, MutableMapping, Optional, Union
 
@@ -235,7 +234,7 @@ def _check_model_file(path: str | Path) -> Path:
         raise OSError(f"Model file '{path}' does not exist.")
 
     if os.path.getsize(path) == 0:
-        warnings.warn(f"Model file '{path}' is empty.")
+        raise RuntimeError(f"Model file '{path}' is empty.")
 
     return Path(path)
 
@@ -626,7 +625,9 @@ def get_model_output(repo_id: str, data: Any, token: Optional[str] = None) -> An
     Also note that if the model repo is private, the inference API would not be
     available.
     """
-    model_info = HfApi().model_info(repo_id=repo_id, use_auth_token=token)
+    # TODO: the "type: ignore" should eventually become unncessary when hf_hub
+    # is updated
+    model_info = HfApi().model_info(repo_id=repo_id, use_auth_token=token)  # type: ignore
     if not model_info.pipeline_tag:
         raise ValueError(
             f"Repo {repo_id} has no pipeline tag. You should set a valid 'task' in"
