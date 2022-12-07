@@ -56,6 +56,7 @@ import skops
 from skops.io import dump, dumps, get_untrusted_types, load, loads
 from skops.io._audit import NODE_TYPE_MAPPING, get_tree
 from skops.io._sklearn import UNSUPPORTED_TYPES
+from skops.io._trusted_types import SKLEARN_ESTIMATOR_TYPE_NAMES
 from skops.io._utils import LoadContext, SaveContext, _get_state, get_state
 from skops.io.exceptions import UnsupportedTypeException
 
@@ -66,47 +67,6 @@ N_FEATURES = 20
 # TODO: Investigate why that seems to be an issue on MacOS (only observed with
 # Python 3.8)
 ATOL = 1e-6 if sys.platform == "darwin" else 1e-7
-
-# TODO: remove when these are added to trusted types
-SKLEARN_EXCLUDED_TYPES = (
-    "sklearn._loss._loss.CyHalfBinomialLoss",
-    "sklearn._loss._loss.CyHalfGammaLoss",
-    "sklearn._loss._loss.CyHalfPoissonLoss",
-    "sklearn._loss._loss.CyHalfSquaredError",
-    "sklearn._loss._loss.CyHalfTweedieLossIdentity",
-    "sklearn._loss.link.IdentityLink",
-    "sklearn._loss.link.Interval",
-    "sklearn._loss.link.LogLink",
-    "sklearn._loss.link.LogitLink",
-    "sklearn._loss.loss.HalfBinomialLoss",
-    "sklearn._loss.loss.HalfGammaLoss",
-    "sklearn._loss.loss.HalfPoissonLoss",
-    "sklearn._loss.loss.HalfSquaredError",
-    "sklearn._loss.loss.HalfTweedieLossIdentity",
-    "sklearn.calibration._CalibratedClassifier",
-    "sklearn.calibration._SigmoidCalibration",
-    "sklearn.cluster._bisect_k_means._BisectingTree",
-    "sklearn.cluster._kmeans._kmeans_single_lloyd",
-    "sklearn.covariance._graph_lasso._DictWithDeprecatedKeys",
-    "sklearn.ensemble._gb_losses.BinomialDeviance",
-    "sklearn.ensemble._gb_losses.LeastSquaresError",
-    "sklearn.ensemble._hist_gradient_boosting.binning._BinMapper",
-    "sklearn.ensemble._hist_gradient_boosting.predictor.TreePredictor",
-    "sklearn.feature_selection._univariate_selection.f_classif",
-    "sklearn.gaussian_process._gpc._BinaryGaussianProcessClassifierLaplace",
-    "sklearn.gaussian_process.kernels.ConstantKernel",
-    "sklearn.gaussian_process.kernels.Product",
-    "sklearn.gaussian_process.kernels.RBF",
-    "sklearn.impute._iterative._ImputerTriplet",
-    "sklearn.metrics._dist_metrics.EuclideanDistance",
-    "sklearn.metrics._scorer._passthrough_scorer",
-    "sklearn.model_selection._split.StratifiedKFold",
-    "sklearn.multiclass._ConstantPredictor",
-    "sklearn.neighbors._ball_tree.BallTree",
-    "sklearn.neighbors._kd_tree.KDTree",
-    "sklearn.neural_network._stochastic_optimizers.AdamOptimizer",
-    "sklearn.utils._bunch.Bunch",
-)
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -532,14 +492,7 @@ def test_can_persist_fitted(estimator):
     loaded = loads(dumped, trusted=untrusted_types)
     assert_params_equal(estimator.__dict__, loaded.__dict__)
 
-    # test that sklearn types are trusted. Some known types are excluded
-    # from testing because they are not in the trusted list yet.
-    sklearn_untrusted_types = [
-        type_
-        for type_ in untrusted_types
-        if type_.startswith("sklearn.") and type_ not in SKLEARN_EXCLUDED_TYPES
-    ]
-    assert len(sklearn_untrusted_types) == 0
+    assert not any(type_ in SKLEARN_ESTIMATOR_TYPE_NAMES for type_ in untrusted_types)
 
     for method in [
         "predict",
