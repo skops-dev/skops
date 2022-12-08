@@ -32,9 +32,8 @@ from skops.hub_utils import (
 from skops.hub_utils._hf_hub import (
     _create_config,
     _get_column_names,
-    _get_example_input,
-    _head,
-    _is_sequence_of_strings,
+    _get_example_input_from_tabular_data,
+    _get_example_input_from_text_data,
     _validate_folder,
 )
 from skops.hub_utils.tests.common import HF_HUB_TOKEN
@@ -163,72 +162,12 @@ def test_validate_folder(config_json):
             },
         ),
         (
-            iris.data.values,
-            "tabular-classification",
-            {
-                "sklearn": {
-                    "columns": ["x0", "x1", "x2", "x3"],
-                    "environment": ['scikit-learn="1.1.1"', "numpy"],
-                    "example_input": {
-                        "x0": [1.4, 1.4, 1.3],
-                        "x1": [0.2, 0.2, 0.2],
-                        "x2": [5.1, 4.9, 4.7],
-                        "x3": [3.5, 3.0, 3.2],
-                    },
-                    "model": {"file": "model.pkl"},
-                    "task": "tabular-classification",
-                }
-            },
-        ),
-        (
-            iris.data.values.tolist(),
-            "tabular-classification",
-            {
-                "sklearn": {
-                    "columns": ["x0", "x1", "x2", "x3"],
-                    "environment": ['scikit-learn="1.1.1"', "numpy"],
-                    "example_input": {
-                        "x0": [1.4, 1.4, 1.3],
-                        "x1": [0.2, 0.2, 0.2],
-                        "x2": [5.1, 4.9, 4.7],
-                        "x3": [3.5, 3.0, 3.2],
-                    },
-                    "model": {"file": "model.pkl"},
-                    "task": "tabular-classification",
-                }
-            },
-        ),
-        (
             ["test", "text", "problem", "random"],
             "text-classification",
             {
                 "sklearn": {
                     "environment": ['scikit-learn="1.1.1"', "numpy"],
                     "example_input": {"data": ["test", "text", "problem"]},
-                    "model": {"file": "model.pkl"},
-                    "task": "text-classification",
-                }
-            },
-        ),
-        (
-            np.array(["test", "text", "problem", "random"]),
-            "text-classification",
-            {
-                "sklearn": {
-                    "environment": ['scikit-learn="1.1.1"', "numpy"],
-                    "example_input": {"data": ["test", "text", "problem"]},
-                    "model": {"file": "model.pkl"},
-                    "task": "text-classification",
-                }
-            },
-        ),
-        (
-            (f"test{n}" for n in range(4)),
-            "text-classification",
-            {
-                "sklearn": {
-                    "environment": ['scikit-learn="1.1.1"', "numpy"],
-                    "example_input": {"data": ["test0", "test1", "test2"]},
                     "model": {"file": "model.pkl"},
                     "task": "text-classification",
                 }
@@ -259,49 +198,6 @@ def test_create_config(data, task, expected_config):
             assert sorted(config["sklearn"][key]) == sorted(
                 expected_config["sklearn"][key]
             )
-
-
-@pytest.mark.parametrize("data", [[1, 2, 3], 420])
-def test_create_config_invalid_text_data(data, temp_path):
-    with pytest.raises(
-        ValueError, match="The data needs to be an iterable of strings."
-    ):
-        _create_config(
-            model_path="model.pkl",
-            requirements=['scikit-learn="1.1.1"', "numpy"],
-            task="text-classification",
-            data=data,
-            dst=temp_path,
-        )
-
-
-@pytest.mark.parametrize(
-    "data, n, expected_output",
-    [
-        ([0, "1", 2, 3, 4], 3, [0, "1", 2]),
-        ((i for i in range(5)), 3, [0, 1, 2]),
-    ],
-)
-def test_head(data, n, expected_output):
-    assert _head(data, n) == expected_output
-
-
-def test_head_invalid_iterable():
-    with pytest.raises(TypeError):
-        _head(420)
-
-
-@pytest.mark.parametrize(
-    "data, is_sequence_of_strings",
-    [
-        ("sample text", False),
-        (["sample", 420], False),
-        (420, False),
-        (["sample", "text"], True),
-    ],
-)
-def test_is_sequence_of_strings(data, is_sequence_of_strings):
-    assert _is_sequence_of_strings(data) == is_sequence_of_strings
 
 
 def test_atomic_init(classifier_pickle, temp_path):
@@ -571,30 +467,75 @@ def test_update_env(repo_path, config_json):
     assert get_requirements(repo_path) == ['scikit-learn="1.1.2"']
 
 
-def test_get_example_input():
-    """Test the _get_example_input function."""
+def test_get_example_input_from_tabular_data():
     with pytest.raises(
-        ValueError, match="The data must be convertible to a 2D numpy.ndarray."
+        ValueError,
+        match=(
+            "The data is not a pandas.DataFrame, a 2D numpy.ndarray or a "
+            "list/tuple that can be converted to a 2D numpy.ndarray."
+        ),
     ):
-        _get_example_input(["a", "b", "c"])
+        _get_example_input_from_tabular_data("random")
+    with pytest.raises(ValueError):
+        _get_example_input_from_tabular_data(["a", "b", "c"])
 
-    examples = _get_example_input(np.ones((5, 10)))
-    # the result if a dictionary of column name: list of values
+    examples = _get_example_input_from_tabular_data(np.ones((5, 10)))
+    # the result is a dictionary of column name: list of values
     assert len(examples) == 10
     assert len(examples["x0"]) == 3
 
-    examples = _get_example_input(
+    examples = _get_example_input_from_tabular_data(np.ones((5, 10)).tolist())
+    # the result is a dictionary of column name: list of values
+    assert len(examples) == 10
+    assert len(examples["x0"]) == 3
+
+    examples = _get_example_input_from_tabular_data(
         pd.DataFrame(np.ones((5, 10)), columns=[f"column{x}" for x in range(10)])
     )
-    # the result if a dictionary of column name: list of values
+    # the result is a dictionary of column name: list of values
     assert len(examples) == 10
     assert len(examples["column0"]) == 3
 
 
+def test_get_example_input_from_text_data():
+    examples = _get_example_input_from_text_data(["a", "b", "c", "d"])
+    assert len(examples) == 3
+
+    examples = _get_example_input_from_text_data(np.array(["a", "b", "c", "d"]))
+    assert len(examples) == 3
+
+    examples = _get_example_input_from_text_data((c for c in ["a", "b", "c", "d"]))
+    assert len(examples) == 3
+
+    examples = _get_example_input_from_text_data([])
+    assert len(examples) == 0
+
+
+@pytest.mark.parametrize("data", ["random", [1, 2, 3], 420])
+def test_get_example_input_from_text_data_invalid_text_data(data):
+    with pytest.raises(
+        ValueError, match="The data needs to be an iterable of strings."
+    ):
+        _get_example_input_from_text_data(data)
+
+
+def test_get_example_input_from_text_data_generator_not_exhausted():
+    generator = (f"s{x}" for x in range(3))
+    _get_example_input_from_text_data(generator)
+    # check that next() doesn't raise a StopIteration
+    next(generator)
+
+
 def test_get_column_names():
     with pytest.raises(
-        ValueError, match="The data must be convertible to a 2D numpy.ndarray."
+        ValueError,
+        match=(
+            "The data is not a pandas.DataFrame, a 2D numpy.ndarray or a "
+            "list/tuple that can be converted to a 2D numpy.ndarray."
+        ),
     ):
+        _get_column_names("random")
+    with pytest.raises(ValueError):
         _get_column_names(["a", "b", "c"])
 
     X_array = np.ones((5, 10), dtype=np.float32)
@@ -606,11 +547,11 @@ def test_get_column_names():
     assert _get_column_names(X_df) == expected_columns
 
 
-def test_get_example_input_pandas_not_installed(pandas_not_installed):
+def test_get_example_input_from_tabular_data_pandas_not_installed(pandas_not_installed):
     # use pandas_not_installed fixture from conftest.py to pretend that pandas
     # is not installed and check that the function does not raise when pandas
     # import fails
-    _get_example_input(np.ones((5, 10)))
+    _get_example_input_from_tabular_data(np.ones((5, 10)))
 
 
 def test_get_column_names_pandas_not_installed(pandas_not_installed):

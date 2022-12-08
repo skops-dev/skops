@@ -14,6 +14,7 @@ from typing import Any, Iterable, List, MutableMapping, Optional, Union
 
 import numpy as np
 from huggingface_hub import HfApi, InferenceApi, snapshot_download
+from sklearn.utils import check_array
 
 from ..utils.fixes import Literal
 
@@ -73,46 +74,18 @@ def _validate_folder(path: Union[str, Path]) -> None:
         raise TypeError(f"Model file {model_path} does not exist.")
 
 
-def _convert_to_2d_numpy_array(data):
-    """Converts an array-like object to a 2D numpy.ndarray.
-
-    Raises a ``ValueError`` if data cannot be converted to a 2D numpy.ndarray.
-
-    Parameters
-    ----------
-    data: pandas.DataFrame or array-like
-        Any object that can be converted to a 2D ``numpy.ndarray``, including
-        a ``pandas.DataFrame``.
-
-    Raises
-    ------
-    ValueError
-        Raised when the passed object cannot be converted to 2D numpy.ndarray.
-
-    Returns
-    -------
-    data_array: numpy.ndarray
-        The numpy.ndarray object obtained by converting data.
-    """
-    data_array = np.asarray(data)
-    if data_array.ndim != 2:
-        raise ValueError("The data must be convertible to a 2D numpy.ndarray.")
-
-    return data_array
-
-
-def _get_example_input(data):
-    """Returns the example input of a model.
+def _get_example_input_from_tabular_data(data):
+    """Returns the example input of a model for a tabular task.
 
     The input is converted into a dictionary which is then stored in the config
     file.
 
     Parameters
     ----------
-    data: pandas.DataFrame or array-like
-        The input needs to be anything that can be converted to a 2D
-        ``numpy.ndarray``, including a ``pandas.DataFrame``. The first 3 rows
-        are used as example input.
+    data: array-like
+        The input needs to be either a ``pandas.DataFrame``, a 2D
+        ``numpy.ndarray`` or a list/tuple that can be converted to a 2D
+        ``numpy.ndarray``. The first 3 rows are used as example input.
 
     Returns
     -------
@@ -128,14 +101,62 @@ def _get_example_input(data):
         # pandas is not installed, the data cannot be a pandas DataFrame
         pass
 
-    # here we convert the first three rows of the numpy array to a dict of lists
+    # here we convert the first three rows of `data` to a dict of lists
     # to be stored in the config file
-    data_slice = data[:3]
-    data_slice_array = _convert_to_2d_numpy_array(data_slice)
-    return {
-        f"x{x}": data_slice_array[:3, x].tolist()
-        for x in range(data_slice_array.shape[1])
-    }
+    if isinstance(data, (np.ndarray, list, tuple)):
+        data_slice = data[:3]
+        # This will raise a ValueError if the array is not 2D
+        data_slice_array = check_array(data_slice, ensure_2d=True)
+        return {
+            f"x{x}": data_slice_array[:, x].tolist()
+            for x in range(data_slice_array.shape[1])
+        }
+
+    raise ValueError(
+        "The data is not a pandas.DataFrame, a 2D numpy.ndarray or a "
+        "list/tuple that can be converted to a 2D numpy.ndarray."
+    )
+
+
+def _get_example_input_from_text_data(data: Iterable[str]):
+    """Returns the example input of a model for a text task.
+
+    The input is converted into a dictionary which is then stored in the config
+    file.
+
+    Parameters
+    ----------
+    data: Iterable[str]
+        An iterable of strings. The first 3 elements are used as example input.
+
+    Returns
+    -------
+    example_input: dict of lists
+        The example input of the model as accepted by Hugging Face's backend.
+    """
+
+    def _head(data, n):
+        data, data_copy = itertools.tee(data, 2)
+        return list(itertools.islice(data_copy, n))
+
+    def _is_sequence_of_strings(data):
+        if isinstance(data, str):
+            return False
+        try:
+            return all(isinstance(x, str) for x in data)
+        except TypeError:
+            # data isn't even iterable, can't be a sequence of strings
+            return False
+
+    error_message = "The data needs to be an iterable of strings."
+    try:
+        data_head = _head(data, n=3)
+        if _is_sequence_of_strings(data_head):
+            return {"data": data_head}
+        else:
+            raise ValueError(error_message)
+    except TypeError as e:
+        raise ValueError(error_message) from e
 
 
 def _get_column_names(data):
@@ -146,14 +167,14 @@ def _get_column_names(data):
 
     Parameters
     ----------
-    data: pandas.DataFrame or array-like
+    data: array-like
         The data whose columns names are to be returned. Must be a
-        ``pandas.DataFrame`` or anything that can be converted to a 2D
-        ``numpy.ndarray``
+        ``pandas.DataFrame``, a 2D ``numpy.ndarray`` or a list/tuple that can
+        be converted to a 2D ``numpy.ndarray``.
 
     Returns
     -------
-    columns: list of tuples
+    columns: list of strings
         A list of strings. Each string is a column name.
     """
     try:
@@ -165,8 +186,17 @@ def _get_column_names(data):
         # pandas is not installed, the data cannot be a pandas DataFrame
         pass
 
-    data_array = _convert_to_2d_numpy_array(data)
-    return [f"x{x}" for x in range(data_array.shape[1])]
+    # TODO: this is going to fail for Structured Arrays. We can add support for
+    # them later if we see need for it.
+    if isinstance(data, (np.ndarray, list, tuple)):
+        # This will raise a ValueError if the array is not 2D
+        data_array = check_array(data, ensure_2d=True)
+        return [f"x{x}" for x in range(data_array.shape[1])]
+
+    raise ValueError(
+        "The data is not a pandas.DataFrame, a 2D numpy.ndarray or a "
+        "list/tuple that can be converted to a 2D numpy.ndarray."
+    )
 
 
 def _create_config(
@@ -234,70 +264,12 @@ def _create_config(
     config["sklearn"]["task"] = task
 
     if "tabular" in task:
-        config["sklearn"]["example_input"] = _get_example_input(data)
+        config["sklearn"]["example_input"] = _get_example_input_from_tabular_data(data)
         config["sklearn"]["columns"] = _get_column_names(data)
     elif "text" in task:
-        error_message = "The data needs to be an iterable of strings."
-        try:
-            data_head = _head(data, n=3)
-            if _is_sequence_of_strings(data_head):
-                config["sklearn"]["example_input"] = {"data": data_head}
-            else:
-                raise ValueError(error_message)
-        except TypeError as e:
-            raise ValueError(error_message) from e
+        config["sklearn"]["example_input"] = _get_example_input_from_text_data(data)
 
     dump_json(Path(dst) / "config.json", config)
-
-
-def _head(data: Iterable, n: int):
-    """Returns the first n elements of data.
-
-    Raises a ``TypeError`` if data is not an iterable.
-
-    Parameters
-    ----------
-    data: Iterable
-        Any iterable.
-
-    n: int
-        Number of elements to extract from the head of data.
-
-    Raises
-    ------
-    TypeError
-        If data is not an iterable (raised by itertools.islice).
-
-    Returns
-    -------
-    data_head: list
-        A list containing the first n elements of data.
-    """
-    data, data_copy = itertools.tee(data, 2)
-    return list(itertools.islice(data_copy, n))
-
-
-def _is_sequence_of_strings(data):
-    """Checks whether data is a sequence of strings.
-
-    Parameters
-    ----------
-    data: Any
-        Any object.
-
-    Returns
-    -------
-    is_sequence_of_strings: bool
-        A boolean variable indicating whether or not data is a sequence of
-        strings.
-    """
-    if isinstance(data, str):
-        return False
-    try:
-        return all(isinstance(x, str) for x in data)
-    except TypeError:
-        # data isn't even iterable, can't be a sequence of strings
-        return False
 
 
 def _check_model_file(path: str | Path) -> Path:
