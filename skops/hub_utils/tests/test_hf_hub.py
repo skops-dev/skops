@@ -401,17 +401,18 @@ def test_model_file_does_not_exist_raises(repo_path, config_json):
     path_unlink(model_path, missing_ok=True)
 
 
-def test_init_empty_model_file_warns(repo_path, config_json):
+def test_init_empty_model_file_errors(repo_path, config_json):
     # when model file is empty, warn users
-    model_path = repo_path / "foobar.pickle"
-    with open(model_path, "wb"):
-        pass
+    model_path = Path(repo_path / "foobar.pickle")
+    model_path.touch()
 
     dir_path = tempfile.mkdtemp()
     shutil.rmtree(dir_path)
     version = metadata.version("scikit-learn")
 
-    with pytest.warns() as rec:
+    with pytest.raises(
+        RuntimeError, match=re.escape(f"Model file '{model_path}' is empty.")
+    ):
         init(
             model=model_path,
             requirements=[f'scikit-learn="{version}"'],
@@ -419,8 +420,6 @@ def test_init_empty_model_file_warns(repo_path, config_json):
             task="tabular-classification",
             data=iris.data,
         )
-        assert len(rec) == 1
-        assert rec[0].message.args[0] == f"Model file '{model_path}' is empty."
     path_unlink(model_path, missing_ok=True)
 
 
@@ -489,6 +488,7 @@ def repo_path_for_inference():
 
 
 @pytest.mark.network
+@pytest.mark.inference
 @pytest.mark.skipif(
     IS_SKLEARN_DEV_BUILD, reason="Inference tests cannot run with sklearn dev build"
 )
@@ -508,7 +508,8 @@ def test_inference(
     repo_path_for_inference,
     destination_path,
 ):
-    # test inference backend for classifier and regressor models.
+    # test inference backend for classifier and regressor models. This test can
+    # take a lot of time and be flaky.
     client = HfApi()
 
     repo_path = repo_path_for_inference

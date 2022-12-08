@@ -40,6 +40,13 @@ User Guide / API Reference
    model_card
    persistence
    modules/classes
+
+Community / About
+=================
+.. toctree::
+   :maxdepth: 1
+
+   community
    changes
 
 Indices and tables

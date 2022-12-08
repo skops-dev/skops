@@ -9,6 +9,12 @@ skops Changelog
     :depth: 1
     :local:
 
+v0.4
+----
+- :func:`.io.dump` and :func:`.io.load` now work with file like objects,
+  which means you can use them with the ``with open(...) as f: dump(obj, f)``
+  pattern, like you'd do with ``pickle``. :pr:`234` by `Benjamin Bossan`_.
+
 v0.3
 ----
 - Support more array-like data types for tabular data and list-like data types for text data. :pr:`179` by `Francesco Cariaggi`_.
@@ -23,9 +29,14 @@ v0.3
   receive feedback from users.
 - Fix a bug that resulted in markdown tables being rendered incorrectly if
   entries contained line breaks. :pr:`156` by `Benjamin Bossan`_.
+- Raise an error instead of warning the user if a given model file is empty.
+  :pr:`214` by `Adrin Jalali`_.
 - Use ``huggingface_hub`` v0.10.1 for model cards, drop ``modelcards``
   dependency. :pr:`162` by `Benjamin Bossan`_.
-- Add source links to API documentation. :pr:`172` by `Ayyuce Demirbas`_.
+- Add source links to API documentation. :pr:`172` by :user:`Ayyuce Demirbas
+  <ayyucedemirbas>`.
+- Add support to load model if given Path/str to ``model`` argument in
+  :mod:`skops.card` . :pr:`205` by :user:`Prajjwal Mishra <p-mishra1>`.
 
 
 v0.2
@@ -60,4 +71,5 @@ Contributors
 ~~~~~~~~~~~~
 
 :user:`Adrin Jalali <adrinjalali>`, :user:`Merve Noyan <merveenoyan>`,
-:user:`Benjamin Bossan <BenjaminBossan>`, :user:`Ayyuce Demirbas <ayyucedemirbas>`, :user:`Francesco Cariaggi <anferico>`
+:user:`Benjamin Bossan <BenjaminBossan>`, :user:`Ayyuce Demirbas
+<ayyucedemirbas>`, :user:`Prajjwal Mishra <p-mishra1>`, :user:`Francesco Cariaggi <anferico>`
