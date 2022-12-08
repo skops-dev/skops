@@ -78,12 +78,14 @@ class TestLightGBM:
 
     @pytest.fixture
     def trusted(self):
+        # TODO: adjust once more types are trusted by default
         return [
             "collections.defaultdict",
             "lightgbm.basic.Booster",
             "lightgbm.sklearn.LGBMClassifier",
             "lightgbm.sklearn.LGBMRegressor",
             "lightgbm.sklearn.LGBMRanker",
+            "numpy.int32",
             "numpy.int64",
             "sklearn.preprocessing._label.LabelEncoder",
         ]
@@ -197,6 +199,7 @@ class TestXGBoost:
 
     @pytest.fixture
     def trusted(self):
+        # TODO: adjust once more types are trusted by default
         return [
             "xgboost.sklearn.XGBClassifier",
             "xgboost.sklearn.XGBRegressor",
