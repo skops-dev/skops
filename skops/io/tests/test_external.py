@@ -143,8 +143,8 @@ class TestXGBoost:
 
     - When initialzing with tree_method=None, its value resolves to "exact", but
       after loading, it resolves to "auto".
-    - When initializing with gpu_id=None, its value resolves to 0, but after
-      loading, it resolves to -1.
+    - When initializing with tree_method='gpu_hist' and gpu_id=None, the
+      latter's value resolves to 0, but after loading, it resolves to -1.
 
     This can be verified like this:
 
@@ -208,7 +208,7 @@ class TestXGBoost:
         ]
 
     boosters = ["gbtree", "gblinear", "dart"]
-    tree_methods = ["approx", "hist", "gpu_hist", "auto"]
+    tree_methods = ["approx", "hist", "auto"]
 
     @pytest.mark.parametrize("booster", boosters)
     @pytest.mark.parametrize("tree_method", tree_methods)
@@ -217,9 +217,7 @@ class TestXGBoost:
             # This parameter combination is not supported in XGBoost
             return
 
-        estimator = xgboost.XGBClassifier(
-            booster=booster, tree_method=tree_method, gpu_id=-1
-        )
+        estimator = xgboost.XGBClassifier(booster=booster, tree_method=tree_method)
         check_estimator(estimator, trusted=trusted)
 
         X, y = clf_data
@@ -234,9 +232,7 @@ class TestXGBoost:
             # This parameter combination is not supported in XGBoost
             return
 
-        estimator = xgboost.XGBRegressor(
-            booster=booster, tree_method=tree_method, gpu_id=-1
-        )
+        estimator = xgboost.XGBRegressor(booster=booster, tree_method=tree_method)
         check_estimator(estimator, trusted=trusted)
 
         X, y = regr_data
@@ -251,9 +247,7 @@ class TestXGBoost:
             # This parameter combination is not supported in XGBoost
             return
 
-        estimator = xgboost.XGBRFClassifier(
-            booster=booster, tree_method=tree_method, gpu_id=-1
-        )
+        estimator = xgboost.XGBRFClassifier(booster=booster, tree_method=tree_method)
         check_estimator(estimator, trusted=trusted)
 
         X, y = clf_data
@@ -268,9 +262,7 @@ class TestXGBoost:
             # This parameter combination is not supported in XGBoost
             return
 
-        estimator = xgboost.XGBRFRegressor(
-            booster=booster, tree_method=tree_method, gpu_id=-1
-        )
+        estimator = xgboost.XGBRFRegressor(booster=booster, tree_method=tree_method)
         check_estimator(estimator, trusted=trusted)
 
         X, y = regr_data
@@ -285,9 +277,7 @@ class TestXGBoost:
             # This parameter combination is not supported in XGBoost
             return
 
-        estimator = xgboost.XGBRanker(
-            booster=booster, tree_method=tree_method, gpu_id=-1
-        )
+        estimator = xgboost.XGBRanker(booster=booster, tree_method=tree_method)
         check_estimator(estimator, trusted=trusted)
 
         X, y, group = rank_data
