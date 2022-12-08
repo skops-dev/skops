@@ -29,7 +29,7 @@ dependent_packages = {
     "typing_extensions": ("3.7", "install", "python_full_version < '3.8'"),
     # required for persistence tests of external libraries
     "lightgbm": ("3", "tests", None),
-    "xgboost": ("1.7", "tests", None),
+    "xgboost": ("1.6", "tests", None),
 }
 
 
