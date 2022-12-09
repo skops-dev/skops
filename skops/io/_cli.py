@@ -21,25 +21,29 @@ def _convert(
         obj = pkl.load(f)
     skops_dump = dumps(obj)
 
-    if not is_trusted:
-        untrusted_types = get_untrusted_types(data=skops_dump)
-        if len(untrusted_types) > 0:
-            # Print out untrusted types to command line
-            untrusted_str = "\n".join(untrusted_types)
-            print(untrusted_str)
+    untrusted_types = get_untrusted_types(data=skops_dump)
+
+    if not untrusted_types:
+        logging.debug(f"No unsafe types found in {model_name}.")
+    else:
+        untrusted_str = "\n".join(untrusted_types)
+
+        logging.warning(
+            "Unsafe Types Detected!\n"
+            f"While converting {model_name}, "
+            "the following unsafe types were found: \n"
+            f"{untrusted_str}\n"
+        )
+
+        if not is_trusted:
             logging.warning(
-                "Unsafe Types Detected!\n"
-                f"While converting {model_name}, "
-                "the following unsafe types were found: \n"
-                f"{untrusted_str}\n"
+                f"Model {model_name} will not be converted due to unsafe types.\n"
                 "To convert this anyway, add `-t` to this command."
             )
             return
 
-        logging.debug(f"No unsafe types found in {model_name}.")
-
     with open(output_dir / f"{model_name}.skops", "wb") as out_file:
-        print(f"Writing to {output_dir/model_name}.skops")
+        logging.info(f"Writing to {output_dir/model_name}.skops")
         out_file.write(skops_dump)
 
 
@@ -47,7 +51,7 @@ def main_convert(command_line_args: Optional[list[str]] = None):
     parser = argparse.ArgumentParser(
         description="Convert input Pickle files to .skops files"
     )
-    parser.add_argument("input-files", type=argparse.FileType("r"), nargs="+")
+    parser.add_argument("inputs", nargs="+")
     parser.add_argument("-t", "--trusted", action="store_true", default=False)
     parser.add_argument(
         "-d",
@@ -66,9 +70,9 @@ def main_convert(command_line_args: Optional[list[str]] = None):
         dest="loglevel",
         const=logging.INFO,
     )
-    args = parser.parse_args()
-
-    for input_file in args.input_files:
+    args = parser.parse_args(command_line_args)
+    print(args.inputs)
+    for input_file in args.inputs:
         _convert(
             input_file=input_file,
             output_dir=pathlib.Path.cwd(),
