@@ -151,7 +151,7 @@ def _create_config(
         "text-regression",
     ],
     data,
-    save_format: Literal[  # type: ignore
+    model_format: Literal[  # type: ignore
         "skops",
         "pickle",
         "auto",
