@@ -121,6 +121,18 @@ def config_json(repo_path, request):
         path_unlink(path, missing_ok=True)
 
 
+def test_validate_format(classifier, temp_path):
+    with pytest.raises(ValueError, match="Cannot determine the input file*"):
+        init(
+            model=classifier,
+            requirements=["scikit-learn"],
+            dst=temp_path,
+            task="tabular-classification",
+            data=iris.data,
+            model_format="dummy",
+        )
+
+
 def test_validate_folder(config_json):
     config_path, file_format = config_json
     _, file_path = tempfile.mkstemp()
@@ -439,17 +451,17 @@ def test_inference(
     # test inference backend for classifier and regressor models. This test can
     # take a lot of time and be flaky.
     config_path, file_format = config_json
-    if file_format == "pickle":
+    if file_format != "pickle":
+        return
+    else:
         client = HfApi()
         repo_path = repo_path_for_inference
-        model = model_func()
         model_file = CONFIG[file_format]["sklearn"]["model"]["file"]
+        model = model_func()
         model_path = repo_path / model_file
-        if file_format == "pickle":
-            with open(model_path, "wb") as f:
-                pickle.dump(model, f)
-        elif file_format == "skops":
-            dump(model, model_path)
+
+        with open(model_path, "wb") as f:
+            pickle.dump(model, f)
 
         version = metadata.version("scikit-learn")
         init(
