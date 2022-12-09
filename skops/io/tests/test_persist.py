@@ -419,12 +419,7 @@ def get_input(estimator):
         )
     else:
         X, y = make_classification(
-            n_samples=N_SAMPLES,
-            n_features=N_FEATURES,
-            random_state=0,
-            n_classes=3,
-            n_redundant=1,
-            n_informative=N_FEATURES - 1,
+            n_samples=N_SAMPLES, n_features=N_FEATURES, random_state=0
         )
     y = _enforce_estimator_tags_y(estimator, y)
     tags = _safe_tags(estimator)
