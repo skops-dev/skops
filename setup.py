@@ -7,7 +7,7 @@ from setuptools import setup
 # This is a bit (!) hackish: we are setting a global variable so that the
 # main modelcard __init__ can detect if it is being loaded by the setup
 # routine, to avoid attempting to load components.
-builtins.__SKOPS_SETUP__ = True
+builtins.__SKOPS_SETUP__ = True  # type: ignore
 
 
 import skops  # noqa
@@ -58,13 +58,13 @@ def setup_package():
             "Operating System :: Unix",
             "Operating System :: MacOS",
             "Programming Language :: Python :: 3",
-            "Programming Language :: Python :: 3.7",
             "Programming Language :: Python :: 3.8",
             "Programming Language :: Python :: 3.9",
             "Programming Language :: Python :: 3.10",
+            "Programming Language :: Python :: 3.11",
             "Programming Language :: Python :: Implementation :: CPython",
         ],
-        python_requires=">=3.7",
+        python_requires=">=3.8",
         install_requires=min_deps.tag_to_packages["install"],
         extras_require={
             "docs": min_deps.tag_to_packages["docs"],
