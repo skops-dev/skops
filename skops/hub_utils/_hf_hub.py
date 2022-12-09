@@ -212,7 +212,7 @@ def _create_config(
         elif extension == "skops":
             save_format = "skops"
         else:
-            raise UserWarning("File format should be either skops or pickle!")
+            raise ValueError("Cannot determine the input file format. Please indicate the format using the `model_format` argument.")
     config = recursively_default_dict()
     config["sklearn"]["model"]["file"] = str(model_path)
     config["sklearn"]["environment"] = requirements
