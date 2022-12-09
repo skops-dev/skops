@@ -454,7 +454,7 @@ def test_inference(
     # take a lot of time and be flaky.
     config_path, file_format = config_json
     if file_format != "pickle":
-        pytest.skip("Unsupported configuration for inference test.")
+        pytest.skip(f"Inference only supports pickle at the moment. Given format: {file_format}")
 
     client = HfApi()
     repo_path = repo_path_for_inference
