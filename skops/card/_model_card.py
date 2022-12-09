@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import json
 import re
-import sys
 import textwrap
 import zipfile
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from reprlib import Repr
-from typing import Any, Iterator, Sequence, Union
+from typing import Any, Iterator, Literal, Protocol, Sequence, Union
 
 import joblib
 from huggingface_hub import ModelCardData
@@ -18,11 +17,6 @@ from tabulate import tabulate  # type: ignore
 
 from skops.card._templates import CONTENT_PLACEHOLDER, SKOPS_TEMPLATE, Templates
 from skops.io import load
-
-if sys.version_info >= (3, 8):
-    from typing import Literal, Protocol
-else:  # TODO: remove when Python 3.7 is dropped
-    from typing_extensions import Literal, Protocol
 
 # Repr attributes can be used to control the behavior of repr
 aRepr = Repr()
@@ -286,6 +280,39 @@ class Section:
     content: Formattable | str
     subsections: dict[str, Section] = field(default_factory=dict)
 
+    def select(self, key: str) -> Section:
+        """Return a subsection or subsubsection of this section
+
+        Parameters
+        ----------
+        key : str
+            The name of the (sub)section to select. When selecting a subsection,
+            either use a ``"/"`` in the name to separate the parent and child
+            sections, chain multiple ``select`` calls.
+
+        Returns
+        -------
+        section : Section
+            A dataclass containing all information relevant to the selected
+            section. Those are the title, the content, and subsections (in a
+            dict).
+
+        Raises
+        ------
+        KeyError
+            If the given section name was not found, a ``KeyError`` is raised.
+        """
+        section_names = split_subsection_names(key)
+        # check that no section name is empty
+        if not all(bool(name) for name in section_names):
+            msg = f"Section name cannot be empty but got '{key}'"
+            raise KeyError(msg)
+
+        section = self
+        for section_name in section_names:
+            section = section.subsections[section_name]
+        return section
+
 
 class Formattable(Protocol):
     def format(self) -> str:
@@ -467,18 +494,15 @@ class Card:
         if not self.template:
             return
 
+        if isinstance(self.template, str) and (self.template not in VALID_TEMPLATES):
+            msg = _make_invalid_template_error_msg(self.template)
+            raise ValueError(msg)
+
         self._fill_default_sections()
 
-        if isinstance(self.template, str):
-            if self.template not in VALID_TEMPLATES:
-                msg = _make_invalid_template_error_msg(self.template)
-                raise ValueError(msg)
-            else:
-                # TODO: This is for parity with old model card but having an
-                # empty table by default is kinda pointless
-                self.add_metrics()
-
-        self.get_model()  # resets the model description
+        # calling get_model (re)sets the sections related to the model
+        # description as a side effect
+        self.get_model()
 
     def _reset_model_descriptions(self, model) -> None:
         """Reset sections that depend on the model
@@ -486,6 +510,10 @@ class Card:
         This should be called in case the model was changed. The model argument
         should be an sklearn model instance, not a path.
 
+        Parameters
+        ----------
+        model : BaseEstimator
+            The model instance.
         """
         model_file = self.metadata.to_dict().get("model_file")
         if model_file:
@@ -501,13 +529,16 @@ class Card:
             self.add(**self.template)
 
     def get_model(self) -> Any:
-        """Returns sklearn estimator object if ``Path``/``str``
-        is provided.
+        """Returns sklearn estimator object
+
+        If the ``model`` is already loaded, return it as is. If the ``model``
+        attribute is a ``Path``/``str``, load the model and return it.
 
         Returns
         -------
-        model : Object
-            Model instance.
+        model : BaseEstimator
+            The model instance.
+
         """
         model = _load_model(self.model, self.trusted)
         # Ideally, we would only call the method below if we *know* that the
@@ -601,24 +632,24 @@ class Card:
 
         return section
 
-    def select(self, key: str | Sequence[str]) -> Section:
+    def select(self, key: str) -> Section:
         """Select a section from the model card.
 
         To select a subsection of an existing section, use a ``"/"`` in the
         section name, e.g.:
 
-        ``card.select("Existing section/New section")``.
+        ``card.select("Main section/Subsection")``.
 
-        Alternatively, a list of strings can be passed:
+        Alternatively, multiple ``select`` calls can be chained:
 
-        ``card.select(["Existing section", "New section"])``.
+        ``card.select("Main section").select("Subsection")``.
 
         Parameters
         ----------
-        key : str or list of str
+        key : str
             The name of the (sub)section to select. When selecting a subsection,
             either use a ``"/"`` in the name to separate the parent and child
-            sections, or pass a list of strings.
+            sections, chain multiple ``select`` calls.
 
         Returns
         -------
@@ -637,10 +668,7 @@ class Card:
             msg = f"Section name cannot be empty but got '{key}'"
             raise KeyError(msg)
 
-        if isinstance(key, str):
-            *subsection_names, leaf_node_name = split_subsection_names(key)
-        else:
-            *subsection_names, leaf_node_name = key
+        *subsection_names, leaf_node_name = split_subsection_names(key)
 
         if not leaf_node_name:
             msg = f"Section name cannot be empty but got '{key}'"

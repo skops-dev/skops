@@ -263,8 +263,21 @@ class TestSelect:
         section = model_card.select("Model description/Training Procedure")
         assert section.title == "Training Procedure"
 
-        section = model_card.select(["Model description", "Training Procedure"])
+        section = model_card.select("Model description").select("Training Procedure")
         assert section.title == "Training Procedure"
+
+    def test_select_existing_subsubsection(self, model_card):
+        section = model_card.select(
+            "Model description/Training Procedure/Hyperparameters"
+        )
+        assert section.title == "Hyperparameters"
+
+        section = (
+            model_card.select("Model description")
+            .select("Training Procedure")
+            .select("Hyperparameters")
+        )
+        assert section.title == "Hyperparameters"
 
     def test_select_non_existing_section_raises(self, model_card):
         with pytest.raises(KeyError):
@@ -275,44 +288,45 @@ class TestSelect:
             model_card.select("Model description/non-existing subsection")
 
         with pytest.raises(KeyError):
-            model_card.select(["Model description", "non-existing subsection"])
+            model_card.select("Model description").select("non-existing subsection")
 
     def test_select_non_existing_subsubsection_raises(self, model_card):
-        with pytest.raises(KeyError):
+        msg = "non-existing sub-subsection"
+
+        with pytest.raises(KeyError, match=msg):
             model_card.select(
                 "Model description/Training Procedure/non-existing sub-subsection"
             )
 
-        with pytest.raises(KeyError):
-            model_card.select(
-                [
-                    "Model description",
-                    "Training Procedure",
-                    "non-existing sub-subsection",
-                ]
+        with pytest.raises(KeyError, match=msg):
+            (
+                model_card.select("Model description")
+                .select("Training Procedure")
+                .select("non-existing sub-subsection")
             )
 
     def test_select_non_existing_section_and_subsection_raises(self, model_card):
-        with pytest.raises(KeyError):
-            model_card.select(["non-existing section", "non-existing subsection"])
+        msg = "non-existing section"
+
+        with pytest.raises(KeyError, match=msg):
+            model_card.select("non-existing section/non-existing subsection")
+
+        with pytest.raises(KeyError, match=msg):
+            model_card.select("non-existing section").select("non-existing subsection")
 
     def test_select_empty_key_raises(self, model_card):
         msg = r"Section name cannot be empty but got ''"
         with pytest.raises(KeyError, match=msg):
             model_card.select("")
 
-        msg = r"Section name cannot be empty but got '\[\]'"
-        with pytest.raises(KeyError, match=msg):
-            model_card.select([])
-
     def test_select_empty_key_subsection_raises(self, model_card):
         msg = r"Section name cannot be empty but got 'Model description/'"
         with pytest.raises(KeyError, match=msg):
             model_card.select("Model description/")
 
-        msg = r"Section name cannot be empty but got '\['Model description', ''\]'"
+        msg = r"Section name cannot be empty but got ''"
         with pytest.raises(KeyError, match=msg):
-            model_card.select(["Model description", ""])
+            model_card.select("Model description").select("")
 
     def test_default_skops_sections_present(self, model_card):
         # model_card (which is prefilled) contains all default sections
@@ -558,6 +572,17 @@ def test_add_metrics(destination_path, model_card):
     assert eval_metric_content.endswith(expected)
 
 
+def test_add_metrics_empty_table(destination_path, model_card):
+    # it is allowed to add an empty table, FWIW
+    model_card.add_metrics(**{})
+
+    eval_metric_content = model_card.select(
+        "Model description/Evaluation Results"
+    ).content
+    expected = "| Metric   | Value   |\n|----------|---------|"
+    assert eval_metric_content.endswith(expected)
+
+
 @pytest.mark.parametrize(
     "template, msg",
     [
@@ -668,7 +693,6 @@ class TestCardRepr:
           model=LinearRegression(fit_intercept=False),
           Model description/Training Procedure/...ed | | positive | False | </details>,
           Model description/Training Procedure/...</pre></div></div></div></div></div>,
-          Model description/Evaluation Results=...ric | Value | |----------|---------|,
           Model Card Authors=Jane Doe,
           Figures/ROC='ROC.png',
           Figures/Confusion matrix='confusion_matrix.jpg',
