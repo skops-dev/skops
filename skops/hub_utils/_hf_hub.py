@@ -191,7 +191,10 @@ def _create_config(
         The first 3 input values are used as example inputs.
     save_format: str
         The format used to persist the model. Can be ``"auto"``, ``"skops"``
-        or ``"pickle"``. Defaults to ``"auto"`` that relies on file extension.
+        or ``"pickle"``. Defaults to ``"auto"``, which would mean:
+        
+        - ``"pickle"`` if the extension is one of ``{".pickle", ".pkl", ".joblib"}``
+        - ``"skops"`` if the extension is ``".skops"``
     Returns
     -------
     None
