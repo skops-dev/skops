@@ -452,54 +452,54 @@ def test_inference(
     # take a lot of time and be flaky.
     config_path, file_format = config_json
     if file_format != "pickle":
-        return
-    else:
-        client = HfApi()
-        repo_path = repo_path_for_inference
-        model_file = CONFIG[file_format]["sklearn"]["model"]["file"]
-        model = model_func()
-        model_path = repo_path / model_file
+        pytest.skip("Unsupported configuration for inference test.")
 
-        with open(model_path, "wb") as f:
-            pickle.dump(model, f)
+    client = HfApi()
+    repo_path = repo_path_for_inference
+    model_file = CONFIG[file_format]["sklearn"]["model"]["file"]
+    model = model_func()
+    model_path = repo_path / model_file
 
-        version = metadata.version("scikit-learn")
-        init(
-            model=model_path,
-            requirements=[f'scikit-learn="{version}"'],
-            dst=destination_path,
-            task=task,
-            data=data.data,
-        )
+    with open(model_path, "wb") as f:
+        pickle.dump(model, f)
 
-        # a model card is needed for inference engine to work.
-        model_card = card.Card(
-            model, metadata=card.metadata_from_config(Path(destination_path))
-        )
-        model_card.save(Path(destination_path) / "README.md")
+    version = metadata.version("scikit-learn")
+    init(
+        model=model_path,
+        requirements=[f'scikit-learn="{version}"'],
+        dst=destination_path,
+        task=task,
+        data=data.data,
+    )
 
-        user = client.whoami(token=HF_HUB_TOKEN)["name"]
-        repo_id = f"{user}/test-{uuid4()}"
+    # TODO: remove when card init at repo init is merged
+    model_card = card.Card(
+        model, metadata=card.metadata_from_config(Path(destination_path))
+    )
+    model_card.save(Path(destination_path) / "README.md")
 
-        push(
-            repo_id=repo_id,
-            source=destination_path,
-            token=HF_HUB_TOKEN,
-            commit_message="test message",
-            create_remote=True,
-            # api-inference doesn't support private repos for community projects.
-            private=False,
-        )
+    user = client.whoami(token=HF_HUB_TOKEN)["name"]
+    repo_id = f"{user}/test-{uuid4()}"
 
-        X_test = data.data.head(5)
-        y_pred = model.predict(X_test)
-        output = get_model_output(repo_id, data=X_test, token=HF_HUB_TOKEN)
+    push(
+        repo_id=repo_id,
+        source=destination_path,
+        token=HF_HUB_TOKEN,
+        commit_message="test message",
+        create_remote=True,
+        # api-inference doesn't support private repos for community projects.
+        private=False,
+    )
 
-        # cleanup
-        client.delete_repo(repo_id=repo_id, token=HF_HUB_TOKEN)
-        path_unlink(model_path, missing_ok=True)
+    X_test = data.data.head(5)
+    y_pred = model.predict(X_test)
+    output = get_model_output(repo_id, data=X_test, token=HF_HUB_TOKEN)
 
-        assert np.allclose(output, y_pred)
+    # cleanup
+    client.delete_repo(repo_id=repo_id, token=HF_HUB_TOKEN)
+    path_unlink(model_path, missing_ok=True)
+
+    assert np.allclose(output, y_pred)
 
 
 def test_get_config(repo_path, config_json):
