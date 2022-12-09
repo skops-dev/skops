@@ -144,51 +144,14 @@ class TestXGBoost:
     Known bugs:
 
     - When initialzing with tree_method=None, its value resolves to "exact", but
-      after loading, it resolves to "auto".
+      after loading, it resolves to "auto" when calling get_params().
     - When initializing with tree_method='gpu_hist' and gpu_id=None, the
-      latter's value resolves to 0, but after loading, it resolves to -1.
+      latter's value resolves to 0, but after loading, it resolves to -1, when
+      calling get_params()
 
-    This can be verified like this:
-
-    >>> import xgboost
-    >>> estimator = xgboost.XGBClassifier(tree_method=None)
-    >>> X, y = [[0, 1], [2, 3]], [0, 1]
-    >>> estimator.fit(X, y)
-    XGBClassifier(...)
-    >>> print(estimator.tree_method)
-    None
-    >>> print(estimator.get_params()["tree_method"])
-    exact
-    >>> # after save/load roundtrip, values of get_params change
-    >>> import tempfile
-    >>> tmp_file = f"{tempfile.mkdtemp()}.ubj"
-    >>> estimator.save_model(tmp_file)
-    >>> estimator.load_model(tmp_file)
-    >>> print(estimator.tree_method)
-    None
-    >>> print(estimator.get_params()["tree_method"])
-    auto
-
-    >>> estimator = xgboost.XGBClassifier(tree_method='gpu_hist', booster='gbtree')
-    >>> estimator.fit(X, y)
-    XGBClassifier(...)
-    >>> print(estimator.gpu_id)
-    None
-    >>> print(estimator.get_params()["gpu_id"])
-    0
-    >>> # after save/load roundtrip, values of get_params change
-    >>> estimator.save_model(tmp_file)
-    >>> # for gpu_id, the estimator needs to be re-initialized for the effect to occur
-    >>> estimator = xgboost.XGBClassifier()
-    >>> estimator.load_model(tmp_file)
-    >>> print(estimator.gpu_id)
-    None
-    >>> print(estimator.get_params()["gpu_id"])
-    -1
-
-    As can be seen, this has nothing to do with skops but is a bug/feature of
-    xgboost. We assume that this has no practical consequences and thus avoid
-    testing these cases.
+    These discrepancies occur regardless of skops, so they're a problem in
+    xgboost itself. We assume that this has no practical consequences and thus
+    avoid testing these cases.
 
     """
 
