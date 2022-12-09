@@ -71,7 +71,6 @@ def main_convert(command_line_args: Optional[list[str]] = None):
         const=logging.INFO,
     )
     args = parser.parse_args(command_line_args)
-    print(args.inputs)
     for input_file in args.inputs:
         _convert(
             input_file=input_file,
