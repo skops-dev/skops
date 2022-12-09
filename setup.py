@@ -7,7 +7,7 @@ from setuptools import setup
 # This is a bit (!) hackish: we are setting a global variable so that the
 # main modelcard __init__ can detect if it is being loaded by the setup
 # routine, to avoid attempting to load components.
-builtins.__SKOPS_SETUP__ = True
+builtins.__SKOPS_SETUP__ = True  # type: ignore
 
 
 import skops  # noqa
@@ -34,6 +34,14 @@ PROJECT_URLS = {
 
 
 def setup_package():
+    package_data = dict(
+        entry_points={
+            "console_scripts": [
+                "convert = skops.io._cli._convert:main_convert",
+            ],
+        }
+    )
+
     metadata = dict(
         name=DISTNAME,
         maintainer=MAINTAINER,
@@ -73,7 +81,7 @@ def setup_package():
         include_package_data=True,
     )
 
-    setup(**metadata)
+    setup(**package_data, **metadata)
 
 
 if __name__ == "__main__":
