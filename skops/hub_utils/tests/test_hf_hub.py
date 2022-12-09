@@ -121,12 +121,14 @@ def config_json(repo_path, request):
         path_unlink(path, missing_ok=True)
 
 
-def test_validate_format(classifier, temp_path):
+def test_validate_format(classifier):
+    dir_path = tempfile.mkdtemp()
+    shutil.rmtree(dir_path)
     with pytest.raises(ValueError, match="Cannot determine the input file*"):
         init(
             model=classifier,
             requirements=["scikit-learn"],
-            dst=temp_path,
+            dst=dir_path,
             task="tabular-classification",
             data=iris.data,
             model_format="dummy",
