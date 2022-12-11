@@ -57,8 +57,8 @@ def main_convert(command_line_args: Optional[list[str]] = None):
         "--trusted",
         help=(
             "Automatically trust all files, "
-            "and convert all inputs, even if an "
-            "untrusted type is detected."
+            "and convert all inputs, "
+            "even if an untrusted type is detected."
         ),
         action="store_true",
         default=False,
@@ -66,7 +66,7 @@ def main_convert(command_line_args: Optional[list[str]] = None):
     parser.add_argument(
         "-d",
         "--debug",
-        help="Enable debug logging",
+        help="Enable debug logging.",
         action="store_const",
         dest="loglevel",
         const=logging.DEBUG,
@@ -75,7 +75,7 @@ def main_convert(command_line_args: Optional[list[str]] = None):
     parser.add_argument(
         "-v",
         "--verbose",
-        help="Enable verbose logging",
+        help="Enable verbose logging.",
         action="store_const",
         dest="loglevel",
         const=logging.INFO,
@@ -96,6 +96,8 @@ def main_convert(command_line_args: Optional[list[str]] = None):
         output_dir = pathlib.Path.cwd()
     else:
         output_dir = pathlib.Path(output_dir)
+
+    logging.basicConfig(format="%(message)s", level=args.loglevel)
 
     for input_file in args.inputs:
         _convert(
