@@ -14,6 +14,8 @@ v0.4
 - :func:`.io.dump` and :func:`.io.load` now work with file like objects,
   which means you can use them with the ``with open(...) as f: dump(obj, f)``
   pattern, like you'd do with ``pickle``. :pr:`234` by `Benjamin Bossan`_.
+- All `scikit-learn` estimators are trusted by default.
+  :pr:`237` by :user:`Edoardo Abati <EdAbati>`.
 
 v0.3
 ----
