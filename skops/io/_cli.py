@@ -43,14 +43,20 @@ def _convert(
             return
 
     with open(output_dir / f"{model_name}.skops", "wb") as out_file:
-        logging.info(f"Writing to {output_dir/model_name}.skops")
+        logging.info(f"Writing to {output_dir / model_name}.skops")
         out_file.write(skops_dump)
 
 
-def main_convert(command_line_args: Optional[list[str]] = None):
+def main_convert(
+    command_line_args: Optional[list[str]] = None,
+    parent: Optional[argparse.ArgumentParser] = None,
+):
+    parents = [parent] if parent else []
+
     parser = argparse.ArgumentParser(
-        description="Convert input Pickle files to .skops files"
+        description="Convert input Pickle files to .skops files", parents=parents
     )
+
     parser.add_argument("inputs", nargs="+", help="Input files to convert.")
     parser.add_argument(
         "-t",

@@ -37,7 +37,7 @@ def setup_package():
     package_data = dict(
         entry_points={
             "console_scripts": [
-                "skops-convert = skops.io._cli:main_convert",
+                "skops = skops.entrypoint:main_entrypoint",
             ],
         }
     )
