@@ -73,7 +73,6 @@ class TestMainConvert:
         output_dir: Optional[pathlib.Path] = pathlib.Path.cwd(),
         trusted: Optional[bool] = False,
     ):
-        breakpoint()
         assert mock_convert.call_count == len(paths)
 
         mock_convert.assert_has_calls(
@@ -94,7 +93,7 @@ class TestMainConvert:
         self.assert_called_correctly(mock_convert, args)
 
     @patch("skops.io._cli._convert")
-    @pytest.mark.parametrize("trusted_flag", ["-t", "--trusted", None])
+    @pytest.mark.parametrize("trusted_flag", ["-t", "--trusted"])
     def test_with_trusted_works_as_expected(
         self, mock_convert: mock.MagicMock, trusted_flag
     ):
