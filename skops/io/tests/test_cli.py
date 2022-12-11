@@ -73,6 +73,7 @@ class TestMainConvert:
         output_dir: Optional[pathlib.Path] = pathlib.Path.cwd(),
         trusted: Optional[bool] = False,
     ):
+        breakpoint()
         assert mock_convert.call_count == len(paths)
 
         mock_convert.assert_has_calls(
@@ -93,7 +94,7 @@ class TestMainConvert:
         self.assert_called_correctly(mock_convert, args)
 
     @patch("skops.io._cli._convert")
-    @pytest.mark.parametrize("trusted_flag", ["-t", "--trusted"])
+    @pytest.mark.parametrize("trusted_flag", ["-t", "--trusted", None])
     def test_with_trusted_works_as_expected(
         self, mock_convert: mock.MagicMock, trusted_flag
     ):
@@ -101,3 +102,21 @@ class TestMainConvert:
         args = paths + [trusted_flag]
         skops.io._cli.main_convert(command_line_args=args)
         self.assert_called_correctly(mock_convert, paths=paths, trusted=True)
+
+    @patch("skops.io._cli._convert")
+    @pytest.mark.parametrize(
+        "output_dir, expected_dir",
+        [("a/b/c", pathlib.Path("a/b/c")), (None, pathlib.Path.cwd())],
+    )
+    def test_with_output_dir_works_as_expected(
+        self, mock_convert: mock.MagicMock, output_dir, expected_dir
+    ):
+        paths = ["abc.123", "234.567", "d/object_1.pkl"]
+
+        if output_dir is not None:
+            args = paths + ["--output-dir", output_dir]
+        else:
+            args = paths
+
+        skops.io._cli.main_convert(command_line_args=args)
+        self.assert_called_correctly(mock_convert, paths=paths, output_dir=expected_dir)

@@ -51,8 +51,18 @@ def main_convert(command_line_args: Optional[list[str]] = None):
     parser = argparse.ArgumentParser(
         description="Convert input Pickle files to .skops files"
     )
-    parser.add_argument("inputs", nargs="+")
-    parser.add_argument("-t", "--trusted", action="store_true", default=False)
+    parser.add_argument("inputs", nargs="+", help="Input files to convert.")
+    parser.add_argument(
+        "-t",
+        "--trusted",
+        help=(
+            "Automatically trust all files, "
+            "and convert all inputs, even if an "
+            "untrusted type is detected."
+        ),
+        action="store_true",
+        default=False,
+    )
     parser.add_argument(
         "-d",
         "--debug",
@@ -70,10 +80,26 @@ def main_convert(command_line_args: Optional[list[str]] = None):
         dest="loglevel",
         const=logging.INFO,
     )
+    parser.add_argument(
+        "--output-dir",
+        help=(
+            "Specify a directory to save converted files to. "
+            "Default will save files to the current working directory."
+        ),
+        type=str,
+        default=None,
+    )
     args = parser.parse_args(command_line_args)
+
+    output_dir = args.output_dir
+    if not output_dir:
+        output_dir = pathlib.Path.cwd()
+    else:
+        output_dir = pathlib.Path(output_dir)
+
     for input_file in args.inputs:
         _convert(
             input_file=input_file,
-            output_dir=pathlib.Path.cwd(),
+            output_dir=output_dir,
             is_trusted=args.trusted,
         )
