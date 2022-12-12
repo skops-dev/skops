@@ -486,7 +486,7 @@ class Card:
         self._populate_template()
 
     def _populate_template(self):
-        """If initialized with a template, use it to populate the card"""
+        """If initialized with a template, use it to populate the card."""
         if not self.template:
             return
 
@@ -501,7 +501,7 @@ class Card:
         self.get_model()
 
     def _reset_model_descriptions(self, model) -> None:
-        """Reset sections that depend on the model
+        """Reset sections that depend on the model.
 
         This should be called in case the model was changed. The model argument
         should be an sklearn model instance, not a path.
@@ -525,7 +525,7 @@ class Card:
             self.add(**self.template)
 
     def get_model(self) -> Any:
-        """Returns sklearn estimator object
+        """Returns sklearn estimator object.
 
         If the ``model`` is already loaded, return it as is. If the ``model``
         attribute is a ``Path``/``str``, load the model and return it.
@@ -581,7 +581,7 @@ class Card:
     def _select(
         self, subsection_names: Sequence[str], create: bool = True
     ) -> dict[str, Section]:
-        """Select a single section from the data
+        """Select a single section from the data.
 
         Parameters
         ----------
@@ -715,7 +715,7 @@ class Card:
         del parent_section[leaf_node_name]
 
     def _add_single(self, key: str, val: Formattable | str) -> Section:
-        """Add a single section
+        """Add a single section.
 
         If the (sub)section does not exist, it is created. Otherwise, the
         existing (sub)section is modified.
@@ -742,7 +742,7 @@ class Card:
         return section[leaf_node_name]
 
     def _add_model_section(self, model) -> None:
-        """Add model plot section, if model_diagram is set
+        """Add model plot section, if model_diagram is set.
 
         The model should be a loaded sklearn model, not a path.
 
@@ -767,7 +767,7 @@ class Card:
         self._add_single(section_title, content)
 
     def _add_hyperparams(self, model) -> None:
-        """Add hyperparameter section
+        """Add hyperparameter section.
 
         The model should be a loaded sklearn model, not a path.
 
@@ -904,7 +904,7 @@ class Card:
         return self
 
     def _add_metrics(self, metrics: dict[str, str | float | int]) -> None:
-        """Add metrics to the Evaluation Results section"""
+        """Add metrics to the Evaluation Results section."""
         # when not using a default templates, there is no predetermined section
         # to put the metrics
         if (
@@ -951,7 +951,13 @@ class Card:
     def _generate_content(
         self, data: dict[str, Section], depth: int = 1
     ) -> Iterator[str]:
-        """Yield title and (formatted) contents"""
+        """Yield title and (formatted) contents.
+
+        Recursively go through the data and consecutively yield the title with
+        the appropriate number of "#"s (markdown format), then the associated
+        content.
+
+        """
         for val in data.values():
             title = f"{depth * '#'} {val.title}"
             yield title
@@ -967,7 +973,7 @@ class Card:
     def _iterate_content(
         self, data: dict[str, Section], parent_section: str = ""
     ) -> Iterator[tuple[str, Formattable | str]]:
-        """Yield tuples of title and (non-formatted) content"""
+        """Yield tuples of title and (non-formatted) content."""
         for val in data.values():
             if parent_section:
                 title = "/".join((parent_section, val.title))
@@ -1060,7 +1066,7 @@ class Card:
         )
 
     def _generate_card(self) -> Iterator[str]:
-        """Yield sections of the model card, including the metadata"""
+        """Yield sections of the model card, including the metadata."""
         if self.metadata.to_dict():
             yield f"---\n{self.metadata.to_yaml()}\n---"
 
