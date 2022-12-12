@@ -4,7 +4,6 @@ import pathlib
 import pickle as pkl
 from typing import Optional
 from unittest import mock
-from unittest.mock import call, patch
 
 import numpy as np
 import pytest
@@ -77,12 +76,12 @@ class TestMainConvert:
 
         mock_convert.assert_has_calls(
             [
-                call(input_file=p, output_dir=output_dir, is_trusted=trusted)
+                mock.call(input_file=p, output_dir=output_dir, is_trusted=trusted)
                 for p in paths
             ]
         )
 
-    @patch("skops.io._cli._convert")
+    @mock.patch("skops.io._cli._convert")
     def test_base_works_as_expected(self, mock_convert: mock.MagicMock):
         args = [
             "123.pkl",
@@ -92,7 +91,7 @@ class TestMainConvert:
         skops.io._cli.main_convert(command_line_args=args)
         self.assert_called_correctly(mock_convert, args)
 
-    @patch("skops.io._cli._convert")
+    @mock.patch("skops.io._cli._convert")
     @pytest.mark.parametrize("trusted_flag", ["-t", "--trusted"])
     def test_with_trusted_works_as_expected(
         self, mock_convert: mock.MagicMock, trusted_flag
@@ -102,7 +101,7 @@ class TestMainConvert:
         skops.io._cli.main_convert(command_line_args=args)
         self.assert_called_correctly(mock_convert, paths=paths, trusted=True)
 
-    @patch("skops.io._cli._convert")
+    @mock.patch("skops.io._cli._convert")
     @pytest.mark.parametrize(
         "output_dir, expected_dir",
         [("a/b/c", pathlib.Path("a/b/c")), (None, pathlib.Path.cwd())],
