@@ -232,21 +232,17 @@ def _getting_started_code(
     file_name: str, is_skops_format: bool = False, indent="    "
 ) -> list[str]:
     # get lines of code required to load the model
-    lines: list[str] = []
-    if is_skops_format:
-        lines += ["from skops.io import load"]
-    else:
-        lines += ["import joblib"]
-
-    lines += [
+    lines = [
         "import json",
         "import pandas as pd",
     ]
     if is_skops_format:
-        lines += [
-            "from skops.io import load",
-            f'model = load("{file_name}")',
-        ]
+        lines += ["import skops.io as sio"]
+    else:
+        lines += ["import joblib"]
+
+    if is_skops_format:
+        lines += [f'model = sio.load("{file_name}")']
     else:  # pickle
         lines += [f'model = joblib.load("{file_name}")']
 

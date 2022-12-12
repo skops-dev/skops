@@ -635,7 +635,7 @@ def test_code_autogeneration_skops(
     filename = metadata["model_file"]
     with open(Path(destination_path) / "README.md") as f:
         read_buffer = f.read()
-        assert f'model = load("{filename}")' in read_buffer
+        assert f'model = sio.load("{filename}")' in read_buffer
 
         # test if the model doesn't overflow the huggingface models page
         assert read_buffer.count("sk-top-container") == 1
