@@ -14,8 +14,9 @@ v0.4
 - :func:`.io.dump` and :func:`.io.load` now work with file like objects,
   which means you can use them with the ``with open(...) as f: dump(obj, f)``
   pattern, like you'd do with ``pickle``. :pr:`234` by `Benjamin Bossan`_.
-- Add `model_format` argument to :meth:`skops.hub_utils.init` to write it
-  as a section to `config.json`. :pr:`242`by `Merve Noyan`_.
+- Add `model_format` argument to :meth:`skops.hub_utils.init` to be stored in
+  `config.json` so that we know how to load a model from the repository.
+  :pr:`242` by `Merve Noyan`_.
 
 v0.3
 ----
