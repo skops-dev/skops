@@ -18,7 +18,7 @@ filterwarnings = [
     # https://github.com/scikit-learn/scikit-learn/pull/23633
     "ignore:Unlike other reduction functions:FutureWarning",
     # https://github.com/scikit-learn/scikit-learn/pull/25157
-    "ignore:open_text is deprecated:FutureWarning",
+    "ignore:open_text is deprecated:DeprecationWarning",
 ]
 markers = [
     "network: marks tests as requiring internet (deselect with '-m \"not network\"')",
