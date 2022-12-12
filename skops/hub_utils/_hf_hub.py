@@ -189,6 +189,7 @@ def _create_config(
                model.
 
         The first 3 input values are used as example inputs.
+
     model_format: str
         The format used to persist the model. Can be ``"auto"``, ``"skops"``
         or ``"pickle"``. Defaults to ``"auto"``, which would mean:
