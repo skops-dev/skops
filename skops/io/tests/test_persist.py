@@ -860,3 +860,16 @@ def test_when_given_object_referenced_twice_loads_as_one_object(obj):
     persisted_object = loads(dumps(an_object), trusted=True)
 
     assert persisted_object["obj_1"] is persisted_object["obj_2"]
+
+
+class EstimatorWithBytes(BaseEstimator):
+    def fit(self, X, y, **fit_params):
+        self.bytes_ = b"hello"
+        self.bytearray_ = bytearray([0, 1, 2, 253, 254, 255])
+        return self
+
+
+def test_estimator_with_bytes():
+    est = EstimatorWithBytes().fit(None, None)
+    loaded = loads(dumps(est), trusted=True)
+    assert_params_equal(est.__dict__, loaded.__dict__)

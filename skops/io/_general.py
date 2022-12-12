@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import json
 from functools import partial
 from types import FunctionType, MethodType
@@ -475,12 +476,55 @@ class JsonNode(Node):
         return json.loads(self.content)
 
 
+def bytes_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
+    content = base64.b64encode(obj).decode("ascii")
+    res = {
+        "__class__": obj.__class__.__name__,
+        "__module__": get_module(type(obj)),
+        "__loader__": "BytesNode",
+        "content": get_state(content, save_context),
+    }
+    return res
+
+
+def bytearray_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
+    res = bytes_get_state(obj, save_context)
+    res["__loader__"] = "BytearrayNode"
+    return res
+
+
+class BytesNode(Node):
+    def __init__(
+        self,
+        state: dict[str, Any],
+        load_context: LoadContext,
+        trusted: bool | Sequence[str] = False,
+    ) -> None:
+        super().__init__(state, load_context, trusted)
+        self.trusted = self._get_trusted(trusted, [])
+        self.children = {"content": get_tree(state["content"], load_context)}
+
+    def _construct(self):
+        content_str = self.children["content"].construct()
+        content_bytes = base64.b64decode(content_str)
+        return content_bytes
+
+
+class BytearrayNode(BytesNode):
+    def _construct(self):
+        content_bytes = super()._construct()
+        content_bytearray = bytearray(content_bytes)
+        return content_bytearray
+
+
 # tuples of type and function that gets the state of that type
 GET_STATE_DISPATCH_FUNCTIONS = [
     (dict, dict_get_state),
     (list, list_get_state),
     (set, set_get_state),
     (tuple, tuple_get_state),
+    (bytes, bytes_get_state),
+    (bytearray, bytearray_get_state),
     (slice, slice_get_state),
     (FunctionType, function_get_state),
     (MethodType, method_get_state),
@@ -494,6 +538,8 @@ NODE_TYPE_MAPPING = {
     "ListNode": ListNode,
     "SetNode": SetNode,
     "TupleNode": TupleNode,
+    "BytesNode": BytesNode,
+    "BytearrayNode": BytearrayNode,
     "SliceNode": SliceNode,
     "FunctionNode": FunctionNode,
     "MethodNode": MethodNode,
