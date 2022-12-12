@@ -195,6 +195,7 @@ def _create_config(
 
         - ``"pickle"`` if the extension is one of ``{".pickle", ".pkl", ".joblib"}``
         - ``"skops"`` if the extension is ``".skops"``
+
     Returns
     -------
     None
