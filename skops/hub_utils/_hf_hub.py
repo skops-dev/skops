@@ -323,6 +323,7 @@ def init(
     model_format: str
         The format used to persist the model. Can be ``"auto"``, ``"skops"``
         or ``"pickle"``. Defaults to ``"auto"`` that relies on file extension.
+
     Returns
     -------
     None
