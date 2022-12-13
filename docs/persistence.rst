@@ -98,7 +98,9 @@ arrays, dtypes, random generators, and ufuncs.
 Apart from this core, we plan to support machine learning libraries commonly
 used be the community. So far, those are:
 
-- `LightGBM <lightgbm.readthedocs.io/>`_ (scikit-learn API)
+- `LightGBM <https://lightgbm.readthedocs.io/>`_ (scikit-learn API)
+- `XGBoost <https://xgboost.readthedocs.io/en/stable/>`_ (scikit-learn API)
+- `CatBoost <https://catboost.ai/en/docs/>`_
 
 If you run into a problem using any of the mentioned libraries, this could mean
 there is a bug in skops. Please open an issue on `our issue tracker

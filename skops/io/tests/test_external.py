@@ -250,3 +250,76 @@ class TestXGBoost:
         estimator.fit(X, y, group=group)
         check_estimator(estimator, trusted=trusted)
         check_method_outputs(estimator, X, trusted=trusted)
+
+
+class TestCatboost:
+    """Tests for CatBoostClassifier, CatBoostRegressor, and CatBoostRanker"""
+
+    # CatBoost data is a little different so that it works as categorical data
+    @pytest.fixture(scope="module")
+    def cb_clf_data(self, clf_data):
+        X, y = clf_data
+        X = (X - X.min()).astype(int)
+        return X, y
+
+    @pytest.fixture(scope="module")
+    def cb_regr_data(self, regr_data):
+        X, y = regr_data
+        X = (X - X.min()).astype(int)
+        return X, y
+
+    @pytest.fixture(scope="module")
+    def cb_rank_data(self, rank_data):
+        X, y, group = rank_data
+        X = (X - X.min()).astype(int)
+        group_id = sum([[i] * n for i, n in enumerate(group)], [])
+        return X, y, group_id
+
+    @pytest.fixture(autouse=True)
+    def catboost(self):
+        catboost = pytest.importorskip("catboost")
+        return catboost
+
+    @pytest.fixture
+    def trusted(self):
+        # TODO: adjust once more types are trusted by default
+        return [
+            "builtins.bytes",
+            "numpy.float32",
+            "numpy.float64",
+            "catboost.core.CatBoostClassifier",
+            "catboost.core.CatBoostRegressor",
+            "catboost.core.CatBoostRanker",
+        ]
+
+    boosting_types = ["Ordered", "Plain"]
+
+    @pytest.mark.parametrize("boosting_type", boosting_types)
+    def test_classifier(self, catboost, cb_clf_data, trusted, boosting_type):
+        estimator = catboost.CatBoostClassifier(boosting_type=boosting_type)
+        check_estimator(estimator, trusted=trusted)
+
+        X, y = cb_clf_data
+        estimator.fit(X, y, cat_features=[0, 1])
+        check_estimator(estimator, trusted=trusted)
+        check_method_outputs(estimator, X, trusted=trusted)
+
+    @pytest.mark.parametrize("boosting_type", boosting_types)
+    def test_regressor(self, catboost, cb_regr_data, trusted, boosting_type):
+        estimator = catboost.CatBoostRegressor(boosting_type=boosting_type)
+        check_estimator(estimator, trusted=trusted)
+
+        X, y = cb_regr_data
+        estimator.fit(X, y, cat_features=[0, 1])
+        check_estimator(estimator, trusted=trusted)
+        check_method_outputs(estimator, X, trusted=trusted)
+
+    @pytest.mark.parametrize("boosting_type", boosting_types)
+    def test_ranker(self, catboost, cb_rank_data, trusted, boosting_type):
+        estimator = catboost.CatBoostRanker(boosting_type=boosting_type)
+        check_estimator(estimator, trusted=trusted)
+
+        X, y, group_id = cb_rank_data
+        estimator.fit(X, y, cat_features=[0, 1], group_id=group_id)
+        check_estimator(estimator, trusted=trusted)
+        check_method_outputs(estimator, X, trusted=trusted)
