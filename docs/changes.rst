@@ -16,6 +16,10 @@ v0.4
   pattern, like you'd do with ``pickle``. :pr:`234` by `Benjamin Bossan`_.
 - All `scikit-learn` estimators are trusted by default.
   :pr:`237` by :user:`Edoardo Abati <EdAbati>`.
+- Add `model_format` argument to :meth:`skops.hub_utils.init` to be stored in
+  `config.json` so that we know how to load a model from the repository.
+  :pr:`242` by `Merve Noyan`_.
+
 
 v0.3
 ----
