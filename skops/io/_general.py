@@ -9,7 +9,7 @@ from typing import Any, Sequence
 import numpy as np
 
 from ._audit import Node, get_tree
-from ._trusted_types import PRIMITIVE_TYPE_NAMES
+from ._trusted_types import PRIMITIVE_TYPE_NAMES, SKLEARN_ESTIMATOR_TYPE_NAMES
 from ._utils import (
     LoadContext,
     SaveContext,
@@ -384,7 +384,7 @@ class ObjectNode(Node):
 
         self.children = {"attrs": attrs}
         # TODO: what do we trust?
-        self.trusted = self._get_trusted(trusted, [])
+        self.trusted = self._get_trusted(trusted, default=SKLEARN_ESTIMATOR_TYPE_NAMES)
 
     def _construct(self):
         cls = gettype(self.module_name, self.class_name)

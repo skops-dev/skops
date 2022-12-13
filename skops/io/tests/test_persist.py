@@ -56,6 +56,7 @@ import skops
 from skops.io import dump, dumps, get_untrusted_types, load, loads
 from skops.io._audit import NODE_TYPE_MAPPING, get_tree
 from skops.io._sklearn import UNSUPPORTED_TYPES
+from skops.io._trusted_types import SKLEARN_ESTIMATOR_TYPE_NAMES
 from skops.io._utils import LoadContext, SaveContext, _get_state, get_state
 from skops.io.exceptions import UnsupportedTypeException
 from skops.io.tests._utils import assert_params_equal
@@ -329,7 +330,7 @@ def get_input(estimator):
 @pytest.mark.parametrize(
     "estimator", _tested_estimators(), ids=_get_check_estimator_ids
 )
-def test_can_persist_fitted(estimator, request):
+def test_can_persist_fitted(estimator):
     """Check that fitted estimators can be persisted and return the right results."""
     set_random_state(estimator, random_state=0)
 
@@ -351,6 +352,8 @@ def test_can_persist_fitted(estimator, request):
 
     loaded = loads(dumped, trusted=untrusted_types)
     assert_params_equal(estimator.__dict__, loaded.__dict__)
+
+    assert not any(type_ in SKLEARN_ESTIMATOR_TYPE_NAMES for type_ in untrusted_types)
 
     for method in [
         "predict",
