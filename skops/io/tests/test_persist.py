@@ -114,7 +114,7 @@ def debug_dispatch_functions():
 
         return wrapper
 
-    modules = ["._general", "._numpy", "._scipy", "._sklearn", "._xgboost"]
+    modules = ["._general", "._numpy", "._scipy", "._sklearn"]
     for module_name in modules:
         # overwrite exposed functions for get_state and get_tree
         module = importlib.import_module(module_name, package="skops.io")
@@ -876,3 +876,16 @@ def test_estimator_with_bytes():
     est = EstimatorWithBytes().fit(None, None)
     loaded = loads(dumps(est), trusted=True)
     assert_params_equal(est.__dict__, loaded.__dict__)
+
+
+def test_estimator_with_bytes_files_created(tmp_path):
+    est = EstimatorWithBytes().fit(None, None)
+    f_name = tmp_path / "estimator.skops"
+    dump(est, f_name)
+    file = Path(f_name)
+    assert file.exists()
+
+    with ZipFile(f_name, "r") as input_zip:
+        files = input_zip.namelist()
+    bin_files = [file for file in files if file.endswith(".bin")]
+    assert len(bin_files) == 2

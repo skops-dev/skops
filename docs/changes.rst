@@ -16,8 +16,8 @@ v0.4
   pattern, like you'd do with ``pickle``. :pr:`234` by `Benjamin Bossan`_.
 - All `scikit-learn` estimators are trusted by default.
   :pr:`237` by :user:`Edoardo Abati <EdAbati>`.
-- Persistence now supports LightGBM and XGBoost. :pr:`244` by `Benjamin
-  Bossan`_.
+- Persistence now supports bytes and bytearrays, added tests to verify that
+  LightGBM and XGBoost work. :pr:`244` by `Benjamin Bossan`_.
 
 v0.3
 ----

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import base64
+import io
 import json
+import uuid
 from functools import partial
 from types import FunctionType, MethodType
 from typing import Any, Sequence
@@ -477,12 +478,13 @@ class JsonNode(Node):
 
 
 def bytes_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
-    content = base64.b64encode(obj).decode("ascii")
+    f_name = f"{uuid.uuid4()}.bin"
+    save_context.zip_file.writestr(f_name, obj)
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
         "__loader__": "BytesNode",
-        "content": get_state(content, save_context),
+        "file": f_name,
     }
     return res
 
@@ -502,18 +504,17 @@ class BytesNode(Node):
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.trusted = self._get_trusted(trusted, [])
-        self.children = {"content": get_tree(state["content"], load_context)}
+        self.children = {"content": io.BytesIO(load_context.src.read(state["file"]))}
 
     def _construct(self):
-        content_str = self.children["content"].construct()
-        content_bytes = base64.b64decode(content_str)
-        return content_bytes
+        content = self.children["content"].getvalue()
+        return content
 
 
 class BytearrayNode(BytesNode):
     def _construct(self):
         content_bytes = super()._construct()
-        content_bytearray = bytearray(content_bytes)
+        content_bytearray = bytearray(list(content_bytes))
         return content_bytearray
 
 

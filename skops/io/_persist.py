@@ -14,7 +14,7 @@ from ._utils import LoadContext, SaveContext, _get_state, get_state
 
 # We load the dispatch functions from the corresponding modules and register
 # them.
-modules = ["._general", "._numpy", "._scipy", "._sklearn", "._xgboost"]
+modules = ["._general", "._numpy", "._scipy", "._sklearn"]
 for module_name in modules:
     # register exposed functions for get_state and get_tree
     module = importlib.import_module(module_name, package="skops.io")
