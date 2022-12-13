@@ -321,7 +321,7 @@ def init(
         ``"text-regression"``, the data needs to be a ``list`` of strings.
 
     model_format: str
-        The format used to persist the model. Can be ``"auto"``, ``"skops"``
+        The format the model was persisted in. Can be ``"auto"``, ``"skops"``
         or ``"pickle"``. Defaults to ``"auto"`` that relies on file extension.
 
     Returns
