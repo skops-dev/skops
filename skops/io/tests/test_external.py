@@ -132,7 +132,7 @@ class TestXGBoost:
 
     These discrepancies occur regardless of skops, so they're a problem in
     xgboost itself. We assume that this has no practical consequences and thus
-    avoid testing these cases.
+    avoid testing these cases. See https://github.com/dmlc/xgboost/issues/8596
 
     """
 
