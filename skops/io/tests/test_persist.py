@@ -345,7 +345,7 @@ def test_can_persist_fitted(estimator):
     assert_params_equal(estimator.__dict__, loaded.__dict__)
 
     assert not any(type_ in SKLEARN_ESTIMATOR_TYPE_NAMES for type_ in untrusted_types)
-    assert_method_outputs_equal(estimator, loaded)
+    assert_method_outputs_equal(estimator, loaded, X)
 
 
 @pytest.mark.parametrize(
