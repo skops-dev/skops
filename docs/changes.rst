@@ -19,7 +19,8 @@ v0.4
 - Add `model_format` argument to :meth:`skops.hub_utils.init` to be stored in
   `config.json` so that we know how to load a model from the repository.
   :pr:`242` by `Merve Noyan`_.
-
+- Persistence now supports bytes and bytearrays, added tests to verify that
+  LightGBM, XGBoost, and CatBoost work now. :pr:`244` by `Benjamin Bossan`_.
 
 v0.3
 ----
