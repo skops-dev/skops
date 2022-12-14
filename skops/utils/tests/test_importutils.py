@@ -1,27 +1,30 @@
-import importlib
-from unittest import mock
+import builtins
 
 import pytest
 
 from skops.utils.importutils import import_or_raise
 
 
-def test_import_or_raise():
-    # orig_import = __import__
+@pytest.fixture
+def hide_available_matplotlib(monkeypatch):
+    import_orig = builtins.__import__
 
-    def mock_import(name, *args):
+    def mocked_import(name, *args, **kwargs):
         if name == "matplotlib":
-            raise ImportError("No module named 'matplotlib'")
-        else:
-            return importlib.import_module(name)
+            raise ImportError()
+        return import_orig(name, *args, **kwargs)
 
-    with mock.patch("importlib.import_module", side_effect=mock_import):
-        with pytest.raises(
-            ModuleNotFoundError,
-            match=(
-                "Permutation importance requires matplotlib to be installed. In order"
-                " to use permutation importance, you need to install the package in"
-                " your current python environment."
-            ),
-        ):
-            import_or_raise("matplotlib", "permutation importance")
+    monkeypatch.setattr(builtins, "__import__", mocked_import)
+
+
+@pytest.mark.usefixtures("hide_available_matplotlib")
+def test_import_or_raise():
+    with pytest.raises(
+        ModuleNotFoundError,
+        match=(
+            "Permutation importance requires matplotlib to be installed. In order"
+            " to use permutation importance, you need to install the package in"
+            " your current python environment."
+        ),
+    ):
+        import_or_raise("matplotlib", "permutation importance")
