@@ -5,6 +5,7 @@ import re
 import shutil
 import tempfile
 import warnings
+from importlib import metadata
 from pathlib import Path
 from uuid import uuid4
 
@@ -37,7 +38,6 @@ from skops.hub_utils._hf_hub import (
 )
 from skops.hub_utils.tests.common import HF_HUB_TOKEN
 from skops.io import dump
-from skops.utils.fixes import metadata, path_unlink
 
 iris = load_iris(as_frame=True, return_X_y=False)
 diabetes = load_diabetes(as_frame=True, return_X_y=False)
@@ -91,7 +91,7 @@ def classifier(repo_path, config_json):
             dump(clf, path)
         yield path
     finally:
-        path_unlink(path, missing_ok=True)
+        path.unlink(missing_ok=True)
 
 
 CONFIG = {
@@ -118,7 +118,7 @@ def config_json(repo_path, request):
             json.dump(CONFIG[request.param], f)
         yield path, request.param
     finally:
-        path_unlink(path, missing_ok=True)
+        path.unlink(missing_ok=True)
 
 
 def test_validate_format(classifier):
@@ -337,7 +337,7 @@ def test_model_file_does_not_exist_raises(repo_path, config_json):
             task="tabular-classification",
             data=iris.data,
         )
-    path_unlink(model_path, missing_ok=True)
+    model_path.unlink(missing_ok=True)
 
 
 def test_init_empty_model_file_errors(repo_path, config_json):
@@ -360,7 +360,7 @@ def test_init_empty_model_file_errors(repo_path, config_json):
             task="tabular-classification",
             data=iris.data,
         )
-    path_unlink(model_path, missing_ok=True)
+    model_path.unlink(missing_ok=True)
 
 
 @pytest.mark.network
@@ -501,7 +501,7 @@ def test_inference(
 
     # cleanup
     client.delete_repo(repo_id=repo_id, token=HF_HUB_TOKEN)
-    path_unlink(model_path, missing_ok=True)
+    model_path.unlink(missing_ok=True)
 
     assert np.allclose(output, y_pred)
 

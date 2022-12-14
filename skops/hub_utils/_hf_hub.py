@@ -9,12 +9,10 @@ import json
 import os
 import shutil
 from pathlib import Path
-from typing import Any, List, MutableMapping, Optional, Union
+from typing import Any, List, Literal, MutableMapping, Optional, Union
 
 import numpy as np
 from huggingface_hub import HfApi, InferenceApi, snapshot_download
-
-from ..utils.fixes import Literal
 
 SUPPORTED_TASKS = [
     "tabular-classification",
