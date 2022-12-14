@@ -17,6 +17,7 @@ def import_or_raise(module, feature_name):
     ModuleNotFoundError
         Is raised if a given module is not present in the environment
     """
+    breakpoint()
     try:
         module = import_module(module)
     except ImportError as e:
