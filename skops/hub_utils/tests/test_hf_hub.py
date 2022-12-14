@@ -5,6 +5,7 @@ import re
 import shutil
 import tempfile
 import warnings
+from importlib import metadata
 from pathlib import Path
 from uuid import uuid4
 
@@ -37,7 +38,6 @@ from skops.hub_utils._hf_hub import (
 )
 from skops.hub_utils.tests.common import HF_HUB_TOKEN
 from skops.io import dump
-from skops.utils.fixes import metadata
 
 iris = load_iris(as_frame=True, return_X_y=False)
 diabetes = load_diabetes(as_frame=True, return_X_y=False)
