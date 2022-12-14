@@ -26,7 +26,6 @@ dependent_packages = {
     "sphinx-issues": ("1.2.0", "docs", None),
     "matplotlib": ("3.3", "docs, tests", None),
     "pandas": ("1", "docs, tests", None),
-    "typing_extensions": ("3.7", "install", "python_full_version < '3.8'"),
 }
 
 
