@@ -503,7 +503,7 @@ class BytesNode(Node):
         trusted: bool | Sequence[str] = False,
     ) -> None:
         super().__init__(state, load_context, trusted)
-        self.trusted = self._get_trusted(trusted, [])
+        self.trusted = self._get_trusted(trusted, [bytes])
         self.children = {"content": io.BytesIO(load_context.src.read(state["file"]))}
 
     def _construct(self):
@@ -512,6 +512,15 @@ class BytesNode(Node):
 
 
 class BytearrayNode(BytesNode):
+    def __init__(
+        self,
+        state: dict[str, Any],
+        load_context: LoadContext,
+        trusted: bool | Sequence[str] = False,
+    ) -> None:
+        super().__init__(state, load_context, trusted)
+        self.trusted = self._get_trusted(trusted, [bytearray])
+
     def _construct(self):
         content_bytes = super()._construct()
         content_bytearray = bytearray(list(content_bytes))

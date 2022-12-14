@@ -1,13 +1,15 @@
-import sys
+"""Test persistence of "external" packages
+
+Packages that are not builtins, standard lib, numpy, scipy, or scikit-learn.
+
+"""
 
 import pytest
 from sklearn.datasets import make_classification, make_regression
-from sklearn.utils._testing import assert_allclose_dense_sparse
 
 from skops.io import dumps, loads
-from skops.io.tests._utils import assert_params_equal
+from skops.io.tests._utils import assert_method_outputs_equal, assert_params_equal
 
-ATOL = 1e-6 if sys.platform == "darwin" else 1e-7
 # Default settings for generated data
 N_SAMPLES = 30
 N_FEATURES = 10
@@ -44,30 +46,6 @@ def rank_data(clf_data):
     return X, y, group
 
 
-def check_estimator(estimator, trusted):
-    loaded = loads(dumps(estimator), trusted=trusted)
-    assert_params_equal(estimator.get_params(), loaded.get_params())
-
-
-def check_method_outputs(estimator, X, trusted):
-    loaded = loads(dumps(estimator), trusted=trusted)
-    for method in [
-        "predict",
-        "predict_proba",
-        "decision_function",
-        "transform",
-        "predict_log_proba",
-    ]:
-        err_msg = (
-            f"{estimator.__class__.__name__}.{method}() doesn't produce the same"
-            " results after loading the persisted model."
-        )
-        if hasattr(estimator, method):
-            X_out1 = getattr(estimator, method)(X)
-            X_out2 = getattr(loaded, method)(X)
-            assert_allclose_dense_sparse(X_out1, X_out2, err_msg=err_msg, atol=ATOL)
-
-
 class TestLightGBM:
     """Tests for LGBMClassifier, LGBMRegressor, LGBMRanker"""
 
@@ -100,12 +78,13 @@ class TestLightGBM:
             kw["bagging_freq"] = 2
 
         estimator = lgbm.LGBMClassifier(boosting_type=boosting_type, **kw)
-        check_estimator(estimator, trusted=trusted)
+        loaded = loads(dumps(estimator), trusted=trusted)
+        assert_params_equal(estimator.get_params(), loaded.get_params())
 
         X, y = clf_data
         estimator.fit(X, y)
-        check_estimator(estimator, trusted=trusted)
-        check_method_outputs(estimator, X, trusted=trusted)
+        loaded = loads(dumps(estimator), trusted=trusted)
+        assert_method_outputs_equal(estimator, loaded, X)
 
     @pytest.mark.parametrize("boosting_type", boosting_types)
     def test_regressor(self, lgbm, regr_data, trusted, boosting_type):
@@ -115,12 +94,13 @@ class TestLightGBM:
             kw["bagging_freq"] = 2
 
         estimator = lgbm.LGBMRegressor(boosting_type=boosting_type, **kw)
-        check_estimator(estimator, trusted=trusted)
+        loaded = loads(dumps(estimator), trusted=trusted)
+        assert_params_equal(estimator.get_params(), loaded.get_params())
 
         X, y = regr_data
         estimator.fit(X, y)
-        check_estimator(estimator, trusted=trusted)
-        check_method_outputs(estimator, X, trusted=trusted)
+        loaded = loads(dumps(estimator), trusted=trusted)
+        assert_method_outputs_equal(estimator, loaded, X)
 
     @pytest.mark.parametrize("boosting_type", boosting_types)
     def test_ranker(self, lgbm, rank_data, trusted, boosting_type):
@@ -130,12 +110,13 @@ class TestLightGBM:
             kw["bagging_freq"] = 2
 
         estimator = lgbm.LGBMRanker(boosting_type=boosting_type, **kw)
-        check_estimator(estimator, trusted=trusted)
+        loaded = loads(dumps(estimator), trusted=trusted)
+        assert_params_equal(estimator.get_params(), loaded.get_params())
 
         X, y, group = rank_data
         estimator.fit(X, y, group=group)
-        check_estimator(estimator, trusted=trusted)
-        check_method_outputs(estimator, X, trusted=trusted)
+        loaded = loads(dumps(estimator), trusted=trusted)
+        assert_method_outputs_equal(estimator, loaded, X)
 
 
 class TestXGBoost:
@@ -184,12 +165,13 @@ class TestXGBoost:
             return
 
         estimator = xgboost.XGBClassifier(booster=booster, tree_method=tree_method)
-        check_estimator(estimator, trusted=trusted)
+        loaded = loads(dumps(estimator), trusted=trusted)
+        assert_params_equal(estimator.get_params(), loaded.get_params())
 
         X, y = clf_data
         estimator.fit(X, y)
-        check_estimator(estimator, trusted=trusted)
-        check_method_outputs(estimator, X, trusted=trusted)
+        loaded = loads(dumps(estimator), trusted=trusted)
+        assert_method_outputs_equal(estimator, loaded, X)
 
     @pytest.mark.parametrize("booster", boosters)
     @pytest.mark.parametrize("tree_method", tree_methods)
@@ -199,12 +181,13 @@ class TestXGBoost:
             return
 
         estimator = xgboost.XGBRegressor(booster=booster, tree_method=tree_method)
-        check_estimator(estimator, trusted=trusted)
+        loaded = loads(dumps(estimator), trusted=trusted)
+        assert_params_equal(estimator.get_params(), loaded.get_params())
 
         X, y = regr_data
         estimator.fit(X, y)
-        check_estimator(estimator, trusted=trusted)
-        check_method_outputs(estimator, X, trusted=trusted)
+        loaded = loads(dumps(estimator), trusted=trusted)
+        assert_method_outputs_equal(estimator, loaded, X)
 
     @pytest.mark.parametrize("booster", boosters)
     @pytest.mark.parametrize("tree_method", tree_methods)
@@ -214,12 +197,13 @@ class TestXGBoost:
             return
 
         estimator = xgboost.XGBRFClassifier(booster=booster, tree_method=tree_method)
-        check_estimator(estimator, trusted=trusted)
+        loaded = loads(dumps(estimator), trusted=trusted)
+        assert_params_equal(estimator.get_params(), loaded.get_params())
 
         X, y = clf_data
         estimator.fit(X, y)
-        check_estimator(estimator, trusted=trusted)
-        check_method_outputs(estimator, X, trusted=trusted)
+        loaded = loads(dumps(estimator), trusted=trusted)
+        assert_method_outputs_equal(estimator, loaded, X)
 
     @pytest.mark.parametrize("booster", boosters)
     @pytest.mark.parametrize("tree_method", tree_methods)
@@ -229,12 +213,13 @@ class TestXGBoost:
             return
 
         estimator = xgboost.XGBRFRegressor(booster=booster, tree_method=tree_method)
-        check_estimator(estimator, trusted=trusted)
+        loaded = loads(dumps(estimator), trusted=trusted)
+        assert_params_equal(estimator.get_params(), loaded.get_params())
 
         X, y = regr_data
         estimator.fit(X, y)
-        check_estimator(estimator, trusted=trusted)
-        check_method_outputs(estimator, X, trusted=trusted)
+        loaded = loads(dumps(estimator), trusted=trusted)
+        assert_method_outputs_equal(estimator, loaded, X)
 
     @pytest.mark.parametrize("booster", boosters)
     @pytest.mark.parametrize("tree_method", tree_methods)
@@ -244,12 +229,13 @@ class TestXGBoost:
             return
 
         estimator = xgboost.XGBRanker(booster=booster, tree_method=tree_method)
-        check_estimator(estimator, trusted=trusted)
+        loaded = loads(dumps(estimator), trusted=trusted)
+        assert_params_equal(estimator.get_params(), loaded.get_params())
 
         X, y, group = rank_data
         estimator.fit(X, y, group=group)
-        check_estimator(estimator, trusted=trusted)
-        check_method_outputs(estimator, X, trusted=trusted)
+        loaded = loads(dumps(estimator), trusted=trusted)
+        assert_method_outputs_equal(estimator, loaded, X)
 
 
 class TestCatboost:
@@ -297,29 +283,32 @@ class TestCatboost:
     @pytest.mark.parametrize("boosting_type", boosting_types)
     def test_classifier(self, catboost, cb_clf_data, trusted, boosting_type):
         estimator = catboost.CatBoostClassifier(boosting_type=boosting_type)
-        check_estimator(estimator, trusted=trusted)
+        loaded = loads(dumps(estimator), trusted=trusted)
+        assert_params_equal(estimator.get_params(), loaded.get_params())
 
         X, y = cb_clf_data
         estimator.fit(X, y, cat_features=[0, 1])
-        check_estimator(estimator, trusted=trusted)
-        check_method_outputs(estimator, X, trusted=trusted)
+        loaded = loads(dumps(estimator), trusted=trusted)
+        assert_method_outputs_equal(estimator, loaded, X)
 
     @pytest.mark.parametrize("boosting_type", boosting_types)
     def test_regressor(self, catboost, cb_regr_data, trusted, boosting_type):
         estimator = catboost.CatBoostRegressor(boosting_type=boosting_type)
-        check_estimator(estimator, trusted=trusted)
+        loaded = loads(dumps(estimator), trusted=trusted)
+        assert_params_equal(estimator.get_params(), loaded.get_params())
 
         X, y = cb_regr_data
         estimator.fit(X, y, cat_features=[0, 1])
-        check_estimator(estimator, trusted=trusted)
-        check_method_outputs(estimator, X, trusted=trusted)
+        loaded = loads(dumps(estimator), trusted=trusted)
+        assert_method_outputs_equal(estimator, loaded, X)
 
     @pytest.mark.parametrize("boosting_type", boosting_types)
     def test_ranker(self, catboost, cb_rank_data, trusted, boosting_type):
         estimator = catboost.CatBoostRanker(boosting_type=boosting_type)
-        check_estimator(estimator, trusted=trusted)
+        loaded = loads(dumps(estimator), trusted=trusted)
+        assert_params_equal(estimator.get_params(), loaded.get_params())
 
         X, y, group_id = cb_rank_data
         estimator.fit(X, y, cat_features=[0, 1], group_id=group_id)
-        check_estimator(estimator, trusted=trusted)
-        check_method_outputs(estimator, X, trusted=trusted)
+        loaded = loads(dumps(estimator), trusted=trusted)
+        assert_method_outputs_equal(estimator, loaded, X)

@@ -1,8 +1,14 @@
+import sys
 import warnings
 
 import numpy as np
 from scipy import sparse
 from sklearn.base import BaseEstimator
+from sklearn.utils._testing import assert_allclose_dense_sparse
+
+# TODO: Investigate why that seems to be an issue on MacOS (only observed with
+# Python 3.8)
+ATOL = 1e-6 if sys.platform == "darwin" else 1e-7
 
 
 def _is_steps_like(obj):
@@ -143,3 +149,22 @@ def assert_params_equal(params1, params2):
             assert_params_equal(val1, val2)
         else:
             _assert_vals_equal(val1, val2)
+
+
+def assert_method_outputs_equal(estimator, loaded, X):
+    # helper function that checks the output of all supported methods
+    for method in [
+        "predict",
+        "predict_proba",
+        "decision_function",
+        "transform",
+        "predict_log_proba",
+    ]:
+        err_msg = (
+            f"{estimator.__class__.__name__}.{method}() doesn't produce the same"
+            " results after loading the persisted model."
+        )
+        if hasattr(estimator, method):
+            X_out1 = getattr(estimator, method)(X)
+            X_out2 = getattr(loaded, method)(X)
+            assert_allclose_dense_sparse(X_out1, X_out2, err_msg=err_msg, atol=ATOL)

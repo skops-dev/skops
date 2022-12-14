@@ -2,7 +2,6 @@ import importlib
 import inspect
 import io
 import json
-import sys
 import warnings
 from collections import Counter
 from functools import partial, wraps
@@ -41,11 +40,7 @@ from sklearn.preprocessing import (
 )
 from sklearn.utils import all_estimators, check_random_state
 from sklearn.utils._tags import _safe_tags
-from sklearn.utils._testing import (
-    SkipTest,
-    assert_allclose_dense_sparse,
-    set_random_state,
-)
+from sklearn.utils._testing import SkipTest, set_random_state
 from sklearn.utils.estimator_checks import (
     _construct_instance,
     _enforce_estimator_tags_y,
@@ -59,15 +54,11 @@ from skops.io._sklearn import UNSUPPORTED_TYPES
 from skops.io._trusted_types import SKLEARN_ESTIMATOR_TYPE_NAMES
 from skops.io._utils import LoadContext, SaveContext, _get_state, get_state
 from skops.io.exceptions import UnsupportedTypeException
-from skops.io.tests._utils import assert_params_equal
+from skops.io.tests._utils import assert_method_outputs_equal, assert_params_equal
 
 # Default settings for X
 N_SAMPLES = 50
 N_FEATURES = 20
-
-# TODO: Investigate why that seems to be an issue on MacOS (only observed with
-# Python 3.8)
-ATOL = 1e-6 if sys.platform == "darwin" else 1e-7
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -354,22 +345,7 @@ def test_can_persist_fitted(estimator):
     assert_params_equal(estimator.__dict__, loaded.__dict__)
 
     assert not any(type_ in SKLEARN_ESTIMATOR_TYPE_NAMES for type_ in untrusted_types)
-
-    for method in [
-        "predict",
-        "predict_proba",
-        "decision_function",
-        "transform",
-        "predict_log_proba",
-    ]:
-        err_msg = (
-            f"{estimator.__class__.__name__}.{method}() doesn't produce the same"
-            " results after loading the persisted model."
-        )
-        if hasattr(estimator, method):
-            X_pred1 = getattr(estimator, method)(X)
-            X_pred2 = getattr(loaded, method)(X)
-            assert_allclose_dense_sparse(X_pred1, X_pred2, err_msg=err_msg, atol=ATOL)
+    assert_method_outputs_equal(estimator, loaded)
 
 
 @pytest.mark.parametrize(
