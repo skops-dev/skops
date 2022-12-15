@@ -85,7 +85,27 @@ In contrast to ``pickle``, skops cannot persist arbitrary Python code. This
 means if you have custom functions (say, a custom function to be used with
 :class:`sklearn.preprocessing.FunctionTransformer`), it will not work. However,
 most ``numpy`` and ``scipy`` functions should work. Therefore, you can actually
-save built-in functions like``numpy.sqrt``.
+save built-in functions like ``numpy.sqrt``.
+
+Supported libraries
+-------------------
+
+Skops intends to support all of **scikit-learn**, that is, not only its
+estimators, but also other classes like cross validation splitters. Furthermore,
+most types from **numpy** and **scipy** should be supported, such as (sparse)
+arrays, dtypes, random generators, and ufuncs.
+
+Apart from this core, we plan to support machine learning libraries commonly
+used be the community. So far, those are:
+
+- `LightGBM <https://lightgbm.readthedocs.io/>`_ (scikit-learn API)
+- `XGBoost <https://xgboost.readthedocs.io/en/stable/>`_ (scikit-learn API)
+- `CatBoost <https://catboost.ai/en/docs/>`_
+
+If you run into a problem using any of the mentioned libraries, this could mean
+there is a bug in skops. Please open an issue on `our issue tracker
+<https://github.com/skops-dev/skops/issues>`_ (but please check first if a
+corresponding issue already exists).
 
 Roadmap
 -------

@@ -9,12 +9,10 @@ import json
 import os
 import shutil
 from pathlib import Path
-from typing import Any, List, MutableMapping, Optional, Union
+from typing import Any, List, Literal, MutableMapping, Optional, Union
 
 import numpy as np
 from huggingface_hub import HfApi, InferenceApi, snapshot_download
-
-from ..utils.fixes import Literal
 
 SUPPORTED_TASKS = [
     "tabular-classification",
@@ -151,6 +149,11 @@ def _create_config(
         "text-regression",
     ],
     data,
+    model_format: Literal[  # type: ignore
+        "skops",
+        "pickle",
+        "auto",
+    ] = "auto",
 ) -> None:
     """Write the configuration into a ``config.json`` file.
 
@@ -185,6 +188,13 @@ def _create_config(
 
         The first 3 input values are used as example inputs.
 
+    model_format: str
+        The format used to persist the model. Can be ``"auto"``, ``"skops"``
+        or ``"pickle"``. Defaults to ``"auto"``, which would mean:
+
+        - ``"pickle"`` if the extension is one of ``{".pickle", ".pkl", ".joblib"}``
+        - ``"skops"`` if the extension is ``".skops"``
+
     Returns
     -------
     None
@@ -195,10 +205,22 @@ def _create_config(
     def recursively_default_dict() -> MutableMapping:
         return collections.defaultdict(recursively_default_dict)
 
+    if model_format == "auto":
+        extension = Path(model_path).suffix
+        if extension in [".pkl", ".pickle", ".joblib"]:
+            model_format = "pickle"
+        elif extension == ".skops":
+            model_format = "skops"
+    if model_format not in ["skops", "pickle"]:
+        raise ValueError(
+            "Cannot determine the input file format. Please indicate the format using"
+            " the `model_format` argument."
+        )
     config = recursively_default_dict()
     config["sklearn"]["model"]["file"] = str(model_path)
     config["sklearn"]["environment"] = requirements
     config["sklearn"]["task"] = task
+    config["sklearn"]["model_format"] = model_format
 
     if "tabular" in task:
         config["sklearn"]["example_input"] = _get_example_input(data)
@@ -251,6 +273,11 @@ def init(
         "text-regression",
     ],
     data,
+    model_format: Literal[  # type: ignore
+        "skops",
+        "pickle",
+        "auto",
+    ] = "auto",
 ) -> None:
     """Initialize a scikit-learn based Hugging Face repo.
 
@@ -291,6 +318,10 @@ def init(
         :class:`numpy.ndarray`. If ``task`` is ``"text-classification"`` or
         ``"text-regression"``, the data needs to be a ``list`` of strings.
 
+    model_format: str
+        The format the model was persisted in. Can be ``"auto"``, ``"skops"``
+        or ``"pickle"``. Defaults to ``"auto"`` that relies on file extension.
+
     Returns
     -------
     None
@@ -318,6 +349,7 @@ def init(
             dst=dst,
             task=task,
             data=data,
+            model_format=model_format,
         )
     except Exception:
         shutil.rmtree(dst)
