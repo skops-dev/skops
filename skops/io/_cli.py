@@ -29,7 +29,7 @@ def _convert(
         untrusted_str = "\n".join(untrusted_types)
 
         logging.warning(
-            "Unsafe Types Detected!\n"
+            "Unknown Types Detected!\n"
             f"While converting {model_name}, "
             "the following unsafe types were found: \n"
             f"{untrusted_str}\n"
