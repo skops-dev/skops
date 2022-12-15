@@ -11,6 +11,7 @@ skops Changelog
 
 v0.6
 ----
+- Added tabular regression example. :pr: `254` by `Thomas Lazarus`
 
 v0.5
 ----
@@ -102,4 +103,4 @@ Contributors
 :user:`Adrin Jalali <adrinjalali>`, :user:`Merve Noyan <merveenoyan>`,
 :user:`Benjamin Bossan <BenjaminBossan>`, :user:`Ayyuce Demirbas
 <ayyucedemirbas>`, :user:`Prajjwal Mishra <p-mishra1>`, :user:`Francesco Cariaggi <anferico>`,
-:user:`Erin Aho <E-Aho>`
+:user:`Erin Aho <E-Aho>`, :user:`Thomas Lazarus <lazarust>`
