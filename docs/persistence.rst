@@ -33,15 +33,16 @@ In contrast to ``pickle``, the :func:`skops.io.dump` and :func:`skops.io.load`
 functions have a more limited scope, while preventing users from running
 arbitrary code or loading unknown and malicious objects.
 
-When loading a file, :func:`skops.io.load`/:func:`skops.io.loads` will read
-traverse the input and check for known and unknown types, and will only
-construct those objects if they are trusted, either by default or by the user.
+When loading a file, :func:`skops.io.load`/:func:`skops.io.loads` will traverse
+the input, check for known and unknown types, and will only construct those
+objects if they are trusted, either by default or by the user.
 
 Usage
 -----
 
 The code snippet below illustrates how to use :func:`skops.io.dump` and
-:func:`skops.io.load`:
+:func:`skops.io.load`. Note that one needs `XGBoost
+<https://xgboost.readthedocs.io/en/stable/>`__ installed to run this:
 
 .. code:: python
 
@@ -93,10 +94,10 @@ you can load the file with ``trusted=unknown_types``:
 At the moment, we support the vast majority of sklearn estimators. This
 includes complex use cases such as :class:`sklearn.pipeline.Pipeline`,
 :class:`sklearn.model_selection.GridSearchCV`, classes using objects defined in
-Cython such such as :class:`sklearn.tree.DecisionTreeClassifier`, and more. If
-you discover an sklearn estimator that does not work, please open an issue on
-the skops `GitHub page <https://github.com/skops-dev/skops/issues>`__ and let
-us know.
+Cython such as :class:`sklearn.tree.DecisionTreeClassifier`, and more. If you
+discover an sklearn estimator that does not work, please open an issue on the
+skops `GitHub page <https://github.com/skops-dev/skops/issues>`__ and let us
+know.
 
 At the moment, ``skops`` cannot persist arbitrary Python code. This means if
 you have custom functions (say, a custom function to be used with
@@ -130,8 +131,8 @@ There needs to be more testing to harden the loader and make sure we don't run
 arbitrary code when it's not intended. However, the safety mechanisms already
 in place should prevent most cases of abuse.
 
-At the moment most persisting and loading arbitrary C extension types is not
-possible unless a python object wraps around them and handles persistance and
+At the moment, persisting and loading arbitrary C extension types is not
+possible, unless a python object wraps around them and handles persistence and
 loading via ``__getstate__`` and ``__setstate__``. We plan to develop an API
 which would help third party libraries to make their C extension types
 ``skops`` compatible.
