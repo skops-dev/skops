@@ -157,22 +157,47 @@ class Markdown:
         _, txt = item
         return f"`{txt}`"
 
-    def _table(self, item) -> str:
-        _, alignments, _, header, rows = item
+    def _table_cols(self, items) -> list[str]:
+        columns = []
         fn = self.__call__
-        columns = ["".join(fn(part) for part in col) for col in header]
-        if not columns:
-            raise ValueError("Table with no columns...")
+        for item in items:
+            _, alignment, _, _, content = item
+            column = "".join(fn(part) for part in content)
+            columns.append(column)
+        return columns
 
-        data = []  # row oriented
-        for row in rows:
-            data.append(["".join(fn(part) for part in col) for col in row])
+    def _table_body(self, items) -> list[list[str]]:
+        body = []
+        fn = self.__call__
+        for _, row_items in items:
+            row = []
+            for col_row_item in row_items:
+                _, alignment, _, _, content = col_row_item
+                row.append("".join(fn(part) for part in content))
+            body.append(row)
+        return body
+
+    def _table(self, item) -> str:
+        # attr capt specs thead tbody tfoot
+        _, _, _, thead, tbody, _ = item
+
+        # header
+        (_, thead_bodies) = thead
+        (attr, thead_body) = thead_bodies[0]  # multiple headers?
+
+        columns = self._table_cols(thead_body)
+
+        # rows
+        # attr rhc hd bd
+        _, _, _, trows = tbody[0]  # multiple groups of rows?
+        body = self._table_body(trows)
 
         table: Mapping[str, Sequence[Any]]
-        if not data:
+        if not body:
             table = {key: [] for key in columns}
         else:
-            data_transposed = zip(*data)  # column oriented
+            # body is row oriented, transpose to column oriented
+            data_transposed = zip(*body)
             table = {key: val for key, val in zip(columns, data_transposed)}
 
         res = TableSection(table).format()
