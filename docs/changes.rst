@@ -21,6 +21,10 @@ v0.4
   :pr:`242` by `Merve Noyan`_.
 - Persistence now supports bytes and bytearrays, added tests to verify that
   LightGBM, XGBoost, and CatBoost work now. :pr:`244` by `Benjamin Bossan`_.
+- :mod:`skops.card` is reworked and now supports adding custom sections
+  programmatically as well as enabling users to use custom templates. See the
+  :ref:`model card user guide <model_card>` for more information. :pr:`255` by
+  `Benjamin Bossan`_.
 
 v0.3
 ----
