@@ -12,7 +12,7 @@ import json
 import subprocess
 from pathlib import Path
 from tempfile import mkdtemp
-from typing import Any
+from typing import Any, Sequence
 
 import yaml  # type: ignore
 
@@ -20,6 +20,8 @@ from skops.card import Card
 from skops.card._model_card import Section
 
 from ._markup import Markdown, PandocItem
+
+PANDOC_MIN_VERSION = (2, 19, 0)
 
 
 class PandocParser:
@@ -95,20 +97,71 @@ class PandocParser:
         return self.card
 
 
-def check_pandoc_installed() -> None:
+def _get_pandoc_version() -> list[int]:
+    """Shell out to retrieve the pandoc version
+
+    Raises
+    ------
+    RuntimeError
+        If pandoc version could not be determined, raise a ``RuntimeError``.
+
+    Returns
+    -------
+    pandoc_version : list[int]
+        The pandoc version as a list of ints.
+    """
+    proc = subprocess.run(
+        ["pandoc", "--version"],
+        capture_output=True,
+    )
+    version_info = str(proc.stdout.decode("utf-8")).split("\n", 1)[0]
+    if not version_info.startswith("pandoc "):
+        raise RuntimeError("Could not determine version of pandoc")
+
+    _, _, actual_version = version_info.partition(" ")
+    pandoc_version = [int(v) for v in actual_version.split(".")]
+    return pandoc_version
+
+
+def _check_version_greater_equal(
+    version: Sequence[int], min_version: Sequence[int]
+) -> None:
+    """Very bad version comparison function to ensure that the first version is
+    >= the second."""
+    for v1, v2 in zip(version, min_version):
+        if v1 > v2:
+            return
+
+        if v1 < v2:
+            raise ValueError(
+                "Pandoc version too low, expected at least "
+                f"{'.'.join(map(str, min_version))}"
+            )
+
+
+def check_pandoc_installed(
+    min_version: Sequence[int] | None = PANDOC_MIN_VERSION,
+) -> None:
     """Check if pandoc is installed on the system
+
+    Parameters
+    ----------
+    min_version : list[int] or None
+        If passed, check that the pandoc version is greater or equal to this one.
 
     Raises
     ------
     FileNotFoundError
         When the binary is not found, raise this error.
 
+    RuntimeError
+        If pandoc version could not be determined, raise a ``RuntimeError``.
+
+    ValueError
+        If min version is passed and not matched or exceeded, raise a ``ValueError``.
     """
     try:
-        subprocess.run(
-            ["pandoc", "--version"],
-            capture_output=True,
-        )
+        pandoc_version = _get_pandoc_version()
     except FileNotFoundError as exc:
         msg = (
             "This feature requires the pandoc library to be installed on your system, "
@@ -116,6 +169,11 @@ def check_pandoc_installed() -> None:
             "https://pandoc.org/installing.html"
         )
         raise FileNotFoundError(msg) from exc
+
+    if not min_version:
+        return
+
+    _check_version_greater_equal(pandoc_version, min_version)
 
 
 def _card_with_detached_metainfo(path: str | Path) -> tuple[str | Path, dict[str, Any]]:

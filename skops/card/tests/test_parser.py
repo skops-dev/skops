@@ -13,7 +13,7 @@ try:
     check_pandoc_installed()
 except FileNotFoundError:
     # not installed, skip
-    pytest.skip(reason="These tests require pandoc", allow_module_level=True)
+    pytest.skip(reason="These tests require a recent pandoc", allow_module_level=True)
 
 
 @pytest.fixture
