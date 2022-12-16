@@ -728,7 +728,6 @@ class Card:
         -------
         self : object
             Card object.
-
         """
         if not self.model_diagram:
             return self
