@@ -37,6 +37,11 @@ When loading a file, :func:`skops.io.load`/:func:`skops.io.loads` will traverse
 the input, check for known and unknown types, and will only construct those
 objects if they are trusted, either by default or by the user.
 
+.. note::
+    You can try out converting your existing pickle files to the skops format
+    using this Space on Hugging Face Hub:
+    `pickle-to-skops <https://huggingface.co/spaces/scikit-learn/pickle-to-skops>`__.
+
 Usage
 -----
 
