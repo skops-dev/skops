@@ -1,5 +1,7 @@
 """Classes for translating into the syntax of different markup languages"""
 
+from __future__ import annotations
+
 import sys
 from collections.abc import Mapping
 from typing import Any, Sequence
