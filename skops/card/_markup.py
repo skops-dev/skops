@@ -1,9 +1,15 @@
 """Classes for translating into the syntax of different markup languages"""
 
+import sys
 from collections.abc import Mapping
-from typing import Any, Sequence, TypedDict
+from typing import Any, Sequence
 
 from skops.card._model_card import TableSection
+
+if sys.version_info.minor >= 9:
+    from typing import TypedDict
+else:
+    from typing_extensions import TypedDict
 
 
 class PandocItem(TypedDict):

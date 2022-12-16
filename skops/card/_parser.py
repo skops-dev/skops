@@ -239,7 +239,7 @@ def parse_modelcard(path: str | Path) -> Card:
     >>> import numpy as np
     >>> from sklearn.linear_model import LinearRegression
     >>> from skops.card import Card
-    >>> from skops.card import parse_card
+    >>> from skops.card import parse_modelcard
     >>> X = np.array([[1, 1], [1, 2], [2, 2], [2, 3]])
     >>> y = np.dot(X, np.array([1, 2])) + 3
     >>> regr = LinearRegression().fit(X, y)
@@ -249,6 +249,7 @@ def parse_modelcard(path: str | Path) -> Card:
     >>> parsed_card = parse_modelcard("README.md")
     >>> # continue editing the card
     >>> parsed_card.add(**{"My new section": "My new content"})
+    Card(...)
     >>> # overwrite old card with new one
     >>> parsed_card.save("README.md")
 
