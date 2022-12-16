@@ -12,7 +12,6 @@ a model card for the model and the task at hand.
 # =======
 # First we will import everything required for the rest of this document.
 
-import pickle
 from pathlib import Path
 from tempfile import mkdtemp, mkstemp
 
@@ -22,7 +21,7 @@ from sklearn.datasets import load_diabetes
 from sklearn.metrics import (
     mean_absolute_error, 
     mean_squared_error, 
-    r2_score
+    r2_score,
 )
 from sklearn.datasets import load_diabetes
 from sklearn.model_selection import train_test_split
@@ -32,6 +31,7 @@ from sklearn.pipeline import Pipeline
 
 import matplotlib.pyplot as plt
 from skops import card, hub_utils
+import skops.io as sio
 
 # %%
 # Data
@@ -68,7 +68,7 @@ print(prediction)
 _, pkl_name = mkstemp(prefix="skops-", suffix=".pkl")
 
 with open(pkl_name, mode="bw") as f:
-    pickle.dump(model, file=f)
+    sio.dump(model, file=f)
 
 local_repo = mkdtemp(prefix="skops-")
 
@@ -98,22 +98,25 @@ model_card = card.Card(model, metadata=card.metadata_from_config(Path(local_repo
 # license is.
 
 model_card.metadata.license = "mit"
-limitations = "This model is not ready to be used in production."
+limitations = "This model is not ready to be used in production since it is relatively basic."
 model_description = (
     "This is a Linear Regression model trained on diabetes dataset."
+    " This model could be used to predict the progression of diabetes."
+    " This model is pretty limited and should just be used as an example of how to user `skops` and Hugging Face Hub."
 )
-model_card_authors = "skops_user"
+model_card_authors = "skops_user, lazarust"
 get_started_code = (
-    "import pickle\nwith open(pkl_filename, 'rb') as file:\n    clf = pickle.load(file)"
+    "import skops.io as sio \nwith open(pkl_filename, 'rb') as file:\n    clf = sio.load(file)"
 )
-citation_bibtex = "bibtex\n@inproceedings{...,year={2020}}"
-model_card.add(
-    citation_bibtex=citation_bibtex,
-    get_started_code=get_started_code,
-    model_card_authors=model_card_authors,
-    limitations=limitations,
-    model_description=model_description,
-)
+citation_bibtex = "bibtex\n@inproceedings{...,year={2022}}"
+model_card.add(**{
+    "How to Get Started with the Model": get_started_code,
+    "Model Card Authors": model_card_authors,
+    "Intended uses & limitations": limitations,
+    "Citation": citation_bibtex,
+    "Model description": model_description,
+    "Model description/Intended uses & limitations": limitations,
+})
 
 # %%
 # Add plots, metrics, and tables to our model card
@@ -121,19 +124,13 @@ model_card.add(
 # We will now evaluate our model and add our findings to the model card.
 
 y_pred = model.predict(X_test)
-eval_descr = (
-    "The model is evaluated on validation data from 20 news group's test split,"
-    " using accuracy and F1-score with micro average."
-)
-model_card.add(eval_method=eval_descr)
-
 
 # plot the predicted values against the true values
 plt.scatter(y_test, y_pred)
 plt.xlabel('True values')
 plt.ylabel('Predicted values')
 plt.savefig(Path(local_repo) / "prediction_scatter.png")
-model_card.add_plot(**{"Confusion matrix": "prediction_scatter.png"})
+model_card.add_plot(**{"Prediction Scatter": "prediction_scatter.png"})
 
 mae = mean_absolute_error(y_test, y_pred)
 mse = mean_squared_error(y_test, y_pred)
@@ -148,5 +145,4 @@ model_card.add_metrics(**{"mean absolute error": mae, "mean squared error": mse,
 # to push your models please refer to
 # :ref:`this example <sphx_glr_auto_examples_plot_hf_hub.py>`.
 
-# model_card.save(Path(local_repo) / "README.md")
-model_card.save("./README.md")
+model_card.save(Path(local_repo) / "README.md")
