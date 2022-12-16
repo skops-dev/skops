@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import importlib
-import json  # type: ignore
 import sys
 from dataclasses import dataclass, field
 from functools import singledispatch
-from typing import Any
+from typing import Any, Type
 from zipfile import ZipFile
 
 
@@ -29,7 +28,7 @@ def _getattribute(obj, name):
 
 # This function is particularly used to detect the path of functions such as
 # ufuncs. It returns the full path, instead of returning the module name.
-def whichmodule(obj, name):
+def whichmodule(obj: Any, name: str) -> str:
     """Find the module an object belong to."""
     module_name = getattr(obj, "__module__", None)
     if module_name is not None:
@@ -54,17 +53,18 @@ def whichmodule(obj, name):
 # ---------------------------------------------------------------------
 
 
-def _import_obj(module, cls_or_func, package=None):
+def _import_obj(module: str, cls_or_func: str, package: str | None = None) -> Any:
     return getattr(importlib.import_module(module, package=package), cls_or_func)
 
 
-def gettype(state):
-    if "__module__" in state and "__class__" in state:
-        return _import_obj(state["__module__"], state["__class__"])
-    return None
+def gettype(module_name: str, cls_or_func: str) -> Type[Any]:
+    if module_name and cls_or_func:
+        return _import_obj(module_name, cls_or_func)
+
+    raise ValueError(f"Object {cls_or_func} of module {module_name} is unknown")
 
 
-def get_module(obj):
+def get_module(obj: Any) -> str:
     """Find module for given object
 
     If the module cannot be identified, it's assumed to be "__main__".
@@ -88,10 +88,10 @@ DEFAULT_PROTOCOL = 0
 
 
 @dataclass(frozen=True)
-class SaveState:
-    """State required for saving the objects
+class SaveContext:
+    """Context required for saving the objects
 
-    This state is passed to each ``get_state_*`` function.
+    This context is passed to each ``get_state_*`` function.
 
     Parameters
     ----------
@@ -122,22 +122,82 @@ class SaveState:
         self.memo.clear()
 
 
+@dataclass(frozen=True)
+class LoadContext:
+    """Context required for loading an object
+
+    This context is passed to each ``*Node`` class when loading an object.
+
+    Parameters
+    ----------
+    src: zipfile.ZipFile
+        The zip file the target object is saved in
+    """
+
+    src: ZipFile
+    memo: dict[int, Any] = field(default_factory=dict)
+
+    def memoize(self, obj: Any, id: int) -> None:
+        self.memo[id] = obj
+
+    def get_object(self, id: int) -> Any:
+        return self.memo.get(id)
+
+
 @singledispatch
-def _get_state(obj, save_state):
+def _get_state(obj, save_context: SaveContext):
     # This function should never be called directly. Instead, it is used to
     # dispatch to the correct implementation of get_state for the given type of
     # its first argument.
     raise TypeError(f"Getting the state of type {type(obj)} is not supported yet")
 
 
-def get_state(value, save_state):
+def get_state(value, save_context: SaveContext) -> dict[str, Any]:
     # This is a helper function to try to get the state of an object. If it
     # fails with `get_state`, we try with json.dumps, if that fails, we raise
     # the original error alongside the json error.
-    try:
-        return _get_state(value, save_state)
-    except TypeError as e1:
-        try:
-            return json.dumps(value)
-        except Exception as e2:
-            raise e1 from e2
+
+    # TODO: This should help with fixing recursive references.
+    # if id(value) in save_context.memo:
+    #     return {
+    #         "__module__": None,
+    #         "__class__": None,
+    #         "__id__": id(value),
+    #         "__loader__": "CachedNode",
+    #     }
+
+    __id__ = save_context.memoize(obj=value)
+
+    res = _get_state(value, save_context)
+
+    res["__id__"] = __id__
+    return res
+
+
+def get_type_name(t: Any) -> str:
+    """Helper function to take in a type, and return its name as a string"""
+    return f"{get_module(t)}.{t.__name__}"
+
+
+def get_type_paths(types: Any) -> list[str]:
+    """Helper function that takes in a types,
+    and converts any the types found to a list of strings.
+
+    Parameters
+    ----------
+    types: Any
+        Types to get. Can be either a string, a single type, or a list of strings
+        and types.
+
+    Returns
+    ----------
+    types_list: list of str
+        The list of types, all as strings, e.g. ``["builtins.list"]``.
+
+    """
+    if not types:
+        return []
+    if not isinstance(types, (list, tuple)):
+        types = [types]
+
+    return [get_type_name(t) if not isinstance(t, str) else t for t in types]

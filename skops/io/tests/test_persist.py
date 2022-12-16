@@ -2,7 +2,6 @@ import importlib
 import inspect
 import io
 import json
-import sys
 import warnings
 from collections import Counter
 from functools import partial, wraps
@@ -41,11 +40,7 @@ from sklearn.preprocessing import (
 )
 from sklearn.utils import all_estimators, check_random_state
 from sklearn.utils._tags import _safe_tags
-from sklearn.utils._testing import (
-    SkipTest,
-    assert_allclose_dense_sparse,
-    set_random_state,
-)
+from sklearn.utils._testing import SkipTest, set_random_state
 from sklearn.utils.estimator_checks import (
     _construct_instance,
     _enforce_estimator_tags_y,
@@ -53,24 +48,22 @@ from sklearn.utils.estimator_checks import (
 )
 
 import skops
-from skops.io import dump, dumps, load, loads
-from skops.io._dispatch import GET_INSTANCE_MAPPING, get_instance
+from skops.io import dump, dumps, get_untrusted_types, load, loads
+from skops.io._audit import NODE_TYPE_MAPPING, get_tree
 from skops.io._sklearn import UNSUPPORTED_TYPES
-from skops.io._utils import _get_state, get_state
+from skops.io._trusted_types import SKLEARN_ESTIMATOR_TYPE_NAMES
+from skops.io._utils import LoadContext, SaveContext, _get_state, get_state
 from skops.io.exceptions import UnsupportedTypeException
+from skops.io.tests._utils import assert_method_outputs_equal, assert_params_equal
 
 # Default settings for X
 N_SAMPLES = 50
 N_FEATURES = 20
 
-# TODO: Investigate why that seems to be an issue on MacOS (only observed with
-# Python 3.8)
-ATOL = 1e-6 if sys.platform == "darwin" else 1e-7
-
 
 @pytest.fixture(autouse=True, scope="module")
 def debug_dispatch_functions():
-    # Patch the get_state and get_instance methods to add some sanity checks on
+    # Patch the get_state and get_tree methods to add some sanity checks on
     # them. Specifically, we test that the arguments of the functions all follow
     # the same pattern to enforce consistency and that the "state" is either a
     # dict with specified keys or a primitive type.
@@ -79,11 +72,12 @@ def debug_dispatch_functions():
         # Check consistency of argument names, output type, and that the output,
         # if a dict, has certain keys, or if not a dict, is a primitive type.
         signature = inspect.signature(func)
-        assert list(signature.parameters.keys()) == ["obj", "save_state"]
+        assert list(signature.parameters.keys()) == ["obj", "save_context"]
 
         @wraps(func)
-        def wrapper(obj, save_state):
-            result = func(obj, save_state)
+        def wrapper(obj, save_context):
+            # NB: __id__ set in main 'get_state' func, so no check here
+            result = func(obj, save_context)
 
             assert "__class__" in result
             assert "__module__" in result
@@ -93,31 +87,32 @@ def debug_dispatch_functions():
 
         return wrapper
 
-    def debug_get_instance(func):
+    def debug_get_tree(func):
         # check consistency of argument names and input type
         signature = inspect.signature(func)
-        assert list(signature.parameters.keys()) == ["state", "src"]
+        assert list(signature.parameters.keys()) == ["state", "load_context", "trusted"]
 
         @wraps(func)
-        def wrapper(state, src):
+        def wrapper(state, load_context, trusted):
             assert "__class__" in state
             assert "__module__" in state
             assert "__loader__" in state
-            assert isinstance(src, ZipFile)
+            assert "__id__" in state
+            assert isinstance(load_context, LoadContext)
 
-            result = func(state, src)
+            result = func(state, load_context, trusted)
             return result
 
         return wrapper
 
     modules = ["._general", "._numpy", "._scipy", "._sklearn"]
     for module_name in modules:
-        # overwrite exposed functions for get_state and get_instance
+        # overwrite exposed functions for get_state and get_tree
         module = importlib.import_module(module_name, package="skops.io")
         for cls, method in getattr(module, "GET_STATE_DISPATCH_FUNCTIONS", []):
             _get_state.register(cls)(debug_get_state(method))
-        for key, method in GET_INSTANCE_MAPPING.copy().items():
-            GET_INSTANCE_MAPPING[key] = debug_get_instance(method)
+        for key, method in NODE_TYPE_MAPPING.copy().items():
+            NODE_TYPE_MAPPING[key] = debug_get_tree(method)
 
 
 def _tested_estimators(type_filter=None):
@@ -255,152 +250,12 @@ def _unsupported_estimators(type_filter=None):
         yield estimator
 
 
-def _is_steps_like(obj):
-    # helper function to check if an object is something like Pipeline.steps,
-    # i.e. a list of tuples of names and estimators
-    if not isinstance(obj, list):  # must be a list
-        return False
-
-    if not obj:  # must not be empty
-        return False
-
-    if not isinstance(obj[0], tuple):  # must be list of tuples
-        return False
-
-    lens = set(map(len, obj))
-    if not lens == {2}:  # all elements must be length 2 tuples
-        return False
-
-    keys, vals = list(zip(*obj))
-
-    if len(keys) != len(set(keys)):  # keys must be unique
-        return False
-
-    if not all(map(lambda x: isinstance(x, (type(None), BaseEstimator)), vals)):
-        # values must be BaseEstimators or None
-        return False
-
-    return True
-
-
-def _assert_generic_objects_equal(val1, val2):
-    def _is_builtin(val):
-        # Check if value is a builtin type
-        return getattr(getattr(val, "__class__", {}), "__module__", None) == "builtins"
-
-    if isinstance(val1, (list, tuple, np.ndarray)):
-        assert len(val1) == len(val2)
-        for subval1, subval2 in zip(val1, val2):
-            _assert_generic_objects_equal(subval1, subval2)
-            return
-
-    assert type(val1) == type(val2)
-    if hasattr(val1, "__dict__"):
-        assert_params_equal(val1.__dict__, val2.__dict__)
-    elif _is_builtin(val1):
-        assert val1 == val2
-    else:
-        # not a normal Python class, could be e.g. a Cython class
-        assert val1.__reduce__() == val2.__reduce__()
-
-
-def _assert_tuples_equal(val1, val2):
-    assert len(val1) == len(val2)
-    for subval1, subval2 in zip(val1, val2):
-        _assert_vals_equal(subval1, subval2)
-
-
-def _assert_vals_equal(val1, val2):
-    if hasattr(val1, "__getstate__"):
-        # This includes BaseEstimator since they implement __getstate__ and
-        # that returns the parameters as well.
-        #
-        # Some objects return a tuple of parameters, others a dict.
-        state1 = val1.__getstate__()
-        state2 = val2.__getstate__()
-        assert type(state1) == type(state2)
-        if isinstance(state1, tuple):
-            _assert_tuples_equal(state1, state2)
-        else:
-            assert_params_equal(val1.__getstate__(), val2.__getstate__())
-    elif sparse.issparse(val1):
-        assert sparse.issparse(val2) and ((val1 - val2).nnz == 0)
-    elif isinstance(val1, (np.ndarray, np.generic)):
-        if len(val1.dtype) == 0:
-            # for arrays with at least 2 dimensions, check that contiguity is
-            # preserved
-            if val1.squeeze().ndim > 1:
-                assert val1.flags["C_CONTIGUOUS"] is val2.flags["C_CONTIGUOUS"]
-                assert val1.flags["F_CONTIGUOUS"] is val2.flags["F_CONTIGUOUS"]
-            if val1.dtype == object:
-                assert val2.dtype == object
-                assert val1.shape == val2.shape
-                for subval1, subval2 in zip(val1, val2):
-                    _assert_generic_objects_equal(subval1, subval2)
-            else:
-                # simple comparison of arrays with simple dtypes, almost all
-                # arrays are of this sort.
-                np.testing.assert_array_equal(val1, val2)
-        elif len(val1.shape) == 1:
-            # comparing arrays with structured dtypes, but they have to be 1D
-            # arrays. This is what we get from the Tree's state.
-            assert np.all([x == y for x, y in zip(val1, val2)])
-        else:
-            # we don't know what to do with these values, for now.
-            assert False
-    elif isinstance(val1, (tuple, list)):
-        assert len(val1) == len(val2)
-        for subval1, subval2 in zip(val1, val2):
-            _assert_vals_equal(subval1, subval2)
-    elif isinstance(val1, float) and np.isnan(val1):
-        assert np.isnan(val2)
-    elif isinstance(val1, dict):
-        # dictionaries are compared by comparing their values recursively.
-        assert set(val1.keys()) == set(val2.keys())
-        for key in val1:
-            _assert_vals_equal(val1[key], val2[key])
-    elif hasattr(val1, "__dict__") and hasattr(val2, "__dict__"):
-        _assert_vals_equal(val1.__dict__, val2.__dict__)
-    elif isinstance(val1, np.ufunc):
-        assert val1 == val2
-    elif val1.__class__.__module__ == "builtins":
-        assert val1 == val2
-    else:
-        _assert_generic_objects_equal(val1, val2)
-
-
-def assert_params_equal(params1, params2):
-    # helper function to compare estimator dictionaries of parameters
-    assert len(params1) == len(params2)
-    assert set(params1.keys()) == set(params2.keys())
-    for key in params1:
-        with warnings.catch_warnings():
-            # this is to silence the deprecation warning from _DictWithDeprecatedKeys
-            warnings.filterwarnings("ignore", category=FutureWarning, module="sklearn")
-            val1, val2 = params1[key], params2[key]
-        assert type(val1) == type(val2)
-
-        if _is_steps_like(val1):
-            # Deal with Pipeline.steps, FeatureUnion.transformer_list, etc.
-            assert _is_steps_like(val2)
-            val1, val2 = dict(val1), dict(val2)
-
-        if isinstance(val1, (tuple, list)):
-            assert len(val1) == len(val2)
-            for subval1, subval2 in zip(val1, val2):
-                _assert_vals_equal(subval1, subval2)
-        elif isinstance(val1, dict):
-            assert_params_equal(val1, val2)
-        else:
-            _assert_vals_equal(val1, val2)
-
-
 @pytest.mark.parametrize(
     "estimator", _tested_estimators(), ids=_get_check_estimator_ids
 )
 def test_can_persist_non_fitted(estimator):
     """Check that non-fitted estimators can be persisted."""
-    loaded = loads(dumps(estimator))
+    loaded = loads(dumps(estimator), trusted=True)
     assert_params_equal(estimator.get_params(), loaded.get_params())
 
 
@@ -466,7 +321,7 @@ def get_input(estimator):
 @pytest.mark.parametrize(
     "estimator", _tested_estimators(), ids=_get_check_estimator_ids
 )
-def test_can_persist_fitted(estimator, request):
+def test_can_persist_fitted(estimator):
     """Check that fitted estimators can be persisted and return the right results."""
     set_random_state(estimator, random_state=0)
 
@@ -480,24 +335,17 @@ def test_can_persist_fitted(estimator, request):
             else:
                 estimator.fit(X)
 
-    loaded = loads(dumps(estimator))
+    # test that we can get a list of untrusted types. This is a smoke test
+    # to make sure there are no errors running this method.
+    # it is in this test to save time, as it requires a fitted estimator.
+    dumped = dumps(estimator)
+    untrusted_types = get_untrusted_types(data=dumped)
+
+    loaded = loads(dumped, trusted=untrusted_types)
     assert_params_equal(estimator.__dict__, loaded.__dict__)
 
-    for method in [
-        "predict",
-        "predict_proba",
-        "decision_function",
-        "transform",
-        "predict_log_proba",
-    ]:
-        err_msg = (
-            f"{estimator.__class__.__name__}.{method}() doesn't produce the same"
-            " results after loading the persisted model."
-        )
-        if hasattr(estimator, method):
-            X_pred1 = getattr(estimator, method)(X)
-            X_pred2 = getattr(loaded, method)(X)
-            assert_allclose_dense_sparse(X_pred1, X_pred2, err_msg=err_msg, atol=ATOL)
+    assert not any(type_ in SKLEARN_ESTIMATOR_TYPE_NAMES for type_ in untrusted_types)
+    assert_method_outputs_equal(estimator, loaded, X)
 
 
 @pytest.mark.parametrize(
@@ -544,6 +392,7 @@ class RandomStateEstimator(BaseEstimator):
         np.random.default_rng(),
         np.random.Generator(np.random.PCG64DXSM(seed=123)),
     ],
+    ids=["None", "int", "RandomState", "default_rng", "Generator"],
 )
 def test_random_state(random_state):
     # Numpy random Generators
@@ -553,7 +402,7 @@ def test_random_state(random_state):
     est = RandomStateEstimator(random_state=random_state).fit(None, None)
     est.random_state_.random(123)  # move RNG forwards
 
-    loaded = loads(dumps(est))
+    loaded = loads(dumps(est), trusted=True)
     rand_floats_expected = est.random_state_.random(100)
     rand_floats_loaded = loaded.random_state_.random(100)
     np.testing.assert_equal(rand_floats_loaded, rand_floats_expected)
@@ -583,7 +432,7 @@ class CVEstimator(BaseEstimator):
 )
 def test_cross_validator(cv):
     est = CVEstimator(cv=cv).fit(None, None)
-    loaded = loads(dumps(est))
+    loaded = loads(dumps(est), trusted=True)
     X, y = make_classification(
         n_samples=N_SAMPLES, n_features=N_FEATURES, random_state=0
     )
@@ -625,7 +474,7 @@ def test_numpy_object_dtype_2d_array(transpose):
     if transpose:
         est.obj_array_ = est.obj_array_.T
 
-    loaded = loads(dumps(est))
+    loaded = loads(dumps(est), trusted=True)
     assert_params_equal(est.__dict__, loaded.__dict__)
 
 
@@ -740,7 +589,7 @@ def test_identical_numpy_arrays_not_duplicated():
     X = np.random.random((10, 5))
     estimator = EstimatorIdenticalArrays().fit(X)
     dumped = dumps(estimator)
-    loaded = loads(dumped)
+    loaded = loads(dumped, trusted=True)
     assert_params_equal(estimator.__dict__, loaded.__dict__)
 
     # check number of numpy arrays stored on disk
@@ -784,12 +633,12 @@ def test_loads_from_str():
         loads("this is a string")
 
 
-def test_get_instance_unknown_type_error_msg():
-    state = get_state(("hi", [123]), None)
-    state["__loader__"] = "this_get_instance_does_not_exist"
-    msg = "Can't find loader this_get_instance_does_not_exist for type builtins.tuple."
+def test_get_tree_unknown_type_error_msg():
+    state = get_state(("hi", [123]), SaveContext(None))
+    state["__loader__"] = "this_get_tree_does_not_exist"
+    msg = "Can't find loader this_get_tree_does_not_exist for type builtins.tuple."
     with pytest.raises(TypeError, match=msg):
-        get_instance(state, None)
+        get_tree(state, LoadContext(None))
 
 
 class _BoundMethodHolder:
@@ -844,7 +693,7 @@ class TestPersistingBoundMethods:
         bound_function = obj.bound_method
         transformer = FunctionTransformer(func=bound_function)
 
-        loaded_transformer = loads(dumps(transformer))
+        loaded_transformer = loads(dumps(transformer), trusted=True)
         loaded_obj = loaded_transformer.func.__self__
 
         self.assert_transformer_persisted_correctly(loaded_transformer, transformer)
@@ -861,15 +710,12 @@ class TestPersistingBoundMethods:
 
         transformer = FunctionTransformer(func=bound_function)
 
-        loaded_transformer = loads(dumps(transformer))
+        loaded_transformer = loads(dumps(transformer), trusted=True)
         loaded_obj = loaded_transformer.func.__self__
 
         self.assert_transformer_persisted_correctly(loaded_transformer, transformer)
         self.assert_bound_method_holder_persisted_correctly(obj, loaded_obj)
 
-    @pytest.mark.xfail(
-        reason="Can't load an object as a single instance if referenced multiple times"
-    )
     def test_works_when_given_multiple_bound_methods_attached_to_single_instance(self):
         obj = _BoundMethodHolder(object_state="")
 
@@ -877,7 +723,7 @@ class TestPersistingBoundMethods:
             func=obj.bound_method, inverse_func=obj.other_bound_method
         )
 
-        loaded_transformer = loads(dumps(transformer))
+        loaded_transformer = loads(dumps(transformer), trusted=True)
 
         # check that both func and inverse_func are from the same object instance
         loaded_0 = loaded_transformer.func.__self__
@@ -889,7 +735,7 @@ class TestPersistingBoundMethods:
         from scipy import stats
 
         estimator = FunctionTransformer(func=stats.zipf)
-        loads(dumps(estimator))
+        loads(dumps(estimator), trusted=True)
 
 
 class CustomEstimator(BaseEstimator):
@@ -929,7 +775,7 @@ def test_dump_to_and_load_from_disk(tmp_path):
     json.loads(ZipFile(f_name).read("schema.json"))
 
     # load and compare the actual estimator
-    loaded = load(f_name)
+    loaded = load(f_name, trusted=True)
     assert_params_equal(loaded.__dict__, estimator.__dict__)
 
 
@@ -956,7 +802,66 @@ def test_disk_and_memory_are_identical(tmp_path):
 
     f_name = tmp_path / "estimator.skops"
     dump(estimator, f_name)
-    loaded_disk = load(f_name)
-    loaded_memory = loads(dumps(estimator))
+    loaded_disk = load(f_name, trusted=True)
+    loaded_memory = loads(dumps(estimator), trusted=True)
 
     assert joblib.hash(loaded_disk) == joblib.hash(loaded_memory)
+
+
+def test_dump_and_load_with_file_wrapper(tmp_path):
+    # The idea here is to make it possible to use dump and load with a file
+    # wrapper, i.e. using 'with open(...)'. This makes it easier to search and
+    # replace pickle dump and load by skops dump and load.
+    estimator = LogisticRegression().fit([[0, 1], [2, 3], [4, 5]], [0, 1, 1])
+    f_name = tmp_path / "estimator.skops"
+
+    with open(f_name, "wb") as f:
+        dump(estimator, f)
+    with open(f_name, "rb") as f:
+        loaded = load(f, trusted=True)
+
+    assert_params_equal(loaded.__dict__, estimator.__dict__)
+
+
+@pytest.mark.parametrize(
+    "obj",
+    [
+        np.array([1, 2]),
+        [1, 2, 3],
+        {1: 1, 2: 2},
+        {1, 2, 3},
+        "A string",
+        np.random.RandomState(42),
+    ],
+)
+def test_when_given_object_referenced_twice_loads_as_one_object(obj):
+    an_object = {"obj_1": obj, "obj_2": obj}
+    persisted_object = loads(dumps(an_object), trusted=True)
+
+    assert persisted_object["obj_1"] is persisted_object["obj_2"]
+
+
+class EstimatorWithBytes(BaseEstimator):
+    def fit(self, X, y, **fit_params):
+        self.bytes_ = b"hello"
+        self.bytearray_ = bytearray([0, 1, 2, 253, 254, 255])
+        return self
+
+
+def test_estimator_with_bytes():
+    est = EstimatorWithBytes().fit(None, None)
+    loaded = loads(dumps(est), trusted=True)
+    assert_params_equal(est.__dict__, loaded.__dict__)
+
+
+def test_estimator_with_bytes_files_created(tmp_path):
+    est = EstimatorWithBytes().fit(None, None)
+    f_name = tmp_path / "estimator.skops"
+    dump(est, f_name)
+    file = Path(f_name)
+    assert file.exists()
+
+    with ZipFile(f_name, "r") as input_zip:
+        files = input_zip.namelist()
+    bin_files = [file for file in files if file.endswith(".bin")]
+    assert len(bin_files) == 2
