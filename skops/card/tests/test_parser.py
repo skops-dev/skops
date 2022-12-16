@@ -4,6 +4,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+import yaml  # type: ignore
 from sklearn.linear_model import LinearRegression
 
 from skops.card import Card, parse_modelcard
@@ -51,14 +52,31 @@ EXAMPLE_CARDS = [
 ]
 
 
+def _assert_meta_equal(meta0, meta1):
+    # we cannot guarantee the order of metadata items, so we compare parsed
+    # dicts, but not strings directly
+    assert yaml.safe_load("".join(meta0)) == yaml.safe_load("".join(meta1))
+
+
 def assert_readme_files_almost_equal(file0, file1, diff):
     """Check that the two model cards are identical, but allow differences as
-    defined in the ``diff`` file"""
+    defined in the ``diff`` file
+
+    The metainfo is compared separately, as the order of the items is not
+    guaranteed to be stable.
+    """
     with open(file0, "r") as f:
         readme0 = f.readlines()
 
     with open(file1, "r") as f:
         readme1 = f.readlines()
+
+    sep = "---\n"
+    idx0, idx1 = readme0[1:].index(sep) + 1, readme1[1:].index(sep) + 1
+    meta0, meta1 = readme0[1:idx0], readme1[1:idx1]
+    readme0, readme1 = readme0[idx0:], readme1[idx1:]
+
+    _assert_meta_equal(meta0, meta1)
 
     # exclude trivial case of both being empty
     assert readme0
