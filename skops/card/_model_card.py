@@ -41,7 +41,7 @@ def _clean_table(table: str) -> str:
     # replace line breaks "\n" with html tag <br />, however, leave end-of-line
     # line breaks (eol_lb) intact
     eol_lb = "|\n"
-    placeholder = "$%!?"  # arbitrary string that never appears naturally
+    placeholder = "\x1f"  # unit separator control character
     table = (
         table.replace(eol_lb, placeholder)
         .replace("\n", "<br />")
@@ -195,7 +195,7 @@ def split_subsection_names(key: str) -> list[str]:
         The individual (sub)sections.
 
     """
-    placeholder = "$%!?"  # arbitrary sting that never appears naturally
+    placeholder = "\x1f"  # unit separator control character
     key = key.replace("\\/", placeholder)
     parts = (part.strip() for part in key.split("/"))
     return [part.replace(placeholder, "/") for part in parts]
