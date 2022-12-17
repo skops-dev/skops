@@ -4,7 +4,7 @@ from unittest import mock
 
 import pytest
 
-from skops.utils.entrypoint import main_entrypoint
+from skops.cli.entrypoint import main_entrypoint
 
 
 class TestEntrypoint:

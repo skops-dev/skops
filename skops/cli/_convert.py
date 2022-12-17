@@ -13,6 +13,7 @@ from skops.io import dumps, get_untrusted_types
 def _convert(
     input_file: os.PathLike, output_dir: pathlib.Path, is_trusted: bool = False
 ):
+    """Function that is called by the ``skops convert`` entrypoint"""
     model_name = pathlib.Path(input_file).stem
 
     logging.info(f"Converting {model_name}")

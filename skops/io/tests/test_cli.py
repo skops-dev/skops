@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 
 import skops
-from skops.io._cli import _convert
+from skops.cli._convert import _convert
 
 
 class MockUnsafeType:
@@ -81,14 +81,14 @@ class TestMainConvert:
             ]
         )
 
-    @mock.patch("skops.io._cli._convert")
+    @mock.patch("skops.cli._convert._convert")
     def test_base_works_as_expected(self, mock_convert: mock.MagicMock):
         args = [
             "123.pkl",
             "abc.pkl",
         ]
 
-        skops.io._cli.main_convert(command_line_args=args)
+        skops.cli._convert.main_convert(command_line_args=args)
         self.assert_called_correctly(mock_convert, args)
 
     @mock.patch("skops.io._cli._convert")
@@ -98,7 +98,7 @@ class TestMainConvert:
     ):
         paths = ["abc.123", "234.567", "d/object_1.pkl"]
         args = paths + [trusted_flag]
-        skops.io._cli.main_convert(command_line_args=args)
+        skops.cli._convert.main_convert(command_line_args=args)
         self.assert_called_correctly(mock_convert, paths=paths, trusted=True)
 
     @mock.patch("skops.io._cli._convert")
@@ -116,5 +116,5 @@ class TestMainConvert:
         else:
             args = paths
 
-        skops.io._cli.main_convert(command_line_args=args)
+        skops.cli._convert.main_convert(command_line_args=args)
         self.assert_called_correctly(mock_convert, paths=paths, output_dir=expected_dir)
