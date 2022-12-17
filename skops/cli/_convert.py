@@ -10,10 +10,22 @@ from typing import Optional
 from skops.io import dumps, get_untrusted_types
 
 
-def _convert(
-    input_file: os.PathLike, output_dir: pathlib.Path, is_trusted: bool = False
-):
-    """Function that is called by the ``skops convert`` entrypoint"""
+def _convert_file(input_file: os.PathLike, output_file: pathlib.Path):
+    """
+    Function that is called by ``skops convert`` entrypoint.
+
+    Loads a pickle model from the input path, converts to skops format, and saves to
+    output file.
+
+    Parameters
+    ----------
+    input_file : os.PathLike
+        Path of input .pkl model to load.
+
+    output_file : os.PathLike
+        Path to save .skops model to.
+
+    """
     model_name = pathlib.Path(input_file).stem
 
     logging.info(f"Converting {model_name}")
@@ -33,18 +45,12 @@ def _convert(
             "Unknown Types Detected!\n"
             f"While converting {model_name}, "
             "the following unsafe types were found: \n"
-            f"{untrusted_str}\n"
+            f"{untrusted_str}\n\n"
+            f"When loading{output_file}, add ``--trusted`` to the skops.load call."
         )
 
-        if not is_trusted:
-            logging.warning(
-                f"Model {model_name} will not be converted due to unsafe types.\n"
-                "To convert this anyway, add `-t` to this command."
-            )
-            return
-
-    with open(output_dir / f"{model_name}.skops", "wb") as out_file:
-        logging.info(f"Writing to {output_dir / model_name}.skops")
+    with open(output_file, "wb") as out_file:
+        logging.info(f"Writing to {output_file}")
         out_file.write(skops_dump)
 
 
@@ -60,15 +66,15 @@ def main_convert(
 
     parser.add_argument("inputs", nargs="+", help="Input files to convert.")
     parser.add_argument(
-        "-t",
-        "--trusted",
+        "-o",
+        "--output-files",
+        nargs="+",
         help=(
-            "Automatically trust all files, "
-            "and convert all inputs, "
-            "even if an untrusted type is detected."
+            "Specify output file names for the converted skops files."
+            "If not provided, will default to using the same name as the input file, "
+            "and saving to the current working directory."
         ),
-        action="store_true",
-        default=False,
+        default=None,
     )
     parser.add_argument(
         "-d",
@@ -87,28 +93,22 @@ def main_convert(
         dest="loglevel",
         const=logging.INFO,
     )
-    parser.add_argument(
-        "--output-dir",
-        help=(
-            "Specify a directory to save converted files to. "
-            "Default will save files to the current working directory."
-        ),
-        type=str,
-        default=None,
-    )
+
     args = parser.parse_args(command_line_args)
-
-    output_dir = args.output_dir
-    if not output_dir:
-        output_dir = pathlib.Path.cwd()
-    else:
-        output_dir = pathlib.Path(output_dir)
-
+    output_files = args.output_files
+    input_files = args.inputs
     logging.basicConfig(format="%(message)s", level=args.loglevel)
 
-    for input_file in args.inputs:
-        _convert(
+    for input_file_index in range(len(args.inputs)):
+        input_file = input_files[input_file_index]
+        if output_files and len(output_files) >= input_file_index:
+            output_file = output_files[input_file_index]
+        else:
+            # No filename provided, defaulting to base file path
+            file_name = pathlib.Path(input_file).stem
+            output_file = pathlib.Path.cwd() / f"{file_name}.skops"
+
+        _convert_file(
             input_file=input_file,
-            output_dir=output_dir,
-            is_trusted=args.trusted,
+            output_file=output_file,
         )

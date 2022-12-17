@@ -11,7 +11,7 @@ def main_entrypoint(command_line_args=None):
         add_help=False,
     )
 
-    function_map = {"convert": skops.cli._cli.main_convert}
+    function_map = {"convert": skops.cli._convert.main_convert}
     parser.add_argument(
         "function", help="Function to call.", choices=function_map.keys()
     )

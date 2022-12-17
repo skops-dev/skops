@@ -1,5 +1,4 @@
 import logging
-import os.path
 import pathlib
 import pickle as pkl
 from typing import Optional
@@ -8,8 +7,8 @@ from unittest import mock
 import numpy as np
 import pytest
 
-import skops
-from skops.cli._convert import _convert
+from skops import cli
+from skops.io import load
 
 
 class MockUnsafeType:
@@ -49,16 +48,18 @@ class TestConvert:
     def test_base_case_works_as_expected(
         self, pkl_path, tmp_path, skops_path, write_safe_file, safe_obj
     ):
-        _convert(pkl_path, tmp_path)
-        persisted_obj = skops.io.load(skops_path)
+        cli._convert_file(pkl_path, skops_path)
+        persisted_obj = load(skops_path)
         assert np.array_equal(persisted_obj, safe_obj)
 
     def test_unsafe_case_works_as_expected(
         self, pkl_path, tmp_path, skops_path, write_unsafe_file, caplog
     ):
         caplog.set_level(logging.WARNING)
-        _convert(pkl_path, tmp_path)
-        assert not os.path.isfile(skops_path)
+        cli._convert_file(pkl_path, skops_path)
+        persisted_obj = load(skops_path, trusted=True)
+
+        assert isinstance(persisted_obj, MockUnsafeType)
 
         # check logging has warned that an unsafe type was found
         assert MockUnsafeType.__name__ in caplog.text
@@ -69,52 +70,47 @@ class TestMainConvert:
     def assert_called_correctly(
         mock_convert: mock.MagicMock,
         paths: list,
-        output_dir: Optional[pathlib.Path] = pathlib.Path.cwd(),
-        trusted: Optional[bool] = False,
+        output_files: Optional[list] = None,
     ):
+        if not output_files:
+            output_files = [
+                pathlib.Path.cwd() / f"{pathlib.Path(p).stem}.skops" for p in paths
+            ]
         assert mock_convert.call_count == len(paths)
-
         mock_convert.assert_has_calls(
             [
-                mock.call(input_file=p, output_dir=output_dir, is_trusted=trusted)
-                for p in paths
+                mock.call(input_file=paths[i], output_file=output_files[i])
+                for i in range(len(paths))
             ]
         )
 
-    @mock.patch("skops.cli._convert._convert")
+    @mock.patch("skops.cli._convert._convert_file")
     def test_base_works_as_expected(self, mock_convert: mock.MagicMock):
         args = [
             "123.pkl",
             "abc.pkl",
         ]
 
-        skops.cli._convert.main_convert(command_line_args=args)
+        cli.main_convert(command_line_args=args)
         self.assert_called_correctly(mock_convert, args)
 
-    @mock.patch("skops.io._cli._convert")
-    @pytest.mark.parametrize("trusted_flag", ["-t", "--trusted"])
-    def test_with_trusted_works_as_expected(
-        self, mock_convert: mock.MagicMock, trusted_flag
-    ):
-        paths = ["abc.123", "234.567", "d/object_1.pkl"]
-        args = paths + [trusted_flag]
-        skops.cli._convert.main_convert(command_line_args=args)
-        self.assert_called_correctly(mock_convert, paths=paths, trusted=True)
-
-    @mock.patch("skops.io._cli._convert")
+    @mock.patch("skops.cli._convert._convert_file")
     @pytest.mark.parametrize(
-        "output_dir, expected_dir",
-        [("a/b/c", pathlib.Path("a/b/c")), (None, pathlib.Path.cwd())],
+        "input_paths, output_files, expected_paths",
+        [
+            (["abc.123"], ["a/b/c"], ["a/b/c"]),
+            (["abc.123"], None, [pathlib.Path.cwd() / "abc.skops"]),
+        ],
     )
     def test_with_output_dir_works_as_expected(
-        self, mock_convert: mock.MagicMock, output_dir, expected_dir
+        self, mock_convert: mock.MagicMock, input_paths, output_files, expected_paths
     ):
-        paths = ["abc.123", "234.567", "d/object_1.pkl"]
-
-        if output_dir is not None:
-            args = paths + ["--output-dir", output_dir]
+        if output_files is not None:
+            args = input_paths + ["--output-files"] + output_files
         else:
-            args = paths
+            args = input_paths
 
-        skops.cli._convert.main_convert(command_line_args=args)
-        self.assert_called_correctly(mock_convert, paths=paths, output_dir=expected_dir)
+        cli.main_convert(command_line_args=args)
+        self.assert_called_correctly(
+            mock_convert, paths=input_paths, output_files=expected_paths
+        )

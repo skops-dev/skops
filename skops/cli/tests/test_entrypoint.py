@@ -19,14 +19,13 @@ class TestEntrypoint:
         # Otherwise, clogs parser.parse_known_args() in argparse
         sys.argv = [""]
 
-    @mock.patch("skops.io._cli._convert")
+    @mock.patch("skops.cli._convert._convert_file")
     def test_convert_works_as_expected(self, mocked_convert: mock.MagicMock):
-        args = ["convert", "abc.def", "-t"]
+        args = ["convert", "abc.def"]
 
         main_entrypoint(args)
 
         mocked_convert.assert_called_once_with(
             input_file="abc.def",
-            output_dir=pathlib.Path.cwd(),
-            is_trusted=True,
+            output_file=pathlib.Path.cwd() / "abc.skops",
         )
