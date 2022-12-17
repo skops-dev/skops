@@ -101,7 +101,7 @@ def main_convert(
 
     for input_file_index in range(len(args.inputs)):
         input_file = input_files[input_file_index]
-        if output_files and len(output_files) >= input_file_index:
+        if output_files and len(output_files) > input_file_index:
             output_file = output_files[input_file_index]
         else:
             # No filename provided, defaulting to base file path

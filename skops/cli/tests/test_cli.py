@@ -101,6 +101,7 @@ class TestMainConvert:
             (["abc.123"], ["a/b/c"], ["a/b/c"]),
             (["abc.123"], None, [pathlib.Path.cwd() / "abc.skops"]),
         ],
+        ids=["Given an output path", "No output path"],
     )
     def test_with_output_dir_works_as_expected(
         self, mock_convert: mock.MagicMock, input_paths, output_files, expected_paths
@@ -114,3 +115,28 @@ class TestMainConvert:
         self.assert_called_correctly(
             mock_convert, paths=input_paths, output_files=expected_paths
         )
+
+    @mock.patch("skops.cli._convert._convert_file")
+    @pytest.mark.parametrize(
+        "input_paths, output_files, expected_paths",
+        [
+            (
+                ["model_a.pkl", "model_b.pkl"],
+                ["a.skops", "b.skops"],
+                ["a.skops", "b.skops"],
+            ),
+            (
+                ["model_a.pkl", "model_b.pkl", "model_c.pkl"],
+                ["a.skops", "b.skops"],
+                ["a.skops", "b.skops", pathlib.Path.cwd() / "model_c.skops"],
+            ),
+        ],
+        ids=["With enough output paths", "With only some output paths"],
+    )
+    def test_for_multiple_inputs_and_outputs_works_as_expected(
+        self, mock_convert: mock.MagicMock, input_paths, output_files, expected_paths
+    ):
+        args = input_paths + ["--output-files"] + output_files
+        cli.main_convert(args)
+
+        self.assert_called_correctly(mock_convert, input_paths, expected_paths)
