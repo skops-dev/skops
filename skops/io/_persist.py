@@ -48,10 +48,9 @@ def dump(obj: Any, file: str | Path | BinaryIO) -> None:
 
     .. warning::
 
-       This feature is very early in development, which means the API is
-       unstable and it is **not secure** at the moment. Therefore, use the same
-       caution as you would for ``pickle``: Don't load from sources that you
-       don't trust. In the future, more security will be added.
+        This feature is heavily under development, which means the API is
+        unstable and there might be security issues at the moment. Therefore,
+        use caution when loading files from sources you don't trust.
 
     Parameters
     ----------
@@ -78,10 +77,9 @@ def dumps(obj: Any) -> bytes:
 
     .. warning::
 
-       This feature is very early in development, which means the API is
-       unstable and it is **not secure** at the moment. Therefore, use the same
-       caution as you would for ``pickle``: Don't load from sources that you
-       don't trust. In the future, more security will be added.
+        This feature is heavily under development, which means the API is
+        unstable and there might be security issues at the moment. Therefore,
+        use caution when loading files from sources you don't trust.
 
     Parameters
     ----------
@@ -102,10 +100,9 @@ def load(file: str | Path, trusted: bool | Sequence[str] = False) -> Any:
 
     .. warning::
 
-       This feature is very early in development, which means the API is
-       unstable and it is **not secure** at the moment. Therefore, use the same
-       caution as you would for ``pickle``: Don't load from sources that you
-       don't trust. In the future, more security will be added.
+        This feature is heavily under development, which means the API is
+        unstable and there might be security issues at the moment. Therefore,
+        use caution when loading files from sources you don't trust.
 
     Parameters
     ----------
@@ -141,10 +138,9 @@ def loads(data: bytes, trusted: bool | Sequence[str] = False) -> Any:
 
     .. warning::
 
-       This feature is very early in development, which means the API is
-       unstable and it is **not secure** at the moment. Therefore, use the same
-       caution as you would for ``pickle``: Don't load from sources that you
-       don't trust. In the future, more security will be added.
+        This feature is heavily under development, which means the API is
+        unstable and there might be security issues at the moment. Therefore,
+        use caution when loading files from sources you don't trust.
 
     Parameters
     ----------
