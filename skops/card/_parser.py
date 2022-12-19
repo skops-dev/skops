@@ -12,7 +12,7 @@ import json
 import subprocess
 from pathlib import Path
 from tempfile import mkdtemp
-from typing import Any, Sequence
+from typing import Any, Literal, Sequence
 
 import yaml  # type: ignore
 
@@ -25,35 +25,57 @@ PANDOC_MIN_VERSION = (2, 19, 0)
 
 
 class PandocParser:
-    """TODO"""
+    """Create model cards from files parsed through pandoc.
 
-    def __init__(self, source, mapping="markdown") -> None:
+    This class knows about the implementation details of the
+    :class:`~skops.card.Card` and generates it by initializing an empty class
+    and then calling its methods with the input provided by pandoc.
+
+    ``PandocParser`` does not know about any specific markup type, such as
+    markdown. Instead, it is initialized with a ``Mapping``, which is
+    responsible to convert pandoc input into the desired markup language.
+
+    After initializing this class, call
+    :meth:`~skops.card._parser.PandocParser.generate` to generate the resulting
+    :class:`~skops.card.Card` instance.
+
+    Parameters
+    ----------
+    source : str
+        The model card parsed using the ``pandoc -t json`` option.
+
+    markup_type : "markdown"
+        The type of markup that was used for the model card. Right now, only
+        ``"markdown"`` is supported.
+
+    """
+
+    def __init__(
+        self, source: str, markup_type: Literal["markdown"] = "markdown"
+    ) -> None:
         self.source = source
-        if mapping == "markdown":
+        if markup_type.lower() == "markdown":
             self.mapping = Markdown()
         else:
-            raise ValueError(f"Markup of type {mapping} is not supported (yet)")
+            raise ValueError(f"Markup of type {markup_type} is not supported (yet)")
 
-        self.card = Card(None, template=None)
-        self._section_trace: list[str] = []
-        self._cur_section: Section | None = None
+    def _add_section(
+        self, section_name: str, card: Card, section_trace: list[str]
+    ) -> Section:
+        # Add a new section to the card, which can be a subsection, and return
+        # it.
+        section_name = "/".join(section_trace)
+        cur_section = card._add_single(section_name, "")
+        return cur_section
 
-    def get_cur_level(self) -> int:
-        # level 0 can be interpreted implictly as the root level
-        return len(self._section_trace)
-
-    def get_cur_section(self):
-        # including supersections
-        return "/".join(self._section_trace)
-
-    def add_section(self, section_name: str) -> None:
-        self._cur_section = self.card._add_single(self.get_cur_section(), "")
-
-    def add_content(self, content: str) -> None:
-        section = self._cur_section
+    def _add_content(self, content: str, section: Section | None) -> None:
+        # Add content to the current section
         if section is None:
+            # This may occur if the model card starts without a section. This is
+            # not illegal in markdown, but we don't handle it yet.
             raise ValueError(
-                "Ooops, no current section, please open an issue on GitHub"
+                "Trying to add content but there is no current section, "
+                "this is probably a bug, please open an issue on GitHub"
             )
 
         if not section.content:
@@ -61,40 +83,57 @@ class PandocParser:
         elif isinstance(section.content, str):
             section.content = section.content + "\n\n" + content
         else:
-            # A Formattable, no generic way to modify it -- should we add an
-            # update method?
+            # TODO: Content is a Formattable, no generic way to modify it --
+            # should we require each Formattable to have an update method?
             raise ValueError(f"Could not modify content of {section.content}")
 
-    def parse_header(self, item: PandocItem) -> str:
+    def _parse_header(
+        self, item: PandocItem, section_trace: list[str]
+    ) -> tuple[str, int]:
         # Headers are the only type of item that needs to be handled
         # differently. This is because we structure the underlying model card
         # data as a tree with nodes corresponding to headers. To assign the
         # right parent or child node, we need to keep track of the level of the
-        # headers. This cannot be done solely by the markdown mapping, since it
-        # is not aware of the tree structure.
+        # headers. This cannot be done on the level of the markdown mapping,
+        # since it is not aware of the tree structure.
         level, _, _ = item["c"]
         content = self.mapping(item)
-        self._section_trace = self._section_trace[: level - 1] + [content]
-        return content
+        return content, level
 
-    def post_process(self, res: str) -> str:
+    def _post_process(self, res: str) -> str:
         # replace Latin1 space
         res = res.replace("\xa0", " ")
         return res
 
     def generate(self) -> Card:
-        # Parsing the flat structure, not recursively as in pandocfilters.
-        # After visiting the parent node, it's not necessary to visit its
-        # child nodes, because that's already done during parsing.
+        """Generate the model card instance from the parsed card.
+
+        Returns
+        -------
+        card : :class:`~skops.card.Card`
+            The parsed model card instance. If not further modified, the output
+            of saving that card should be (almost) identical to the initial
+            model card.
+        """
+        section: Section | None = None
+        section_trace: list[str] = []
+        card = Card(None, template=None)
+
+        # Parsing the flat structure, not recursively as in pandocfilters. After
+        # visiting the parent node, it's not necessary to visit its child nodes,
+        # because the mapping class already takes care of visiting the child
+        # nodes.
         for item in json.loads(self.source)["blocks"]:
             if item["t"] == "Header":
-                res = self.post_process(self.parse_header(item))
-                self.add_section(res)
+                content, level = self._parse_header(item, section_trace=section_trace)
+                res = self._post_process(content)
+                section_trace = section_trace[: level - 1] + [res]
+                section = self._add_section(res, card=card, section_trace=section_trace)
             else:
-                res = self.post_process(self.mapping(item))
-                self.add_content(res)
+                res = self._post_process(self.mapping(item))
+                self._add_content(res, section=section)
 
-        return self.card
+        return card
 
 
 def _get_pandoc_version() -> list[int]:
