@@ -5,7 +5,6 @@ import re
 import textwrap
 import zipfile
 from collections.abc import Mapping
-from curses import ascii
 from dataclasses import dataclass, field
 from pathlib import Path
 from reprlib import Repr
@@ -42,7 +41,7 @@ def _clean_table(table: str) -> str:
     # replace line breaks "\n" with html tag <br />, however, leave end-of-line
     # line breaks (eol_lb) intact
     eol_lb = "|\n"
-    placeholder = chr(ascii.US)  # unit separator control character, \x1f
+    placeholder = "\x1f"  # unit separator control character
     table = (
         table.replace(eol_lb, placeholder)
         .replace("\n", "<br />")
@@ -196,7 +195,7 @@ def split_subsection_names(key: str) -> list[str]:
         The individual (sub)sections.
 
     """
-    placeholder = chr(ascii.US)  # unit separator control character, \x1f
+    placeholder = "\x1f"  # unit separator control character
     key = key.replace("\\/", placeholder)
     parts = (part.strip() for part in key.split("/"))
     return [part.replace(placeholder, "/") for part in parts]
