@@ -17,17 +17,17 @@ jobs:
       fail-fast: false  # need to see which ones fail
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        python: ["3.7", "3.8", "3.9", "3.10"]
+        python: ["3.8", "3.9", "3.10"]
         # this is to make the CI run on different sklearn versions
         include:
-          - python: "3.7"
-            sklearn_version: "0.24.0"
           - python: "3.8"
-            sklearn_version: "1.0.0"
+            sklearn_version: "1.0"
+          # TODO: add sklearn 1.1 when we add 3.11 support
           - python: "3.9"
-            sklearn_version: "1.1.0"
+            sklearn_version: "1.2"
           - python: "3.10"
             sklearn_version: "nightly"
+
 
     # Timeout: https://stackoverflow.com/a/59076067/4521646
     timeout-minutes: 15
@@ -91,6 +91,7 @@ jobs:
       with:
         env_vars: OS,PYTHON
         fail_ci_if_error: true
+        token: ${{ secrets.CODECOV_TOKEN }}
         files: ./coverage.xml
         flags: unittests
         name: codecov-umbrella
