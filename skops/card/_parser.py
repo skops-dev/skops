@@ -283,14 +283,14 @@ def parse_modelcard(path: str | Path) -> Card:
     >>> y = np.dot(X, np.array([1, 2])) + 3
     >>> regr = LinearRegression().fit(X, y)
     >>> card = Card(regr)
-    >>> card.save("README.md")
+    >>> card.save("README.md")  # doctest: +SKIP
     >>> # later, load the card again
-    >>> parsed_card = parse_modelcard("README.md")
+    >>> parsed_card = parse_modelcard("README.md")  # doctest: +SKIP
     >>> # continue editing the card
-    >>> parsed_card.add(**{"My new section": "My new content"})
+    >>> parsed_card.add(**{"My new section": "My new content"})  # doctest: +SKIP
     Card(...)
     >>> # overwrite old card with new one
-    >>> parsed_card.save("README.md")
+    >>> parsed_card.save("README.md")  # doctest: +SKIP
 
     Notes
     -----
