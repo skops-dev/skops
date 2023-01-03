@@ -130,6 +130,11 @@ there is a bug in skops. Please open an issue on `our issue tracker
 <https://github.com/skops-dev/skops/issues>`__ (but please check first if a
 corresponding issue already exists).
 
+In terms of security, we do not audit these libraries for security issues.
+Therefore, you should only load a skops file containing a model of any of those
+libraries if you trust them to be secure. It's not a perfect solution, but it's
+still better than trusting pickle files, which anyone can tamper with easily.
+
 Roadmap
 -------
 There needs to be more testing to harden the loader and make sure we don't run
