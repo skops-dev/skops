@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sys
 from collections.abc import Mapping
+from contextlib import contextmanager
 from typing import Any, Sequence
 
 from skops.card._model_card import TableSection
@@ -37,17 +38,14 @@ class Markdown:
         # markdown syntax dispatch table
         self.mapping = {
             "Space": self._space,
+            "Plain": self._plain,
+            "Str": self._str,
             "Strong": self._strong,
             "Emph": self._emph,
             "Strikeout": self._strikeout,
-            "Subscript": self._subscript,
-            "Superscript": self._superscript,
-            "Plain": self._plain,
-            "Str": self._str,
             "RawInline": self._raw_inline,
             "RawBlock": self._raw_block,
             "SoftBreak": self._soft_break,
-            "LineBreak": self._line_break,
             "Para": self._para,
             "Header": self._header,
             "Image": self._image,
@@ -57,13 +55,40 @@ class Markdown:
             "Div": self._parse_div,
             "Link": self._link,
             "BulletList": self._bullet_list,
+            "OrderedList": self._ordered_list,
             "Quoted": self._quoted,
             "BlockQuote": self._block_quote,
         }
+        # Start indentation level at -1 because we want the first incremented
+        # indentation level to be at 0. Otherwise we would need to keep track if
+        # it's the first time and then don't increment, which is more
+        # complicated.
+        self._indent_trace = []
+
+    @contextmanager
+    def _indented(self, *, spaces: int):
+        """Temporarily increment indentation by one"""
+        self._indent_trace.append(spaces)
+        yield
+        self._indent_trace.pop(-1)
+
+    def _get_indent(self, *, incr: int = 0) -> str:
+        """Get current indentation, optionally incremented"""
+        # TODO: explain why skipping 1st item
+        return " " * (incr + sum(self._indent_trace[:-1]))
 
     @staticmethod
     def _space(value) -> str:
         return " "
+
+    def _plain(self, value) -> str:
+        parts = [self.__call__(subitem) for subitem in value]
+        return "".join(parts)
+
+    @staticmethod
+    def _str(value) -> str:
+        # escape \
+        return value.replace("\\", "\\\\")
 
     def _strong(self, value) -> str:
         parts = ["**"]
@@ -83,27 +108,6 @@ class Markdown:
         parts.append("~~")
         return "".join(parts)
 
-    def _subscript(self, value) -> str:
-        parts = ["<sub>"]
-        parts += [self.__call__(subitem) for subitem in value]
-        parts.append("</sub>")
-        return "".join(parts)
-
-    def _superscript(self, value) -> str:
-        parts = ["<sup>"]
-        parts += [self.__call__(subitem) for subitem in value]
-        parts.append("</sup>")
-        return "".join(parts)
-
-    def _plain(self, value) -> str:
-        parts = [self.__call__(subitem) for subitem in value]
-        return "".join(parts)
-
-    @staticmethod
-    def _str(value) -> str:
-        # escape \
-        return value.replace("\\", "\\\\")
-
     @staticmethod
     def _raw_inline(value) -> str:
         _, line = value
@@ -115,13 +119,9 @@ class Markdown:
         _, line = item
         return line
 
-    @staticmethod
-    def _soft_break(value) -> str:
-        return "\n"
-
-    @staticmethod
-    def _line_break(value) -> str:
-        return "\n"
+    def _soft_break(self, value) -> str:
+        incr = 0 if not self._indent_trace else self._indent_trace[-1]
+        return "\n" + self._get_indent(incr=incr)
 
     def _make_content(self, content):
         parts = []
@@ -142,10 +142,16 @@ class Markdown:
     def _image(self, value) -> str:
         (ident, _, keyvals), caption, (dest, typef) = value
         # it seems like ident and keyvals are not relevant for markdown
-        assert caption
-        assert typef == "fig:"
 
-        caption = "".join([self.__call__(i) for i in caption])
+        if not caption:
+            # not sure if this can be reached, just to be safe
+            raise ValueError("Figure missing a caption")
+
+        if not typef.startswith("fig:"):
+            # not sure if this can be reached, just to be safe
+            raise ValueError(f"Cannot deal with figure of type '{typef}'")
+
+        caption = "".join(self.__call__(i) for i in caption)
         content = f"![{caption}]({dest})"
         return content
 
@@ -215,7 +221,7 @@ class Markdown:
         # note that in markdown, we basically just use the raw html
         (ident, classes, kvs), contents = item
 
-        # build diff tag
+        # build div tag
         tags = ["<div"]
         if ident:
             tags.append(f' id="{ident}"')
@@ -235,7 +241,8 @@ class Markdown:
         start = "".join(tags)
         middle = []
         for content in contents:
-            middle.append(self.__call__(content))
+            with self._indented(spaces=2):
+                middle.append(self.__call__(content))
         end = "</div>"
         return "".join([start] + middle + [end])
 
@@ -244,14 +251,31 @@ class Markdown:
         txt_formatted = self._make_content(txt)
         return f"[{txt_formatted}]({src})"
 
+    def _make_list_item(self, items: str, list_marker: str):
+        # helper function used for bullet and ordered lists
+        parts = [self.__call__(subitem) for subitem in items]
+        content = "\n".join(parts)
+        return f"{self._get_indent()}{list_marker} {content}"
+
     def _bullet_list(self, item) -> str:
+        # we don't differentiate between lists starting with "-", "*", or "+".
+        list_marker = "-"
         parts = []
-        for subitem in item:
-            assert len(subitem) == 1
-            content = "".join(self.__call__(i) for i in subitem)
-            # indent the lines in lists if they contain line breaks
-            content = content.replace("\n", "\n  ")
-            parts.append(f"- {content}")
+        # bullet lists use 2 spaces for indentation to align "- "
+        with self._indented(spaces=2):
+            for subitem in item:
+                parts.append(self._make_list_item(subitem, list_marker=list_marker))
+        return "\n".join(parts)
+
+    def _ordered_list(self, item) -> str:
+        # we don't make use of num_type and sep_type, which just indicates that
+        # numbers are presented as decimal numbers using a period
+        (start, num_type, sep_type), items = item
+        parts = []
+        # ordered lists use 3 spaces for indentation to align "1. "
+        with self._indented(spaces=3):
+            for i, subitem in enumerate(items, start=start):
+                parts.append(self._make_list_item(subitem, list_marker=f"{i}."))
         return "\n".join(parts)
 
     def _quoted(self, item: tuple[dict[str, str], list[PandocItem]]) -> str:
@@ -260,6 +284,7 @@ class Markdown:
         try:
             sym = {"DoubleQuote": '"', "SingleQuote": "'"}[type_]
         except KeyError as exc:
+            # can probably not be reached, but let's be sure
             msg = (
                 f"The parsed document contains '{type_}', which is not "
                 "supported yet, please open an issue on GitHub"

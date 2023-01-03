@@ -103,6 +103,10 @@ class PandocParser:
     def _post_process(self, res: str) -> str:
         # replace Latin1 space
         res = res.replace("\xa0", " ")
+
+        # pandoc creates ☒ and ☐ for to do items but GitHub requires [x] and [ ]
+        # for an item to be considered a to do item
+        res = res.replace("- ☒", "- [x]").replace("- ☐", "- [ ]")
         return res
 
     def generate(self) -> Card:
@@ -308,6 +312,8 @@ def parse_modelcard(path: str | Path) -> Card:
     - Quote symbols may differ, e.g. ``it’s`` becoming ``it's``.
     - The number of empty lines may differ, e.g. two empty lines being
       transformed into one empty line.
+    - The optional title of links is not preserved, as e.g. in
+      `[text](https://example.com "this disappears")`
     - Trailing whitespace is removed.
     - Tab indentation may be removed, e.g. in raw html.
     - The yaml part of the model card can have some non-semantic differences,

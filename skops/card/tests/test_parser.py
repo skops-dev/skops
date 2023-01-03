@@ -1,5 +1,7 @@
 import difflib
+import json
 import os
+import re
 from pathlib import Path
 
 import numpy as np
@@ -8,7 +10,7 @@ import yaml  # type: ignore
 from sklearn.linear_model import LinearRegression
 
 from skops.card import Card, parse_modelcard
-from skops.card._parser import check_pandoc_installed
+from skops.card._parser import PandocParser, check_pandoc_installed
 
 try:
     check_pandoc_installed()
@@ -44,11 +46,14 @@ def card(fit_model, tmp_path):
 
 
 EXAMPLE_CARDS = [
+    # actual model cards from HF hub
     "bert-base-uncased.md",
     "clip-vit-large-patch14.md",
     "gpt2.md",
     "specter.md",
     "vit-base-patch32-224-in21k.md",
+    # not a model card
+    "toy-example.md",
 ]
 
 
@@ -72,11 +77,12 @@ def assert_readme_files_almost_equal(file0, file1, diff):
         readme1 = f.readlines()
 
     sep = "---\n"
-    idx0, idx1 = readme0[1:].index(sep) + 1, readme1[1:].index(sep) + 1
-    meta0, meta1 = readme0[1:idx0], readme1[1:idx1]
-    readme0, readme1 = readme0[idx0:], readme1[idx1:]
-
-    _assert_meta_equal(meta0, meta1)
+    # we look for 2nd occurrence, so skip first char to not match 1st occurrence
+    if sep in readme0[1:]:  # only check if metainfo is present
+        idx0, idx1 = readme0[1:].index(sep) + 1, readme1[1:].index(sep) + 1
+        meta0, meta1 = readme0[1:idx0], readme1[1:idx1]
+        readme0, readme1 = readme0[idx0:], readme1[idx1:]
+        _assert_meta_equal(meta0, meta1)
 
     # exclude trivial case of both being empty
     assert readme0
@@ -117,3 +123,47 @@ def test_example_model_cards(tmp_path, file_name):
     parsed_card.save(file1)
 
     assert_readme_files_almost_equal(file0, file1, diff)
+
+
+def test_unknown_pandoc_item_raises():
+    source = json.dumps(
+        {
+            "pandoc-api-version": [1, 22, 2, 1],
+            "meta": {},
+            "blocks": [
+                {
+                    "t": "Header",
+                    "c": [1, ["section", [], []], [{"t": "Str", "c": "section"}]],
+                },
+                {"c": "valid", "t": "Str"},
+                {"t": "does-not-exist", "c": []},
+                {"c": "okay", "t": "Str"},
+            ],
+        }
+    )
+    parser = PandocParser(source)
+    msg = (
+        "The parsed document contains 'does-not-exist', which is not "
+        "supported yet, please open an issue on GitHub"
+    )
+    with pytest.raises(ValueError, match=re.escape(msg)):
+        parser.generate()
+
+
+def test_content_without_section_raises():
+    source = json.dumps(
+        {
+            "pandoc-api-version": [1, 22, 2, 1],
+            "meta": {},
+            "blocks": [
+                {"c": "whoops", "t": "Str"},
+            ],
+        }
+    )
+    parser = PandocParser(source)
+    msg = (
+        "Trying to add content but there is no current section, this is probably a "
+        "bug, please open an issue on GitHub"
+    )
+    with pytest.raises(ValueError, match=re.escape(msg)):
+        parser.generate()
