@@ -4,13 +4,13 @@ import argparse
 import logging
 import os
 import pathlib
-import pickle as pkl
+import pickle
 from typing import Optional
 
 from skops.io import dumps, get_untrusted_types
 
 
-def _convert_file(input_file: os.PathLike, output_file: pathlib.Path):
+def _convert_file(input_file: os.PathLike, output_file: os.PathLike):
     """
     Function that is called by ``skops convert`` entrypoint.
 
@@ -31,22 +31,22 @@ def _convert_file(input_file: os.PathLike, output_file: pathlib.Path):
     logging.info(f"Converting {model_name}")
 
     with open(input_file, "rb") as f:
-        obj = pkl.load(f)
+        obj = pickle.load(f)
     skops_dump = dumps(obj)
 
     untrusted_types = get_untrusted_types(data=skops_dump)
 
     if not untrusted_types:
-        logging.debug(f"No unsafe types found in {model_name}.")
+        logging.debug(f"No unknown types found in {model_name}.")
     else:
         untrusted_str = "\n".join(untrusted_types)
 
         logging.warning(
             "Unknown Types Detected!\n"
             f"While converting {model_name}, "
-            "the following unsafe types were found: \n"
+            "the following unknown types were found: \n"
             f"{untrusted_str}\n\n"
-            f"When loading{output_file}, add ``--trusted`` to the skops.load call."
+            f"When loading {output_file}, add ``trusted=True`` to the skops.load call."
         )
 
     with open(output_file, "wb") as out_file:

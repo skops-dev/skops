@@ -7,7 +7,7 @@ from unittest import mock
 import numpy as np
 import pytest
 
-from skops import cli
+from skops.cli import _convert
 from skops.io import load
 
 
@@ -48,7 +48,7 @@ class TestConvert:
     def test_base_case_works_as_expected(
         self, pkl_path, tmp_path, skops_path, write_safe_file, safe_obj
     ):
-        cli._convert_file(pkl_path, skops_path)
+        _convert._convert_file(pkl_path, skops_path)
         persisted_obj = load(skops_path)
         assert np.array_equal(persisted_obj, safe_obj)
 
@@ -56,7 +56,7 @@ class TestConvert:
         self, pkl_path, tmp_path, skops_path, write_unsafe_file, caplog
     ):
         caplog.set_level(logging.WARNING)
-        cli._convert_file(pkl_path, skops_path)
+        _convert._convert_file(pkl_path, skops_path)
         persisted_obj = load(skops_path, trusted=True)
 
         assert isinstance(persisted_obj, MockUnsafeType)
@@ -91,7 +91,7 @@ class TestMainConvert:
             "abc.pkl",
         ]
 
-        cli.main_convert(command_line_args=args)
+        _convert.main_convert(command_line_args=args)
         self.assert_called_correctly(mock_convert, args)
 
     @mock.patch("skops.cli._convert._convert_file")
@@ -111,7 +111,7 @@ class TestMainConvert:
         else:
             args = input_paths
 
-        cli.main_convert(command_line_args=args)
+        _convert.main_convert(command_line_args=args)
         self.assert_called_correctly(
             mock_convert, paths=input_paths, output_files=expected_paths
         )
@@ -137,6 +137,6 @@ class TestMainConvert:
         self, mock_convert: mock.MagicMock, input_paths, output_files, expected_paths
     ):
         args = input_paths + ["--output-files"] + output_files
-        cli.main_convert(args)
+        _convert.main_convert(args)
 
         self.assert_called_correctly(mock_convert, input_paths, expected_paths)
