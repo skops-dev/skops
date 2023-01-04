@@ -37,7 +37,7 @@ def setup_package():
     package_data = dict(
         entry_points={
             "console_scripts": [
-                "skops = skops.cli.entrypoint:main_entrypoint",
+                "skops = skops.cli.entrypoint:main_cli",
             ],
         }
     )

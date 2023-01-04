@@ -54,17 +54,12 @@ def _convert_file(input_file: os.PathLike, output_file: os.PathLike):
         out_file.write(skops_dump)
 
 
-def main_convert(
-    command_line_args: Optional[list[str]] = None,
-    parent: Optional[argparse.ArgumentParser] = None,
-):
-    parents = [parent] if parent else []
-
+def get_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Convert input Pickle files to .skops files", parents=parents
+        description="Convert input Pickle files to .skops files"
     )
 
-    parser.add_argument("inputs", nargs="+", help="Input files to convert.")
+    parser.add_argument("inputs", nargs="+", help="Input files to convert. ")
     parser.add_argument(
         "-o",
         "--output-files",
@@ -72,7 +67,7 @@ def main_convert(
         help=(
             "Specify output file names for the converted skops files."
             "If not provided, will default to using the same name as the input file, "
-            "and saving to the current working directory."
+            "and saving to the current working directory with the suffix ``.skops``. "
         ),
         default=None,
     )
@@ -93,6 +88,15 @@ def main_convert(
         dest="loglevel",
         const=logging.INFO,
     )
+    return parser
+
+
+def main(
+    command_line_args: Optional[list[str]] = None,
+    parser: Optional[argparse.ArgumentParser] = None,
+):
+    if not parser:
+        parser = get_parser()
 
     args = parser.parse_args(command_line_args)
     output_files = args.output_files
