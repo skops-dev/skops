@@ -61,6 +61,9 @@ jobs:
           then pip install --pre --extra-index https://pypi.anaconda.org/scipy-wheels-nightly/simple scikit-learn;
           else pip install "scikit-learn~=${{ matrix.sklearn_version }}";
         fi
+        if [ ${{ matrix.os }} == "ubuntu-latest" ];
+          then wget -q https://github.com/jgm/pandoc/releases/download/2.19.2/pandoc-2.19.2-1-amd64.deb && sudo dpkg -i pandoc-2.19.2-1-amd64.deb;
+        fi
         python --version
         pip --version
         pip list
