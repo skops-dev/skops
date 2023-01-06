@@ -12,8 +12,7 @@ def hide_available_matplotlib(monkeypatch):
     def mocked_import(name, *args, **kwargs):
         if name == "matplotlib":
             raise ImportError()
-        else:
-            return import_orig(name, *args, **kwargs)
+        return import_orig(name, *args, **kwargs)
 
     monkeypatch.setattr(builtins, "__import__", mocked_import)
 
