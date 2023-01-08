@@ -5,7 +5,6 @@ import tempfile
 import textwrap
 from pathlib import Path
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 import sklearn
@@ -856,6 +855,9 @@ class TestDelete:
 
 class TestAddPlot:
     def test_add_plot(self, destination_path, model_card):
+        # don't import matplotlib at root or else other tests may be affected
+        import matplotlib.pyplot as plt
+
         plt.plot([4, 5, 6, 7])
         plt.savefig(Path(destination_path) / "fig1.png")
         model_card = model_card.add_plot(fig1="fig1.png")
@@ -863,6 +865,9 @@ class TestAddPlot:
         assert plot_content == "![fig1](fig1.png)"
 
     def test_add_plot_to_existing_section(self, destination_path, model_card):
+        # don't import matplotlib at root or else other tests may be affected
+        import matplotlib.pyplot as plt
+
         plt.plot([4, 5, 6, 7])
         plt.savefig(Path(destination_path) / "fig1.png")
         model_card = model_card.add_plot(**{"Model description/Figure 1": "fig1.png"})
