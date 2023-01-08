@@ -11,21 +11,16 @@ def hide_available_matplotlib(monkeypatch):
 
     def mocked_import(name, *args, **kwargs):
         if name == "matplotlib":
+            print("*" * 50, "INTERCEPT MATPLOTLIB IMPORT")
             raise ImportError()
         return import_orig(name, *args, **kwargs)
 
     monkeypatch.setattr(builtins, "__import__", mocked_import)
+    print("*" * 50, "THE FIXTURE IS BEING USED")
 
 
 @pytest.mark.usefixtures("hide_available_matplotlib")
 def test_import_or_raise():
-    try:  # debugging
-        import_or_raise("matplotlib", "permutation importance")
-        print("*" * 30, "it did not raise!")
-    except Exception as exc:
-        print("*" * 30)
-        print(exc)
-
     with pytest.raises(
         ModuleNotFoundError,
         match=(
