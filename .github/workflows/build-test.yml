@@ -76,7 +76,7 @@ jobs:
       env:
         SUPER_SECRET: ${{ secrets.HF_HUB_TOKEN }}
       run: |
-        python -m pytest -s -v --cov-report=xml -m "not inference" skops/
+        python -m pytest -s -v --cov-report=xml -m "not inference" -k "test_import_or_raise" skops/
 
     - name: Mypy
       run: mypy --config-file pyproject.toml skops

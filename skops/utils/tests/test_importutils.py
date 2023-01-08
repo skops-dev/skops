@@ -19,6 +19,13 @@ def hide_available_matplotlib(monkeypatch):
 
 @pytest.mark.usefixtures("hide_available_matplotlib")
 def test_import_or_raise():
+    try:  # debugging
+        import_or_raise("matplotlib", "permutation importance")
+        print("*" * 30, "it did not raise!")
+    except Exception as exc:
+        print("*" * 30)
+        print(exc)
+
     with pytest.raises(
         ModuleNotFoundError,
         match=(
