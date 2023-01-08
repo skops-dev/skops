@@ -231,7 +231,7 @@ def test_create_config(data, task, expected_config):
 
 
 def test_create_config_invalid_text_data(temp_path):
-    with pytest.raises(ValueError, match="The data needs to be a list of strings."):
+    with pytest.raises(ValueError, match="The data needs to be a sequence of strings."):
         _create_config(
             model_path="model.pkl",
             requirements=['scikit-learn="1.1.1"', "numpy"],
@@ -553,32 +553,23 @@ def test_get_example_input_from_tabular_data():
 
 
 def test_get_example_input_from_text_data():
-    examples = _get_example_input_from_text_data(["a", "b", "c", "d"])
-    assert len(examples) == 3
+    example_input = _get_example_input_from_text_data(["a", "b", "c", "d"])
+    assert len(example_input["data"]) == 3
 
-    examples = _get_example_input_from_text_data(np.array(["a", "b", "c", "d"]))
-    assert len(examples) == 3
+    example_input = _get_example_input_from_text_data(np.array(["a", "b", "c", "d"]))
+    assert len(example_input["data"]) == 3
 
-    examples = _get_example_input_from_text_data((c for c in ["a", "b", "c", "d"]))
-    assert len(examples) == 3
+    example_input = _get_example_input_from_text_data(set(["a", "b", "c", "d"]))
+    assert len(example_input["data"]) == 3
 
-    examples = _get_example_input_from_text_data([])
-    assert len(examples) == 0
+    example_input = _get_example_input_from_text_data([])
+    assert len(example_input["data"]) == 0
 
 
 @pytest.mark.parametrize("data", ["random", [1, 2, 3], 420])
 def test_get_example_input_from_text_data_invalid_text_data(data):
-    with pytest.raises(
-        ValueError, match="The data needs to be an iterable of strings."
-    ):
+    with pytest.raises(ValueError, match="The data needs to be a sequence of strings."):
         _get_example_input_from_text_data(data)
-
-
-def test_get_example_input_from_text_data_generator_not_exhausted():
-    generator = (f"s{x}" for x in range(3))
-    _get_example_input_from_text_data(generator)
-    # check that next() doesn't raise a StopIteration
-    next(generator)
 
 
 def test_get_column_names():

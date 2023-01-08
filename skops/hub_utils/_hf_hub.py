@@ -10,13 +10,11 @@ import json
 import os
 import shutil
 from pathlib import Path
-from typing import Any, List, MutableMapping, Optional, Sequence, Union
+from typing import Any, List, Literal, MutableMapping, Optional, Sequence, Union
 
 import numpy as np
 from huggingface_hub import HfApi, InferenceApi, snapshot_download
 from sklearn.utils import check_array
-
-from ..utils.fixes import Literal
 
 SUPPORTED_TASKS = [
     "tabular-classification",
@@ -127,7 +125,7 @@ def _get_example_input_from_text_data(data: Sequence[str]):
     Parameters
     ----------
     data: Sequence[str]
-        An sequence of strings. The first 3 elements are used as example input.
+        A sequence of strings. The first 3 elements are used as example input.
 
     Returns
     -------
@@ -136,17 +134,16 @@ def _get_example_input_from_text_data(data: Sequence[str]):
     """
 
     def _head(data, n):
-        data, data_copy = itertools.tee(data, 2)
-        return list(itertools.islice(data_copy, n))
+        def is_subscriptable(data):
+            return hasattr(data, "__getitem__")
+
+        if is_subscriptable(data):
+            return data[:n]
+
+        return list(itertools.islice(data, n))
 
     def _is_sequence_of_strings(data):
-        if isinstance(data, str):
-            return False
-        try:
-            return all(isinstance(x, str) for x in data)
-        except TypeError:
-            # data isn't even iterable, can't be a sequence of strings
-            return False
+        return not isinstance(data, str) and all(isinstance(x, str) for x in data)
 
     error_message = "The data needs to be a sequence of strings."
     try:
