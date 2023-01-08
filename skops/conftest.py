@@ -25,6 +25,13 @@ def matplotlib_not_installed():
     # patch import so that it raises an ImportError when trying to import
     # matplotlib. This works because matplotlib is only imported lazily.
 
+    # ugly way of removing matplotlib from cached imports
+    import sys
+
+    for key in list(sys.modules.keys()):
+        if key.startswith("matplotlib"):
+            del sys.modules[key]
+
     orig_import = builtins.__import__
 
     def mock_import(name, *args, **kwargs):
