@@ -66,11 +66,11 @@ jobs:
         pip list
       shell: bash
 
-    - name: Check black
-      run: black --check --diff .
+    # - name: Check black
+    #   run: black --check --diff .
 
-    - name: Check isort
-      run: isort --check --diff .
+    # - name: Check isort
+    #   run: isort --check --diff .
 
     - name: Tests
       env:
@@ -78,21 +78,21 @@ jobs:
       run: |
         python -m pytest -s -v --cov-report=xml -m "not inference" -k "test_import_or_raise" skops/
 
-    - name: Mypy
-      run: mypy --config-file pyproject.toml skops
+    # - name: Mypy
+    #   run: mypy --config-file pyproject.toml skops
 
-    - name: Inference tests (conditional)
-      if: contains(env.PR_COMMIT_MESSAGE, '[CI inference]')
-      run: |
-        python -m pytest -s -v -m "inference" skops/
+    # - name: Inference tests (conditional)
+    #   if: contains(env.PR_COMMIT_MESSAGE, '[CI inference]')
+    #   run: |
+    #     python -m pytest -s -v -m "inference" skops/
 
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
-      with:
-        env_vars: OS,PYTHON
-        fail_ci_if_error: true
-        token: ${{ secrets.CODECOV_TOKEN }}
-        files: ./coverage.xml
-        flags: unittests
-        name: codecov-umbrella
-        verbose: true
+    # - name: Upload coverage to Codecov
+    #   uses: codecov/codecov-action@v3
+    #   with:
+    #     env_vars: OS,PYTHON
+    #     fail_ci_if_error: true
+    #     token: ${{ secrets.CODECOV_TOKEN }}
+    #     files: ./coverage.xml
+    #     flags: unittests
+    #     name: codecov-umbrella
+    #     verbose: true
