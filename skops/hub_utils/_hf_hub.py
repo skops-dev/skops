@@ -10,7 +10,7 @@ import json
 import os
 import shutil
 from pathlib import Path
-from typing import Any, Iterable, List, MutableMapping, Optional, Union
+from typing import Any, List, MutableMapping, Optional, Sequence, Union
 
 import numpy as np
 from huggingface_hub import HfApi, InferenceApi, snapshot_download
@@ -118,7 +118,7 @@ def _get_example_input_from_tabular_data(data):
     )
 
 
-def _get_example_input_from_text_data(data: Iterable[str]):
+def _get_example_input_from_text_data(data: Sequence[str]):
     """Returns the example input of a model for a text task.
 
     The input is converted into a dictionary which is then stored in the config
@@ -126,8 +126,8 @@ def _get_example_input_from_text_data(data: Iterable[str]):
 
     Parameters
     ----------
-    data: Iterable[str]
-        An iterable of strings. The first 3 elements are used as example input.
+    data: Sequence[str]
+        An sequence of strings. The first 3 elements are used as example input.
 
     Returns
     -------
@@ -148,7 +148,7 @@ def _get_example_input_from_text_data(data: Iterable[str]):
             # data isn't even iterable, can't be a sequence of strings
             return False
 
-    error_message = "The data needs to be an iterable of strings."
+    error_message = "The data needs to be a sequence of strings."
     try:
         data_head = _head(data, n=3)
         if _is_sequence_of_strings(data_head):
@@ -211,6 +211,11 @@ def _create_config(
         "text-regression",
     ],
     data,
+    model_format: Literal[  # type: ignore
+        "skops",
+        "pickle",
+        "auto",
+    ] = "auto",
 ) -> None:
     """Write the configuration into a ``config.json`` file.
 
@@ -233,7 +238,7 @@ def _create_config(
         the model. It can be one of: ``tabular-classification``,
         ``tabular-regression``, ``text-classification``, ``text-regression``.
 
-    data: array-like, or iterable
+    data: array-like or sequence
         The input to the model. This is used for two purposes:
 
             1. Save an example input to the model, which is used by
@@ -246,7 +251,15 @@ def _create_config(
         The first 3 input values are used as example inputs. If the task is
         ``tabular-classification`` or ``tabular-regression``, then data is
         expected to be an array-like. Otherwise, it is expected to be an
-        iterable of strings.
+        sequence of strings.
+
+    model_format: str
+        The format used to persist the model. Can be ``"auto"``, ``"skops"``
+        or ``"pickle"``. Defaults to ``"auto"``, which would mean:
+
+        - ``"pickle"`` if the extension is one of ``{".pickle", ".pkl", ".joblib"}``
+        - ``"skops"`` if the extension is ``".skops"``
+
 
     Returns
     -------
@@ -258,10 +271,22 @@ def _create_config(
     def recursively_default_dict() -> MutableMapping:
         return collections.defaultdict(recursively_default_dict)
 
+    if model_format == "auto":
+        extension = Path(model_path).suffix
+        if extension in [".pkl", ".pickle", ".joblib"]:
+            model_format = "pickle"
+        elif extension == ".skops":
+            model_format = "skops"
+    if model_format not in ["skops", "pickle"]:
+        raise ValueError(
+            "Cannot determine the input file format. Please indicate the format using"
+            " the `model_format` argument."
+        )
     config = recursively_default_dict()
     config["sklearn"]["model"]["file"] = str(model_path)
     config["sklearn"]["environment"] = requirements
     config["sklearn"]["task"] = task
+    config["sklearn"]["model_format"] = model_format
 
     if "tabular" in task:
         config["sklearn"]["example_input"] = _get_example_input_from_tabular_data(data)
@@ -311,6 +336,11 @@ def init(
         "text-regression",
     ],
     data,
+    model_format: Literal[  # type: ignore
+        "skops",
+        "pickle",
+        "auto",
+    ] = "auto",
 ) -> None:
     """Initialize a scikit-learn based Hugging Face repo.
 
@@ -351,6 +381,10 @@ def init(
         :class:`numpy.ndarray`. If ``task`` is ``"text-classification"`` or
         ``"text-regression"``, the data needs to be a ``list`` of strings.
 
+    model_format: str
+        The format the model was persisted in. Can be ``"auto"``, ``"skops"``
+        or ``"pickle"``. Defaults to ``"auto"`` that relies on file extension.
+
     Returns
     -------
     None
@@ -378,6 +412,7 @@ def init(
             dst=dst,
             task=task,
             data=data,
+            model_format=model_format,
         )
     except Exception:
         shutil.rmtree(dst)

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import io
 import json
+import uuid
 from functools import partial
 from types import FunctionType, MethodType
 from typing import Any, Sequence
@@ -8,7 +10,7 @@ from typing import Any, Sequence
 import numpy as np
 
 from ._audit import Node, get_tree
-from ._trusted_types import PRIMITIVE_TYPE_NAMES
+from ._trusted_types import PRIMITIVE_TYPE_NAMES, SKLEARN_ESTIMATOR_TYPE_NAMES
 from ._utils import (
     LoadContext,
     SaveContext,
@@ -383,7 +385,7 @@ class ObjectNode(Node):
 
         self.children = {"attrs": attrs}
         # TODO: what do we trust?
-        self.trusted = self._get_trusted(trusted, [])
+        self.trusted = self._get_trusted(trusted, default=SKLEARN_ESTIMATOR_TYPE_NAMES)
 
     def _construct(self):
         cls = gettype(self.module_name, self.class_name)
@@ -475,12 +477,64 @@ class JsonNode(Node):
         return json.loads(self.content)
 
 
+def bytes_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
+    f_name = f"{uuid.uuid4()}.bin"
+    save_context.zip_file.writestr(f_name, obj)
+    res = {
+        "__class__": obj.__class__.__name__,
+        "__module__": get_module(type(obj)),
+        "__loader__": "BytesNode",
+        "file": f_name,
+    }
+    return res
+
+
+def bytearray_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
+    res = bytes_get_state(obj, save_context)
+    res["__loader__"] = "BytearrayNode"
+    return res
+
+
+class BytesNode(Node):
+    def __init__(
+        self,
+        state: dict[str, Any],
+        load_context: LoadContext,
+        trusted: bool | Sequence[str] = False,
+    ) -> None:
+        super().__init__(state, load_context, trusted)
+        self.trusted = self._get_trusted(trusted, [bytes])
+        self.children = {"content": io.BytesIO(load_context.src.read(state["file"]))}
+
+    def _construct(self):
+        content = self.children["content"].getvalue()
+        return content
+
+
+class BytearrayNode(BytesNode):
+    def __init__(
+        self,
+        state: dict[str, Any],
+        load_context: LoadContext,
+        trusted: bool | Sequence[str] = False,
+    ) -> None:
+        super().__init__(state, load_context, trusted)
+        self.trusted = self._get_trusted(trusted, [bytearray])
+
+    def _construct(self):
+        content_bytes = super()._construct()
+        content_bytearray = bytearray(list(content_bytes))
+        return content_bytearray
+
+
 # tuples of type and function that gets the state of that type
 GET_STATE_DISPATCH_FUNCTIONS = [
     (dict, dict_get_state),
     (list, list_get_state),
     (set, set_get_state),
     (tuple, tuple_get_state),
+    (bytes, bytes_get_state),
+    (bytearray, bytearray_get_state),
     (slice, slice_get_state),
     (FunctionType, function_get_state),
     (MethodType, method_get_state),
@@ -494,6 +548,8 @@ NODE_TYPE_MAPPING = {
     "ListNode": ListNode,
     "SetNode": SetNode,
     "TupleNode": TupleNode,
+    "BytesNode": BytesNode,
+    "BytearrayNode": BytearrayNode,
     "SliceNode": SliceNode,
     "FunctionNode": FunctionNode,
     "MethodNode": MethodNode,
