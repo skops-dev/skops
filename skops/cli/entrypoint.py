@@ -17,7 +17,7 @@ def main_cli(command_line_args=None):
     )
 
     subparsers = entry_parser.add_subparsers(
-        title="Command",
+        title="Commands",
         description="Skops command to call",
         dest="cmd",
         help="Sub-commands help",
@@ -35,4 +35,5 @@ def main_cli(command_line_args=None):
         subparser.set_defaults(func=values["method"])
         values["format_parser"](subparser)
 
-    args, _ = entry_parser.parse_known_args(command_line_args)
+    args = entry_parser.parse_args(command_line_args)
+    args.func(args)

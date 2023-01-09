@@ -79,8 +79,9 @@ class TestMainConvert:
     @mock.patch("skops.cli._convert._convert_file")
     def test_base_works_as_expected(self, mock_convert: mock.MagicMock):
         path = "123.pkl"
+        namespace, _ = _convert.format_parser().parse_known_args([path])
 
-        _convert.main(command_line_args=[path])
+        _convert.main(namespace)
         self.assert_called_correctly(mock_convert, path)
 
     @mock.patch("skops.cli._convert._convert_file")
@@ -100,7 +101,9 @@ class TestMainConvert:
         else:
             args = [input_path]
 
-        _convert.main(command_line_args=args)
+        namespace, _ = _convert.format_parser().parse_known_args(args)
+
+        _convert.main(namespace)
         self.assert_called_correctly(
             mock_convert, path=input_path, output_file=expected_path
         )

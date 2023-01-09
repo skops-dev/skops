@@ -96,16 +96,11 @@ def format_parser(
 
 
 def main(
-    command_line_args: Optional[list[str]] = None,
-    parser: Optional[argparse.ArgumentParser] = None,
+    parsed_args: argparse.Namespace,
 ):
-    if not parser:
-        parser = format_parser(argparse.ArgumentParser())
-
-    args, _ = parser.parse_known_args(command_line_args)
-    output_file = args.output_file
-    input_file = args.input
-    logging.basicConfig(format="%(message)s", level=args.loglevel)
+    output_file = parsed_args.output_file
+    input_file = parsed_args.input
+    logging.basicConfig(format="%(message)s", level=parsed_args.loglevel)
 
     if not output_file:
         # No filename provided, defaulting to base file path
