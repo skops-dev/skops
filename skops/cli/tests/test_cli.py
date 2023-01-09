@@ -1,7 +1,6 @@
 import logging
 import pathlib
 import pickle as pkl
-from typing import Optional
 from unittest import mock
 
 import numpy as np
@@ -70,74 +69,38 @@ class TestMainConvert:
     @staticmethod
     def assert_called_correctly(
         mock_convert: mock.MagicMock,
-        paths: list,
-        output_files: Optional[list] = None,
+        path,
+        output_file=None,
     ):
-        if not output_files:
-            output_files = [
-                pathlib.Path.cwd() / f"{pathlib.Path(p).stem}.skops" for p in paths
-            ]
-        assert mock_convert.call_count == len(paths)
-        mock_convert.assert_has_calls(
-            [
-                mock.call(input_file=paths[i], output_file=output_files[i])
-                for i in range(len(paths))
-            ]
-        )
+        if not output_file:
+            output_file = pathlib.Path.cwd() / f"{pathlib.Path(path).stem}.skops"
+        mock_convert.assert_called_once_with(input_file=path, output_file=output_file)
 
     @mock.patch("skops.cli._convert._convert_file")
     def test_base_works_as_expected(self, mock_convert: mock.MagicMock):
-        args = [
-            "123.pkl",
-            "abc.pkl",
-        ]
+        path = "123.pkl"
 
-        _convert.main(command_line_args=args)
-        self.assert_called_correctly(mock_convert, args)
+        _convert.main(command_line_args=[path])
+        self.assert_called_correctly(mock_convert, path)
 
     @mock.patch("skops.cli._convert._convert_file")
     @pytest.mark.parametrize(
-        "input_paths, output_files, expected_paths",
+        "input_path, output_file, expected_path",
         [
-            (["abc.123"], ["a/b/c"], ["a/b/c"]),
-            (["abc.123"], None, [pathlib.Path.cwd() / "abc.skops"]),
+            ("abc.123", "a/b/c", "a/b/c"),
+            ("abc.123", None, pathlib.Path.cwd() / "abc.skops"),
         ],
         ids=["Given an output path", "No output path"],
     )
     def test_with_output_dir_works_as_expected(
-        self, mock_convert: mock.MagicMock, input_paths, output_files, expected_paths
+        self, mock_convert: mock.MagicMock, input_path, output_file, expected_path
     ):
-        if output_files is not None:
-            args = input_paths + ["--output-files"] + output_files
+        if output_file is not None:
+            args = [input_path, "--output", output_file]
         else:
-            args = input_paths
+            args = [input_path]
 
         _convert.main(command_line_args=args)
         self.assert_called_correctly(
-            mock_convert, paths=input_paths, output_files=expected_paths
+            mock_convert, path=input_path, output_file=expected_path
         )
-
-    @mock.patch("skops.cli._convert._convert_file")
-    @pytest.mark.parametrize(
-        "input_paths, output_files, expected_paths",
-        [
-            (
-                ["model_a.pkl", "model_b.pkl"],
-                ["a.skops", "b.skops"],
-                ["a.skops", "b.skops"],
-            ),
-            (
-                ["model_a.pkl", "model_b.pkl", "model_c.pkl"],
-                ["a.skops", "b.skops"],
-                ["a.skops", "b.skops", pathlib.Path.cwd() / "model_c.skops"],
-            ),
-        ],
-        ids=["With enough output paths", "With only some output paths"],
-    )
-    def test_for_multiple_inputs_and_outputs_works_as_expected(
-        self, mock_convert: mock.MagicMock, input_paths, output_files, expected_paths
-    ):
-        args = input_paths + ["--output-files"] + output_files
-        _convert.main(args)
-
-        self.assert_called_correctly(mock_convert, input_paths, expected_paths)
