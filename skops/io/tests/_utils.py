@@ -126,6 +126,13 @@ def _assert_vals_equal(val1, val2):
 
 
 def assert_params_equal(params1, params2):
+    # due to https://github.com/scikit-learn/scikit-learn/pull/22094, after
+    # loading an sklearn estimator, there might be an entry called
+    # "__sklearn_pickle_version__" in the __dict__ that wasn't there before. We
+    # just ignore it.
+    params1.pop("__sklearn_pickle_version__", None)
+    params2.pop("__sklearn_pickle_version__", None)
+
     # helper function to compare estimator dictionaries of parameters
     assert len(params1) == len(params2)
     assert set(params1.keys()) == set(params2.keys())
