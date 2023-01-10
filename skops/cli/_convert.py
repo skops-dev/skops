@@ -79,7 +79,10 @@ def format_parser(
     parser_subgroup.add_argument(
         "-v",
         "--verbose",
-        help="Enable verbose logging.",
+        help=(
+            "Increases verbosity of logging. Can be used multiple times to increase "
+            "further."
+        ),
         action="count",
         dest="loglevel",
         default=0,
