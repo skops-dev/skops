@@ -64,7 +64,7 @@ def format_parser(
         parser = argparse.ArgumentParser()
 
     parser_subgroup = parser.add_argument_group("convert")
-    parser_subgroup.add_argument("input-file", help="Input file to convert. ")
+    parser_subgroup.add_argument("input", help="Path to an input file to convert. ")
 
     parser_subgroup.add_argument(
         "-o",
@@ -81,7 +81,7 @@ def format_parser(
         "--verbose",
         help=(
             "Increases verbosity of logging. Can be used multiple times to increase "
-            "further."
+            "verbosity further."
         ),
         action="count",
         dest="loglevel",
@@ -94,7 +94,7 @@ def main(
     parsed_args: argparse.Namespace,
 ):
     output_file = parsed_args.output_file
-    input_file = parsed_args.input_file
+    input_file = parsed_args.input
 
     logging.basicConfig(format="%(message)s", level=get_log_level(parsed_args.loglevel))
 

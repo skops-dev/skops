@@ -9,6 +9,12 @@ skops Changelog
     :depth: 1
     :local:
 
+v0.5
+----
+- Added CLI entrypoint support (:func:`.cli.entrypoint.main_cli`)
+  and a command line function to convert Pickle files
+  to Skops files (:func:`.cli._convert.main`). :pr:`249` by `Erin Aho`_
+
 v0.4
 ----
 - :func:`.io.dump` and :func:`.io.load` now work with file like objects,
@@ -83,4 +89,5 @@ Contributors
 
 :user:`Adrin Jalali <adrinjalali>`, :user:`Merve Noyan <merveenoyan>`,
 :user:`Benjamin Bossan <BenjaminBossan>`, :user:`Ayyuce Demirbas
-<ayyucedemirbas>`, :user:`Prajjwal Mishra <p-mishra1>`
+<ayyucedemirbas>`, :user:`Prajjwal Mishra <p-mishra1>`,
+:user:`Erin Aho <E-Aho>`,
