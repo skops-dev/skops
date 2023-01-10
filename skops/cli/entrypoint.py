@@ -25,7 +25,7 @@ def main_cli(command_line_args=None):
         help="Sub-commands help",
     )
 
-    # function_map should map the expected CL command to
+    # function_map should map a command to
     #   method: the command to call
     #   format_parser: the function used to create a subparser for that command
     function_map = {

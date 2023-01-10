@@ -64,7 +64,7 @@ def format_parser(
         parser = argparse.ArgumentParser()
 
     parser_subgroup = parser.add_argument_group("convert")
-    parser_subgroup.add_argument("input", help="Input file to convert. ")
+    parser_subgroup.add_argument("input-file", help="Input file to convert. ")
 
     parser_subgroup.add_argument(
         "-o",
@@ -94,7 +94,7 @@ def main(
     parsed_args: argparse.Namespace,
 ):
     output_file = parsed_args.output_file
-    input_file = parsed_args.input
+    input_file = parsed_args.input_file
 
     logging.basicConfig(format="%(message)s", level=get_log_level(parsed_args.loglevel))
 
