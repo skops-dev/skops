@@ -110,6 +110,22 @@ you have custom functions (say, a custom function to be used with
 most ``numpy`` and ``scipy`` functions should work. Therefore, you can save
 objects having references to functions such as ``numpy.sqrt``.
 
+Command Line Interface
+########
+Skops has a command line interface to convert SciKit-Learn models persisted with
+``Pickle`` to ``Skops`` files.
+
+To convert a file from the command line, use the ``skops convert`` entrypoint.
+
+Below is an example call to convert a file ``my_model.pkl`` to ``new_model.skops``:
+
+.. code:: console
+    skops convert my_model.pkl
+
+Further help for the different supported options can be found by calling
+``skops convert --help`` in a terminal.
+
+
 Supported libraries
 -------------------
 
