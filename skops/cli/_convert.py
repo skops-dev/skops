@@ -7,6 +7,7 @@ import pathlib
 import pickle
 from typing import Optional
 
+from skops.cli._utils import get_log_level
 from skops.io import dumps, get_untrusted_types
 
 
@@ -79,18 +80,9 @@ def format_parser(
         "-v",
         "--verbose",
         help="Enable verbose logging.",
-        action="store_const",
+        action="count",
         dest="loglevel",
-        const=logging.INFO,
-    )
-    parser_subgroup.add_argument(
-        "-d",
-        "--debug",
-        help="Enable debug logging.",
-        action="store_const",
-        dest="loglevel",
-        const=logging.DEBUG,
-        default=logging.WARNING,
+        default=0,
     )
     return parser
 
@@ -100,7 +92,8 @@ def main(
 ):
     output_file = parsed_args.output_file
     input_file = parsed_args.input
-    logging.basicConfig(format="%(message)s", level=parsed_args.loglevel)
+
+    logging.basicConfig(format="%(message)s", level=get_log_level(parsed_args.loglevel))
 
     if not output_file:
         # No filename provided, defaulting to base file path

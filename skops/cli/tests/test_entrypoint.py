@@ -1,3 +1,4 @@
+import logging
 import pathlib
 import sys
 from unittest import mock
@@ -22,6 +23,7 @@ class TestEntrypoint:
     def test_convert_works_as_expected(
         self,
         convert_file_mock: mock.MagicMock,
+        caplog,
     ):
         """
         Intended as a unit test to make sure,
@@ -35,3 +37,5 @@ class TestEntrypoint:
         convert_file_mock.assert_called_once_with(
             input_file="abc.def", output_file=pathlib.Path.cwd() / "abc.skops"
         )
+
+        assert caplog.at_level(logging.WARNING)

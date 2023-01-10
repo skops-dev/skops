@@ -65,7 +65,7 @@ class TestConvert:
         assert MockUnsafeType.__name__ in caplog.text
 
 
-class TestMainConvert:
+class TestMain:
     @staticmethod
     def assert_called_correctly(
         mock_convert: mock.MagicMock,
@@ -107,3 +107,32 @@ class TestMainConvert:
         self.assert_called_correctly(
             mock_convert, path=input_path, output_file=expected_path
         )
+
+    @mock.patch("skops.cli._convert._convert_file")
+    @pytest.mark.parametrize(
+        "verbosity, expected_level",
+        [
+            ("", logging.WARNING),
+            ("-v", logging.INFO),
+            ("--verbose", logging.INFO),
+            ("-vv", logging.DEBUG),
+            ("-v -v", logging.DEBUG),
+            ("-vvv", logging.DEBUG),
+            ("--verbose --verbose", logging.DEBUG),
+        ],
+    )
+    def test_given_log_levels_works_as_expected(
+        self, mock_convert: mock.MagicMock, verbosity, expected_level, caplog
+    ):
+        input_path = "abc.def"
+        output_path = "bde.skops"
+        args = [input_path, "--output", output_path, verbosity.split()]
+
+        namespace, _ = _convert.format_parser().parse_known_args(args)
+
+        _convert.main(namespace)
+        self.assert_called_correctly(
+            mock_convert, path=input_path, output_file=output_path
+        )
+
+        assert caplog.at_level(expected_level)
