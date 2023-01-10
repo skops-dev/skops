@@ -8,7 +8,9 @@ def main_cli(command_line_args=None):
     Main command line interface entrypoint for all command line Skops methods.
 
     To add a new entrypoint:
-        1. Create a new main
+        1. Create a new method to call that accepts a namespace
+        2. Create a new subparser formatter to define the expected CL arguments
+        3. Add those to the function map.
     """
     entry_parser = argparse.ArgumentParser(
         prog="Skops",
@@ -23,6 +25,9 @@ def main_cli(command_line_args=None):
         help="Sub-commands help",
     )
 
+    # function_map should map the expected CL command to
+    #   method: the command to call
+    #   format_parser: the function used to create a subparser for that command
     function_map = {
         "convert": {
             "method": skops.cli._convert.main,
