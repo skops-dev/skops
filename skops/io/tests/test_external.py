@@ -283,7 +283,7 @@ class TestCatboost:
     @pytest.mark.parametrize("boosting_type", boosting_types)
     def test_classifier(self, catboost, cb_clf_data, trusted, boosting_type):
         estimator = catboost.CatBoostClassifier(
-            verbose=False, boosting_type=boosting_type
+            verbose=False, boosting_type=boosting_type, allow_writing_files=False
         )
         loaded = loads(dumps(estimator), trusted=trusted)
         assert_params_equal(estimator.get_params(), loaded.get_params())
@@ -296,7 +296,7 @@ class TestCatboost:
     @pytest.mark.parametrize("boosting_type", boosting_types)
     def test_regressor(self, catboost, cb_regr_data, trusted, boosting_type):
         estimator = catboost.CatBoostRegressor(
-            verbose=False, boosting_type=boosting_type
+            verbose=False, boosting_type=boosting_type, allow_writing_files=False
         )
         loaded = loads(dumps(estimator), trusted=trusted)
         assert_params_equal(estimator.get_params(), loaded.get_params())
@@ -308,7 +308,9 @@ class TestCatboost:
 
     @pytest.mark.parametrize("boosting_type", boosting_types)
     def test_ranker(self, catboost, cb_rank_data, trusted, boosting_type):
-        estimator = catboost.CatBoostRanker(verbose=False, boosting_type=boosting_type)
+        estimator = catboost.CatBoostRanker(
+            verbose=False, boosting_type=boosting_type, allow_writing_files=False
+        )
         loaded = loads(dumps(estimator), trusted=trusted)
         assert_params_equal(estimator.get_params(), loaded.get_params())
 
