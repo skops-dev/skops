@@ -127,6 +127,8 @@ def _assert_vals_equal(val1, val2):
 
 def assert_params_equal(params1, params2):
     # helper function to compare estimator dictionaries of parameters
+    if params1 is None and params2 is None:
+        return
     assert len(params1) == len(params2)
     assert set(params1.keys()) == set(params2.keys())
     for key in params1:
