@@ -2,9 +2,8 @@ from __future__ import annotations
 
 import io
 from contextlib import contextmanager
-from typing import Any, Generator, Sequence, Type, Union
+from typing import Any, Generator, Literal, Sequence, Type, Union
 
-from ..utils.fixes import Literal
 from ._trusted_types import PRIMITIVE_TYPE_NAMES
 from ._utils import LoadContext, get_module, get_type_paths
 from .exceptions import UntrustedTypesFoundException
