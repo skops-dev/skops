@@ -4,7 +4,6 @@ import pickle
 import tempfile
 from pathlib import Path
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 import sklearn
@@ -189,6 +188,8 @@ def test_template_sections_not_mutated_by_save(destination_path, model_card):
 
 
 def test_add_plot(destination_path, model_card):
+    import matplotlib.pyplot as plt
+
     plt.plot([4, 5, 6, 7])
     plt.savefig(Path(destination_path) / "fig1.png")
     model_card = model_card.add_plot(fig1="fig1.png").render()
@@ -289,6 +290,8 @@ def test_temporary_plot(destination_path, model_card):
     # test if the additions are made to a temporary template file
     # and not to default template or template provided
     root = skops.__path__
+    import matplotlib.pyplot as plt
+
     # read original template
     with open(Path(root[0]) / "card" / "default_template.md") as f:
         default_template = f.read()

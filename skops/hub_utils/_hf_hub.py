@@ -142,7 +142,7 @@ def _create_config(
     model_path: Union[str, Path],
     requirements: List[str],
     dst: Union[str, Path],
-    task: Literal[
+    task: Literal[  # type: ignore
         "tabular-classification",
         "tabular-regression",
         "text-classification",
@@ -266,7 +266,7 @@ def init(
     model: Union[str, Path],
     requirements: List[str],
     dst: Union[str, Path],
-    task: Literal[
+    task: Literal[  #  type: ignore
         "tabular-classification",
         "tabular-regression",
         "text-classification",
