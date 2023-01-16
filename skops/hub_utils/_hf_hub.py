@@ -9,7 +9,7 @@ import json
 import os
 import shutil
 from pathlib import Path
-from typing import Any, List, Literal, MutableMapping, Optional, Union
+from typing import Any, List, Literal, MutableMapping, Optional, Union  # type: ignore
 
 import numpy as np
 from huggingface_hub import HfApi, InferenceApi, snapshot_download
