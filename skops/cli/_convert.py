@@ -11,9 +11,8 @@ from skops.cli._utils import get_log_level
 from skops.io import dumps, get_untrusted_types
 
 
-def _convert_file(input_file: os.PathLike, output_file: os.PathLike):
-    """
-    Function that is called by ``skops convert`` entrypoint.
+def _convert_file(input_file: os.PathLike, output_file: os.PathLike) -> None:
+    """Function that is called by ``skops convert`` entrypoint.
 
     Loads a pickle model from the input path, converts to skops format, and saves to
     output file.
@@ -91,7 +90,7 @@ def format_parser(
 
 def main(
     parsed_args: argparse.Namespace,
-):
+) -> None:
     output_file = parsed_args.output_file
     input_file = parsed_args.input
 

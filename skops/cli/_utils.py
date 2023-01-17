@@ -1,7 +1,7 @@
 import logging
 
 
-def get_log_level(level: int = 0):
+def get_log_level(level: int = 0) -> int:
     """Takes in verbosity from a CLI entrypoint (number of times -v specified),
     and sets the logger to the required log level"""
 
