@@ -111,7 +111,8 @@ most ``numpy`` and ``scipy`` functions should work. Therefore, you can save
 objects having references to functions such as ``numpy.sqrt``.
 
 Command Line Interface
-########
+######################
+
 Skops has a command line interface to convert SciKit-Learn models persisted with
 ``Pickle`` to ``Skops`` files.
 
