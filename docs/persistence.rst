@@ -118,7 +118,7 @@ Skops has a command line interface to convert scikit-learn models persisted with
 
 To convert a file from the command line, use the ``skops convert`` entrypoint.
 
-Below is an example call to convert a file ``my_model.pkl`` to ``new_model.skops``:
+Below is an example call to convert a file ``my_model.pkl`` to ``my_model.skops``:
 
 .. code:: console
     skops convert my_model.pkl
