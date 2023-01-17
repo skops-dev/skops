@@ -1,6 +1,6 @@
 import logging
 import pathlib
-import pickle as pkl
+import pickle
 from unittest import mock
 
 import numpy as np
@@ -37,12 +37,12 @@ class TestConvert:
     @pytest.fixture
     def write_safe_file(self, pkl_path, safe_obj):
         with open(pkl_path, "wb") as f:
-            pkl.dump(safe_obj, f)
+            pickle.dump(safe_obj, f)
 
     @pytest.fixture
     def write_unsafe_file(self, pkl_path, unsafe_obj):
         with open(pkl_path, "wb") as f:
-            pkl.dump(unsafe_obj, f)
+            pickle.dump(unsafe_obj, f)
 
     def test_base_case_works_as_expected(
         self, pkl_path, tmp_path, skops_path, write_safe_file, safe_obj, caplog
@@ -88,7 +88,7 @@ class TestMain:
     @pytest.mark.parametrize(
         "input_path, output_file, expected_path",
         [
-            ("abc.123", "a/b/c", "a/b/c"),
+            ("abc.123", "some/file/path.out", "some/file/path.out"),
             ("abc.123", None, pathlib.Path.cwd() / "abc.skops"),
         ],
         ids=["Given an output path", "No output path"],
