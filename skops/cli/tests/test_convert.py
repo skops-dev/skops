@@ -47,10 +47,14 @@ class TestConvert:
     def test_base_case_works_as_expected(
         self, pkl_path, tmp_path, skops_path, write_safe_file, safe_obj, caplog
     ):
-        _convert._convert_file(pkl_path, skops_path)
+        mock_logger = mock.MagicMock()
+        _convert._convert_file(pkl_path, skops_path, logger=mock_logger)
         persisted_obj = load(skops_path)
         assert np.array_equal(persisted_obj, safe_obj)
-        assert MockUnsafeType.__name__ not in caplog.text
+
+        # Check no warnings or errors raised
+        mock_logger.warning.assert_not_called()
+        mock_logger.error.assert_not_called()
 
     def test_unsafe_case_works_as_expected(
         self, pkl_path, tmp_path, skops_path, write_unsafe_file, caplog

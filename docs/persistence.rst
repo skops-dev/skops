@@ -124,6 +124,13 @@ Below is an example call to convert a file ``my_model.pkl`` to ``my_model.skops`
 
     skops convert my_model.pkl
 
+To convert multiple files, you can use bash commands to iterate the above call.
+For example, to convert all ``.pkl`` flies in the current directory:
+
+.. code:: console
+
+    for FILE in *.pkl; do skops convert FILE; done
+
 Further help for the different supported options can be found by calling
 ``skops convert --help`` in a terminal.
 

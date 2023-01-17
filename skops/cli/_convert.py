@@ -11,7 +11,11 @@ from skops.cli._utils import get_log_level
 from skops.io import dumps, get_untrusted_types
 
 
-def _convert_file(input_file: os.PathLike, output_file: os.PathLike) -> None:
+def _convert_file(
+    input_file: os.PathLike,
+    output_file: os.PathLike,
+    logger: logging.Logger = logging.getLogger(),
+) -> None:
     """Function that is called by ``skops convert`` entrypoint.
 
     Loads a pickle model from the input path, converts to skops format, and saves to
@@ -28,7 +32,7 @@ def _convert_file(input_file: os.PathLike, output_file: os.PathLike) -> None:
     """
     model_name = pathlib.Path(input_file).stem
 
-    logging.debug(f"Converting {model_name}")
+    logger.debug(f"Converting {model_name}")
 
     with open(input_file, "rb") as f:
         obj = pickle.load(f)
@@ -37,11 +41,11 @@ def _convert_file(input_file: os.PathLike, output_file: os.PathLike) -> None:
     untrusted_types = get_untrusted_types(data=skops_dump)
 
     if not untrusted_types:
-        logging.info(f"No unknown types found in {model_name}.")
+        logger.info(f"No unknown types found in {model_name}.")
     else:
         untrusted_str = ", ".join(untrusted_types)
 
-        logging.warning(
+        logger.warning(
             f"While converting {model_name}, "
             "the following unknown types were found: "
             f"{untrusted_str}. "
@@ -49,7 +53,7 @@ def _convert_file(input_file: os.PathLike, output_file: os.PathLike) -> None:
         )
 
     with open(output_file, "wb") as out_file:
-        logging.debug(f"Writing to {output_file}")
+        logger.debug(f"Writing to {output_file}")
         out_file.write(skops_dump)
 
 
