@@ -140,7 +140,7 @@ if you used different column alignment than the default, this could change, as
 well as removing excess empty lines or trailing whitespace. However, the content
 itself should be exactly the same. All known deviations are documented in the
 `parse_modelcard docs
-<https://skops.readthedocs.io/en/stable/modules/classes.html#skops.card.metadata_from_config>`_
+<https://skops.readthedocs.io/en/stable/modules/classes.html#skops.card.parse_modelcard>`_
 
 For the parsing part, we rely on `pandoc <https://pandoc.org/>`_. If you haven't
 installed it, please follow `these instructions
