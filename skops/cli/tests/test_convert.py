@@ -117,7 +117,7 @@ class TestMain:
             ("--verbose", logging.INFO),
             ("-vv", logging.DEBUG),
             ("-v -v", logging.DEBUG),
-            ("-vvv", logging.DEBUG),
+            ("-vvvvv", logging.DEBUG),
             ("--verbose --verbose", logging.DEBUG),
         ],
     )

@@ -8,7 +8,7 @@ def get_log_level(level: int = 0) -> int:
     all_levels = [logging.WARNING, logging.INFO, logging.DEBUG]
 
     if level > len(all_levels):
-        level = len(all_levels)
+        level = len(all_levels) - 1
     elif level < 0:
         level = 0
 
