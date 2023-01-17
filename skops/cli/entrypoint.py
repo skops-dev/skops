@@ -25,7 +25,7 @@ def main_cli(command_line_args=None):
     )
 
     # function_map should map a command to
-    #   method: the command to call
+    #   method: the command to call (gets set to default 'func')
     #   format_parser: the function used to create a subparser for that command
     function_map = {
         "convert": {
@@ -35,9 +35,13 @@ def main_cli(command_line_args=None):
     }
 
     for func_name, values in function_map.items():
+        # Add subparser for each function in func map,
+        # and assigns default func to be "method" from function_map
         subparser = subparsers.add_parser(func_name)
         subparser.set_defaults(func=values["method"])
         values["format_parser"](subparser)
 
+    # Parse arguments with arg parser for given function in function map,
+    # Then call the matching method in the function_map with the argument namespace
     args = entry_parser.parse_args(command_line_args)
     args.func(args)
