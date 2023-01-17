@@ -134,10 +134,8 @@ def _get_example_input_from_text_data(data: Sequence[str]):
     """
 
     def _head(data, n):
-        def is_subscriptable(data):
-            return hasattr(data, "__getitem__")
-
-        if is_subscriptable(data):
+        is_data_subscriptable = hasattr(data, "__getitem__")
+        if is_data_subscriptable:
             return data[:n]
 
         return list(itertools.islice(data, n))
@@ -256,7 +254,6 @@ def _create_config(
 
         - ``"pickle"`` if the extension is one of ``{".pickle", ".pkl", ".joblib"}``
         - ``"skops"`` if the extension is ``".skops"``
-
 
     Returns
     -------

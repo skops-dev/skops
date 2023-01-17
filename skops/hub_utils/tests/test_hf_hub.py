@@ -552,18 +552,20 @@ def test_get_example_input_from_tabular_data():
     assert len(examples["column0"]) == 3
 
 
-def test_get_example_input_from_text_data():
-    example_input = _get_example_input_from_text_data(["a", "b", "c", "d"])
-    assert len(example_input["data"]) == 3
-
-    example_input = _get_example_input_from_text_data(np.array(["a", "b", "c", "d"]))
-    assert len(example_input["data"]) == 3
-
-    example_input = _get_example_input_from_text_data(set(["a", "b", "c", "d"]))
-    assert len(example_input["data"]) == 3
-
-    example_input = _get_example_input_from_text_data([])
-    assert len(example_input["data"]) == 0
+@pytest.mark.parametrize(
+    "data, expected_length",
+    [
+        (["a", "b", "c", "d"], 3),
+        (np.array(["a", "b", "c", "d"]), 3),
+        (set(["a", "b", "c", "d"]), 3),
+        (tuple(["a", "b", "c", "d"]), 3),
+        (["a"], 1),
+        ([], 0),
+    ],
+)
+def test_get_example_input_from_text_data(data, expected_length):
+    example_input = _get_example_input_from_text_data(data)
+    assert len(example_input["data"]) == expected_length
 
 
 @pytest.mark.parametrize("data", ["random", [1, 2, 3], 420])
