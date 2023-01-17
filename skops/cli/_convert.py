@@ -43,7 +43,6 @@ def _convert_file(input_file: os.PathLike, output_file: os.PathLike):
         untrusted_str = ", ".join(untrusted_types)
 
         logging.warning(
-            "Unknown Types Detected! "
             f"While converting {model_name}, "
             "the following unknown types were found: "
             f"{untrusted_str}. "
