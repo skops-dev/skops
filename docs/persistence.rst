@@ -113,7 +113,7 @@ objects having references to functions such as ``numpy.sqrt``.
 Command Line Interface
 ######################
 
-Skops has a command line interface to convert SciKit-Learn models persisted with
+Skops has a command line interface to convert scikit-learn models persisted with
 ``Pickle`` to ``Skops`` files.
 
 To convert a file from the command line, use the ``skops convert`` entrypoint.
