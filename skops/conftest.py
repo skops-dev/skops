@@ -4,6 +4,7 @@ from unittest.mock import patch
 import pytest
 
 
+@pytest.fixture
 def pandas_not_installed():
     # patch import so that it raises an ImportError when trying to import
     # pandas. This works because pandas is only imported lazily.
