@@ -26,6 +26,10 @@ v0.4
   section/New section": "content"})`` to add "content" a new subsection called
   "New section" to an existing section called "Existing section". :pr:`203` by
   `Benjamin Bossan`_.
+- Add an option `use_intelex` to :func:`skops.hub_utils.init` which, when
+  enabled, will result in the Hugging Face inference API running with Intel's
+  scikit-learn intelex library, which can accelerate inference times. :pr:`267`
+  by `Benjamin Bossan`_.
 
 v0.3
 ----
