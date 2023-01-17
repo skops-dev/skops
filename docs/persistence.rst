@@ -121,6 +121,7 @@ To convert a file from the command line, use the ``skops convert`` entrypoint.
 Below is an example call to convert a file ``my_model.pkl`` to ``my_model.skops``:
 
 .. code:: console
+
     skops convert my_model.pkl
 
 Further help for the different supported options can be found by calling

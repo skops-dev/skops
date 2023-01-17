@@ -4,8 +4,7 @@ import skops.cli._convert
 
 
 def main_cli(command_line_args=None):
-    """
-    Main command line interface entrypoint for all command line Skops methods.
+    """Main command line interface entrypoint for all command line Skops methods.
 
     To add a new entrypoint:
         1. Create a new method to call that accepts a namespace
