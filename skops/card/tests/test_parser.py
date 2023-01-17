@@ -4,12 +4,10 @@ import os
 import re
 from pathlib import Path
 
-import numpy as np
 import pytest
 import yaml  # type: ignore
-from sklearn.linear_model import LinearRegression
 
-from skops.card import Card, parse_modelcard
+from skops.card import parse_modelcard
 from skops.card._parser import PandocParser, check_pandoc_installed
 
 try:
@@ -17,32 +15,6 @@ try:
 except FileNotFoundError:
     # not installed, skip
     pytest.skip(reason="These tests require a recent pandoc", allow_module_level=True)
-
-
-@pytest.fixture
-def fit_model():
-    X = np.array([[1, 1], [1, 2], [2, 2], [2, 3]])
-    y = np.dot(X, np.array([1, 2])) + 3
-    reg = LinearRegression().fit(X, y)
-    return reg
-
-
-@pytest.fixture
-def card(fit_model, tmp_path):
-    card = Card(fit_model)
-
-    try:
-        import matplotlib.pyplot as plt
-
-        fig, ax = plt.subplots()
-        ax.plot([0, 1])
-        fig.savefig(tmp_path / "my-throwaway-plot.png")
-        card.add_plot(**{"My plots/My first plot": "my-throwaway-plot.png"})
-    except ImportError:
-        pass
-
-    card.add_table(**{"A table": {"col0": [0, 1], "col1": [2, 3]}})
-    return card
 
 
 EXAMPLE_CARDS = [
