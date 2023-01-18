@@ -98,7 +98,9 @@ def main(
     output_file = parsed_args.output_file
     input_file = parsed_args.input
 
-    logging.basicConfig(format="%(message)s", level=get_log_level(parsed_args.loglevel))
+    logging.basicConfig(
+        format="%(levelname)-8s: %(message)s", level=get_log_level(parsed_args.loglevel)
+    )
 
     if not output_file:
         # No filename provided, defaulting to base file path
