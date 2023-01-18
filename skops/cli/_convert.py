@@ -49,7 +49,8 @@ def _convert_file(
             f"While converting {input_file}, "
             "the following unknown types were found: "
             f"{untrusted_str}. "
-            f"When loading {output_file}, add 'trusted=True' to the skops.load call. "
+            f"When loading {output_file} with skops.load, these types must be "
+            "specified as 'trusted'"
         )
 
     with open(output_file, "wb") as out_file:
