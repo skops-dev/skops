@@ -120,7 +120,8 @@ Easily build user interfaces to your scikit-learn models
 `gradio <https://gradio.app/>`__ is a python library that lets you create interfaces on your model.
 It has a class called `Interface <https://gradio.app/docs/#interface>`__ that lets you create application
 interfaces to your machine learning models. Using gradio can have some advantages over the using a plain
-model repository, e.g. the widget allows uploading a csv for tabular data.
+model repository, e.g. the Gradio dataframe component allows uploading a csv for tabular data, unlike the
+widget in the model repository.
 
 ``gradio`` is integrated with skops, so you can load an interface with only one
 line of code. During the initialization of the interface, call load method with
