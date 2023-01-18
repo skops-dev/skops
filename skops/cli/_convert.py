@@ -46,7 +46,7 @@ def _convert_file(
         untrusted_str = ", ".join(untrusted_types)
 
         logger.warning(
-            f"While converting {model_name}, "
+            f"While converting {input_file}, "
             "the following unknown types were found: "
             f"{untrusted_str}. "
             f"When loading {output_file}, add 'trusted=True' to the skops.load call. "
