@@ -9,6 +9,14 @@ skops Changelog
     :depth: 1
     :local:
 
+v0.5
+----
+- :class:`.card.Card` now allows to add content to existing sections, using a
+  ``/`` to separate the subsections. E.g. use ``card.add(**{"Existing
+  section/New section": "content"})`` to add "content" a new subsection called
+  "New section" to an existing section called "Existing section". :pr:`203` by
+  `Benjamin Bossan`_.
+
 v0.4
 ----
 - :func:`.io.dump` and :func:`.io.load` now work with file like objects,
@@ -21,11 +29,6 @@ v0.4
   :pr:`242` by `Merve Noyan`_.
 - Persistence now supports bytes and bytearrays, added tests to verify that
   LightGBM, XGBoost, and CatBoost work now. :pr:`244` by `Benjamin Bossan`_.
-- :class:`.card.Card` now allows to add content to existing sections, using a
-  ``/`` to separate the subsections. E.g. use ``card.add(**{"Existing
-  section/New section": "content"})`` to add "content" a new subsection called
-  "New section" to an existing section called "Existing section". :pr:`203` by
-  `Benjamin Bossan`_.
 
 v0.3
 ----
