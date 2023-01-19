@@ -5,6 +5,7 @@ import re
 import shutil
 import tempfile
 import warnings
+from importlib import metadata
 from pathlib import Path
 from uuid import uuid4
 
@@ -37,7 +38,7 @@ from skops.hub_utils._hf_hub import (
     _validate_folder,
 )
 from skops.hub_utils.tests.common import HF_HUB_TOKEN
-from skops.utils.fixes import metadata, path_unlink
+from skops.io import dump
 
 iris = load_iris(as_frame=True, return_X_y=False)
 diabetes = load_diabetes(as_frame=True, return_X_y=False)
@@ -76,39 +77,67 @@ def get_regressor():
 
 
 @pytest.fixture(scope="session")
-def classifier_pickle(repo_path):
-    # Create a simple pickle file for the purpose of testing
+def classifier(repo_path, config_json):
+    # Create a simple model file for the purpose of testing
     clf = get_classifier()
-    path = repo_path / "model.pickle"
+    config_path, file_format = config_json
+    model_file = CONFIG[file_format]["sklearn"]["model"]["file"]
+    path = repo_path / model_file
 
     try:
-        with open(path, "wb") as f:
-            pickle.dump(clf, f)
+        if file_format == "pickle":
+            with open(path, "wb") as f:
+                pickle.dump(clf, f)
+        elif file_format == "skops":
+            dump(clf, path)
         yield path
     finally:
-        path_unlink(path, missing_ok=True)
+        path.unlink(missing_ok=True)
 
 
 CONFIG = {
-    "sklearn": {
-        "environment": ['scikit-learn="1.1.1"'],
-        "model": {"file": "model.pickle"},
-    }
+    "pickle": {
+        "sklearn": {
+            "environment": ['scikit-learn="1.1.1"'],
+            "model": {"file": "model.pickle"},
+        }
+    },
+    "skops": {
+        "sklearn": {
+            "environment": ['scikit-learn="1.1.1"'],
+            "model": {"file": "model.skops"},
+        }
+    },
 }
 
 
-@pytest.fixture(scope="session")
-def config_json(repo_path):
+@pytest.fixture(scope="session", params=["skops", "pickle"])
+def config_json(repo_path, request):
     path = repo_path / "config.json"
     try:
         with open(path, "w") as f:
-            json.dump(CONFIG, f)
-        yield path
+            json.dump(CONFIG[request.param], f)
+        yield path, request.param
     finally:
-        path_unlink(path, missing_ok=True)
+        path.unlink(missing_ok=True)
+
+
+def test_validate_format(classifier):
+    dir_path = tempfile.mkdtemp()
+    shutil.rmtree(dir_path)
+    with pytest.raises(ValueError, match="Cannot determine the input file*"):
+        init(
+            model=classifier,
+            requirements=["scikit-learn"],
+            dst=dir_path,
+            task="tabular-classification",
+            data=iris.data,
+            model_format="dummy",
+        )
 
 
 def test_validate_folder(config_json):
+    config_path, file_format = config_json
     _, file_path = tempfile.mkstemp()
     dir_path = tempfile.mkdtemp()
     with pytest.raises(TypeError, match="The given path is not a directory."):
@@ -125,11 +154,12 @@ def test_validate_folder(config_json):
     ):
         _validate_folder(path=dir_path)
 
-    shutil.copy2(config_json, dir_path)
-    with pytest.raises(TypeError, match="Model file model.pickle does not exist."):
+    shutil.copy2(config_path, dir_path)
+    model_file = CONFIG[file_format]["sklearn"]["model"]["file"]
+    with pytest.raises(TypeError, match=f"Model file {model_file} does not exist."):
         _validate_folder(path=dir_path)
 
-    (Path(dir_path) / "model.pickle").touch()
+    (Path(dir_path) / model_file).touch()
 
     # this should now work w/o an error
     _validate_folder(path=dir_path)
@@ -211,11 +241,11 @@ def test_create_config_invalid_text_data(temp_path):
         )
 
 
-def test_atomic_init(classifier_pickle, temp_path):
+def test_atomic_init(classifier, temp_path):
     with pytest.raises(ValueError):
         # this fails since we're passing an invalid task.
         init(
-            model=classifier_pickle,
+            model=classifier,
             requirements=["scikit-learn"],
             dst=temp_path,
             task="tabular-classification",
@@ -225,7 +255,7 @@ def test_atomic_init(classifier_pickle, temp_path):
     # this passes even though the above init has failed once, on the same
     # destination path.
     init(
-        model=classifier_pickle,
+        model=classifier,
         requirements=["scikit-learn"],
         dst=temp_path,
         task="tabular-classification",
@@ -233,12 +263,12 @@ def test_atomic_init(classifier_pickle, temp_path):
     )
 
 
-def test_init_invalid_task(classifier_pickle, temp_path):
+def test_init_invalid_task(classifier, temp_path):
     with pytest.raises(
         ValueError, match="Task invalid not supported. Supported tasks are"
     ):
         init(
-            model=classifier_pickle,
+            model=classifier,
             requirements=["scikit-learn"],
             dst=temp_path,
             task="invalid",
@@ -246,14 +276,15 @@ def test_init_invalid_task(classifier_pickle, temp_path):
         )
 
 
-def test_init(classifier_pickle, config_json):
+def test_init(classifier, config_json):
+    config_path, file_format = config_json
     # create a temp directory and delete it, we just need a unique name.
     dir_path = tempfile.mkdtemp()
     shutil.rmtree(dir_path)
 
     version = metadata.version("scikit-learn")
     init(
-        model=classifier_pickle,
+        model=classifier,
         requirements=[f'scikit-learn="{version}"'],
         dst=dir_path,
         task="tabular-classification",
@@ -266,7 +297,7 @@ def test_init(classifier_pickle, config_json):
     # it should fail a second time since the folder is no longer empty.
     with pytest.raises(OSError, match="None-empty dst path already exists!"):
         init(
-            model=classifier_pickle,
+            model=classifier,
             requirements=[f'scikit-learn="{version}"'],
             dst=dir_path,
             task="tabular-classification",
@@ -274,7 +305,7 @@ def test_init(classifier_pickle, config_json):
         )
 
 
-def test_override_init_modelcard(classifier_pickle, config_json):
+def test_override_init_modelcard(classifier, config_json):
     # create a temp directory and delete it, we just need a unique name.
     dir_path = tempfile.mkdtemp()
     shutil.rmtree(dir_path)
@@ -305,7 +336,8 @@ def test_override_init_modelcard(classifier_pickle, config_json):
     assert new_card.data.license == "mit"
 
 
-def test_init_no_warning_or_error(classifier_pickle, config_json):
+def test_init_no_warning_or_error(classifier, config_json):
+    config_path, file_format = config_json
     # for the happy path, there should be no warning
     dir_path = tempfile.mkdtemp()
     shutil.rmtree(dir_path)
@@ -314,7 +346,7 @@ def test_init_no_warning_or_error(classifier_pickle, config_json):
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         init(
-            model=classifier_pickle,
+            model=classifier,
             requirements=[f'scikit-learn="{version}"'],
             dst=dir_path,
             task="tabular-classification",
@@ -323,6 +355,7 @@ def test_init_no_warning_or_error(classifier_pickle, config_json):
 
 
 def test_model_file_does_not_exist_raises(repo_path, config_json):
+    config_path, file_format = config_json
     # when the model file does not exist, raise an OSError
     model_path = repo_path / "foobar.pickle"
     dir_path = tempfile.mkdtemp()
@@ -338,10 +371,11 @@ def test_model_file_does_not_exist_raises(repo_path, config_json):
             task="tabular-classification",
             data=iris.data,
         )
-    path_unlink(model_path, missing_ok=True)
+    model_path.unlink(missing_ok=True)
 
 
 def test_init_empty_model_file_errors(repo_path, config_json):
+    config_path, file_format = config_json
     # when model file is empty, warn users
     model_path = Path(repo_path / "foobar.pickle")
     model_path.touch()
@@ -360,7 +394,7 @@ def test_init_empty_model_file_errors(repo_path, config_json):
             task="tabular-classification",
             data=iris.data,
         )
-    path_unlink(model_path, missing_ok=True)
+    model_path.unlink(missing_ok=True)
 
 
 @pytest.mark.network
@@ -370,14 +404,15 @@ def test_push_download(
     explicit_create,
     repo_path,
     destination_path,
-    classifier_pickle,
+    classifier,
     config_json,
 ):
+    config_path, file_format = config_json
     client = HfApi()
 
     version = metadata.version("scikit-learn")
     init(
-        model=classifier_pickle,
+        model=classifier,
         requirements=[f'scikit-learn="{version}"'],
         dst=destination_path,
         task="tabular-classification",
@@ -407,7 +442,7 @@ def test_push_download(
         download(repo_id=repo_id, dst=destination_path, token=HF_HUB_TOKEN)
 
     files = client.list_repo_files(repo_id=repo_id, use_auth_token=HF_HUB_TOKEN)
-    for f_name in [classifier_pickle.name, config_json.name]:
+    for f_name in [classifier.name, config_path.name]:
         assert f_name in files
 
     try:
@@ -442,6 +477,7 @@ def repo_path_for_inference():
     ids=["classifier", "regressor"],
 )
 def test_inference(
+    config_json,
     model_func,
     data,
     task,
@@ -450,11 +486,17 @@ def test_inference(
 ):
     # test inference backend for classifier and regressor models. This test can
     # take a lot of time and be flaky.
-    client = HfApi()
+    config_path, file_format = config_json
+    if file_format != "pickle":
+        pytest.skip(
+            f"Inference only supports pickle at the moment. Given format: {file_format}"
+        )
 
+    client = HfApi()
     repo_path = repo_path_for_inference
+    model_file = CONFIG[file_format]["sklearn"]["model"]["file"]
     model = model_func()
-    model_path = repo_path / "model.pickle"
+    model_path = repo_path / model_file
 
     with open(model_path, "wb") as f:
         pickle.dump(model, f)
@@ -468,7 +510,7 @@ def test_inference(
         data=data.data,
     )
 
-    # a model card is needed for inference engine to work.
+    # TODO: remove when card init at repo init is merged
     model_card = card.Card(
         model, metadata=card.metadata_from_config(Path(destination_path))
     )
@@ -493,14 +535,16 @@ def test_inference(
 
     # cleanup
     client.delete_repo(repo_id=repo_id, token=HF_HUB_TOKEN)
-    path_unlink(model_path, missing_ok=True)
+    model_path.unlink(missing_ok=True)
 
     assert np.allclose(output, y_pred)
 
 
-def test_get_config(repo_path):
+def test_get_config(repo_path, config_json):
+    config_path, file_format = config_json
     config = get_config(repo_path)
-    assert config == CONFIG
+
+    assert config == CONFIG[file_format]
     assert get_requirements(repo_path) == ['scikit-learn="1.1.1"']
 
 
@@ -562,14 +606,14 @@ def test_get_column_names_pandas_not_installed(pandas_not_installed):
 
 class TestAddFiles:
     @pytest.fixture
-    def init_path(self, classifier_pickle, config_json):
+    def init_path(self, classifier, config_json):
         # create temporary directory
         dir_path = tempfile.mkdtemp()
         shutil.rmtree(dir_path)
 
         version = metadata.version("scikit-learn")
         init(
-            model=classifier_pickle,
+            model=classifier,
             requirements=[f'scikit-learn="{version}"'],
             dst=dir_path,
             task="tabular-classification",

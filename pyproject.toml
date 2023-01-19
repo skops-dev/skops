@@ -1,6 +1,6 @@
 [tool.black]
 line-length = 88
-target_version = ['py37', 'py38', 'py39', 'py310']
+target_version = ['py38', 'py39', 'py310', 'py311']
 preview = true
 
 [tool.isort]
@@ -17,6 +17,8 @@ filterwarnings = [
     "ignore:The \\'sym_pos\\' keyword is deprecated and should be replaced:DeprecationWarning",
     # https://github.com/scikit-learn/scikit-learn/pull/23633
     "ignore:Unlike other reduction functions:FutureWarning",
+    # https://github.com/scikit-learn/scikit-learn/pull/25157
+    "ignore:\\w+ is deprecated. Use files\\(\\) instead:DeprecationWarning"
 ]
 markers = [
     "network: marks tests as requiring internet (deselect with '-m \"not network\"')",

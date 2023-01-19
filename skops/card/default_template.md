@@ -29,7 +29,7 @@ The model plot is below.
 
 {{ model_plot }}
 
-## Evaluation Results
+## Evaluation Results
 
 You can find the details about evaluation process and the evaluation results.
 

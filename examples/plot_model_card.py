@@ -29,7 +29,8 @@ from sklearn.metrics import (
 )
 from sklearn.model_selection import HalvingGridSearchCV, train_test_split
 
-from skops import card, hub_utils
+from skops import hub_utils
+from skops.card import Card, metadata_from_config
 
 # %%
 # Data
@@ -91,7 +92,7 @@ hub_utils.init(
 # :func:`.hub_utils.init` above. We will see below how we can populate the model
 # card with useful information.
 
-model_card = card.Card(model, metadata=card.metadata_from_config(Path(local_repo)))
+model_card = Card(model, metadata=metadata_from_config(Path(local_repo)))
 
 # %%
 # Add more information
@@ -103,17 +104,19 @@ model_card = card.Card(model, metadata=card.metadata_from_config(Path(local_repo
 model_card.metadata.license = "mit"
 limitations = "This model is not ready to be used in production."
 model_description = (
-    "This is a HistGradientBoostingClassifier model trained on breast cancer dataset."
-    " It's trained with Halving Grid Search Cross Validation, with parameter grids on"
-    " max_leaf_nodes and max_depth."
+    "This is a `HistGradientBoostingClassifier` model trained on breast cancer "
+    "dataset. It's trained with `HalvingGridSearchCV`, with parameter grids on "
+    "`max_leaf_nodes` and `max_depth`."
 )
 model_card_authors = "skops_user"
-citation_bibtex = "bibtex\n@inproceedings{...,year={2020}}"
+citation_bibtex = "**BibTeX**\n\n```\n@inproceedings{...,year={2020}}\n```"
 model_card.add(
-    citation_bibtex=citation_bibtex,
-    model_card_authors=model_card_authors,
-    limitations=limitations,
-    model_description=model_description,
+    **{
+        "Citation": citation_bibtex,
+        "Model Card Authors": model_card_authors,
+        "Model description": model_description,
+        "Model description/Intended uses & limitations": limitations,
+    }
 )
 
 # %%
@@ -132,10 +135,10 @@ model_card.add(
 
 y_pred = model.predict(X_test)
 eval_descr = (
-    "The model is evaluated on test data using accuracy and F1-score with macro"
-    " average."
+    "The model is evaluated on test data using accuracy and F1-score with "
+    "macro average."
 )
-model_card.add(eval_method=eval_descr)
+model_card.add(**{"Model description/Evaluation Results": eval_descr})
 
 accuracy = accuracy_score(y_test, y_pred)
 f1 = f1_score(y_test, y_pred, average="micro")
@@ -146,7 +149,9 @@ disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=model.classes_
 disp.plot()
 
 disp.figure_.savefig(Path(local_repo) / "confusion_matrix.png")
-model_card.add_plot(**{"Confusion matrix": "confusion_matrix.png"})
+model_card.add_plot(
+    **{"Model description/Evaluation Results/Confusion Matrix": "confusion_matrix.png"}
+)
 
 cv_results = model.cv_results_
 clf_report = classification_report(
@@ -160,8 +165,8 @@ clf_report = pd.DataFrame(clf_report).T.reset_index()
 model_card.add_table(
     folded=True,
     **{
-        "Hyperparameter search results": cv_results,
-        "Classification report": clf_report,
+        "Model description/Evaluation Results/Hyperparameter search results": cv_results,
+        "Model description/Evaluation Results/Classification report": clf_report,
     },
 )
 
