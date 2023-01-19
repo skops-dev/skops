@@ -154,6 +154,7 @@ def metadata_from_config(config_path: Union[str, Path]) -> ModelCardData:
     if task:
         card_data.tags += [task]
     card_data.model_file = config.get("sklearn", {}).get("model", {}).get("file")  # type: ignore
+    card_data.model_format = config.get("sklearn", {}).get("model_format", {})
     example_input = config.get("sklearn", {}).get("example_input", None)
     # Documentation on what the widget expects:
     # https://huggingface.co/docs/hub/models-widgets-examples

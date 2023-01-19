@@ -895,6 +895,7 @@ class TestMetadata:
         }
         assert metadata["widget"] == expected_data
 
+        assert metadata["model_format"] == "pickle"
         for tag in ["sklearn", "skops", "tabular-classification"]:
             assert tag in metadata["tags"]
 
