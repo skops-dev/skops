@@ -67,10 +67,13 @@ def _assert_tuples_equal(val1, val2):
 
 
 def _assert_vals_equal(val1, val2):
-    if hasattr(val1, "__getstate__"):
+    if type(val1) == type:  # e.g. could be np.int64
+        assert val1 is val2
+    elif hasattr(val1, "__getstate__") and (val1.__getstate__() is not None):
         # This includes BaseEstimator since they implement __getstate__ and
         # that returns the parameters as well.
-        #
+        # Since Python 3.11, all objects have a __getstate__ but they return
+        # None by default, in which case this check is not performed.
         # Some objects return a tuple of parameters, others a dict.
         state1 = val1.__getstate__()
         state2 = val2.__getstate__()

@@ -72,13 +72,15 @@ def reduce_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
         # call __getstate__ directly.
         attrs = reduce[2]
     elif hasattr(obj, "__getstate__"):
-        attrs = obj.__getstate__()
+        # since python311 __getstate__ is defined for `object` and might return
+        # None
+        attrs = obj.__getstate__() or {}
     elif hasattr(obj, "__dict__"):
         attrs = obj.__dict__
     else:
         attrs = {}
 
-    if not isinstance(attrs, dict):
+    if not isinstance(attrs, (dict, tuple)):
         raise UnsupportedTypeException(
             f"Objects of type {res['__class__']} not supported yet"
         )
@@ -119,8 +121,13 @@ class ReduceNode(Node):
 
         if hasattr(instance, "__setstate__"):
             instance.__setstate__(attrs)
-        else:
+        elif isinstance(attrs, dict):
             instance.__dict__.update(attrs)
+        else:
+            # we (probably) got tuple attrs but cannot setstate with them
+            raise UnsupportedTypeException(
+                f"Objects of type {constructor} are not supported yet"
+            )
 
         return instance
 
