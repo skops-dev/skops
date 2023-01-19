@@ -9,6 +9,11 @@ skops Changelog
     :depth: 1
     :local:
 
+v0.5
+----
+- Support more array-like data types for tabular data and list-like data types
+  for text data. :pr:`179` by `Francesco Cariaggi`_.
+
 v0.4
 ----
 - :func:`.io.dump` and :func:`.io.load` now work with file like objects,
@@ -26,8 +31,6 @@ v0.4
   section/New section": "content"})`` to add "content" a new subsection called
   "New section" to an existing section called "Existing section". :pr:`203` by
   `Benjamin Bossan`_.
-- Support more array-like data types for tabular data and list-like data types
-  for text data. :pr:`179` by `Francesco Cariaggi`_.
 
 v0.3
 ----
