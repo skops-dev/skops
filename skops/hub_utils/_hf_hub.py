@@ -671,8 +671,11 @@ def download(
     if dst.exists():
         dst.rmdir()
 
+    # TODO: Switch from use_auth_token to token once huggingface_hub<0.11 is
+    # dropped. Until then, we ignore the mypy type check, because mypy doesn't
+    # see that use_auth_token is handled by the decorator of snapshot_download.
     cached_folder = snapshot_download(
-        repo_id=repo_id, revision=revision, use_auth_token=token, **kwargs
+        repo_id=repo_id, revision=revision, use_auth_token=token, **kwargs  # type: ignore
     )
     shutil.copytree(cached_folder, dst)
     if not keep_cache:

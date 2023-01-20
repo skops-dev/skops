@@ -399,10 +399,15 @@ def test_push_download(
         private=True,
     )
 
-    with pytest.raises(
-        RepositoryNotFoundError,
-        match="If the repo is private, make sure you are authenticated.",
-    ):
+    # TODO: remove 1st message when huggingface_hub < v0.12 is dropped
+    # message changes in huggingface_hub v0.12, test both
+    match = (
+        "If the repo is private, make sure you are authenticated"
+        "|"
+        "If you are trying to access a private or gated repo, "
+        "make sure you are authenticated"
+    )
+    with pytest.raises(RepositoryNotFoundError, match=match):
         download(repo_id=repo_id, dst="/tmp/test")
 
     with pytest.raises(OSError, match="None-empty dst path already exists!"):
