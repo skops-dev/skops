@@ -8,7 +8,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from reprlib import Repr
-from typing import Any, Iterator, Literal, Protocol, Sequence, Union  # type: ignore
+from typing import Any, Iterator, Literal, Protocol, Sequence, Union
 
 import joblib
 from huggingface_hub import ModelCardData
