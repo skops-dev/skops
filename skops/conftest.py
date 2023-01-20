@@ -39,6 +39,5 @@ def matplotlib_not_installed():
             raise ImportError
         return orig_import(name, *args, **kwargs)
 
-
     with patch("builtins.__import__", side_effect=mock_import):
         yield
