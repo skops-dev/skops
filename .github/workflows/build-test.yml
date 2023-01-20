@@ -62,7 +62,7 @@ jobs:
           else pip install "scikit-learn~=${{ matrix.sklearn_version }}";
         fi
         if [ ${{ matrix.os }} == "ubuntu-latest" ];
-          then wget -q https://github.com/jgm/pandoc/releases/download/2.19.2/pandoc-2.19.2-1-amd64.deb && sudo dpkg -i pandoc-2.19.2-1-amd64.deb;
+          then sudo apt install pandoc;
         fi
         python --version
         pip --version
