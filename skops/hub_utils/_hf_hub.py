@@ -257,11 +257,12 @@ def _create_config(
         - ``"skops"`` if the extension is ``".skops"``
 
     use_intelex: bool (default=False)
-        Whether to enable scikit-learn-intelex. This can accelerate some sklearn
-        models by a large factor with the right hardware. Enabling this option
-        should not break any code, even if the model was not initially trained
-        with scikit-learn intelex and even if the hardware does not support it.
-        For more info, see https://intel.github.io/scikit-learn-intelex/.
+        Whether to enable ``scikit-learn-intelex``. This can accelerate some
+        sklearn models by a large factor with the right hardware. In most cases,
+        enabling this option should not break any code, even if the model was
+        not initially trained with scikit-learn intelex and even if the hardware
+        does not support it. For more info, see
+        https://intel.github.io/scikit-learn-intelex/.
     """
     # so that we don't have to explicitly add keys and they're added as a
     # dictionary if they are not found
@@ -387,11 +388,12 @@ def init(
         or ``"pickle"``. Defaults to ``"auto"`` that relies on file extension.
 
     use_intelex: bool (default=False)
-        Whether to enable scikit-learn-intelex. This can accelerate some sklearn
-        models by a large factor with the right hardware. Enabling this option
-        should not break any code, even if the model was not initially trained
-        with scikit-learn intelex and even if the hardware does not support it.
-        For more info, see https://intel.github.io/scikit-learn-intelex/.
+        Whether to enable ``scikit-learn-intelex``. This can accelerate some
+        sklearn models by a large factor with the right hardware. In most cases,
+        enabling this option should not break any code, even if the model was
+        not initially trained with scikit-learn intelex and even if the hardware
+        does not support it. For more info, see
+        https://intel.github.io/scikit-learn-intelex/.
     """
     dst = Path(dst)
     if dst.exists() and bool(next(dst.iterdir(), None)):
