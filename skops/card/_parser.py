@@ -12,16 +12,17 @@ import json
 import subprocess
 from pathlib import Path
 from tempfile import mkdtemp
-from typing import Any, Literal, Sequence
+from typing import Any, Literal
 
 import yaml  # type: ignore
+from packaging.version import Version
 
 from skops.card import Card
 from skops.card._model_card import Section
 
 from ._markup import Markdown, PandocItem
 
-PANDOC_MIN_VERSION = (2, 19, 0)
+PANDOC_MIN_VERSION = "2.19.0"
 
 
 class PandocParser:
@@ -140,7 +141,7 @@ class PandocParser:
         return card
 
 
-def _get_pandoc_version() -> list[int]:
+def _get_pandoc_version() -> str:
     """Shell out to retrieve the pandoc version
 
     Raises
@@ -161,29 +162,12 @@ def _get_pandoc_version() -> list[int]:
     if not version_info.startswith("pandoc "):
         raise RuntimeError("Could not determine version of pandoc")
 
-    _, _, actual_version = version_info.partition(" ")
-    pandoc_version = [int(v) for v in actual_version.split(".")]
+    _, _, pandoc_version = version_info.partition(" ")
     return pandoc_version
 
 
-def _check_version_greater_equal(
-    version: Sequence[int], min_version: Sequence[int]
-) -> None:
-    """Very bad version comparison function to ensure that the first version is
-    >= the second."""
-    for v1, v2 in zip(version, min_version):
-        if v1 > v2:
-            return
-
-        if v1 < v2:
-            raise ValueError(
-                "Pandoc version too low, expected at least "
-                f"{'.'.join(map(str, min_version))}"
-            )
-
-
 def check_pandoc_installed(
-    min_version: Sequence[int] | None = PANDOC_MIN_VERSION,
+    min_version: str | None = PANDOC_MIN_VERSION,
 ) -> None:
     """Check if pandoc is installed on the system
 
@@ -216,7 +200,8 @@ def check_pandoc_installed(
     if not min_version:
         return
 
-    _check_version_greater_equal(pandoc_version, min_version)
+    if Version(pandoc_version) < Version(min_version):
+        raise ValueError("Pandoc version too low, expected at least {min_version}")
 
 
 def _card_with_detached_metainfo(path: str | Path) -> tuple[str | Path, dict[str, Any]]:

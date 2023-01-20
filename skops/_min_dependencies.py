@@ -25,6 +25,7 @@ dependent_packages = {
     "sphinx-prompt": ("1.3.0", "docs", None),
     "sphinx-issues": ("1.2.0", "docs", None),
     "matplotlib": ("3.3", "docs, tests", None),
+    "packaging": ("17.0", "install", None),
     "pandas": ("1", "docs, tests", None),
     # required for persistence tests of external libraries
     "lightgbm": ("3", "tests", None),
