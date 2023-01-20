@@ -201,7 +201,7 @@ def check_pandoc_installed(
         return
 
     if Version(pandoc_version) < Version(min_version):
-        raise ValueError("Pandoc version too low, expected at least {min_version}")
+        raise ValueError(f"Pandoc version too low, expected at least {min_version}")
 
 
 def _card_with_detached_metainfo(path: str | Path) -> tuple[str | Path, dict[str, Any]]:

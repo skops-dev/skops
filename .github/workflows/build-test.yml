@@ -62,7 +62,7 @@ jobs:
           else pip install "scikit-learn~=${{ matrix.sklearn_version }}";
         fi
         if [ ${{ matrix.os }} == "ubuntu-latest" ];
-          then sudo apt install pandoc;
+          then sudo apt install pandoc && pandoc --version;
         fi
         python --version
         pip --version
