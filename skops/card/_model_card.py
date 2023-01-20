@@ -146,8 +146,9 @@ def metadata_from_config(config_path: Union[str, Path]) -> ModelCardData:
 
     with open(config_path) as f:
         config = json.load(f)
-
-    card_data = ModelCardData()
+    card_data = ModelCardData(
+        model_format=config.get("sklearn", {}).get("model_format", {})
+    )
     card_data.library_name = "sklearn"
     card_data.tags = ["sklearn", "skops"]
     task = config.get("sklearn", {}).get("task", None)
