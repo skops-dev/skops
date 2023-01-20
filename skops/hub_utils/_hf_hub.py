@@ -5,14 +5,17 @@ hub.
 from __future__ import annotations
 
 import collections
+import itertools
 import json
 import os
 import shutil
 from pathlib import Path
-from typing import Any, List, Literal, MutableMapping, Optional, Union  # type: ignore
+from typing import Any, List, Literal, MutableMapping, Optional, Sequence, Union
+
 
 import numpy as np
 from huggingface_hub import HfApi, InferenceApi, snapshot_download
+from sklearn.utils import check_array
 
 SUPPORTED_TASKS = [
     "tabular-classification",
@@ -70,8 +73,8 @@ def _validate_folder(path: Union[str, Path]) -> None:
         raise TypeError(f"Model file {model_path} does not exist.")
 
 
-def _get_example_input(data):
-    """Returns the example input of a model.
+def _get_example_input_from_tabular_data(data):
+    """Returns the example input of a model for a tabular task.
 
     The input is converted into a dictionary which is then stored in the config
     file.
@@ -79,7 +82,8 @@ def _get_example_input(data):
     Parameters
     ----------
     data: array-like
-        The input needs to be either a ``pandas.DataFrame`` or a
+        The input needs to be either a ``pandas.DataFrame``, a 2D
+        ``numpy.ndarray`` or a list/tuple that can be converted to a 2D
         ``numpy.ndarray``. The first 3 rows are used as example input.
 
     Returns
@@ -96,28 +100,77 @@ def _get_example_input(data):
         # pandas is not installed, the data cannot be a pandas DataFrame
         pass
 
-    # here we convert the first three rows of the numpy array to a dict of lists
+    # here we convert the first three rows of `data` to a dict of lists
     # to be stored in the config file
-    if isinstance(data, np.ndarray):
-        return {f"x{x}": data[:3, x].tolist() for x in range(data.shape[1])}
+    if isinstance(data, (np.ndarray, list, tuple)):
+        data_slice = data[:3]
+        # This will raise a ValueError if the array is not 2D
+        data_slice_array = check_array(data_slice, ensure_2d=True)
+        return {
+            f"x{x}": data_slice_array[:, x].tolist()
+            for x in range(data_slice_array.shape[1])
+        }
 
-    raise ValueError("The data is not a pandas.DataFrame or a numpy.ndarray.")
+    raise ValueError(
+        "The data is not a pandas.DataFrame, a 2D numpy.ndarray or a "
+        "list/tuple that can be converted to a 2D numpy.ndarray."
+    )
+
+
+def _get_example_input_from_text_data(data: Sequence[str]):
+    """Returns the example input of a model for a text task.
+
+    The input is converted into a dictionary which is then stored in the config
+    file.
+
+    Parameters
+    ----------
+    data: Sequence[str]
+        A sequence of strings. The first 3 elements are used as example input.
+
+    Returns
+    -------
+    example_input: dict of lists
+        The example input of the model as accepted by Hugging Face's backend.
+    """
+
+    def _head(data, n):
+        is_data_subscriptable = hasattr(data, "__getitem__")
+        if is_data_subscriptable:
+            return data[:n]
+
+        return list(itertools.islice(data, n))
+
+    def _is_sequence_of_strings(data):
+        return not isinstance(data, str) and all(isinstance(x, str) for x in data)
+
+    error_message = "The data needs to be a sequence of strings."
+    try:
+        data_head = _head(data, n=3)
+        if _is_sequence_of_strings(data_head):
+            return {"data": data_head}
+        else:
+            raise ValueError(error_message)
+    except TypeError as e:
+        raise ValueError(error_message) from e
 
 
 def _get_column_names(data):
     """Returns the column names of the input.
 
-    If data is a ``numpy.ndarray``, column names are assumed to be ``x0`` to
-    ``xn-1``, where ``n`` is the number of columns.
+    If data is not a ``pandas.DataFrame``, column names are assumed to be
+    ``x0`` to ``xn-1``, where ``n`` is the number of columns.
 
     Parameters
     ----------
-    data: pandas.DataFrame or numpy.ndarray
-        The data whose columns names are to be returned.
+    data: array-like
+        The data whose columns names are to be returned. Must be a
+        ``pandas.DataFrame``, a 2D ``numpy.ndarray`` or a list/tuple that can
+        be converted to a 2D ``numpy.ndarray``.
 
     Returns
     -------
-    columns: list of tuples
+    columns: list of strings
         A list of strings. Each string is a column name.
     """
     try:
@@ -131,10 +184,15 @@ def _get_column_names(data):
 
     # TODO: this is going to fail for Structured Arrays. We can add support for
     # them later if we see need for it.
-    if isinstance(data, np.ndarray):
-        return [f"x{x}" for x in range(data.shape[1])]
+    if isinstance(data, (np.ndarray, list, tuple)):
+        # This will raise a ValueError if the array is not 2D
+        data_array = check_array(data, ensure_2d=True)
+        return [f"x{x}" for x in range(data_array.shape[1])]
 
-    raise ValueError("The data is not a pandas.DataFrame or a numpy.ndarray.")
+    raise ValueError(
+        "The data is not a pandas.DataFrame, a 2D numpy.ndarray or a "
+        "list/tuple that can be converted to a 2D numpy.ndarray."
+    )
 
 
 def _create_config(
@@ -176,7 +234,7 @@ def _create_config(
         the model. It can be one of: ``tabular-classification``,
         ``tabular-regression``, ``text-classification``, ``text-regression``.
 
-    data: array-like
+    data: array-like or sequence
         The input to the model. This is used for two purposes:
 
             1. Save an example input to the model, which is used by
@@ -186,7 +244,10 @@ def _create_config(
                HuggingFace's backend to pass the data in the right form to the
                model.
 
-        The first 3 input values are used as example inputs.
+        The first 3 input values are used as example inputs. If the task is
+        ``tabular-classification`` or ``tabular-regression``, then data is
+        expected to be an array-like. Otherwise, it is expected to be an
+        sequence of strings.
 
     model_format: str
         The format used to persist the model. Can be ``"auto"``, ``"skops"``
@@ -223,13 +284,10 @@ def _create_config(
     config["sklearn"]["model_format"] = model_format
 
     if "tabular" in task:
-        config["sklearn"]["example_input"] = _get_example_input(data)
+        config["sklearn"]["example_input"] = _get_example_input_from_tabular_data(data)
         config["sklearn"]["columns"] = _get_column_names(data)
     elif "text" in task:
-        if isinstance(data, list) and all(isinstance(x, str) for x in data):
-            config["sklearn"]["example_input"] = {"data": data[:3]}
-        else:
-            raise ValueError("The data needs to be a list of strings.")
+        config["sklearn"]["example_input"] = _get_example_input_from_text_data(data)
 
     dump_json(Path(dst) / "config.json", config)
 
@@ -614,8 +672,11 @@ def download(
     if dst.exists():
         dst.rmdir()
 
+    # TODO: Switch from use_auth_token to token once huggingface_hub<0.11 is
+    # dropped. Until then, we ignore the mypy type check, because mypy doesn't
+    # see that use_auth_token is handled by the decorator of snapshot_download.
     cached_folder = snapshot_download(
-        repo_id=repo_id, revision=revision, use_auth_token=token, **kwargs
+        repo_id=repo_id, revision=revision, use_auth_token=token, **kwargs  # type: ignore
     )
     shutil.copytree(cached_folder, dst)
     if not keep_cache:

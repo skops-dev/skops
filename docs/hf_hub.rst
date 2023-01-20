@@ -119,13 +119,16 @@ Easily build user interfaces to your scikit-learn models
 --------------------------------------------------------
 `gradio <https://gradio.app/>`__ is a python library that lets you create interfaces on your model.
 It has a class called `Interface <https://gradio.app/docs/#interface>`__ that lets you create application
-interfaces to your machine learning models.
+interfaces to your machine learning models. Using gradio can have some advantages over the using a plain
+model repository, e.g. the Gradio dataframe component allows uploading a csv for tabular data, unlike the
+widget in the model repository.
+
 ``gradio`` is integrated with skops, so you can load an interface with only one
 line of code. During the initialization of the interface, call load method with
-your repository identifier prepended with "huggingface/" will load an 
-interface for your model. The interface has a dataframe input that takes samples 
-and a dataframe output to return predictions. It also takes the example in the 
-repository that is previously pushed with skops. 
+your repository identifier prepended with "huggingface/" will load an
+interface for your model. The interface has a dataframe input that takes samples
+and a dataframe output to return predictions. It also takes the example in the
+repository that is previously pushed with skops.
 Calling `gr.Interface.launch() <https://gradio.app/docs/#launch/>`__ will launch your application.
 
 .. code:: python
@@ -151,3 +154,9 @@ If you want to share your application continuously, you can deploy it to
 Hugging Face Spaces. You can check out `this blog <https://huggingface.co/blog/gradio-spaces>`__
 on how to do it.
 For more information, please refer to documentation of `gradio <https://gradio.app/docs/>`__.
+
+It's also possible to spawn a gradio space directly from the model repository.
+To achieve this, from the model page, click on ``Deploy`` (top right corner) >
+``Spaces`` > ``Create new Space``, then follow the instructions. After
+finishing, you get a gradio space hosted on Hugging Face Hub, with all the
+benefits that brings.
