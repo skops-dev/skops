@@ -75,7 +75,7 @@ class PandocParser:
             # not illegal in markdown, but we don't handle it yet.
             raise ValueError(
                 "Trying to add content but there is no current section, "
-                "this is probably a bug, please open an issue on GitHub"
+                "this is probably a bug, please open an issue on GitHub."
             )
 
         if not section.content:

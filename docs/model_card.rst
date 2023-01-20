@@ -148,4 +148,4 @@ installed it, please follow `these instructions
 it's a very mature library and that it supports many different document formats.
 Therefore, it should be possible to parse model cards even if they use a format
 that's not markdown, for instance reStructuredText, org, or asciidoc. For
-saving, we only support markdown, though.
+saving, we only support markdown for now.
