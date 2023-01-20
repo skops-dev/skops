@@ -12,7 +12,6 @@ import shutil
 from pathlib import Path
 from typing import Any, List, Literal, MutableMapping, Optional, Sequence, Union
 
-
 import numpy as np
 from huggingface_hub import HfApi, InferenceApi, snapshot_download
 from sklearn.utils import check_array
