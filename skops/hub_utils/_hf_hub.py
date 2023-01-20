@@ -672,7 +672,7 @@ def download(
         dst.rmdir()
 
     cached_folder = snapshot_download(
-        repo_id=repo_id, revision=revision, use_auth_token=token, **kwargs
+        repo_id=repo_id, revision=revision, token=token, **kwargs
     )
     shutil.copytree(cached_folder, dst)
     if not keep_cache:
