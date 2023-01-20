@@ -11,11 +11,11 @@ skops Changelog
 
 v0.5
 ----
-- :class:`.card.Card` now allows to add content to existing sections, using a
-  ``/`` to separate the subsections. E.g. use ``card.add(**{"Existing
-  section/New section": "content"})`` to add "content" a new subsection called
-  "New section" to an existing section called "Existing section". :pr:`203` by
-  `Benjamin Bossan`_.
+- Support more array-like data types for tabular data and list-like data types
+  for text data. :pr:`179` by `Francesco Cariaggi`_.
+- Model cards that have been written into a markdown file can now be parsed back
+  into a :class:`skops.card.Card` object and edited further by using the
+  :func:`skops.card.parse_modelcard` function. :pr:`257` by `Benjamin Bossan`_.
 
 v0.4
 ----
@@ -29,6 +29,11 @@ v0.4
   :pr:`242` by `Merve Noyan`_.
 - Persistence now supports bytes and bytearrays, added tests to verify that
   LightGBM, XGBoost, and CatBoost work now. :pr:`244` by `Benjamin Bossan`_.
+- :class:`.card.Card` now allows to add content to existing sections, using a
+  ``/`` to separate the subsections. E.g. use ``card.add(**{"Existing
+  section/New section": "content"})`` to add "content" a new subsection called
+  "New section" to an existing section called "Existing section". :pr:`203` by
+  `Benjamin Bossan`_.
 
 v0.3
 ----
@@ -86,4 +91,4 @@ Contributors
 
 :user:`Adrin Jalali <adrinjalali>`, :user:`Merve Noyan <merveenoyan>`,
 :user:`Benjamin Bossan <BenjaminBossan>`, :user:`Ayyuce Demirbas
-<ayyucedemirbas>`, :user:`Prajjwal Mishra <p-mishra1>`
+<ayyucedemirbas>`, :user:`Prajjwal Mishra <p-mishra1>`, :user:`Francesco Cariaggi <anferico>`
