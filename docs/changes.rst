@@ -9,6 +9,11 @@ skops Changelog
     :depth: 1
     :local:
 
+v0.5
+----
+- Support more array-like data types for tabular data and list-like data types
+  for text data. :pr:`179` by `Francesco Cariaggi`_.
+
 v0.4
 ----
 - :func:`.io.dump` and :func:`.io.load` now work with file like objects,
@@ -87,4 +92,4 @@ Contributors
 
 :user:`Adrin Jalali <adrinjalali>`, :user:`Merve Noyan <merveenoyan>`,
 :user:`Benjamin Bossan <BenjaminBossan>`, :user:`Ayyuce Demirbas
-<ayyucedemirbas>`, :user:`Prajjwal Mishra <p-mishra1>`
+<ayyucedemirbas>`, :user:`Prajjwal Mishra <p-mishra1>`, :user:`Francesco Cariaggi <anferico>`

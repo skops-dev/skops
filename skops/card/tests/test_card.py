@@ -898,6 +898,18 @@ class TestMetadata:
         for tag in ["sklearn", "skops", "tabular-classification"]:
             assert tag in metadata["tags"]
 
+    def test_metadata_model_format_pkl(
+        self, pkl_model_card_metadata_from_config, destination_path
+    ):
+        metadata = metadata_load(local_path=Path(destination_path) / "README.md")
+        assert metadata["model_format"] == "pickle"
+
+    def test_metadata_model_format_skops(
+        self, skops_model_card_metadata_from_config, destination_path
+    ):
+        metadata = metadata_load(local_path=Path(destination_path) / "README.md")
+        assert metadata["model_format"] == "skops"
+
     def test_metadata_tags_without_sklearn_intelex_tag(
         self, destination_path, iris_data, iris_pkl_file
     ):
