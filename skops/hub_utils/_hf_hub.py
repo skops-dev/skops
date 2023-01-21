@@ -11,6 +11,9 @@ import os
 import shutil
 from pathlib import Path
 from typing import Any, List, Literal, MutableMapping, Optional, Sequence, Union
+from pickle import load as pikle_load
+from skops import card, io
+
 
 import numpy as np
 from huggingface_hub import HfApi, InferenceApi, snapshot_download
@@ -409,10 +412,13 @@ def init(
             model_format=model_format,
         )
 
-        with open(model, "rb") as f:
-            model = load(f)
-            model_card = card.Card(model, metadata=card.metadata_from_config(dst))
-            model_card.save(dst / "README.md")
+        if model_format == 'pickle':
+            with open(model, "rb") as f:
+                model = pikle_load(f)
+        elif model_format == 'skops':
+            model = io.load(model)
+        model_card = card.Card(model, metadata=card.metadata_from_config(dst))
+        model_card.save(dst / "README.md")
     except Exception:
         shutil.rmtree(dst)
         raise

@@ -313,7 +313,7 @@ def test_override_init_modelcard(classifier, config_json):
 
     version = metadata.version("scikit-learn")
     init(
-        model=classifier_pickle,
+        model=classifier,
         requirements=[f'scikit-learn="{version}"'],
         dst=dir_path,
         task="tabular-classification",
