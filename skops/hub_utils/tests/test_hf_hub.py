@@ -34,7 +34,8 @@ from skops.hub_utils import (
 from skops.hub_utils._hf_hub import (
     _create_config,
     _get_column_names,
-    _get_example_input,
+    _get_example_input_from_tabular_data,
+    _get_example_input_from_text_data,
     _validate_folder,
 )
 from skops.hub_utils.tests.common import HF_HUB_TOKEN
@@ -231,7 +232,7 @@ def test_create_config(data, task, expected_config):
 
 
 def test_create_config_invalid_text_data(temp_path):
-    with pytest.raises(ValueError, match="The data needs to be a list of strings."):
+    with pytest.raises(ValueError, match="The data needs to be a sequence of strings."):
         _create_config(
             model_path="model.pkl",
             requirements=['scikit-learn="1.1.1"', "numpy"],
@@ -432,10 +433,15 @@ def test_push_download(
         private=True,
     )
 
-    with pytest.raises(
-        RepositoryNotFoundError,
-        match="If the repo is private, make sure you are authenticated.",
-    ):
+    # TODO: remove 1st message when huggingface_hub < v0.12 is dropped
+    # message changes in huggingface_hub v0.12, test both
+    match = (
+        "If the repo is private, make sure you are authenticated"
+        "|"
+        "If you are trying to access a private or gated repo, "
+        "make sure you are authenticated"
+    )
+    with pytest.raises(RepositoryNotFoundError, match=match):
         download(repo_id=repo_id, dst="/tmp/test")
 
     with pytest.raises(OSError, match="None-empty dst path already exists!"):
@@ -555,30 +561,68 @@ def test_update_env(repo_path, config_json):
     assert get_requirements(repo_path) == ['scikit-learn="1.1.2"']
 
 
-def test_get_example_input():
-    """Test the _get_example_input function."""
+def test_get_example_input_from_tabular_data():
     with pytest.raises(
-        ValueError, match="The data is not a pandas.DataFrame or a numpy.ndarray."
+        ValueError,
+        match=(
+            "The data is not a pandas.DataFrame, a 2D numpy.ndarray or a "
+            "list/tuple that can be converted to a 2D numpy.ndarray."
+        ),
     ):
-        _get_example_input(["a", "b", "c"])
+        _get_example_input_from_tabular_data("random")
+    with pytest.raises(ValueError):
+        _get_example_input_from_tabular_data(["a", "b", "c"])
 
-    examples = _get_example_input(np.ones((5, 10)))
-    # the result if a dictionary of column name: list of values
+    examples = _get_example_input_from_tabular_data(np.ones((5, 10)))
+    # the result is a dictionary of column name: list of values
     assert len(examples) == 10
     assert len(examples["x0"]) == 3
 
-    examples = _get_example_input(
+    examples = _get_example_input_from_tabular_data(np.ones((5, 10)).tolist())
+    # the result is a dictionary of column name: list of values
+    assert len(examples) == 10
+    assert len(examples["x0"]) == 3
+
+    examples = _get_example_input_from_tabular_data(
         pd.DataFrame(np.ones((5, 10)), columns=[f"column{x}" for x in range(10)])
     )
-    # the result if a dictionary of column name: list of values
+    # the result is a dictionary of column name: list of values
     assert len(examples) == 10
     assert len(examples["column0"]) == 3
 
 
+@pytest.mark.parametrize(
+    "data, expected_length",
+    [
+        (["a", "b", "c", "d"], 3),
+        (np.array(["a", "b", "c", "d"]), 3),
+        (set(["a", "b", "c", "d"]), 3),
+        (tuple(["a", "b", "c", "d"]), 3),
+        (["a"], 1),
+        ([], 0),
+    ],
+)
+def test_get_example_input_from_text_data(data, expected_length):
+    example_input = _get_example_input_from_text_data(data)
+    assert len(example_input["data"]) == expected_length
+
+
+@pytest.mark.parametrize("data", ["random", [1, 2, 3], 420])
+def test_get_example_input_from_text_data_invalid_text_data(data):
+    with pytest.raises(ValueError, match="The data needs to be a sequence of strings."):
+        _get_example_input_from_text_data(data)
+
+
 def test_get_column_names():
     with pytest.raises(
-        ValueError, match="The data is not a pandas.DataFrame or a numpy.ndarray."
+        ValueError,
+        match=(
+            "The data is not a pandas.DataFrame, a 2D numpy.ndarray or a "
+            "list/tuple that can be converted to a 2D numpy.ndarray."
+        ),
     ):
+        _get_column_names("random")
+    with pytest.raises(ValueError):
         _get_column_names(["a", "b", "c"])
 
     X_array = np.ones((5, 10), dtype=np.float32)
@@ -590,11 +634,11 @@ def test_get_column_names():
     assert _get_column_names(X_df) == expected_columns
 
 
-def test_get_example_input_pandas_not_installed(pandas_not_installed):
+def test_get_example_input_from_tabular_data_pandas_not_installed(pandas_not_installed):
     # use pandas_not_installed fixture from conftest.py to pretend that pandas
     # is not installed and check that the function does not raise when pandas
     # import fails
-    _get_example_input(np.ones((5, 10)))
+    _get_example_input_from_tabular_data(np.ones((5, 10)))
 
 
 def test_get_column_names_pandas_not_installed(pandas_not_installed):
