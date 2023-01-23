@@ -702,3 +702,51 @@ class TestAddFiles:
         )
         with pytest.raises(FileExistsError, match=msg):
             add_files(some_file_0, dst=init_path)
+
+
+class TestUseIntelex:
+    # Tests related to the usage of scikit-learn intelex, see #251
+    def make_config(self, model, requirements, **kwargs):
+        dir_path = tempfile.mkdtemp()
+        shutil.rmtree(dir_path)
+
+        init(
+            model=model,
+            dst=dir_path,
+            task="tabular-classification",
+            data=iris.data,
+            requirements=requirements,
+            **kwargs,
+        )
+        config = get_config(dir_path)
+        return config
+
+    def test_no_intelex(self, classifier):
+        # by default, intelex is not being used
+        config = self.make_config(model=classifier, requirements=["foobar"])
+        environement = config["sklearn"]["environment"]
+
+        assert config["sklearn"]["use_intelex"] is False
+        assert not any(r.startswith("scikit-learn-intelex") for r in environement)
+
+    def test_use_intelex_but_not_explicitly_in_requirements(self, classifier):
+        # when using intelex, if it's not explicitly in the environment, add it
+        # automatically
+        config = self.make_config(
+            model=classifier, requirements=["foobar"], use_intelex=True
+        )
+        environement = config["sklearn"]["environment"]
+
+        assert config["sklearn"]["use_intelex"] is True
+        assert any(r == "scikit-learn-intelex" for r in environement)
+
+    def test_use_intelex_explicitly_in_requirements(self, classifier):
+        # when users specify intelex explicitly, it's not added automatically to
+        # the requirements
+        reqs = ["foobar", "scikit-learn-intelex==2023.0.0"]
+        config = self.make_config(model=classifier, requirements=reqs, use_intelex=True)
+        environement = config["sklearn"]["environment"]
+
+        assert config["sklearn"]["use_intelex"] is True
+        assert not any(r == "scikit-learn-intelex" for r in environement)
+        assert any(r == "scikit-learn-intelex==2023.0.0" for r in environement)
