@@ -1103,7 +1103,7 @@ class Card:
         plot_file : str
             Filename for the plot.
 
-        plot_name : str, or Path
+        plot_name : str
             Name of the plot.
 
         overwrite : bool (default=False)
