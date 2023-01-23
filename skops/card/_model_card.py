@@ -446,7 +446,7 @@ class Card:
         model,
         model_diagram: bool = True,
         metadata: ModelCardData | None = None,
-        template: Literal["skops"] | dict[str, str] | None = "skops",  # type: ignore
+        template: Literal["skops"] | dict[str, str] | None = "skops",
         trusted: bool = False,
     ) -> None:
         self.model = model
