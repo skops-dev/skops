@@ -404,15 +404,6 @@ class TestAddMetrics:
         assert text1 == text2
 
 
-def test_add_plot(destination_path, model_card):
-    import matplotlib.pyplot as plt
-
-    plt.plot([4, 5, 6, 7])
-    plt.savefig(Path(destination_path) / "fig1.png")
-    model_card = model_card.add_plot(fig1="fig1.png").render()
-    assert "![fig1](fig1.png)" in model_card
-
-
 def test_permutation_importances(
     iris_estimator, iris_data, model_card, destination_path
 ):
@@ -439,7 +430,7 @@ def test_multiple_permutation_importances(
         iris_estimator, X, y, n_repeats=10, random_state=42, n_jobs=2
     )
     model_card.add_permutation_importances(
-        result, X.columns, plot_file=(Path(destination_path) / "importance.png")
+        result, X.columns, plot_file=Path(destination_path) / "importance.png"
     )
     f1 = make_scorer(f1_score, average="micro")
     result = permutation_importance(

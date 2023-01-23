@@ -19,6 +19,8 @@ def pandas_not_installed():
     with patch("builtins.__import__", side_effect=mock_import):
         yield
 
+    import matplotlib  # noqa
+
 
 @pytest.fixture
 def matplotlib_not_installed():
@@ -41,3 +43,5 @@ def matplotlib_not_installed():
 
     with patch("builtins.__import__", side_effect=mock_import):
         yield
+
+    import matplotlib  # noqa
