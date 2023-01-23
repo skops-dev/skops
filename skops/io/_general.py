@@ -401,10 +401,11 @@ class ObjectNode(Node):
             return instance
 
         attrs = self.children["attrs"].construct()
-        if hasattr(instance, "__setstate__"):
-            instance.__setstate__(attrs)
-        else:
-            instance.__dict__.update(attrs)
+        if attrs is not None:
+            if hasattr(instance, "__setstate__"):
+                instance.__setstate__(attrs)
+            else:
+                instance.__dict__.update(attrs)
 
         return instance
 

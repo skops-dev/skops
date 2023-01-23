@@ -214,6 +214,7 @@ def _create_config(
         "pickle",
         "auto",
     ] = "auto",
+    use_intelex: bool = False,
 ) -> None:
     """Write the configuration into a ``config.json`` file.
 
@@ -251,16 +252,20 @@ def _create_config(
         expected to be an array-like. Otherwise, it is expected to be an
         sequence of strings.
 
-    model_format: str
+    model_format: str (default="auto")
         The format used to persist the model. Can be ``"auto"``, ``"skops"``
         or ``"pickle"``. Defaults to ``"auto"``, which would mean:
 
         - ``"pickle"`` if the extension is one of ``{".pickle", ".pkl", ".joblib"}``
         - ``"skops"`` if the extension is ``".skops"``
 
-    Returns
-    -------
-    None
+    use_intelex: bool (default=False)
+        Whether to enable ``scikit-learn-intelex``. This can accelerate some
+        sklearn models by a large factor with the right hardware. In most cases,
+        enabling this option should not break any code, even if the model was
+        not initially trained with scikit-learn intelex and even if the hardware
+        does not support it. For more info, see
+        https://intel.github.io/scikit-learn-intelex/.
     """
     # so that we don't have to explicitly add keys and they're added as a
     # dictionary if they are not found
@@ -279,11 +284,13 @@ def _create_config(
             "Cannot determine the input file format. Please indicate the format using"
             " the `model_format` argument."
         )
+
     config = recursively_default_dict()
     config["sklearn"]["model"]["file"] = str(model_path)
     config["sklearn"]["environment"] = requirements
     config["sklearn"]["task"] = task
     config["sklearn"]["model_format"] = model_format
+    config["sklearn"]["use_intelex"] = use_intelex
 
     if "tabular" in task:
         config["sklearn"]["example_input"] = _get_example_input_from_tabular_data(data)
@@ -338,6 +345,7 @@ def init(
         "pickle",
         "auto",
     ] = "auto",
+    use_intelex: bool = False,
 ) -> None:
     """Initialize a scikit-learn based Hugging Face repo.
 
@@ -378,13 +386,17 @@ def init(
         :class:`numpy.ndarray`. If ``task`` is ``"text-classification"`` or
         ``"text-regression"``, the data needs to be a ``list`` of strings.
 
-    model_format: str
+    model_format: str (default="auto")
         The format the model was persisted in. Can be ``"auto"``, ``"skops"``
         or ``"pickle"``. Defaults to ``"auto"`` that relies on file extension.
 
-    Returns
-    -------
-    None
+    use_intelex: bool (default=False)
+        Whether to enable ``scikit-learn-intelex``. This can accelerate some
+        sklearn models by a large factor with the right hardware. In most cases,
+        enabling this option should not break any code, even if the model was
+        not initially trained with scikit-learn intelex and even if the hardware
+        does not support it. For more info, see
+        https://intel.github.io/scikit-learn-intelex/.
     """
     dst = Path(dst)
     if dst.exists() and bool(next(dst.iterdir(), None)):
@@ -399,6 +411,12 @@ def init(
 
     dst.mkdir(parents=True, exist_ok=True)
 
+    # add intelex requirement, if it's used and not already in requirements
+    if use_intelex and not any(
+        r.startswith("scikit-learn-intelex") for r in requirements
+    ):
+        requirements.append("scikit-learn-intelex")
+
     try:
         shutil.copy2(src=model, dst=dst)
 
@@ -410,6 +428,7 @@ def init(
             task=task,
             data=data,
             model_format=model_format,
+            use_intelex=use_intelex,
         )
 
         if model_format == "pickle":

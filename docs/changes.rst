@@ -11,8 +11,15 @@ skops Changelog
 
 v0.5
 ----
+- Added CLI entrypoint support (:func:`.cli.entrypoint.main_cli`)
+  and a command line function to convert Pickle files
+  to Skops files (:func:`.cli._convert.main`). :pr:`249` by `Erin Aho`_
 - Support more array-like data types for tabular data and list-like data types
   for text data. :pr:`179` by `Francesco Cariaggi`_.
+- Add an option `use_intelex` to :func:`skops.hub_utils.init` which, when
+  enabled, will result in the Hugging Face inference API running with Intel's
+  scikit-learn intelex library, which can accelerate inference times. :pr:`267`
+  by `Benjamin Bossan`_.
 
 v0.4
 ----
@@ -88,4 +95,5 @@ Contributors
 
 :user:`Adrin Jalali <adrinjalali>`, :user:`Merve Noyan <merveenoyan>`,
 :user:`Benjamin Bossan <BenjaminBossan>`, :user:`Ayyuce Demirbas
-<ayyucedemirbas>`, :user:`Prajjwal Mishra <p-mishra1>`, :user:`Francesco Cariaggi <anferico>`
+<ayyucedemirbas>`, :user:`Prajjwal Mishra <p-mishra1>`, :user:`Francesco Cariaggi <anferico>`,
+:user:`Erin Aho <E-Aho>`
