@@ -1,16 +1,16 @@
 <!--
 Thanks for contributing a pull request! Please ensure you have taken a look at
 the contribution guidelines: https://github.com/skops-dev/skops/blob/main/CONTRIBUTING.rst
-This guideline contains crucial information for your PR to be merged, such as setting up 
+This guideline contains crucial information for your PR to be merged, such as setting up
 development environment or linting your code.
 -->
 
 #### Reference Issues/PRs
 <!--
 Example: Fixes #1234. See also #3456.
-Please use keywords (e.g., Fixes, partially fixes) to create link to the issues 
-or pull requests you resolved, so that they will automatically be closed when 
-your pull request is merged. 
+Please use keywords (e.g., Fixes, partially fixes) to create link to the issues
+or pull requests you resolved, so that they will automatically be closed when
+your pull request is merged.
 See https://github.com/blog/1506-closing-issues-via-pull-requests
 -->
 

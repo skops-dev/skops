@@ -10,14 +10,14 @@ import json
 import os
 import shutil
 from pathlib import Path
-from typing import Any, List, Literal, MutableMapping, Optional, Sequence, Union
 from pickle import load as pikle_load
-from skops import card, io
-
+from typing import Any, List, Literal, MutableMapping, Optional, Sequence, Union
 
 import numpy as np
 from huggingface_hub import HfApi, InferenceApi, snapshot_download
 from sklearn.utils import check_array
+
+from skops import card, io
 
 SUPPORTED_TASKS = [
     "tabular-classification",
@@ -412,10 +412,10 @@ def init(
             model_format=model_format,
         )
 
-        if model_format == 'pickle':
+        if model_format == "pickle":
             with open(model, "rb") as f:
                 model = pikle_load(f)
-        elif model_format == 'skops':
+        elif model_format == "skops":
             model = io.load(model)
         model_card = card.Card(model, metadata=card.metadata_from_config(dst))
         model_card.save(dst / "README.md")
