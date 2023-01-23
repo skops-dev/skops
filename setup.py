@@ -34,6 +34,14 @@ PROJECT_URLS = {
 
 
 def setup_package():
+    package_data = dict(
+        entry_points={
+            "console_scripts": [
+                "skops = skops.cli.entrypoint:main_cli",
+            ],
+        }
+    )
+
     metadata = dict(
         name=DISTNAME,
         maintainer=MAINTAINER,
@@ -72,7 +80,7 @@ def setup_package():
         include_package_data=True,
     )
 
-    setup(**metadata)
+    setup(**package_data, **metadata)
 
 
 if __name__ == "__main__":
