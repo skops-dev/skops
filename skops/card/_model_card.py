@@ -1106,7 +1106,7 @@ class Card:
         plot_name : str, or Path
             Name of the plot.
 
-        overwrite : bool
+        overwrite : bool (default=False)
             Whether to overwrite the permutation importance plot, if exists.
 
         Returns
