@@ -1107,7 +1107,8 @@ class Card:
             Name of the plot.
 
         overwrite : bool (default=False)
-            Whether to overwrite the permutation importance plot, if exists.
+            Whether to overwrite the permutation importance plot file, if a plot by that
+            name already exists.
 
         Returns
         -------
