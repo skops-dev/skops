@@ -204,7 +204,7 @@ def split_subsection_names(key: str) -> list[str]:
 
 
 def _getting_started_code(
-    file_name: str, model_format: Literal["pickle", "skops"], indent="    "  # type: ignore
+    file_name: str, model_format: Literal["pickle", "skops"], indent: str = "    "
 ) -> list[str]:
     # get lines of code required to load the model
     lines = [
