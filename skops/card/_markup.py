@@ -49,6 +49,7 @@ class Markdown:
             "Para": self._para,
             "Header": self._header,
             "Image": self._image,
+            "Figure": self._figure,
             "CodeBlock": self._code_block,
             "Code": self._code,
             "Table": self._table,
@@ -154,6 +155,19 @@ class Markdown:
         caption = "".join(self.__call__(i) for i in caption)
         content = f"![{caption}]({dest})"
         return content
+
+    def _figure(self, value) -> str:
+        # Figure type was added in Pandoc v3.0
+        (ident, classes, keyvals), caption, (body,) = value
+
+        body_type = body["t"]
+        # we can only deal with plain figures for now
+        if body_type != "Plain":
+            raise ValueError(f"Cannot deal with figure of type '{body_type}'")
+
+        plain_fig = body["c"][0]["c"]
+        plain_fig[2][1] = "fig:"
+        return self._image(plain_fig)
 
     @staticmethod
     def _code_block(item: tuple[tuple[int, list[str], list[str]], str]) -> str:
