@@ -930,7 +930,7 @@ class Card:
         self,
         section: str,
         file_name: str,
-        model_format: Literal["pickle", "skops"],  # type: ignore
+        model_format: Literal["pickle", "skops"],
         description: str | None,
         indent: str = "    ",
     ) -> None:
