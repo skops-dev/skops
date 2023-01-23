@@ -849,7 +849,7 @@ class Card:
         section: str | None = None,
         description: str | None = None,
         file_name: str | None = None,
-        model_format: Literal["pickle", "skops"] | None = None,  # type: ignore
+        model_format: Literal["pickle", "skops"] | None = None,
     ) -> Card:
         """Add getting started code
 
