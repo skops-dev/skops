@@ -1085,10 +1085,10 @@ class Card:
     def add_permutation_importances(
         self,
         permutation_importances,
-        columns,
-        plot_file="permutation_importances.png",
-        plot_name="Permutation Importances",
-        overwrite=False,
+        columns: Sequence[str],
+        plot_file: str = "permutation_importances.png",
+        plot_name: str = "Permutation Importances",
+        overwrite: bool = False,
     ) -> "Card":
         """Plots permutation importance and saves it to model card.
 
