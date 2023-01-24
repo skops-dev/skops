@@ -9,6 +9,9 @@ skops Changelog
     :depth: 1
     :local:
 
+v0.6
+----
+
 v0.5
 ----
 - Added CLI entrypoint support (:func:`.cli.entrypoint.main_cli`)
