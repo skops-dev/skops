@@ -11,6 +11,26 @@ Please follow this workflow when contributing to skops:
 - Push your branch to the remote repository
 - Create a pull request on GitHub
 
+Issue Titles / Commit Messages
+------------------------------
+
+When creating a pull request, please use a descriptive title. You can prefix
+the title to indicate the type of it:
+
+- ``DOC``: documentation changes
+- ``FEAT/FEA``: new major features
+- ``ENH``: enhancements to existing features with user facing implications
+- ``CI``: continuous integration, sometimes overlaps with MNT
+- ``MNT/MAINT``: maintenance, technical debt, etc
+- ``FIX``: bug fixes
+- ``TST``: new tests, refactoring tests
+- ``PERF``: performance improvements
+
+If a contributor forgets to prefix the title, a maintainer can add the prefix
+when merging into ``main``. While merging, it is recommended that the
+maintainer refines the commit message to add a short description of what the PR
+being merged does.
+
 Review Process
 --------------
 
@@ -115,7 +135,8 @@ As a maintainer, follow these steps:
 9. Create a `new release <https://github.com/skops-dev/skops/releases>`_ on
    GitHub
 10. Update the patch version of the package to a new dev version, e.g. from
-   ``v0.3.0`` to ``v0.3.dev1``
-11. Check that the new stable branch of documentation was built correctly on
+   ``v0.3.dev0`` to ``v0.4.dev0``
+11. Add a section for the new release in the ``docs/changes.rst`` file.
+12. Check that the new stable branch of documentation was built correctly on
     `readthedocs <https://readthedocs.org/projects/skops/builds/>`_, and make
     sure all relevant releases are *active*.

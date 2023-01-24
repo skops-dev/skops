@@ -25,11 +25,13 @@ dependent_packages = {
     "sphinx-prompt": ("1.3.0", "docs", None),
     "sphinx-issues": ("1.2.0", "docs", None),
     "matplotlib": ("3.3", "docs, tests", None),
+    "packaging": ("17.0", "install", None),
     "pandas": ("1", "docs, tests", None),
     # required for persistence tests of external libraries
     "lightgbm": ("3", "tests", None),
     "xgboost": ("1.6", "tests", None),
-    "catboost": ("1.0", "tests", None),
+    # TODO: remove condition when catboost supports python 3.11
+    "catboost": ("1.0", "tests", "python_version < '3.11'"),
 }
 
 

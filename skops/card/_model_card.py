@@ -156,6 +156,9 @@ def metadata_from_config(config_path: Union[str, Path]) -> ModelCardData:
     if task:
         card_data.tags += [task]
     card_data.model_file = config.get("sklearn", {}).get("model", {}).get("file")  # type: ignore
+    if config.get("sklearn", {}).get("use_intelex"):
+        card_data.tags.append("scikit-learn-intelex")
+
     example_input = config.get("sklearn", {}).get("example_input", None)
     # Documentation on what the widget expects:
     # https://huggingface.co/docs/hub/models-widgets-examples
@@ -684,6 +687,11 @@ class Card:
 
         val: str or Formattable
             The value to assign to the (sub)section.
+
+        Returns
+        -------
+        Section instance
+            The section that has been added or modified.
 
         """
         *subsection_names, leaf_node_name = split_subsection_names(key)
