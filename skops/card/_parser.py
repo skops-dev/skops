@@ -160,7 +160,8 @@ def _get_pandoc_version() -> str:
     )
     version_info = str(proc.stdout.decode("utf-8")).split("\n", 1)[0]
     if not version_info.startswith("pandoc "):
-        raise RuntimeError("Could not determine version of pandoc")
+        # pandoc is installed but version cannot be determined
+        raise RuntimeError("Could not determine version of pandoc.")
 
     _, _, pandoc_version = version_info.partition(" ")
     return pandoc_version
@@ -190,10 +191,11 @@ def check_pandoc_installed(
     try:
         pandoc_version = _get_pandoc_version()
     except FileNotFoundError as exc:
+        # pandoc is not installed
         msg = (
             "This feature requires the pandoc library to be installed on your system, "
             "please follow these install instructions: "
-            "https://pandoc.org/installing.html"
+            "https://pandoc.org/installing.html."
         )
         raise FileNotFoundError(msg) from exc
 

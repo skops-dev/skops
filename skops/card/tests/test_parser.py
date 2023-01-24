@@ -3,6 +3,7 @@ import json
 import os
 import re
 from pathlib import Path
+from unittest.mock import Mock, patch
 
 import pytest
 import yaml  # type: ignore
@@ -139,3 +140,41 @@ def test_content_without_section_raises():
     )
     with pytest.raises(ValueError, match=re.escape(msg)):
         parser.generate()
+
+
+def test_unsupported_markup_raises():
+    match = re.escape("Markup of type does-not-exist is not supported (yet)")
+    with pytest.raises(ValueError, match=match):
+        PandocParser(source="", markup_type="does-not-exist")
+
+
+def test_check_pandoc_installed_no_min_version_works():
+    # check that it doesn't raise
+    check_pandoc_installed(min_version=None)
+
+
+def test_check_pandoc_installed_min_version_too_high_raises():
+    match = re.escape("Pandoc version too low, expected at least 999.9.9, got")
+    with pytest.raises(ValueError, match=match):
+        check_pandoc_installed(min_version="999.9.9")
+
+
+def test_pandoc_not_installed():
+    def raise_filenotfound(*args, **kwargs):
+        # error raised when trying to run subprocess on non-existing command
+        raise FileNotFoundError("[Errno 2] No such file or directory: 'pandoc'")
+
+    with patch("subprocess.run", raise_filenotfound):
+        match = re.escape(
+            "This feature requires the pandoc library to be installed on your system"
+        )
+        with pytest.raises(FileNotFoundError, match=match):
+            check_pandoc_installed()
+
+
+def test_pandoc_version_cannot_be_determined():
+    mock = Mock()
+    with patch("subprocess.run", mock):
+        match = re.escape("Could not determine version of pandoc")
+        with pytest.raises(RuntimeError, match=match):
+            check_pandoc_installed()
