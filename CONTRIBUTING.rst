@@ -116,6 +116,7 @@ As a maintainer, follow these steps:
    GitHub
 10. Update the patch version of the package to a new dev version, e.g. from
    ``v0.3.dev0`` to ``v0.4.dev0``
-11. Check that the new stable branch of documentation was built correctly on
+11. Add a section for the new release in the ``docs/changes.rst`` file.
+12. Check that the new stable branch of documentation was built correctly on
     `readthedocs <https://readthedocs.org/projects/skops/builds/>`_, and make
     sure all relevant releases are *active*.
