@@ -144,11 +144,11 @@ class Markdown:
         (ident, _, keyvals), caption, (dest, typef) = value
         # it seems like ident and keyvals are not relevant for markdown
 
-        if not caption:
+        if not caption:  # pragma: no cover
             # not sure if this can be reached, just to be safe
             raise ValueError("Figure missing a caption")
 
-        if not typef.startswith("fig:"):
+        if not typef.startswith("fig:"):  # pragma: no cover
             # not sure if this can be reached, just to be safe
             raise ValueError(f"Cannot deal with figure of type '{typef}'")
 
@@ -156,7 +156,7 @@ class Markdown:
         content = f"![{caption}]({dest})"
         return content
 
-    def _figure(self, value) -> str:
+    def _figure(self, value) -> str:  # pragma: no cover
         # Figure type was added in Pandoc v3.0
         (ident, classes, keyvals), caption, (body,) = value
 
@@ -297,7 +297,7 @@ class Markdown:
         type_ = quote_type["t"]
         try:
             sym = {"DoubleQuote": '"', "SingleQuote": "'"}[type_]
-        except KeyError as exc:
+        except KeyError as exc:  # pragma: no cover
             # can probably not be reached, but let's be sure
             msg = (
                 f"The parsed document contains '{type_}', which is not "

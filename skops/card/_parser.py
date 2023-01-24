@@ -83,7 +83,7 @@ class PandocParser:
             section.content = content
         elif isinstance(section.content, str):
             section.content = section.content + "\n\n" + content
-        else:
+        else:  # pragma: no cover
             # TODO: Content is a Formattable, no generic way to modify it --
             # should we require each Formattable to have an update method?
             raise ValueError(f"Could not modify content of {section.content}")
@@ -240,7 +240,8 @@ def _card_with_detached_metainfo(path: str | Path) -> tuple[str | Path, dict[str
         return path, metainfo
 
     idx_separator = text.find(sep_end)
-    if idx_separator < len(sep_start):  # separator shouldn't come earlier than this
+    if idx_separator < len(sep_start):  # pragma: no cover
+        # separator shouldn't come earlier than this
         return path, metainfo
 
     # https://black.readthedocs.io/en/stable/faq.html#why-are-flake8-s-e203-and-w503-violated
