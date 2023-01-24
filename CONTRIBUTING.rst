@@ -11,6 +11,26 @@ Please follow this workflow when contributing to skops:
 - Push your branch to the remote repository
 - Create a pull request on GitHub
 
+Issue Titles / Commit Messages
+------------------------------
+
+When creating a pull request, please use a descriptive title. You can prefix
+the title to indicate the type of it:
+
+- ``DOC``: documentation changes
+- ``FEAT/FEA``: new major features
+- ``ENH``: enhancements to existing features with user facing implications
+- ``CI``: continuous integration, sometimes overlaps with MNT
+- ``MNT/MAINT``: maintenance, technical debt, etc
+- ``FIX``: bug fixes
+- ``TST``: new tests, refactoring tests
+- ``PERF``: performance improvements
+
+If a contributor forgets to prefix the title, a maintainer can add the prefix
+when merging into ``main``. While merging, it is recommended that the
+maintainer refines the commit message to add a short description of what the PR
+being merged does.
+
 Review Process
 --------------
 
