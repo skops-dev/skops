@@ -115,7 +115,7 @@ As a maintainer, follow these steps:
 9. Create a `new release <https://github.com/skops-dev/skops/releases>`_ on
    GitHub
 10. Update the patch version of the package to a new dev version, e.g. from
-   ``v0.3.0`` to ``v0.3.dev1``
+   ``v0.3.dev0`` to ``v0.4.dev0``
 11. Check that the new stable branch of documentation was built correctly on
     `readthedocs <https://readthedocs.org/projects/skops/builds/>`_, and make
     sure all relevant releases are *active*.
