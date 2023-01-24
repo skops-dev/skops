@@ -151,7 +151,7 @@ def _get_pandoc_version() -> str:
 
     Returns
     -------
-    pandoc_version : list[int]
+    pandoc_version : str
         The pandoc version as a list of ints.
     """
     proc = subprocess.run(
