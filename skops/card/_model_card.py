@@ -687,6 +687,11 @@ class Card:
         val: str or Formattable
             The value to assign to the (sub)section.
 
+        Returns
+        -------
+        Section instance
+            The section that has been added or modified.
+
         """
         *subsection_names, leaf_node_name = split_subsection_names(key)
         section = self._select(subsection_names)

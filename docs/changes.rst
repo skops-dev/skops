@@ -20,6 +20,9 @@ v0.5
   enabled, will result in the Hugging Face inference API running with Intel's
   scikit-learn intelex library, which can accelerate inference times. :pr:`267`
   by `Benjamin Bossan`_.
+- Model cards that have been written into a markdown file can now be parsed back
+  into a :class:`skops.card.Card` object and edited further by using the
+  :func:`skops.card.parse_modelcard` function. :pr:`257` by `Benjamin Bossan`_.
 
 v0.4
 ----
