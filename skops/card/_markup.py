@@ -189,16 +189,14 @@ class Markdown:
         _, txt = item
         return f"`{txt}`"
 
-    def _table_cols_old(self, items) -> list[str]:  # pragma: no cover
-        # pandoc < 2.5
+    def _table_cols_old(self, items) -> list[str]:
         columns = []
         for (content,) in items:
             column = self.__call__(content)
             columns.append(column)
         return columns
 
-    def _table_cols_new(self, items) -> list[str]:
-        # pandoc >= 2.5
+    def _table_cols_new(self, items) -> list[str]:  # pragma: no cover
         columns = []
         fn = self.__call__
         for item in items:
@@ -207,7 +205,7 @@ class Markdown:
             columns.append(column)
         return columns
 
-    def _table_body_old(self, items) -> list[list[str]]:  # pragma: no cover
+    def _table_body_old(self, items) -> list[list[str]]:
         body = []
         for row_items in items:
             row = []
@@ -220,7 +218,7 @@ class Markdown:
             body.append(row)
         return body
 
-    def _table_body_new(self, items) -> list[list[str]]:
+    def _table_body_new(self, items) -> list[list[str]]:  # pragma: no cover
         body = []
         fn = self.__call__
         for _, row_items in items:
@@ -231,15 +229,15 @@ class Markdown:
             body.append(row)
         return body
 
-    def _table_old(self, item) -> tuple[list[str], list[list[str]]]:  # pragma: no cover
-        # pandoc < 2.5
+    def _table_old(self, item) -> tuple[list[str], list[list[str]]]:
+        # pandoc < 2.10
         _, _, _, thead, tbody = item
         columns = self._table_cols_old(thead)
         body = self._table_body_old(tbody)
         return columns, body
 
-    def _table_new(self, item) -> tuple[list[str], list[list[str]]]:
-        # pandoc >= 2.5
+    def _table_new(self, item) -> tuple[list[str], list[list[str]]]:  # pragma: no cover
+        # pandoc >= 2.10
         # attr capt specs thead tbody tfoot
         _, _, _, thead, tbody, _ = item
         # header
@@ -253,10 +251,10 @@ class Markdown:
         return columns, body
 
     def _table(self, item) -> str:
-        if len(item) == 6:
+        if len(item) == 6:  # pragma: no cover
             # pandoc >= 2.5
             columns, body = self._table_new(item)
-        else:  # pragma: no cover
+        else:
             # pandoc < 2.5
             columns, body = self._table_old(item)
 
