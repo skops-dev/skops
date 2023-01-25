@@ -2,7 +2,7 @@ from importlib import import_module
 
 
 def import_or_raise(module, feature_name):
-    """Raise error
+    """Raise error if a given library is not present in the environment.
 
     Parameters
     ----------
