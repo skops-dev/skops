@@ -189,7 +189,16 @@ class Markdown:
         _, txt = item
         return f"`{txt}`"
 
-    def _table_cols(self, items) -> list[str]:
+    def _table_cols_old(self, items) -> list[str]:  # pragma: no cover
+        # pandoc < 2.5
+        columns = []
+        for (content,) in items:
+            column = self.__call__(content)
+            columns.append(column)
+        return columns
+
+    def _table_cols_new(self, items) -> list[str]:
+        # pandoc >= 2.5
         columns = []
         fn = self.__call__
         for item in items:
@@ -198,7 +207,20 @@ class Markdown:
             columns.append(column)
         return columns
 
-    def _table_body(self, items) -> list[list[str]]:
+    def _table_body_old(self, items) -> list[list[str]]:  # pragma: no cover
+        body = []
+        for row_items in items:
+            row = []
+            for col_row_item in row_items:
+                if not col_row_item:
+                    content = ""
+                else:
+                    content = col_row_item[0]
+                row.append(self.__call__(content))
+            body.append(row)
+        return body
+
+    def _table_body_new(self, items) -> list[list[str]]:
         body = []
         fn = self.__call__
         for _, row_items in items:
@@ -209,20 +231,34 @@ class Markdown:
             body.append(row)
         return body
 
-    def _table(self, item) -> str:
+    def _table_old(self, item) -> tuple[list[str], list[list[str]]]:  # pragma: no cover
+        # pandoc < 2.5
+        _, _, _, thead, tbody = item
+        columns = self._table_cols_old(thead)
+        body = self._table_body_old(tbody)
+        return columns, body
+
+    def _table_new(self, item) -> tuple[list[str], list[list[str]]]:
+        # pandoc >= 2.5
         # attr capt specs thead tbody tfoot
         _, _, _, thead, tbody, _ = item
-
         # header
         (_, thead_bodies) = thead
         (attr, thead_body) = thead_bodies[0]  # multiple headers?
-
-        columns = self._table_cols(thead_body)
-
+        columns = self._table_cols_new(thead_body)
         # rows
         # attr rhc hd bd
         _, _, _, trows = tbody[0]  # multiple groups of rows?
-        body = self._table_body(trows)
+        body = self._table_body_new(trows)
+        return columns, body
+
+    def _table(self, item) -> str:
+        if len(item) == 6:
+            # pandoc >= 2.5
+            columns, body = self._table_new(item)
+        else:  # pragma: no cover
+            # pandoc < 2.5
+            columns, body = self._table_old(item)
 
         table: Mapping[str, Sequence[Any]]
         if not body:

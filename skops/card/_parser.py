@@ -22,7 +22,7 @@ from skops.card._model_card import Section
 
 from ._markup import Markdown, PandocItem
 
-PANDOC_MIN_VERSION = "2.9.0"
+PANDOC_MIN_VERSION = "2.0"
 
 
 class PandocParser:
