@@ -180,3 +180,8 @@ The "id" tag may change in order
 <div class="warning" somekey key="with value" id="123">
   <p>Divs are possible</p>
 </div>
+
+## Line breaks
+
+A text with  
+a LineBreak item.

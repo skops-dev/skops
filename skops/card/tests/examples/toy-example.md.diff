@@ -88,3 +88,6 @@
 -</div>
 +
 +<div id="123" class="warning" somekey key="with value"><p>Divs are possible</p></div>
+@@ -186 +218 @@
+-A text with  
++A text with
