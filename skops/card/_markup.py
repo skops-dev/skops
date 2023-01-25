@@ -46,6 +46,7 @@ class Markdown:
             "RawInline": self._raw_inline,
             "RawBlock": self._raw_block,
             "SoftBreak": self._soft_break,
+            "LineBreak": self._line_break,
             "Para": self._para,
             "Header": self._header,
             "Image": self._image,
@@ -123,6 +124,9 @@ class Markdown:
     def _soft_break(self, value) -> str:
         incr = 0 if not self._indent_trace else self._indent_trace[-1]
         return "\n" + self._get_indent(incr=incr)
+
+    def _line_break(self, value) -> str:
+        return "\n"
 
     def _make_content(self, content):
         parts = []
