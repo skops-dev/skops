@@ -40,6 +40,7 @@ User Guide / API Reference
    model_card
    persistence
    modules/classes
+   examples
 
 Community / About
 =================
