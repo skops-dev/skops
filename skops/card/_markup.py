@@ -208,7 +208,8 @@ class Markdown:
     def _table(self, item) -> str:
         # attr capt specs thead tbody tfoot
         print("*" * 30)
-        print(item)
+        print(f"item = {item}")
+        print("*" * 30)
         _, _, _, thead, tbody, _ = item
 
         # header
