@@ -90,13 +90,7 @@ def test_example_model_cards(tmp_path, file_name):
     path = Path(os.getcwd()) / "skops" / "card" / "tests" / "examples"
     file0 = path / file_name
     diff = (path / file_name).with_suffix(".md.diff")
-    try:
-        parsed_card = parse_modelcard(file0)
-    except Exception as exc:
-        print("*" * 30)
-        print(f"file0 {file0}")
-        print("*" * 30)
-        print(f"diff {diff}")
+    parsed_card = parse_modelcard(file0)
     file1 = tmp_path / "readme-parsed.md"
     parsed_card.save(file1)
 
