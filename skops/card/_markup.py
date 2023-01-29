@@ -239,9 +239,6 @@ class Markdown:
     def _table_new(self, item) -> tuple[list[str], list[list[str]]]:  # pragma: no cover
         # pandoc >= 2.10
         # attr capt specs thead tbody tfoot
-        print("*" * 30)
-        print(f"item = {item}")
-        print("*" * 30)
         _, _, _, thead, tbody, _ = item
         # header
         (_, thead_bodies) = thead
