@@ -79,7 +79,10 @@ plots, save them on disk and then add them to the card by passing the path name
 to the :meth:`.Card.add_plot` method. For tables, you can pass either
 dictionaries with the key being the header and the values being list of row
 entries, or a pandas ``DataFrame``; use the :meth:`.Card.add_table` method for
-this.
+this. If you would like to add permutation importance results, you can pass
+your importances to :meth:`.Card.add_permutation_importances`. If you want to
+have multiple importance plots, you should pass a file name and a title for the
+plot. This will create a boxplot and write it to the model card for you.
 
 To add content to an existing subsection, or create a new subsection, use a
 ``"/"`` to indicate the subsection. E.g. let's assume you would like to add a
