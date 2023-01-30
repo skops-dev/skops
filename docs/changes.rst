@@ -11,6 +11,8 @@ skops Changelog
 
 v0.6
 ----
+- Fix: skops persistence now also works with many functions from the
+  :mod:`operator` module. :pr:`287` by `Benjamin Bossan`_.
 
 v0.5
 ----
