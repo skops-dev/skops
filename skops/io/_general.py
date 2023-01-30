@@ -369,18 +369,6 @@ def object_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     return res
 
 
-def builtin_function_or_method_state(
-    obj: Any, save_context: SaveContext
-) -> dict[str, Any]:
-    # Some of the functions from the stdlib, like operator.add.
-    res = {
-        "__class__": obj.__name__,
-        "__module__": get_module(obj),
-        "__loader__": "TypeNode",
-    }
-    return res
-
-
 class ObjectNode(Node):
     def __init__(
         self,
@@ -585,7 +573,7 @@ GET_STATE_DISPATCH_FUNCTIONS = [
     (MethodType, method_get_state),
     (partial, partial_get_state),
     (type, type_get_state),
-    (builtin_function_or_method, builtin_function_or_method_state),
+    (builtin_function_or_method, type_get_state),
     (operator.attrgetter, operator_func_get_state),
     (operator.itemgetter, operator_func_get_state),
     (operator.methodcaller, operator_func_get_state),
