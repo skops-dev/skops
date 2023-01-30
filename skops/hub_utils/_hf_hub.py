@@ -199,14 +199,14 @@ def _create_config(
     model_path: Union[str, Path],
     requirements: List[str],
     dst: Union[str, Path],
-    task: Literal[  # type: ignore
+    task: Literal[
         "tabular-classification",
         "tabular-regression",
         "text-classification",
         "text-regression",
     ],
     data,
-    model_format: Literal[  # type: ignore
+    model_format: Literal[
         "skops",
         "pickle",
         "auto",
