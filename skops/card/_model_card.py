@@ -183,8 +183,8 @@ def split_subsection_names(key: str) -> list[str]:
     ['Section A']
     >>> split_subsection_names("Section A/Section B/Section C")
     ['Section A', 'Section B', 'Section C']
-    >>> split_subsection_names("A section containg \\/ a slash")
-    ['A section containg / a slash']
+    >>> split_subsection_names("A section containing \\/ a slash")
+    ['A section containing / a slash']
     >>> split_subsection_names("Spaces are / stripped")
     ['Spaces are', 'stripped']
 
