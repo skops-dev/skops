@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import json
+import operator
 import uuid
 from functools import partial
 from types import FunctionType, MethodType
@@ -368,6 +369,18 @@ def object_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     return res
 
 
+def builtin_function_or_method_state(
+    obj: Any, save_context: SaveContext
+) -> dict[str, Any]:
+    # Some of the functions from the stdlib, like operator.add.
+    res = {
+        "__class__": obj.__name__,
+        "__module__": get_module(obj),
+        "__loader__": "TypeNode",
+    }
+    return res
+
+
 class ObjectNode(Node):
     def __init__(
         self,
@@ -528,6 +541,37 @@ class BytearrayNode(BytesNode):
         return content_bytearray
 
 
+def operator_func_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
+    _, attrs = obj.__reduce__()
+    res = {
+        "__class__": obj.__class__.__name__,
+        "__module__": "operator",
+        "__loader__": "OperatorFuncNode",
+        "attrs": attrs,
+    }
+    return res
+
+
+class OperatorFuncNode(Node):
+    def __init__(
+        self,
+        state: dict[str, Any],
+        load_context: LoadContext,
+        trusted: bool | Sequence[str] = False,
+    ) -> None:
+        super().__init__(state, load_context, trusted)
+        self.trusted = self._get_trusted(trusted, [bytes])
+        self.children["attrs"] = state["attrs"]
+
+    def _construct(self):
+        op = getattr(operator, self.class_name)
+        return op(*self.children["attrs"])
+
+
+# <class 'builtin_function_or_method'>
+builtin_function_or_method = type(len)
+
+
 # tuples of type and function that gets the state of that type
 GET_STATE_DISPATCH_FUNCTIONS = [
     (dict, dict_get_state),
@@ -541,6 +585,10 @@ GET_STATE_DISPATCH_FUNCTIONS = [
     (MethodType, method_get_state),
     (partial, partial_get_state),
     (type, type_get_state),
+    (builtin_function_or_method, builtin_function_or_method_state),
+    (operator.attrgetter, operator_func_get_state),
+    (operator.itemgetter, operator_func_get_state),
+    (operator.methodcaller, operator_func_get_state),
     (object, object_get_state),
 ]
 
@@ -558,4 +606,5 @@ NODE_TYPE_MAPPING = {
     "TypeNode": TypeNode,
     "ObjectNode": ObjectNode,
     "JsonNode": JsonNode,
+    "OperatorFuncNode": OperatorFuncNode,
 }

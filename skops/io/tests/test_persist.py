@@ -2,6 +2,7 @@ import importlib
 import inspect
 import io
 import json
+import operator
 import warnings
 from collections import Counter
 from functools import partial, wraps
@@ -865,3 +866,52 @@ def test_estimator_with_bytes_files_created(tmp_path):
         files = input_zip.namelist()
     bin_files = [file for file in files if file.endswith(".bin")]
     assert len(bin_files) == 2
+
+
+@pytest.mark.parametrize(
+    "func",
+    [
+        partial(operator.add, 0),
+        partial(operator.sub, 0),
+        partial(operator.mul, 1),
+        partial(operator.truediv, 1),
+        partial(operator.pow, 1),
+        partial(operator.matmul, np.eye(N_SAMPLES)),
+        partial(operator.ge, 0),
+        partial(operator.gt, 0),
+        partial(operator.le, 0),
+        partial(operator.lt, 0),
+        partial(operator.eq, 0),
+        operator.neg,
+        operator.attrgetter("real"),
+        operator.attrgetter("real", "real"),
+        operator.itemgetter(None),
+        operator.itemgetter(None, None),
+        operator.methodcaller("round"),
+        operator.methodcaller("round", 2),
+    ],
+)
+def test_persist_operator(func):
+    # Test a couple of functions from the operator module. This is not an
+    # exhaustive list but rather the most plausible functions. To check all
+    # operators would require specific tests, not a generic one like this.
+    # Fixes #283
+
+    # unfitted
+    est = FunctionTransformer(func)
+    loaded = loads(dumps(est), trusted=True)
+    assert_params_equal(est.__dict__, loaded.__dict__)
+
+    # fitted
+    X, y = get_input(est)
+    est.fit(X, y)
+    loaded = loads(dumps(est), trusted=True)
+    assert_params_equal(est.__dict__, loaded.__dict__)
+
+    # Technically, we don't need to call transform. However, if this is skipped,
+    # there is a danger to not define the function sufficiently, which could
+    # lead to the test passing but being useless in practice -- e.g. for
+    # func=operator.methodcaller, the test would pass without the fix for #283
+    # but it would be useless in practice, since methodcaller is not properly
+    # instantiated.
+    est.transform(X)
