@@ -330,14 +330,14 @@ def init(
     model: Union[str, Path],
     requirements: List[str],
     dst: Union[str, Path],
-    task: Literal[ 
+    task: Literal[
         "tabular-classification",
         "tabular-regression",
         "text-classification",
         "text-regression",
     ],
     data,
-    model_format: Literal[  
+    model_format: Literal[
         "skops",
         "pickle",
         "auto",
