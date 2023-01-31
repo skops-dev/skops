@@ -248,7 +248,7 @@ class Section:
     card representation forms a tree structure, making use of the fact that dict
     order is preserved.
 
-    The section may also contain a ``visible`` flag, which determined if the
+    The section may also contain a ``visible`` flag, which determines if the
     section will be shown when the card is rendered.
 
     """
