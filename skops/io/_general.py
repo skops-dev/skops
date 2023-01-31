@@ -548,7 +548,7 @@ class OperatorFuncNode(Node):
         trusted: bool | Sequence[str] = False,
     ) -> None:
         super().__init__(state, load_context, trusted)
-        self.trusted = self._get_trusted(trusted, [bytes])
+        self.trusted = self._get_trusted(trusted, [])
         self.children["attrs"] = state["attrs"]
 
     def _construct(self):
