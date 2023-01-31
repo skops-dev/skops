@@ -431,10 +431,11 @@ def init(
             use_intelex=use_intelex,
         )
 
-        if model_format == "pickle":
+        extension = Path(model_name).suffix
+        if extension in [".pkl", ".pickle", ".joblib"]:
             with open(model, "rb") as f:
                 model = pikle_load(f)
-        elif model_format == "skops":
+        elif extension == ".skops":
             model = io.load(model)
         model_card = card.Card(model, metadata=card.metadata_from_config(dst))
         model_card.save(dst / "README.md")
