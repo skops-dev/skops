@@ -62,6 +62,9 @@ jobs:
           then pip install --pre --extra-index https://pypi.anaconda.org/scipy-wheels-nightly/simple scikit-learn;
           else pip install "scikit-learn~=${{ matrix.sklearn_version }}";
         fi
+        if [ ${{ matrix.os }} == "ubuntu-latest" ];
+          then sudo apt install pandoc && pandoc --version;
+        fi
         python --version
         pip --version
         pip list

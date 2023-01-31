@@ -1,0 +1,5 @@
+--- 
++++ 
+@@ -17 +17 @@
+-Note that this model does not provide any fine-tuned heads, as these were zero'd by Google researchers. However, the model does include the pre-trained pooler, which can be used for downstream tasks (such as image classification).
++Note that this model does not provide any fine-tuned heads, as these were zero’d by Google researchers. However, the model does include the pre-trained pooler, which can be used for downstream tasks (such as image classification).

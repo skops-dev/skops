@@ -1,0 +1,93 @@
+--- 
++++ 
+@@ -0,0 +1 @@
++
+@@ -17 +18 @@
+-Parser doesn’t ‘preserve’ other “quotation” marks.
++Parser doesn’t 'preserve' other "quotation" marks.
+@@ -22 +23 @@
+-Another *way* of doing it.
++Another _way_ of doing it.
+@@ -26 +27 @@
+-One __way__ of doing it.
++One **way** of doing it.
+@@ -45,2 +46,2 @@
+-* using
+-* asterisk
++- using
++- asterisk
+@@ -56 +57 @@
+-+ using plus
++- using plus
+@@ -100 +101 @@
+-[a link](https://skops.readthedocs.io/ "this disappears")
++[a link](https://skops.readthedocs.io/)
+@@ -106 +107 @@
+-[a link with reference][1]
++[a link with reference](https://skops.readthedocs.io/)
+@@ -109,2 +109,0 @@
+-
+-[1]: https://skops.readthedocs.io/
+@@ -164 +163,6 @@
+-<p hidden>Cryptids of Revachol:</p>
++
++<p hidden>
++
++Cryptids of Revachol:
++
++</p>
+@@ -167,8 +171,37 @@
+-    <dt>Beast of Bodmin</dt>
+-    <dd>A large feline inhabiting Bodmin Moor.</dd>
+-
+-    <dt>Morgawr</dt>
+-    <dd>A sea serpent.</dd>
+-
+-    <dt>Owlman</dt>
+-    <dd>A giant owl-like creature.</dd>
++
++<dt>
++
++Beast of Bodmin
++
++</dt>
++
++<dd>
++
++A large feline inhabiting Bodmin Moor.
++
++</dd>
++
++<dt>
++
++Morgawr
++
++</dt>
++
++<dd>
++
++A sea serpent.
++
++</dd>
++
++<dt>
++
++Owlman
++
++</dt>
++
++<dd>
++
++A giant owl-like creature.
++
++</dd>
++
+@@ -180,3 +213,2 @@
+-<div class="warning" somekey key="with value" id="123">
+-  <p>Divs are possible</p>
+-</div>
++
++<div id="123" class="warning" somekey key="with value"><p>Divs are possible</p></div>
+@@ -186 +218 @@
+-A text with  
++A text with

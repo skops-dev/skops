@@ -1,0 +1,40 @@
+--- 
++++ 
+@@ -44,10 +44,10 @@
+-| Model | #params | Language |
+-|------------------------|--------------------------------|-------|
+-| [`bert-base-uncased`](https://huggingface.co/bert-base-uncased) | 110M   | English |
+-| [`bert-large-uncased`](https://huggingface.co/bert-large-uncased)              | 340M    | English | sub
+-| [`bert-base-cased`](https://huggingface.co/bert-base-cased)        | 110M    | English |
+-| [`bert-large-cased`](https://huggingface.co/bert-large-cased) | 340M    |  English |
+-| [`bert-base-chinese`](https://huggingface.co/bert-base-chinese) | 110M    | Chinese |
+-| [`bert-base-multilingual-cased`](https://huggingface.co/bert-base-multilingual-cased) | 110M | Multiple |
+-| [`bert-large-uncased-whole-word-masking`](https://huggingface.co/bert-large-uncased-whole-word-masking) | 340M | English |
+-| [`bert-large-cased-whole-word-masking`](https://huggingface.co/bert-large-cased-whole-word-masking) | 340M | English |
++| Model                                                                                                   | #params   | Language   |
++|---------------------------------------------------------------------------------------------------------|-----------|------------|
++| [`bert-base-uncased`](https://huggingface.co/bert-base-uncased)                                         | 110M      | English    |
++| [`bert-large-uncased`](https://huggingface.co/bert-large-uncased)                                       | 340M      | English    |
++| [`bert-base-cased`](https://huggingface.co/bert-base-cased)                                             | 110M      | English    |
++| [`bert-large-cased`](https://huggingface.co/bert-large-cased)                                           | 340M      | English    |
++| [`bert-base-chinese`](https://huggingface.co/bert-base-chinese)                                         | 110M      | Chinese    |
++| [`bert-base-multilingual-cased`](https://huggingface.co/bert-base-multilingual-cased)                   | 110M      | Multiple   |
++| [`bert-large-uncased-whole-word-masking`](https://huggingface.co/bert-large-uncased-whole-word-masking) | 340M      | English    |
++| [`bert-large-cased-whole-word-masking`](https://huggingface.co/bert-large-cased-whole-word-masking)     | 340M      | English    |
+@@ -57 +57 @@
+-You can use the raw model for either masked language modeling or next sentence prediction, but it's mostly intended to
++You can use the raw model for either masked language modeling or next sentence prediction, but it’s mostly intended to
+@@ -189 +189 @@
+-the other cases, it's another random sentence in the corpus. Note that what is considered a sentence here is a
++the other cases, it’s another random sentence in the corpus. Note that what is considered a sentence here is a
+@@ -212,4 +212,3 @@
+-| Task | MNLI-(m/mm) | QQP  | QNLI | SST-2 | CoLA | STS-B | MRPC | RTE  | Average |
+-|:----:|:-----------:|:----:|:----:|:-----:|:----:|:-----:|:----:|:----:|:-------:|
+-|      | 84.6/83.4   | 71.2 | 90.5 | 93.5  | 52.1 | 85.8  | 88.9 | 66.4 | 79.6    |
+-
++| Task   | MNLI-(m/mm)   |   QQP |   QNLI |   SST-2 |   CoLA |   STS-B |   MRPC |   RTE |   Average |
++|--------|---------------|-------|--------|---------|--------|---------|--------|-------|-----------|
++|        | 84.6/83.4     |  71.2 |   90.5 |    93.5 |   52.1 |    85.8 |   88.9 |  66.4 |      79.6 |
+@@ -240 +239 @@
+-	<img width="300px" src="https://cdn-media.huggingface.co/exbert/button.png">
++<img width="300px" src="https://cdn-media.huggingface.co/exbert/button.png">

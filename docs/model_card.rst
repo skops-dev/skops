@@ -11,6 +11,9 @@ beginning of it, following with the content of the model card in markdown
 format. The metadata section is used to make models searchable on the Hub, and
 get the inference API and the widgets on the website working.
 
+Metadata
+--------
+
 The metadata part of the file needs to follow the specifications `here
 <https://huggingface.co/docs/hub/models-cards#model-card-metadata>`__. It
 includes simple attributes of your models such as the task you're solving,
@@ -39,6 +42,9 @@ Here's an example of the metadata section of the ``README.md`` file:
 
 ``skops`` creates this section of the file for you, and you almost never need
 to touch it yourself.
+
+Model Card Content
+------------------
 
 The markdown part does not necessarily need to follow any specification in
 terms of information passed, which gives the user a lot of flexibility. The
@@ -73,7 +79,10 @@ plots, save them on disk and then add them to the card by passing the path name
 to the :meth:`.Card.add_plot` method. For tables, you can pass either
 dictionaries with the key being the header and the values being list of row
 entries, or a pandas ``DataFrame``; use the :meth:`.Card.add_table` method for
-this.
+this. If you would like to add permutation importance results, you can pass
+your importances to :meth:`.Card.add_permutation_importances`. If you want to
+have multiple importance plots, you should pass a file name and a title for the
+plot. This will create a boxplot and write it to the model card for you.
 
 To add content to an existing subsection, or create a new subsection, use a
 ``"/"`` to indicate the subsection. E.g. let's assume you would like to add a
@@ -90,8 +99,8 @@ as well as adding some subsections with plots below that, you can call the
     })
 
 Furthermore, you can select existing sections (as well as their subsections)
-using :meth:`Card.select`, and you can delete sections using
-:meth:`Card.delete`:
+using :meth:`.Card.select`, and you can delete sections using
+:meth:`.Card.delete`:
 
 .. code-block:: python
 
@@ -103,3 +112,43 @@ using :meth:`Card.select`, and you can delete sections using
 
 To see how you can use the API in ``skops`` to create a model card, please
 refer to :ref:`sphx_glr_auto_examples_plot_model_card.py`.
+
+Saving and Loading Model Cards
+------------------------------
+
+Once you have finished creating and modifying the model card, you can save it
+using the :meth:`.Card.save` method:
+
+.. code-block:: python
+
+    card.save("README.md")
+
+This renders the content of the model card to markdown format and stores it in
+the indicated file. It is now ready to be uploaded to Hugging Face Hub.
+
+If you have a finished model card but want to load to make some modifications,
+you can use the function :func:`skops.card.parse_modelcard`. This function
+parses the model card back into a :class:`.Card` instance that you can work on
+further:
+
+.. code-block:: python
+
+    from skops import card
+    model_card = card.parse_modelcard("README.md")
+    model_card.add(**{"A new section": "Some new content"})
+    model_card.save("README.md")
+
+When the card is parsed, some minor details of the model card can change, e.g.
+if you used different column alignment than the default, this could change, as
+well as removing excess empty lines or trailing whitespace. However, the content
+itself should be exactly the same. All known deviations are documented in the
+`parse_modelcard docs
+<https://skops.readthedocs.io/en/stable/modules/classes.html#skops.card.parse_modelcard>`_
+
+For the parsing part, we rely on `pandoc <https://pandoc.org/>`_. If you haven't
+installed it, please follow `these instructions
+<https://pandoc.org/installing.html>`_. The advantage of using pandoc is that
+it's a very mature library and that it supports many different document formats.
+Therefore, it should be possible to parse model cards even if they use a format
+that's not markdown, for instance reStructuredText, org, or asciidoc. For
+saving, we only support markdown for now.

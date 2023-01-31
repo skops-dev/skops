@@ -1,0 +1,20 @@
+--- 
++++ 
+@@ -89 +88,0 @@
+->
+@@ -96 +95 @@
+-Here's an example of how the model can have biased predictions:
++Here’s an example of how the model can have biased predictions:
+@@ -144,5 +143,4 @@
+-| Dataset  | LAMBADA | LAMBADA | CBT-CN | CBT-NE | WikiText2 | PTB    | enwiki8 | text8  | WikiText103 | 1BW   |
+-|:--------:|:-------:|:-------:|:------:|:------:|:---------:|:------:|:-------:|:------:|:-----------:|:-----:|
+-| (metric) | (PPL)   | (ACC)   | (ACC)  | (ACC)  | (PPL)     | (PPL)  | (BPB)   | (BPC)  | (PPL)       | (PPL) |
+-|          | 35.13   | 45.99   | 87.65  | 83.4   | 29.41     | 65.85  | 1.16    | 1,17   | 37.50       | 75.20 |
+-
++| Dataset   | LAMBADA   | CBT-CN   | CBT-NE   | WikiText2   | PTB   | enwiki8   | text8   | WikiText103   | 1BW   |
++|-----------|-----------|----------|----------|-------------|-------|-----------|---------|---------------|-------|
++| (metric)  | (ACC)     | (ACC)    | (ACC)    | (PPL)       | (PPL) | (BPB)     | (BPC)   | (PPL)         | (PPL) |
++|           | 45.99     | 87.65    | 83.4     | 29.41       | 65.85 | 1.16      | 1,17    | 37.50         | 75.20 |
+@@ -161 +159 @@
+-	<img width="300px" src="https://cdn-media.huggingface.co/exbert/button.png">
++<img width="300px" src="https://cdn-media.huggingface.co/exbert/button.png">

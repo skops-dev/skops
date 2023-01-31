@@ -209,7 +209,7 @@ def _create_config(
         "text-regression",
     ],
     data,
-    model_format: Literal[  # type: ignore
+    model_format: Literal[
         "skops",
         "pickle",
         "auto",
@@ -340,7 +340,7 @@ def init(
         "text-regression",
     ],
     data,
-    model_format: Literal[  # type: ignore
+    model_format: Literal[
         "skops",
         "pickle",
         "auto",
