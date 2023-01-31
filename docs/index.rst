@@ -23,6 +23,7 @@ The following examples are good starting points:
   :ref:`sphx_glr_auto_examples_plot_model_card.py`
 - A text classification example, and its integration with the hub:
   :ref:`sphx_glr_auto_examples_plot_text_classification.py`
+- More Examples :ref:`_examples`
 
 In order to better understand the role of each file and their content when
 uploaded to Hugging Face Hub, refer to this :ref:`user guide <hf_hub>`. You can
