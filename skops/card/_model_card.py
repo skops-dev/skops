@@ -243,16 +243,20 @@ class Section:
     empty string) or a ``Formattable``, which is simply an object with a
     ``format`` method that returns a string.
 
-    Finally, the section can contain subsections, which again are dicts of
+    The section can contain subsections, which again are dicts of
     string keys and section values (the dict can be empty). Therefore, the model
     card representation forms a tree structure, making use of the fact that dict
     order is preserved.
+
+    The section may also contain a ``visible`` flag, which determined if the
+    section will be shown when the card is rendered.
 
     """
 
     title: str
     content: Formattable | str
     subsections: dict[str, Section] = field(default_factory=dict)
+    visible: bool = True
 
     def select(self, key: str) -> Section:
         """Return a subsection or subsubsection of this section
@@ -1182,6 +1186,9 @@ class Card:
 
         """
         for val in data.values():
+            if not val.visible:
+                continue
+
             title = f"{depth * '#'} {val.title}"
             yield title
 
