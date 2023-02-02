@@ -9,8 +9,7 @@ jobs:
   check-persistence-performance:
 
     runs-on: ubuntu-latest
-    # if: "github.repository == 'skops-dev/skops'"
-    if: "github.repository == 'BenjaminBossan/skops'"
+    if: "github.repository == 'skops-dev/skops'"
 
     timeout-minutes: 10
 
