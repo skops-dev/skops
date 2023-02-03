@@ -11,6 +11,8 @@ skops Changelog
 
 v0.6
 ----
+- Add example of using model card without the skops template. :pr:`291` by
+  `Benjamin Bossan`_.
 
 v0.5
 ----
