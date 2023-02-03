@@ -160,8 +160,29 @@ Therefore, you should only load a skops file containing a model of any of those
 libraries if you trust them to be secure. It's not a perfect solution, but it's
 still better than trusting pickle files, which anyone can tamper with easily.
 
+Compatibility across sklearn versions
+-------------------------------------
+
+Using skops to load a model saved in one sklearn version and loading it with
+sklearn version is not recommended, because the behavior of the model may change
+across versions. Such changes don't happen very often, but they can happen, thus
+you should be cautious. To replicate a model trained with one sklearn version
+using a different sklearn version, it is advised to retrain the model on the
+same data using the same training process.
+
+The potential compatibility issue between sklearn versions is not skops
+specific. It is general sklearn behavior which skops cannot avoid. According to
+the sklearn `docs on model persistence
+<https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations>`_:
+
+    While models saved using one version of scikit-learn might load in other
+    versions, this is entirely unsupported and inadvisable. It should also be
+    kept in mind that operations performed on such data could give different and
+    unexpected results.
+
 Roadmap
 -------
+
 There needs to be more testing to harden the loader and make sure we don't run
 arbitrary code when it's not intended. However, the safety mechanisms already
 in place should prevent most cases of abuse.
