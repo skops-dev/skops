@@ -14,6 +14,7 @@ import joblib
 from huggingface_hub import ModelCardData
 from sklearn.utils import estimator_html_repr
 from tabulate import tabulate  # type: ignore
+from fairlearn.metrics import MetricFrame
 
 from skops.card._templates import CONTENT_PLACEHOLDER, SKOPS_TEMPLATE, Templates
 from skops.io import load
@@ -1308,3 +1309,14 @@ class Card:
             sections inserted.
         """
         return "\n".join(self._generate_card())
+
+    def add_metric_frame(
+        metrics: dict, y_true, y_pred, sensitive_features
+    ) -> MetricFrame:
+        metric_frame = MetricFrame(
+            metrics=metrics,
+            y_true=y_true,
+            y_pred=y_pred,
+            sensitive_features=sensitive_features,
+        )
+        return metric_frame
