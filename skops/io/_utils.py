@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import importlib
+import inspect
+import pkgutil
 import sys
 from dataclasses import dataclass, field
 from functools import singledispatch
-from typing import Any, Type
+from types import ModuleType
+from typing import Any, Optional, Type
 from zipfile import ZipFile
 
 
@@ -201,3 +204,67 @@ def get_type_paths(types: Any) -> list[str]:
         types = [types]
 
     return [get_type_name(t) if not isinstance(t, str) else t for t in types]
+
+
+def all_typed_instances(
+    root_module: ModuleType,
+    base_type: Type,
+    modules_to_ignore: Optional[list[str]] = None,
+) -> list[str]:
+    """Helper function that takes in root_module,
+    and deeply looks for all object that is instance of _type
+    and returns a list of them.
+
+    Parameters
+    ----------
+    root_module: ModuleType
+        Root modules to start from.
+
+    base_type: Type
+        Base type who is being looking for.
+
+    modules_to_ignore: list[str]
+        Modules to ignore during the walk.
+
+    Returns
+    ----------
+    types_list: list of str
+        The list of types, all as strings, e.g. ``["numpy.core._multiarray_umath.multiply"]``.
+    """
+    if not root_module or not base_type:
+        return []
+
+    _MODULES_TO_IGNORE = ["tests", "setup", "conftest"]
+
+    _SUBSTRINGS_TO_IGNORE = [".__", "test"]
+
+    if modules_to_ignore is None:
+        modules_to_ignore = _MODULES_TO_IGNORE
+    else:
+        modules_to_ignore += _MODULES_TO_IGNORE
+
+    typed_instances = []
+    for _, module_name, _ in pkgutil.walk_packages(
+        root_module.__path__, prefix=f"{root_module.__name__}."
+    ):
+        module_parts = module_name.split(".")
+        if any(part in modules_to_ignore for part in module_parts) or any(
+            substring in module_name for substring in _SUBSTRINGS_TO_IGNORE
+        ):
+            continue
+
+        try:
+            module = importlib.import_module(module_name)
+        except Exception:
+            continue
+
+        typed_members = [
+            get_type_name(member[1])
+            for member in inspect.getmembers(module)
+            if isinstance(member[1], base_type)
+            and get_type_name(member[1]).startswith(root_module.__name__)
+        ]
+
+        typed_instances.extend(typed_members)
+
+    return sorted(set(typed_instances))
