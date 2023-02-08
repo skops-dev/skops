@@ -175,6 +175,20 @@ class TestAddModelPlot:
         ).content
         assert result == "The model plot is below."
 
+    def test_model_diagram_false_add_manually(self):
+        # Here we set model_diagram=False but then later explicitly call
+        # model_card.add_model_plot. The current behavior is not to show the
+        # model plot in this case. It could be discussed if that's the expected
+        # outcome or not.
+        model = fit_model()
+        model_card = Card(model, model_diagram=False)
+        model_card.add_model_plot()
+
+        result = model_card.select(
+            "Model description/Training Procedure/Model Plot"
+        ).content
+        assert result == "The model plot is below."
+
     def test_other_section(self, model_card):
         model_card.add_model_plot(section="Other section")
         result = model_card.select("Other section").content
@@ -190,6 +204,34 @@ class TestAddModelPlot:
             "Model description/Training Procedure/Model Plot"
         ).content
         assert result.startswith("Awesome diagram below\n\n<style>#sk-")
+
+    @pytest.mark.parametrize("template", CUSTOM_TEMPLATES)
+    def test_custom_template_manually_adding_works(self, model_card, template):
+        model = fit_model()
+        model_card = Card(model, template=template)
+        model_card.add_model_plot(section="My model diagram")
+
+        result = model_card.select("My model diagram").content
+        assert result.startswith("<style>#sk-")
+        assert "<style>" in result
+        assert result.endswith(
+            "<pre>LinearRegression()</pre></div></div></div></div></div>"
+        )
+
+    @pytest.mark.parametrize("template", CUSTOM_TEMPLATES)
+    def test_custom_template_description_manually_adding_works(
+        self, model_card, template
+    ):
+        model = fit_model()
+        model_card = Card(model, template=template)
+        model_card.add_model_plot(section="My model diagram", description="Tada")
+
+        result = model_card.select("My model diagram").content
+        assert result.startswith("Tada\n\n<style>#sk-")
+        assert "<style>" in result
+        assert result.endswith(
+            "<pre>LinearRegression()</pre></div></div></div></div></div>"
+        )
 
     @pytest.mark.parametrize("template", CUSTOM_TEMPLATES)
     def test_custom_template_no_section_raises(self, template):
@@ -214,6 +256,73 @@ class TestAddModelPlot:
         # both are identical, except for numbers like "#sk-container-id-123",
         # thus compare everything but the numbers
         assert re.split(r"\d+", text1) == re.split(r"\d+", text2)
+
+    def test_setting_model_diagram_false_removes_it(self, model_card):
+        model_card.model_diagram = False
+        rendered = model_card.render()
+
+        # don't compare whole text, as it's quite long and non-deterministic
+        assert "The model plot is below.\n\n<style>#sk-" not in rendered
+        assert "<style>" not in rendered
+        assert (
+            "<pre>LinearRegression()</pre></div></div></div></div></div>"
+            not in rendered
+        )
+
+    @pytest.mark.xfail(strict=True)
+    def test_setting_model_diagram_false_other_section(self, model_card):
+        # when the model diagram is in another section, this does not work
+        # currently, thus we xfail this test
+        model_card.add_model_plot(section="Other section")
+        model_card.model_diagram = False
+        rendered = model_card.render()
+
+        assert "The model plot is below.\n\n<style>#sk-" not in rendered
+        assert "<style>" not in rendered
+        assert (
+            "<pre>LinearRegression()</pre></div></div></div></div></div>"
+            not in rendered
+        )
+
+    @pytest.mark.parametrize("template", CUSTOM_TEMPLATES)
+    def test_setting_model_diagram_false_custom_template(self, model_card, template):
+        model = fit_model()
+        model_card = Card(model, template=template, model_diagram=True)
+
+        # now set value to False and check that the diagram is no longer shown
+        model_card.model_diagram = False
+        rendered = model_card.render()
+
+        assert "The model plot is below.\n\n<style>#sk-" not in rendered
+        assert "<style>" not in rendered
+        assert (
+            "<pre>LinearRegression()</pre></div></div></div></div></div>"
+            not in rendered
+        )
+
+    def test_setting_model_diagram_false_twice_no_error(self, model_card):
+        # check that this does not raise
+        model_card.model_diagram = False
+        model_card.model_diagram = False
+        rendered = model_card.render()
+
+        # don't compare whole text, as it's quite long and non-deterministic
+        assert "The model plot is below.\n\n<style>#sk-" not in rendered
+        assert "<style>" not in rendered
+        assert (
+            "<pre>LinearRegression()</pre></div></div></div></div></div>"
+            not in rendered
+        )
+
+    def test_setting_model_diagram_false_then_true(self, model_card):
+        model_card.model_diagram = False
+        model_card.model_diagram = True
+        rendered = model_card.render()
+
+        # don't compare whole text, as it's quite long and non-deterministic
+        assert "<style>#sk-" in rendered
+        assert "<style>" in rendered
+        assert "<pre>LinearRegression()</pre></div></div></div></div></div>" in rendered
 
 
 def _strip_multiple_chars(text, char):

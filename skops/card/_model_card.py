@@ -457,7 +457,7 @@ class Card:
         trusted: bool = False,
     ) -> None:
         self.model = model
-        self.model_diagram = model_diagram
+        self._model_diagram = model_diagram
         self.metadata = metadata or ModelCardData()
         self.template = template
         self.trusted = trusted
@@ -704,11 +704,36 @@ class Card:
         if leaf_node_name in section:
             # entry exists, only overwrite content
             section[leaf_node_name].content = val
+            # if node already existed but was invisible, make it visible
+            section[leaf_node_name].visible = True
         else:
             # entry does not exist, create a new one
             section[leaf_node_name] = Section(title=leaf_node_name, content=val)
 
         return section[leaf_node_name]
+
+    @property
+    def model_diagram(self) -> bool:
+        return self._model_diagram
+
+    @model_diagram.setter
+    def model_diagram(self, value: bool) -> None:
+        self._model_diagram = value
+
+        # If we use the skops template, we know what section to add or remove
+        # when model_diagram changes values. If not, we don't know and thus need
+        # to skip this step.
+        if self.template != Templates.skops.value:
+            return
+
+        section_name = "Model description/Training Procedure/Model Plot"
+        if not value:  # don't show model diagram
+            section = self.select(section_name)
+            section.visible = False
+        else:  # do show model diagram
+            self._add_model_plot(
+                self.get_model(), section=section_name, description=None
+            )
 
     def add_model_plot(
         self,
