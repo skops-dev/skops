@@ -5,13 +5,14 @@ import tempfile
 import textwrap
 from pathlib import Path
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 import sklearn
 from huggingface_hub import CardData, metadata_load
 from sklearn.datasets import load_iris
+from sklearn.inspection import permutation_importance
 from sklearn.linear_model import LinearRegression, LogisticRegression
+from sklearn.metrics import f1_score, make_scorer
 from sklearn.neighbors import KNeighborsClassifier
 
 from skops import hub_utils
@@ -401,6 +402,96 @@ class TestAddMetrics:
         model_card.add_metrics(section="Other section")
         text2 = model_card.select("Other section").content
         assert text1 == text2
+
+
+def test_permutation_importances(
+    iris_estimator, iris_data, model_card, destination_path
+):
+    X, y = iris_data
+    result = permutation_importance(
+        iris_estimator, X, y, n_repeats=10, random_state=42, n_jobs=2
+    )
+
+    model_card.add_permutation_importances(
+        result,
+        X.columns,
+        Path(destination_path) / "importance.png",
+        "Permutation Importance",
+    )
+    temp_path = Path(destination_path) / "importance.png"
+    assert f"![Permutation Importance]({temp_path}" in model_card.render()
+
+
+def test_multiple_permutation_importances(
+    iris_estimator, iris_data, model_card, destination_path
+):
+    X, y = iris_data
+    result = permutation_importance(
+        iris_estimator, X, y, n_repeats=10, random_state=42, n_jobs=2
+    )
+    model_card.add_permutation_importances(
+        result, X.columns, plot_file=Path(destination_path) / "importance.png"
+    )
+    f1 = make_scorer(f1_score, average="micro")
+    result = permutation_importance(
+        iris_estimator, X, y, scoring=f1, n_repeats=10, random_state=42, n_jobs=2
+    )
+    model_card.add_permutation_importances(
+        result,
+        X.columns,
+        plot_file=Path(destination_path) / "f1_importance.png",
+        plot_name="Permutation Importance on f1",
+    )
+    # check for default one
+    temp_path = Path(destination_path) / "importance.png"
+    assert f"![Permutation Importances]({temp_path}" in model_card.render()
+    # check for F1
+    temp_path_f1 = Path(destination_path) / "f1_importance.png"
+    assert f"![Permutation Importance on f1]({temp_path_f1}" in model_card.render()
+
+
+def test_duplicate_permutation_importances(
+    iris_estimator, iris_data, model_card, destination_path
+):
+    X, y = iris_data
+    result = permutation_importance(
+        iris_estimator, X, y, n_repeats=10, random_state=42, n_jobs=2
+    )
+    plot_path = os.path.join(destination_path, "importance.png")
+    model_card.add_permutation_importances(result, X.columns, plot_file=plot_path)
+    with pytest.raises(
+        ValueError,
+        match=(
+            "already exists. Set `overwrite` to `True` or pass a"
+            " different filename for the plot."
+        ),
+    ):
+        model_card.add_permutation_importances(
+            result,
+            X.columns,
+            plot_file=plot_path,
+            plot_name="Permutation Importance on f1",
+        )
+
+
+def test_duplicate_permutation_importances_overwrite(
+    iris_estimator, iris_data, model_card, destination_path
+):
+    X, y = iris_data
+    result = permutation_importance(
+        iris_estimator, X, y, n_repeats=10, random_state=42, n_jobs=2
+    )
+    plot_path = os.path.join(destination_path, "importance.png")
+    model_card.add_permutation_importances(result, X.columns, plot_file=plot_path)
+
+    model_card.add_permutation_importances(
+        result,
+        X.columns,
+        plot_file=plot_path,
+        plot_name="Permutation Importance on f1",
+        overwrite=True,
+    )
+    assert f"![Permutation Importance on f1]({plot_path}" in model_card.render()
 
 
 class TestAddGetStartedCode:
@@ -856,6 +947,8 @@ class TestDelete:
 
 class TestAddPlot:
     def test_add_plot(self, destination_path, model_card):
+        import matplotlib.pyplot as plt
+
         plt.plot([4, 5, 6, 7])
         plt.savefig(Path(destination_path) / "fig1.png")
         model_card = model_card.add_plot(fig1="fig1.png")
@@ -863,6 +956,8 @@ class TestAddPlot:
         assert plot_content == "![fig1](fig1.png)"
 
     def test_add_plot_to_existing_section(self, destination_path, model_card):
+        import matplotlib.pyplot as plt
+
         plt.plot([4, 5, 6, 7])
         plt.savefig(Path(destination_path) / "fig1.png")
         model_card = model_card.add_plot(**{"Model description/Figure 1": "fig1.png"})
@@ -1397,3 +1492,104 @@ class TestCustomTemplate:
         # no other top level sections as those defined in the template
         expected = ["My description", "Model", "Foo"]
         assert list(card._data.keys()) == expected
+
+
+class TestRenderedCardVisibility:
+    """Check that visibility flag works
+
+    Sections that are not visible should not be rendered, neither when calling
+    model_card.render, nor when calling model_card.save.
+
+    """
+
+    @pytest.fixture
+    def template(self):
+        return {
+            "Model": "Here goes model related stuff",
+            "Model/Metrics": "123",
+            "Model/Bar": "Baz",
+            "Authors": "Jane Doe",
+        }
+
+    @pytest.fixture
+    def card(self, template):
+        model = fit_model()
+        card = Card(model, template=template)
+        return card
+
+    def test_all_visible_by_default(self, card):
+        rendered = card.render()
+        expected = (
+            "# Model\n\n"
+            "Here goes model related stuff\n\n"
+            "## Metrics\n\n"
+            "123\n\n"
+            "## Bar\n\n"
+            "Baz\n\n"
+            "# Authors\n\n"
+            "Jane Doe"
+        )
+        assert rendered.strip() == expected
+
+    def test_section_invisible(self, card):
+        card.select("Model/Metrics").visible = False
+        rendered = card.render()
+        expected = (
+            "# Model\n\n"
+            "Here goes model related stuff\n\n"
+            "## Bar\n\n"
+            "Baz\n\n"
+            "# Authors\n\n"
+            "Jane Doe"
+        )
+        assert rendered.strip() == expected
+
+    def test_restoring_visibility_works(self, card):
+        card.select("Model/Metrics").visible = False
+        card.select("Model/Metrics").visible = True
+        expected = (
+            "# Model\n\n"
+            "Here goes model related stuff\n\n"
+            "## Metrics\n\n"
+            "123\n\n"
+            "## Bar\n\n"
+            "Baz\n\n"
+            "# Authors\n\n"
+            "Jane Doe"
+        )
+        rendered = card.render()
+        assert rendered.strip() == expected
+
+    def test_invisible_parent_section_hides_subsections(self, card):
+        # By making the parent section "Model" invisible, all of the subsections
+        # are also turned invisible
+        card.select("Model").visible = False
+        # fmt: off
+        expected = (
+            "# Authors\n\n"
+            "Jane Doe"
+        )
+        # fmt: on
+        rendered = card.render()
+        assert rendered.strip() == expected
+
+    def test_visibility_with_card_save(self, card):
+        # Since .save and .render share the same functionality, it's not
+        # necessary to repeat all the tests above with .save. Just do one test
+        # to ensure that the same functionality is indeed being used.
+        file = tempfile.mkstemp(suffix=".md", prefix="skops-model-card")[1]
+        card.select("Model/Metrics").visible = False
+        card.save(file)
+
+        with open(file, "r") as f:
+            loaded = f.read()
+
+        expected = (
+            "# Model\n\n"
+            "Here goes model related stuff\n\n"
+            "## Bar\n\n"
+            "Baz\n\n"
+            "# Authors\n\n"
+            "Jane Doe"
+        )
+        assert loaded.strip() == expected

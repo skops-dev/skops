@@ -17,6 +17,7 @@ from tabulate import tabulate  # type: ignore
 
 from skops.card._templates import CONTENT_PLACEHOLDER, SKOPS_TEMPLATE, Templates
 from skops.io import load
+from skops.utils.importutils import import_or_raise
 
 # Repr attributes can be used to control the behavior of repr
 aRepr = Repr()
@@ -182,8 +183,8 @@ def split_subsection_names(key: str) -> list[str]:
     ['Section A']
     >>> split_subsection_names("Section A/Section B/Section C")
     ['Section A', 'Section B', 'Section C']
-    >>> split_subsection_names("A section containg \\/ a slash")
-    ['A section containg / a slash']
+    >>> split_subsection_names("A section containing \\/ a slash")
+    ['A section containing / a slash']
     >>> split_subsection_names("Spaces are / stripped")
     ['Spaces are', 'stripped']
 
@@ -206,7 +207,7 @@ def split_subsection_names(key: str) -> list[str]:
 
 
 def _getting_started_code(
-    file_name: str, model_format: Literal["pickle", "skops"], indent="    "
+    file_name: str, model_format: Literal["pickle", "skops"], indent: str = "    "
 ) -> list[str]:
     # get lines of code required to load the model
     lines = [
@@ -242,16 +243,20 @@ class Section:
     empty string) or a ``Formattable``, which is simply an object with a
     ``format`` method that returns a string.
 
-    Finally, the section can contain subsections, which again are dicts of
+    The section can contain subsections, which again are dicts of
     string keys and section values (the dict can be empty). Therefore, the model
     card representation forms a tree structure, making use of the fact that dict
     order is preserved.
+
+    The section may also contain a ``visible`` flag, which determines if the
+    section will be shown when the card is rendered.
 
     """
 
     title: str
     content: Formattable | str
     subsections: dict[str, Section] = field(default_factory=dict)
+    visible: bool = True
 
     def select(self, key: str) -> Section:
         """Return a subsection or subsubsection of this section
@@ -1085,9 +1090,62 @@ class Card:
                     "You can find the details about evaluation process and "
                     "the evaluation results."
                 )
-
         self._metrics.update(kwargs)
         self._add_metrics(section, self._metrics, description=description)
+        return self
+
+    def add_permutation_importances(
+        self,
+        permutation_importances,
+        columns: Sequence[str],
+        plot_file: str = "permutation_importances.png",
+        plot_name: str = "Permutation Importances",
+        overwrite: bool = False,
+    ) -> "Card":
+        """Plots permutation importance and saves it to model card.
+
+        Parameters
+        ----------
+        permutation_importances : sklearn.utils.Bunch
+            Output of :func:`sklearn.inspection.permutation_importance`.
+
+        columns : str, list or pandas.Index
+            Column names of the data used to generate importances.
+
+        plot_file : str
+            Filename for the plot.
+
+        plot_name : str
+            Name of the plot.
+
+        overwrite : bool (default=False)
+            Whether to overwrite the permutation importance plot file, if a plot by that
+            name already exists.
+
+        Returns
+        -------
+        self : object
+            Card object.
+        """
+        plt = import_or_raise("matplotlib.pyplot", "permutation importance")
+
+        if Path(plot_file).exists() and overwrite is False:
+            raise ValueError(
+                f"{str(plot_file)} already exists. Set `overwrite` to `True` or pass a"
+                " different filename for the plot."
+            )
+        sorted_importances_idx = permutation_importances.importances_mean.argsort()
+        _, ax = plt.subplots()
+        ax.boxplot(
+            x=permutation_importances.importances[sorted_importances_idx].T,
+            labels=columns[sorted_importances_idx],
+            vert=False,
+        )
+        ax.set_title(plot_name)
+        ax.set_xlabel("Decrease in Score")
+        plt.savefig(plot_file)
+        self.add_plot(**{plot_name: plot_file})
+
         return self
 
     def _add_metrics(
@@ -1128,6 +1186,9 @@ class Card:
 
         """
         for val in data.values():
+            if not val.visible:
+                continue
+
             title = f"{depth * '#'} {val.title}"
             yield title
 
