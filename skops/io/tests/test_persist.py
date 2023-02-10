@@ -51,7 +51,7 @@ import skops
 from skops.io import dump, dumps, get_untrusted_types, load, loads
 from skops.io._audit import NODE_TYPE_MAPPING, get_tree
 from skops.io._sklearn import UNSUPPORTED_TYPES
-from skops.io._trusted_types import SKLEARN_ESTIMATOR_TYPE_NAMES
+from skops.io._trusted_types import SCIPY_UFUNC_TYPE_NAMES, SKLEARN_ESTIMATOR_TYPE_NAMES
 from skops.io._utils import LoadContext, SaveContext, _get_state, get_state
 from skops.io.exceptions import UnsupportedTypeException
 from skops.io.tests._utils import assert_method_outputs_equal, assert_params_equal
@@ -345,6 +345,8 @@ def test_can_persist_fitted(estimator):
     assert_params_equal(estimator.__dict__, loaded.__dict__)
 
     assert not any(type_ in SKLEARN_ESTIMATOR_TYPE_NAMES for type_ in untrusted_types)
+    # TODO: implement function testing all ufuncs.
+    assert not any(type_ in SCIPY_UFUNC_TYPE_NAMES for type_ in untrusted_types)
     assert_method_outputs_equal(estimator, loaded, X)
 
 

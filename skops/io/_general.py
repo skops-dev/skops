@@ -10,7 +10,11 @@ from typing import Any, Sequence
 import numpy as np
 
 from ._audit import Node, get_tree
-from ._trusted_types import PRIMITIVE_TYPE_NAMES, SKLEARN_ESTIMATOR_TYPE_NAMES
+from ._trusted_types import (
+    PRIMITIVE_TYPE_NAMES,
+    SCIPY_UFUNC_TYPE_NAMES,
+    SKLEARN_ESTIMATOR_TYPE_NAMES,
+)
 from ._utils import (
     LoadContext,
     SaveContext,
@@ -195,7 +199,7 @@ class FunctionNode(Node):
     ) -> None:
         super().__init__(state, load_context, trusted)
         # TODO: what do we trust?
-        self.trusted = self._get_trusted(trusted, [])
+        self.trusted = self._get_trusted(trusted, default=SCIPY_UFUNC_TYPE_NAMES)
         self.children = {"content": state["content"]}
 
     def _construct(self):
@@ -212,7 +216,7 @@ class FunctionNode(Node):
         )
 
     def get_unsafe_set(self) -> set[str]:
-        if self.trusted is True:
+        if self.trusted is True or self._get_function_name() in self.trusted:
             return set()
 
         return {self._get_function_name()}
