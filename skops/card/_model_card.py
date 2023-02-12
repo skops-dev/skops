@@ -1328,13 +1328,13 @@ class Card:
 
         y_pred: array-like
             The predicted labels.
-        
+
         sensitive_features: array-like
             The sensitive features.
-        
+
         pivot: bool, default=True
             Whether to pivot the table or not.
-        
+
         Returns
         -------
         self: Card
