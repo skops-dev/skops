@@ -11,10 +11,10 @@ from reprlib import Repr
 from typing import Any, Iterator, Literal, Protocol, Sequence, Union
 
 import joblib
+from fairlearn.metrics import MetricFrame
 from huggingface_hub import ModelCardData
 from sklearn.utils import estimator_html_repr
 from tabulate import tabulate  # type: ignore
-from fairlearn.metrics import MetricFrame
 
 from skops.card._templates import CONTENT_PLACEHOLDER, SKOPS_TEMPLATE, Templates
 from skops.io import load
