@@ -69,10 +69,19 @@ def test_load_model(suffix):
     save_file_path = Path(save_file)
     loaded_model_path = _load_model(save_file_path, trusted=True)
     loaded_model_instance = _load_model(model0, trusted=True)
+    _load_model(save_file, trusted=True)  # extra call to test caching
+    _load_model(save_file, trusted=True)  # extra call to test caching
+    cache_info = _load_model.cache_info()
 
     assert loaded_model_str.n_jobs == 123
     assert loaded_model_path.n_jobs == 123
     assert loaded_model_instance.n_jobs == 123
+
+    assert cache_info.hits == 2
+    assert cache_info.misses == 3
+    assert cache_info.currsize == 3
+    # clear cache for each test case [".pkl", ".pickle", ".skops"]
+    _load_model.cache_clear()
 
 
 @pytest.fixture
