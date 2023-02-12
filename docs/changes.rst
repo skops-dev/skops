@@ -11,7 +11,9 @@ skops Changelog
 
 v0.6
 ----
-- Added tabular regression example. :pr: `254` by `Thomas Lazarus`
+- Added tabular regression example. :pr:`254` by `Thomas Lazarus`_.
+- Added a new function :func:`skops.card.Card.add_metric_frame` to help users
+  add metrics to their model cards. :pr:`298` by `Thomas Lazarus`_.
 
 v0.5
 ----

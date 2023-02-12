@@ -1314,7 +1314,31 @@ class Card:
         self, metrics: dict, y_true, y_pred, sensitive_features, pivot=True
     ) -> Card:
         """
-        Add a metric frame to the model card.
+        Add a metric frame table to the model card.
+
+        Parameters
+        ----------
+        metrics: dict
+            A dictionary of metrics to be computed on the data. The keys of the
+            dictionary are the names of the metrics, while the values are the
+            metric functions themselves.
+
+        y_true: array-like
+            The ground-truth labels.
+
+        y_pred: array-like
+            The predicted labels.
+        
+        sensitive_features: array-like
+            The sensitive features.
+        
+        pivot: bool, default=True
+            Whether to pivot the table or not.
+        
+        Returns
+        -------
+        self: Card
+            The model card with the metric frame added.
         """
         metric_frame = MetricFrame(
             metrics=metrics,
