@@ -45,7 +45,7 @@ def save_model_to_file(model_instance, suffix):
     return save_file_handle, save_file
 
 
-@pytest.mark.parametrize("suffix", [".pkl"])
+@pytest.mark.parametrize("suffix", [".pkl", ".pickle", ".skops"])
 def test_hash_model(suffix):
     model0 = LinearRegression(n_jobs=123)
     _, save_file = save_model_to_file(model0, suffix)
