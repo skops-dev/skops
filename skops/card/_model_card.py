@@ -6,6 +6,8 @@ import textwrap
 import zipfile
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from functools import lru_cache, wraps
+from hashlib import sha256
 from pathlib import Path
 from reprlib import Repr
 from typing import Any, Iterator, Literal, Protocol, Sequence, Union
@@ -297,7 +299,29 @@ class Formattable(Protocol):
         ...  # pragma: no cover
 
 
-def _load_model(model: Any, trusted=False) -> Any:
+def hash_model(func):
+    @wraps(func)
+    def wrapped(*args, **kargs):
+        m = sha256()
+        if isinstance(args[0], (Path, str)):
+            with open(args[0], "rb") as f:
+                m.update(f.read())
+
+            args = list(args)
+            args.insert(0, m.hexdigest())
+            wrapped._args_ = args
+        else:  # the object is already loaded, no need to compute hash
+            args = list(args)
+            args.insert(0, 0)
+            wrapped._args_ = args
+        return func(*args, **kargs)
+
+    return wrapped
+
+
+@lru_cache
+@hash_model
+def _load_model(hash_model: Any, model: Any, trusted=False) -> Any:
     """Return a model instance.
 
     Loads the model if provided a file path, if already a model instance return

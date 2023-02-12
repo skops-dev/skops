@@ -3,6 +3,7 @@ import pickle
 import re
 import tempfile
 import textwrap
+from hashlib import sha256
 from pathlib import Path
 
 import numpy as np
@@ -22,6 +23,7 @@ from skops.card._model_card import (
     PlotSection,
     TableSection,
     _load_model,
+    hash_model,
 )
 from skops.io import dump
 
@@ -41,6 +43,22 @@ def save_model_to_file(model_instance, suffix):
     elif suffix == ".skops":
         dump(model_instance, save_file)
     return save_file_handle, save_file
+
+
+@pytest.mark.parametrize("suffix", [".pkl"])
+def test_hash_model(suffix):
+    model0 = LinearRegression(n_jobs=123)
+    _, save_file = save_model_to_file(model0, suffix)
+
+    @hash_model
+    def empty_fn(*args, **kargs):
+        return args
+
+    _hash, filename = empty_fn(save_file)
+    m = sha256()
+    with open(save_file, "rb") as f:
+        m.update(f.read())
+    assert _hash == m.hexdigest()
 
 
 @pytest.mark.parametrize("suffix", [".pkl", ".pickle", ".skops"])
