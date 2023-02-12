@@ -1311,12 +1311,30 @@ class Card:
         return "\n".join(self._generate_card())
 
     def add_metric_frame(
-        metrics: dict, y_true, y_pred, sensitive_features
-    ) -> MetricFrame:
+        self, metrics: dict, y_true, y_pred, sensitive_features, pivot=True
+    ) -> Card:
+        """
+        Add a metric frame to the model card.
+        """
         metric_frame = MetricFrame(
             metrics=metrics,
             y_true=y_true,
             y_pred=y_pred,
             sensitive_features=sensitive_features,
         )
-        return metric_frame
+
+        import pandas as pd
+
+        data_frame = pd.DataFrame(
+            {
+                "difference": metric_frame.difference(),
+                "group_max": metric_frame.group_max(),
+                "group_min": metric_frame.group_min(),
+                "ratio": metric_frame.ratio(),
+            }
+        )
+
+        if pivot is True:
+            data_frame = data_frame.pivot()
+
+        return self.add_table(folded=True, **{"Metric Frame Table": metric_frame})
