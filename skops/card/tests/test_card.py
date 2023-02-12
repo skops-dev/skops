@@ -1492,3 +1492,104 @@ class TestCustomTemplate:
         # no other top level sections as those defined in the template
         expected = ["My description", "Model", "Foo"]
         assert list(card._data.keys()) == expected
+
+
+class TestRenderedCardVisibility:
+    """Check that visibility flag works
+
+    Sections that are not visible should not be rendered, neither when calling
+    model_card.render, nor when calling model_card.save.
+
+    """
+
+    @pytest.fixture
+    def template(self):
+        return {
+            "Model": "Here goes model related stuff",
+            "Model/Metrics": "123",
+            "Model/Bar": "Baz",
+            "Authors": "Jane Doe",
+        }
+
+    @pytest.fixture
+    def card(self, template):
+        model = fit_model()
+        card = Card(model, template=template)
+        return card
+
+    def test_all_visible_by_default(self, card):
+        rendered = card.render()
+        expected = (
+            "# Model\n\n"
+            "Here goes model related stuff\n\n"
+            "## Metrics\n\n"
+            "123\n\n"
+            "## Bar\n\n"
+            "Baz\n\n"
+            "# Authors\n\n"
+            "Jane Doe"
+        )
+        assert rendered.strip() == expected
+
+    def test_section_invisible(self, card):
+        card.select("Model/Metrics").visible = False
+        rendered = card.render()
+        expected = (
+            "# Model\n\n"
+            "Here goes model related stuff\n\n"
+            "## Bar\n\n"
+            "Baz\n\n"
+            "# Authors\n\n"
+            "Jane Doe"
+        )
+        assert rendered.strip() == expected
+
+    def test_restoring_visibility_works(self, card):
+        card.select("Model/Metrics").visible = False
+        card.select("Model/Metrics").visible = True
+        expected = (
+            "# Model\n\n"
+            "Here goes model related stuff\n\n"
+            "## Metrics\n\n"
+            "123\n\n"
+            "## Bar\n\n"
+            "Baz\n\n"
+            "# Authors\n\n"
+            "Jane Doe"
+        )
+        rendered = card.render()
+        assert rendered.strip() == expected
+
+    def test_invisible_parent_section_hides_subsections(self, card):
+        # By making the parent section "Model" invisible, all of the subsections
+        # are also turned invisible
+        card.select("Model").visible = False
+        # fmt: off
+        expected = (
+            "# Authors\n\n"
+            "Jane Doe"
+        )
+        # fmt: on
+        rendered = card.render()
+        assert rendered.strip() == expected
+
+    def test_visibility_with_card_save(self, card):
+        # Since .save and .render share the same functionality, it's not
+        # necessary to repeat all the tests above with .save. Just do one test
+        # to ensure that the same functionality is indeed being used.
+        file = tempfile.mkstemp(suffix=".md", prefix="skops-model-card")[1]
+        card.select("Model/Metrics").visible = False
+        card.save(file)
+
+        with open(file, "r") as f:
+            loaded = f.read()
+
+        expected = (
+            "# Model\n\n"
+            "Here goes model related stuff\n\n"
+            "## Bar\n\n"
+            "Baz\n\n"
+            "# Authors\n\n"
+            "Jane Doe"
+        )
+        assert loaded.strip() == expected
