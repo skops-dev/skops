@@ -216,7 +216,7 @@ class FunctionNode(Node):
         )
 
     def get_unsafe_set(self) -> set[str]:
-        if self.trusted is True or self._get_function_name() in self.trusted:
+        if (self.trusted is True) or (self._get_function_name() in self.trusted):
             return set()
 
         return {self._get_function_name()}

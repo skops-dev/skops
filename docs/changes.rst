@@ -1,4 +1,4 @@
-ds.. include:: _authors.rst
+.. include:: _authors.rst
 
 .. _changelog:
 

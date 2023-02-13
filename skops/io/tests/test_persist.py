@@ -222,11 +222,8 @@ def _tested_estimators(type_filter=None):
 
 
 def _tested_ufuncs():
-    for ufunc_name in SCIPY_UFUNC_TYPE_NAMES:
-        parts = ufunc_name.split(".")
-        module_name = ".".join(parts[:-1])
-        ufunc_name = parts[-1]
-
+    for full_name in SCIPY_UFUNC_TYPE_NAMES:
+        module_name, _, ufunc_name = full_name.rpartition(".")
         yield gettype(module_name=module_name, cls_or_func=ufunc_name)
 
 
@@ -362,7 +359,7 @@ def test_can_persist_fitted(estimator):
 def test_can_trust_ufuncs(ufunc):
     dumped = dumps(ufunc)
     untrusted_types = get_untrusted_types(data=dumped)
-    assert not any(type_ in SCIPY_UFUNC_TYPE_NAMES for type_ in untrusted_types)
+    assert len(untrusted_types) == 0
     # TODO: extend with numpy ufuncs
 
 
