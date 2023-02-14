@@ -12,6 +12,8 @@ skops Changelog
 v0.6
 ----
 - Added tabular regression example. :pr: `254` by `Thomas Lazarus`
+- All public ``scipy.special`` ufuncs (Universal Functions) are trusted by default
+  by :func:`.io.load`. :pr:`295` by :user:`Omar Arab Oghli <omar-araboghli>`.
 
 v0.5
 ----
