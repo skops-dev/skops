@@ -24,6 +24,7 @@ from skops.card._model_card import (
     _load_model,
 )
 from skops.io import dump
+from skops.utils.importutils import import_or_raise
 
 
 def fit_model():
@@ -1593,3 +1594,21 @@ class TestRenderedCardVisibility:
             "Jane Doe"
         )
         assert loaded.strip() == expected
+
+
+class TestAddFairlearnMetricFrame:
+    @pytest.fixture
+    def card(self):
+        metrics = import_or_raise("fairlearn.metrics", "model card fairlearn metricframe")
+
+        y_true = [1,1,1,1,1,0,0,1,1,0]
+        y_pred = [0,1,1,1,1,0,0,0,1,1]
+        sex = ['Female']*5 + ['Male']*5
+        model = LinearRegression()
+        card = Card(model=model)
+        card.add_fairlearn_metric_frame(metrics={"selection_rate": metrics.selection_rate}, y_true=y_true, y_pred=y_pred, sensitive_features=sex)
+        return card
+
+    @pytest.mark.parametrize("table", [])
+    def test_metric_table(self, card:Card, table):
+        pass
