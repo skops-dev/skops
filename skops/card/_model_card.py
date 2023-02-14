@@ -11,7 +11,6 @@ from reprlib import Repr
 from typing import Any, Iterator, Literal, Protocol, Sequence, Union
 
 import joblib
-from fairlearn.metrics import MetricFrame
 from huggingface_hub import ModelCardData
 from sklearn.utils import estimator_html_repr
 from tabulate import tabulate  # type: ignore
@@ -1310,11 +1309,11 @@ class Card:
         """
         return "\n".join(self._generate_card())
 
-    def add_metric_frame(
+    def add_fairlearn_metric_frame(
         self, metrics: dict, y_true, y_pred, sensitive_features, pivot=True
     ) -> Card:
         """
-        Add a metric frame table to the model card.
+        Add a Fairlearn MetricFrame table to the model card.
 
         Parameters
         ----------
@@ -1340,7 +1339,9 @@ class Card:
         self: Card
             The model card with the metric frame added.
         """
-        metric_frame = MetricFrame(
+        metrics = import_or_raise("fairlearn.metrics", "model card fairlearn metricframe")
+
+        metric_frame = metrics.MetricFrame(
             metrics=metrics,
             y_true=y_true,
             y_pred=y_pred,
