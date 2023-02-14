@@ -52,8 +52,8 @@ import skops
 from skops.io import dump, dumps, get_untrusted_types, load, loads
 from skops.io._audit import NODE_TYPE_MAPPING, get_tree
 from skops.io._sklearn import UNSUPPORTED_TYPES
-from skops.io._trusted_types import SKLEARN_ESTIMATOR_TYPE_NAMES
-from skops.io._utils import LoadContext, SaveContext, _get_state, get_state
+from skops.io._trusted_types import SCIPY_UFUNC_TYPE_NAMES, SKLEARN_ESTIMATOR_TYPE_NAMES
+from skops.io._utils import LoadContext, SaveContext, _get_state, get_state, gettype
 from skops.io.exceptions import UnsupportedTypeException
 from skops.io.tests._utils import assert_method_outputs_equal, assert_params_equal
 
@@ -222,6 +222,12 @@ def _tested_estimators(type_filter=None):
     )
 
 
+def _tested_ufuncs():
+    for full_name in SCIPY_UFUNC_TYPE_NAMES:
+        module_name, _, ufunc_name = full_name.rpartition(".")
+        yield gettype(module_name=module_name, cls_or_func=ufunc_name)
+
+
 def _unsupported_estimators(type_filter=None):
     for name, Estimator in all_estimators(type_filter=type_filter):
         if Estimator not in UNSUPPORTED_TYPES:
@@ -346,7 +352,16 @@ def test_can_persist_fitted(estimator):
     assert_params_equal(estimator.__dict__, loaded.__dict__)
 
     assert not any(type_ in SKLEARN_ESTIMATOR_TYPE_NAMES for type_ in untrusted_types)
+    assert not any(type_ in SCIPY_UFUNC_TYPE_NAMES for type_ in untrusted_types)
     assert_method_outputs_equal(estimator, loaded, X)
+
+
+@pytest.mark.parametrize("ufunc", _tested_ufuncs(), ids=SCIPY_UFUNC_TYPE_NAMES)
+def test_can_trust_ufuncs(ufunc):
+    dumped = dumps(ufunc)
+    untrusted_types = get_untrusted_types(data=dumped)
+    assert len(untrusted_types) == 0
+    # TODO: extend with numpy ufuncs
 
 
 @pytest.mark.parametrize(
