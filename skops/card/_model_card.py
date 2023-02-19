@@ -1310,7 +1310,13 @@ class Card:
         return "\n".join(self._generate_card())
 
     def add_fairlearn_metric_frame(
-        self, metrics: dict, y_true, y_pred, sensitive_features, pivot=True
+        self,
+        metric_dict: dict,
+        y_true,
+        y_pred,
+        sensitive_features,
+        table_name: str,
+        pivot=True,
     ) -> Card:
         """
         Add a Fairlearn MetricFrame table to the model card.
@@ -1334,15 +1340,20 @@ class Card:
         pivot: bool, default=True
             Whether to pivot the table or not.
 
+        table_name: str
+            The desired name of the table section in the model card.
+
         Returns
         -------
         self: Card
             The model card with the metric frame added.
         """
-        metrics = import_or_raise("fairlearn.metrics", "model card fairlearn metricframe")
+        metrics = import_or_raise(
+            "fairlearn.metrics", "model card fairlearn metricframe"
+        )
 
         metric_frame = metrics.MetricFrame(
-            metrics=metrics,
+            metrics=metric_dict,
             y_true=y_true,
             y_pred=y_pred,
             sensitive_features=sensitive_features,
@@ -1360,6 +1371,6 @@ class Card:
         )
 
         if pivot is True:
-            data_frame = data_frame.pivot()
+            data_frame = data_frame.T
 
-        return self.add_table(folded=True, **{"Metric Frame Table": metric_frame})
+        return self.add_table(folded=True, **{table_name: data_frame})

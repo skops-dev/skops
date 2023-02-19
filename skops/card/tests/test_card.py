@@ -1599,16 +1599,47 @@ class TestRenderedCardVisibility:
 class TestAddFairlearnMetricFrame:
     @pytest.fixture
     def card(self):
-        metrics = import_or_raise("fairlearn.metrics", "model card fairlearn metricframe")
-
-        y_true = [1,1,1,1,1,0,0,1,1,0]
-        y_pred = [0,1,1,1,1,0,0,0,1,1]
-        sex = ['Female']*5 + ['Male']*5
         model = LinearRegression()
         card = Card(model=model)
-        card.add_fairlearn_metric_frame(metrics={"selection_rate": metrics.selection_rate}, y_true=y_true, y_pred=y_pred, sensitive_features=sex)
         return card
 
-    @pytest.mark.parametrize("table", [])
-    def test_metric_table(self, card:Card, table):
-        pass
+    @pytest.mark.parametrize("pivot", [True, False])
+    def test_metric_table(self, card: Card, pivot):
+        metrics = import_or_raise(
+            "fairlearn.metrics", "model card fairlearn metricframe"
+        )
+
+        y_true = [1, 1, 1, 1, 1, 0, 0, 1, 1, 0]
+        y_pred = [0, 1, 1, 1, 1, 0, 0, 0, 1, 1]
+        sex = ["Female"] * 5 + ["Male"] * 5
+        metrics = {"selection_rate": metrics.selection_rate}
+        card.add_fairlearn_metric_frame(
+            metric_dict=metrics,
+            y_true=y_true,
+            y_pred=y_pred,
+            sensitive_features=sex,
+            pivot=pivot,
+            table_name="Metric Frame Table",
+        )
+
+        pd = pytest.importorskip("pandas")
+
+        expected_table = pd.DataFrame(
+            {"selection_rate": [0.4, 0.8, 0.4, 0.5]},
+            index=["difference", "group_max", "group_min", "ratio"],
+        )
+
+        actual_table = card.select("Metric Frame Table").content.table
+
+        if pivot is True:
+            pd.testing.assert_frame_equal(
+                expected_table,
+                actual_table,
+                check_dtype=False,
+            )
+        else:
+            pd.testing.assert_frame_equal(
+                expected_table.T,
+                actual_table,
+                check_dtype=False,
+            )
