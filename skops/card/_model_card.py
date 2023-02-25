@@ -1148,6 +1148,45 @@ class Card:
 
         return self
 
+    def add_fairlearn_metric_frame(
+        self,
+        metric_frame,
+        table_name: str = "Fairlearn MetricFrame Table",
+        transpose=True,
+    ) -> Card:
+        """
+        Add a Fairlearn MetricFrame table to the model card.
+
+        Parameters
+        ----------
+        metric_frame: MetricFrame
+            :func:`fairlearn.MetricFrame`.
+
+        transpose: bool, default=True
+            Whether to transpose the table or not.
+
+        table_name: str
+            The desired name of the table section in the model card.
+
+        Returns
+        -------
+        self: Card
+            The model card with the metric frame added.
+        """
+        frame_dict = {
+            "difference": metric_frame.difference(),
+            "group_max": metric_frame.group_max(),
+            "group_min": metric_frame.group_min(),
+            "ratio": metric_frame.ratio(),
+        }
+
+        if transpose is True:
+            pd = import_or_raise("pandas", "Pandas is used to pivot the table.")
+
+            frame_dict = pd.DataFrame(frame_dict).T
+
+        return self.add_table(folded=True, **{table_name: frame_dict})
+
     def _add_metrics(
         self,
         section: str,
@@ -1308,69 +1347,3 @@ class Card:
             sections inserted.
         """
         return "\n".join(self._generate_card())
-
-    def add_fairlearn_metric_frame(
-        self,
-        metric_dict: dict,
-        y_true,
-        y_pred,
-        sensitive_features,
-        table_name: str,
-        pivot=True,
-    ) -> Card:
-        """
-        Add a Fairlearn MetricFrame table to the model card.
-
-        Parameters
-        ----------
-        metrics: dict
-            A dictionary of metrics to be computed on the data. The keys of the
-            dictionary are the names of the metrics, while the values are the
-            metric functions themselves.
-
-        y_true: array-like
-            The ground-truth labels.
-
-        y_pred: array-like
-            The predicted labels.
-
-        sensitive_features: array-like
-            The sensitive features.
-
-        pivot: bool, default=True
-            Whether to pivot the table or not.
-
-        table_name: str
-            The desired name of the table section in the model card.
-
-        Returns
-        -------
-        self: Card
-            The model card with the metric frame added.
-        """
-        metrics = import_or_raise(
-            "fairlearn.metrics", "model card fairlearn metricframe"
-        )
-
-        metric_frame = metrics.MetricFrame(
-            metrics=metric_dict,
-            y_true=y_true,
-            y_pred=y_pred,
-            sensitive_features=sensitive_features,
-        )
-
-        import pandas as pd
-
-        data_frame = pd.DataFrame(
-            {
-                "difference": metric_frame.difference(),
-                "group_max": metric_frame.group_max(),
-                "group_min": metric_frame.group_min(),
-                "ratio": metric_frame.ratio(),
-            }
-        )
-
-        if pivot is True:
-            data_frame = data_frame.T
-
-        return self.add_table(folded=True, **{table_name: data_frame})

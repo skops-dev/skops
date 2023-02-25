@@ -1603,8 +1603,8 @@ class TestAddFairlearnMetricFrame:
         card = Card(model=model)
         return card
 
-    @pytest.mark.parametrize("pivot", [True, False])
-    def test_metric_table(self, card: Card, pivot):
+    @pytest.mark.parametrize("transpose", [True, False])
+    def test_metric_table(self, card: Card, transpose):
         metrics = import_or_raise(
             "fairlearn.metrics", "model card fairlearn metricframe"
         )
@@ -1612,34 +1612,30 @@ class TestAddFairlearnMetricFrame:
         y_true = [1, 1, 1, 1, 1, 0, 0, 1, 1, 0]
         y_pred = [0, 1, 1, 1, 1, 0, 0, 0, 1, 1]
         sex = ["Female"] * 5 + ["Male"] * 5
-        metrics = {"selection_rate": metrics.selection_rate}
+        metric_dict = {"selection_rate": metrics.selection_rate}
+        metric_frame = metrics.MetricFrame(
+            y_true=y_true, y_pred=y_pred, sensitive_features=sex, metrics=metric_dict
+        )
         card.add_fairlearn_metric_frame(
-            metric_dict=metrics,
-            y_true=y_true,
-            y_pred=y_pred,
-            sensitive_features=sex,
-            pivot=pivot,
+            metric_frame=metric_frame,
+            transpose=transpose,
             table_name="Metric Frame Table",
         )
 
-        pd = pytest.importorskip("pandas")
+        actual_table = card.select("Metric Frame Table").content.format()
 
-        expected_table = pd.DataFrame(
-            {"selection_rate": [0.4, 0.8, 0.4, 0.5]},
-            index=["difference", "group_max", "group_min", "ratio"],
-        )
-
-        actual_table = card.select("Metric Frame Table").content.table
-
-        if pivot is True:
-            pd.testing.assert_frame_equal(
-                expected_table,
-                actual_table,
-                check_dtype=False,
+        if transpose is True:
+            expected_table = (
+                "<details>\n<summary> Click to expand </summary>\n\n|   selection_rate"
+                " |\n|------------------|\n|              0.4 |\n|              0.8"
+                " |\n|              0.4 |\n|              0.5 |\n\n</details>"
             )
         else:
-            pd.testing.assert_frame_equal(
-                expected_table.T,
-                actual_table,
-                check_dtype=False,
+            expected_table = (
+                "<details>\n<summary> Click to expand </summary>\n\n|   difference |  "
+                " group_max |   group_min |   ratio"
+                " |\n|--------------|-------------|-------------|---------|\n|         "
+                " 0.4 |         0.8 |         0.4 |     0.5 |\n\n</details>"
             )
+
+        assert expected_table == actual_table
