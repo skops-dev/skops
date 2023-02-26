@@ -6,7 +6,7 @@ import textwrap
 import zipfile
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from functools import lru_cache, wraps
+from functools import cached_property
 from hashlib import sha256
 from pathlib import Path
 from reprlib import Repr
@@ -299,29 +299,7 @@ class Formattable(Protocol):
         ...  # pragma: no cover
 
 
-def hash_model(func):
-    @wraps(func)
-    def wrapped(*args, **kargs):
-        m = sha256()
-        if isinstance(args[0], (Path, str)):
-            with open(args[0], "rb") as f:
-                m.update(f.read())
-
-            args = list(args)
-            args.insert(0, m.hexdigest())
-            wrapped._args_ = args
-        else:  # the object is already loaded, no need to compute hash
-            args = list(args)
-            args.insert(0, 0)
-            wrapped._args_ = args
-        return func(*args, **kargs)
-
-    return wrapped
-
-
-@lru_cache
-@hash_model
-def _load_model(hash_model: Any, model: Any, trusted=False) -> Any:
+def _load_model(model: Any, trusted=False) -> Any:
     """Return a model instance.
 
     Loads the model if provided a file path, if already a model instance return
@@ -488,6 +466,7 @@ class Card:
 
         self._data: dict[str, Section] = {}
         self._metrics: dict[str, str | float | int] = {}
+        self._model_hash = ""
 
         self._populate_template()
 
@@ -515,19 +494,31 @@ class Card:
 
     def get_model(self) -> Any:
         """Returns sklearn estimator object.
-
         If the ``model`` is already loaded, return it as is. If the ``model``
         attribute is a ``Path``/``str``, load the model and return it.
-
         Returns
         -------
         model : BaseEstimator
             The model instance.
-
         """
+        if isinstance(self.model, (str, Path)) and hasattr(self, "_model"):
+            hash_obj = sha256()
+            buf_size = 2 ** 20  # load in chunks to save memory
+            with open(self.model, "rb") as f:
+                for chunk in iter(lambda: f.read(buf_size), b""):
+                    hash_obj.update(chunk)
+            model_hash = hash_obj.hexdigest()
+
+            # if hash changed, invalidate cache by deleting attribute
+            if model_hash != self._model_hash:
+                del self._model
+                self._model_hash = model_hash
+
+        return self._model
+
+    @cached_property
+    def _model(self):
         model = _load_model(self.model, self.trusted)
-        # Ideally, we would only call the method below if we *know* that the
-        # model has changed, but at the moment we have no way of knowing that
         return model
 
     def add(self, **kwargs: str | Formattable) -> Card:

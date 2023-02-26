@@ -23,7 +23,6 @@ from skops.card._model_card import (
     PlotSection,
     TableSection,
     _load_model,
-    hash_model,
 )
 from skops.io import dump
 
@@ -46,22 +45,6 @@ def save_model_to_file(model_instance, suffix):
 
 
 @pytest.mark.parametrize("suffix", [".pkl", ".pickle", ".skops"])
-def test_hash_model(suffix):
-    model0 = LinearRegression(n_jobs=123)
-    _, save_file = save_model_to_file(model0, suffix)
-
-    @hash_model
-    def empty_fn(*args, **kargs):
-        return args
-
-    _hash, filename = empty_fn(save_file)
-    m = sha256()
-    with open(save_file, "rb") as f:
-        m.update(f.read())
-    assert _hash == m.hexdigest()
-
-
-@pytest.mark.parametrize("suffix", [".pkl", ".pickle", ".skops"])
 def test_load_model(suffix):
     model0 = LinearRegression(n_jobs=123)
     _, save_file = save_model_to_file(model0, suffix)
@@ -69,19 +52,10 @@ def test_load_model(suffix):
     save_file_path = Path(save_file)
     loaded_model_path = _load_model(save_file_path, trusted=True)
     loaded_model_instance = _load_model(model0, trusted=True)
-    _load_model(save_file, trusted=True)  # extra call to test caching
-    _load_model(save_file, trusted=True)  # extra call to test caching
-    cache_info = _load_model.cache_info()
 
     assert loaded_model_str.n_jobs == 123
     assert loaded_model_path.n_jobs == 123
     assert loaded_model_instance.n_jobs == 123
-
-    assert cache_info.hits == 2
-    assert cache_info.misses == 3
-    assert cache_info.currsize == 3
-    # clear cache for each test case [".pkl", ".pickle", ".skops"]
-    _load_model.cache_clear()
 
 
 @pytest.fixture
@@ -168,6 +142,21 @@ def test_save_model_card(destination_path, model_card):
     model_card.save(Path(destination_path) / "README.md")
     assert (Path(destination_path) / "README.md").exists()
 
+def test_model_caching(skops_model_card_metadata_from_config, iris_skops_file, destination_path):
+    card = Card(iris_skops_file, metadata=metadata_from_config(destination_path))
+    assert str(card._model_hash) == card.__dict__["_model_hash"]
+    iris_model_hash = card._model_hash
+    # update card with new model 
+    new_model = LogisticRegression()
+    _, save_file = save_model_to_file(new_model, ".skops")
+    del card.model
+    card.model = save_file
+    card.get_model() # model gets cached
+    assert str(card._model_hash) == card.__dict__["_model_hash"]
+    logistic_reg_hash = card._model_hash
+    assert iris_model_hash != logistic_reg_hash
+    
+    
 
 CUSTOM_TEMPLATES = [None, {}, {"A Title", "Another Title", "A Title/A Section"}]  # type: ignore
 
