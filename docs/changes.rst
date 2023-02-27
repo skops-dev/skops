@@ -14,6 +14,8 @@ v0.6
 - Added tabular regression example. :pr: `254` by `Thomas Lazarus`
 - All public ``scipy.special`` ufuncs (Universal Functions) are trusted by default
   by :func:`.io.load`. :pr:`295` by :user:`Omar Arab Oghli <omar-araboghli>`.
+- Add :func:`.Card.create_toc` to create a table of contents for the model card in markdown format.
+  :pr:`305` by :user:`Thomas Lazarus <lazarust>`.
 
 v0.5
 ----
