@@ -164,7 +164,7 @@ Compatibility across sklearn versions
 -------------------------------------
 
 Using skops to load a model saved in one sklearn version and loading it with
-sklearn version is not recommended, because the behavior of the model may change
+another sklearn version is not recommended, because the behavior of the model may change
 across versions. In some cases loading the model in a different version might not be possible due to internal changes in scikit-learn. 
 Such changes don't happen very often, but they can happen, thus
 you should be cautious. To replicate a model trained with one sklearn version
