@@ -1308,3 +1308,36 @@ class Card:
             sections inserted.
         """
         return "\n".join(self._generate_card())
+
+    def _iterate_key_section_content(
+        self,
+        data: dict[str, Section],
+        level: int = 0,
+    ):
+        for key, val in data.items():
+            if not getattr(val, "visible", True):
+                continue
+
+            title = val.title
+            yield title, level
+
+            if val.subsections:
+                yield from self._iterate_key_section_content(
+                    val.subsections,
+                    level=level + 1,
+                )
+
+    def create_toc(self) -> str:
+        """Create a table of contents for the model card.
+
+
+        Returns
+        -------
+        toc : str
+            The table of contents for the model card formatted as a markdown string.
+        """
+        sections = []
+        for title, level in self._iterate_key_section_content(self._data):
+            sections.append(f"{'    ' * level}- [{title}](#{title})")
+
+        return "\n".join(sections)
