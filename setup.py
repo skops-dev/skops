@@ -79,6 +79,7 @@ def setup_package():
             "tests": min_deps.tag_to_packages["tests"],
         },
         include_package_data=True,
+        packages=["skops"],
     )
 
     setup(**package_data, **metadata)
