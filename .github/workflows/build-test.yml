@@ -90,6 +90,9 @@ jobs:
       run: |
         python -m pytest -s -v -m "inference" skops/
 
+    - name: Create skops space creator app
+      run: python spaces/deploy-skops-space-creator.py
+
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
       with:

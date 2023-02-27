@@ -1,0 +1,7 @@
+catboost
+huggingface_hub
+lightgbm
+pandas
+scikit-learn
+xgboost
+git+https://github.com/skops-dev/skops.git
