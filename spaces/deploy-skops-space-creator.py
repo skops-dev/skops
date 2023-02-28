@@ -1,16 +1,15 @@
 # Deploy the app in skops_space_creator as a Hugging Face Space
 # requires the HF_HUB_TOKEN to be set as environment variable
 
-import os
 from pathlib import Path
 from uuid import uuid4
 
 from huggingface_hub import HfApi
 
 import skops
+from skops.hub_utils.tests.common import HF_HUB_TOKEN
 
-token = os.environ["HF_HUB_TOKEN"]
-print("*" * 20)
+token = HF_HUB_TOKEN
 print(token)
 
 client = HfApi(token=token)
