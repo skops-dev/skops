@@ -92,7 +92,7 @@ jobs:
 
     - name: Create skops space creator app
       env:
-        HF_HUB_TOKEN: ${{ secrets.HF_HUB_TOKEN }}
+        SUPER_SECRET: ${{ secrets.HF_HUB_TOKEN }}
       run: python spaces/deploy-skops-space-creator.py
 
     - name: Upload coverage to Codecov
