@@ -10,7 +10,7 @@ from huggingface_hub import HfApi
 import skops
 
 token = os.environ["HF_HUB_TOKEN"]
-client = HfApi()
+client = HfApi(token=token)
 user_name = client.whoami(token=token)["name"]
 repo_name = f"skops-space-creator-{uuid4()}"
 repo_id = f"{user_name}/{repo_name}"
