@@ -7,9 +7,12 @@ GH action fail.
 
 """
 
+from __future__ import annotations
+
 import pickle
 import timeit
 import warnings
+from typing import Any
 
 import pandas as pd
 from sklearn.utils._tags import _safe_tags
@@ -27,8 +30,15 @@ NUM_REPS = 10  # number of times the check is repeated
 TOPK = 10  # number of slowest estimators reported
 
 
-def check_persist_performance():
-    results = {"name": [], "pickle (s)": [], "skops (s)": []}
+def check_persist_performance() -> None:
+    """Run all performance checks on all estimators and print results.
+
+    For each estimator, record how long it takes to dump+load with pickle and
+    with skops. If any estimator takes much longer (in absolute time) with skops
+    than pickle, raise a RuntimeError. Print the worst results to sdtout.
+
+    """
+    results: dict[str, list[Any]] = {"name": [], "pickle (s)": [], "skops (s)": []}
     for estimator in _tested_estimators():
         set_random_state(estimator, random_state=0)
 
@@ -52,7 +62,14 @@ def check_persist_performance():
     format_result(results, topk=TOPK)
 
 
-def run_check(estimator, number):
+def run_check(estimator, number: int) -> tuple[float, float]:
+    """Run performance check with the given estimator for pickle and skops.
+
+    The test is run multiple times to get more robust results, ``number``
+    indicates how often the it is run.
+
+    """
+
     def run_pickle():
         pickle.loads(pickle.dumps(estimator))
 
@@ -65,7 +82,13 @@ def run_check(estimator, number):
     return time_pickle, time_skops
 
 
-def format_result(results, topk):
+def format_result(results: dict[str, list[Any]], topk: int) -> None:
+    """Report results from performance checks.
+
+    Print the ``topk`` slowest results. If any estimator takes much longer (in
+    absolute time) with skops than pickle, raise a RuntimeError.
+
+    """
     df = pd.DataFrame(results)
     df = df.assign(
         abs_diff=df["skops (s)"] - df["pickle (s)"],
