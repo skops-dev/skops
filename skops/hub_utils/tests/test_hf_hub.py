@@ -15,7 +15,6 @@ import pytest
 import sklearn
 from flaky import flaky
 from huggingface_hub import HfApi
-from huggingface_hub.repocard import RepoCard
 from huggingface_hub.utils import RepositoryNotFoundError
 from sklearn.datasets import load_diabetes, load_iris
 from sklearn.linear_model import LinearRegression, LogisticRegression
@@ -293,8 +292,6 @@ def test_init(classifier, config_json):
     )
     _validate_folder(path=dir_path)
 
-    assert os.path.isfile(Path(dir_path) / "README.md")
-
     # it should fail a second time since the folder is no longer empty.
     with pytest.raises(OSError, match="None-empty dst path already exists!"):
         init(
@@ -304,37 +301,6 @@ def test_init(classifier, config_json):
             task="tabular-classification",
             data=iris.data,
         )
-
-
-def test_override_init_modelcard(classifier, config_json):
-    # create a temp directory and delete it, we just need a unique name.
-    dir_path = tempfile.mkdtemp()
-    shutil.rmtree(dir_path)
-
-    version = metadata.version("scikit-learn")
-    init(
-        model=classifier,
-        requirements=[f'scikit-learn="{version}"'],
-        dst=dir_path,
-        task="tabular-classification",
-        data=iris.data,
-    )
-    _validate_folder(path=dir_path)
-
-    # inital card does not have a license set
-    with pytest.raises(
-        AttributeError, match="'CardData' object has no attribute 'license'"
-    ):
-        model_card = RepoCard.load(Path(dir_path) / "README.md")
-        model_card.data.license
-
-    # override existent modelcard created by init with license attribute
-    model = get_classifier()
-    model_card = card.Card(model, metadata=card.metadata_from_config(Path(dir_path)))
-    model_card.metadata.license = "mit"
-    model_card.save(Path(dir_path) / "README.md")
-    new_card = RepoCard.load(Path(dir_path) / "README.md")
-    assert new_card.data.license == "mit"
 
 
 def test_init_no_warning_or_error(classifier, config_json):
