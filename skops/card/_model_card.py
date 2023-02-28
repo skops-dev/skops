@@ -503,7 +503,7 @@ class Card:
         """
         if isinstance(self.model, (str, Path)) and hasattr(self, "_model"):
             hash_obj = sha256()
-            buf_size = 2 ** 20  # load in chunks to save memory
+            buf_size = 2**20  # load in chunks to save memory
             with open(self.model, "rb") as f:
                 for chunk in iter(lambda: f.read(buf_size), b""):
                     hash_obj.update(chunk)

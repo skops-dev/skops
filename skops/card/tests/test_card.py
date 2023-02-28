@@ -3,7 +3,6 @@ import pickle
 import re
 import tempfile
 import textwrap
-from hashlib import sha256
 from pathlib import Path
 
 import numpy as np
@@ -142,21 +141,23 @@ def test_save_model_card(destination_path, model_card):
     model_card.save(Path(destination_path) / "README.md")
     assert (Path(destination_path) / "README.md").exists()
 
-def test_model_caching(skops_model_card_metadata_from_config, iris_skops_file, destination_path):
+
+def test_model_caching(
+    skops_model_card_metadata_from_config, iris_skops_file, destination_path
+):
     card = Card(iris_skops_file, metadata=metadata_from_config(destination_path))
     assert str(card._model_hash) == card.__dict__["_model_hash"]
     iris_model_hash = card._model_hash
-    # update card with new model 
+    # update card with new model
     new_model = LogisticRegression()
     _, save_file = save_model_to_file(new_model, ".skops")
     del card.model
     card.model = save_file
-    card.get_model() # model gets cached
+    card.get_model()  # model gets cached
     assert str(card._model_hash) == card.__dict__["_model_hash"]
     logistic_reg_hash = card._model_hash
     assert iris_model_hash != logistic_reg_hash
-    
-    
+
 
 CUSTOM_TEMPLATES = [None, {}, {"A Title", "Another Title", "A Title/A Section"}]  # type: ignore
 
