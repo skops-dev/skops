@@ -1155,7 +1155,7 @@ class Card:
         transpose=True,
     ) -> Card:
         """
-        Add a Fairlearn MetricFrame :class:`fairlearn.MetricFrame` table to the model card.
+        Add a :class:`fairlearn.metrics.MetricFrame` table to the model card.
 
         Parameters
         ----------
