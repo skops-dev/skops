@@ -1338,6 +1338,6 @@ class Card:
         """
         sections = []
         for title, level in self._iterate_key_section_content(self._data):
-            sections.append(f"{'    ' * level}- [{title}](#{title})")
+            sections.append(f"{'  ' * level}- {title}")
 
         return "\n".join(sections)

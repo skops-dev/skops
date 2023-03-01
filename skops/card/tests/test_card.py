@@ -1593,3 +1593,26 @@ class TestRenderedCardVisibility:
             "Jane Doe"
         )
         assert loaded.strip() == expected
+
+
+class TestCardTableOfContents:
+    @pytest.fixture
+    def card(self):
+        model = LinearRegression()
+        card = Card(model=model)
+        return card
+
+    def test_toc(self, card):
+        card.add_model_plot()
+        card.add_hyperparams()
+        card.add_metrics(accuracy=0.1)
+        card.add_get_started_code()
+        toc = card.create_toc()
+        exptected_toc = (
+            "- Model description\n  - Intended uses & limitations\n  - Training"
+            " Procedure\n    - Hyperparameters\n    - Model Plot\n  - Evaluation"
+            " Results\n- How to Get Started with the Model\n- Model Card Authors\n-"
+            " Model Card Contact\n- Citation"
+        )
+
+        assert toc == exptected_toc
