@@ -11,11 +11,11 @@ skops Changelog
 
 v0.6
 ----
-- Added tabular regression example. :pr:`254` by `Thomas Lazarus`_.
+- Added tabular regression example. :pr:`254` by `Thomas Lazarus <lazarust>`.
 - All public ``scipy.special`` ufuncs (Universal Functions) are trusted by default
   by :func:`.io.load`. :pr:`295` by :user:`Omar Arab Oghli <omar-araboghli>`.
 - Added a new function :func:`skops.card.Card.add_metric_frame` to help users
-  add metrics to their model cards. :pr:`298` by `Thomas Lazarus`_.
+  add metrics to their model cards. :pr:`298` by `Thomas Lazarus <lazarust>`
 
 v0.5
 ----

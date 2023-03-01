@@ -1160,7 +1160,7 @@ class Card:
         Parameters
         ----------
         metric_frame: MetricFrame
-            :func:`fairlearn.MetricFrame`.
+            :`fairlearn.MetricFrame`.
 
         transpose: bool, default=True
             Whether to transpose the table or not.
