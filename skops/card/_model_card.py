@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import sys
 import textwrap
 import zipfile
 from collections.abc import Mapping
@@ -18,6 +19,12 @@ from tabulate import tabulate  # type: ignore
 from skops.card._templates import CONTENT_PLACEHOLDER, SKOPS_TEMPLATE, Templates
 from skops.io import load
 from skops.utils.importutils import import_or_raise
+
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
+    from typing_extensions import Self
+
 
 # Repr attributes can be used to control the behavior of repr
 aRepr = Repr()
@@ -506,7 +513,7 @@ class Card:
         # model has changed, but at the moment we have no way of knowing that
         return model
 
-    def add(self, **kwargs: str | Formattable) -> Card:
+    def add(self, **kwargs: str | Formattable) -> Self:
         """Add new section(s) to the model card.
 
         Add one or multiple sections to the model card. The section names are
@@ -714,7 +721,7 @@ class Card:
         self,
         section: str | None = None,
         description: str | None = None,
-    ) -> Card:
+    ) -> Self:
         """Add a model plot
 
         Use sklearn model visualization to add create a diagram of the model.
@@ -784,7 +791,7 @@ class Card:
 
     def add_hyperparams(
         self, section: str | None = None, description: str | None = None
-    ) -> Card:
+    ) -> Self:
         """Add the model's hyperparameters as a table
 
         Parameters
@@ -862,7 +869,7 @@ class Card:
         description: str | None = None,
         file_name: str | None = None,
         model_format: Literal["pickle", "skops"] | None = None,
-    ) -> Card:
+    ) -> Self:
         """Add getting started code
 
         This code can be copied by users to load the model and make predictions
@@ -960,7 +967,7 @@ class Card:
 
         self._add_single(section, content)
 
-    def add_plot(self, *, folded=False, **kwargs: str) -> Card:
+    def add_plot(self, *, folded=False, **kwargs: str) -> Self:
         """Add plots to the model card.
 
         The plot should be saved on the file system and the path passed as
@@ -995,7 +1002,7 @@ class Card:
 
     def add_table(
         self, *, folded: bool = False, **kwargs: dict["str", list[Any]]
-    ) -> Card:
+    ) -> Self:
         """Add a table to the model card.
 
         Add a table to the model card. This can be especially useful when you
@@ -1050,7 +1057,7 @@ class Card:
         section: str | None = None,
         description: str | None = None,
         **kwargs: str | int | float,
-    ) -> Card:
+    ) -> Self:
         """Add metric values to the model card.
 
         All metrics will be collected in, and then formatted to, a table.
@@ -1101,7 +1108,7 @@ class Card:
         plot_file: str = "permutation_importances.png",
         plot_name: str = "Permutation Importances",
         overwrite: bool = False,
-    ) -> "Card":
+    ) -> Self:
         """Plots permutation importance and saves it to model card.
 
         Parameters

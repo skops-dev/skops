@@ -16,6 +16,8 @@ v0.6
   by :func:`.io.load`. :pr:`295` by :user:`Omar Arab Oghli <omar-araboghli>`.
 - Add :func:`.Card.create_toc` to create a table of contents for the model card in markdown format.
   :pr:`305` by :user:`Thomas Lazarus <lazarust>`.
+- Add example of using model card without the skops template. :pr:`291` by
+  `Benjamin Bossan`_.
 
 v0.5
 ----
