@@ -1155,7 +1155,8 @@ class Card:
         transpose=True,
     ) -> Card:
         """
-        Add a :class:`fairlearn.metrics.MetricFrame` table to the model card.
+        Add a :class:`fairlearn.metrics.MetricFrame` table to the model card. The table contains
+        the difference, group_ma, group_min, and ratio for each metric.
 
         Parameters
         ----------
