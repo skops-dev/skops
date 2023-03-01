@@ -16,7 +16,6 @@ from pathlib import Path
 from tempfile import mkdtemp, mkstemp
 
 import matplotlib.pyplot as plt
-import pandas as pd
 import sklearn
 from sklearn.datasets import load_diabetes
 from sklearn.linear_model import LinearRegression
@@ -42,7 +41,8 @@ X_train, X_test, y_train, y_test = train_test_split(
 # Train a Model
 # =============
 # To train a model, we need to convert our data first to vectors. We will use
-# StandardScalar in our pipeline. We will fit a Linear Regression model with the outputs of the scalar.
+# StandardScalar in our pipeline. We will fit a Linear Regression
+# model with the outputs of the scalar.
 model = Pipeline(
     [
         ("scaler", StandardScaler()),
@@ -63,7 +63,7 @@ print(y_pred)
 # Initialize a repository to save our files in
 # ============================================
 # We will now initialize a repository and save our model
-_, pkl_name = mkstemp(prefix="skops-", suffix=".pkl")
+_, pkl_name = mkstemp(prefix="skops-", suffix=".skops")
 
 with open(pkl_name, mode="bw") as f:
     sio.dump(model, file=f)
