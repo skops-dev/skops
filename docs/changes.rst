@@ -14,8 +14,10 @@ v0.6
 - Added tabular regression example. :pr:`254` by `Thomas Lazarus <lazarust>`.
 - All public ``scipy.special`` ufuncs (Universal Functions) are trusted by default
   by :func:`.io.load`. :pr:`295` by :user:`Omar Arab Oghli <omar-araboghli>`.
-- Added a new function :func:`skops.card.Card.add_metric_frame` to help users
+- Add a new function :func:`skops.card.Card.add_metric_frame` to help users
   add metrics to their model cards. :pr:`298` by `Thomas Lazarus <lazarust>`
+- Add example of using model card without the skops template. :pr:`291` by
+  `Benjamin Bossan`_.
 
 v0.5
 ----
