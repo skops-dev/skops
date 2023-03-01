@@ -91,6 +91,8 @@ def classifier(repo_path, config_json):
                 pickle.dump(clf, f)
         elif file_format == "skops":
             dump(clf, path)
+        elif file_format == "auto":
+            dump(clf, path)
         yield path
     finally:
         path.unlink(missing_ok=True)
@@ -109,10 +111,16 @@ CONFIG = {
             "model": {"file": "model.skops"},
         }
     },
+    "auto": {
+        "sklearn": {
+            "environment": ['scikit-learn="1.1.1"'],
+            "model": {"file": "model.skops"},
+        }
+    },
 }
 
 
-@pytest.fixture(scope="session", params=["skops", "pickle"])
+@pytest.fixture(scope="session", params=["skops", "pickle", "auto"])
 def config_json(repo_path, request):
     path = repo_path / "config.json"
     try:
@@ -312,12 +320,14 @@ def test_override_init_modelcard(classifier, config_json):
     shutil.rmtree(dir_path)
 
     version = metadata.version("scikit-learn")
+    _, model_format = config_json
     init(
         model=classifier,
         requirements=[f'scikit-learn="{version}"'],
         dst=dir_path,
         task="tabular-classification",
         data=iris.data,
+        model_format=model_format,
     )
     _validate_folder(path=dir_path)
 
