@@ -1600,19 +1600,43 @@ class TestCardTableOfContents:
     def card(self):
         model = LinearRegression()
         card = Card(model=model)
-        return card
-
-    def test_toc(self, card):
         card.add_model_plot()
         card.add_hyperparams()
         card.add_metrics(accuracy=0.1)
         card.add_get_started_code()
-        toc = card.create_toc()
-        exptected_toc = (
-            "- Model description\n  - Intended uses & limitations\n  - Training"
-            " Procedure\n    - Hyperparameters\n    - Model Plot\n  - Evaluation"
-            " Results\n- How to Get Started with the Model\n- Model Card Authors\n-"
-            " Model Card Contact\n- Citation"
-        )
+        return card
 
-        assert toc == exptected_toc
+    def test_toc(self, card):
+        toc = card.create_toc()
+        exptected_toc = [
+            "- Model description",
+            "  - Intended uses & limitations",
+            "  - Training Procedure",
+            "    - Hyperparameters",
+            "    - Model Plot",
+            "  - Evaluation Results",
+            "- How to Get Started with the Model",
+            "- Model Card Authors",
+            "- Model Card Contact",
+            "- Citation",
+        ]
+
+        assert toc == "\n".join(exptected_toc)
+
+    def test_toc_with_invisible_section(self, card):
+        section = card.select("Citation")
+        section.visible = False
+        toc = card.create_toc()
+        exptected_toc = [
+            "- Model description",
+            "  - Intended uses & limitations",
+            "  - Training Procedure",
+            "    - Hyperparameters",
+            "    - Model Plot",
+            "  - Evaluation Results",
+            "- How to Get Started with the Model",
+            "- Model Card Authors",
+            "- Model Card Contact",
+        ]
+
+        assert toc == "\n".join(exptected_toc)

@@ -1321,6 +1321,7 @@ class Card:
         data: dict[str, Section],
         level: int = 0,
     ):
+        """Iterate through the key sections and yield the title and level."""
         for key, val in data.items():
             if not getattr(val, "visible", True):
                 continue
@@ -1336,7 +1337,6 @@ class Card:
 
     def create_toc(self) -> str:
         """Create a table of contents for the model card.
-
 
         Returns
         -------
