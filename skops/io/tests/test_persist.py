@@ -54,7 +54,7 @@ from skops.io._audit import NODE_TYPE_MAPPING, get_tree
 from skops.io._sklearn import UNSUPPORTED_TYPES
 from skops.io._trusted_types import SCIPY_UFUNC_TYPE_NAMES, SKLEARN_ESTIMATOR_TYPE_NAMES
 from skops.io._utils import LoadContext, SaveContext, _get_state, get_state, gettype
-from skops.io.exceptions import UnsupportedTypeException
+from skops.io.exceptions import UnsupportedTypeException, UntrustedTypesFoundException
 from skops.io.tests._utils import assert_method_outputs_equal, assert_params_equal
 
 # Default settings for X
@@ -883,35 +883,36 @@ def test_estimator_with_bytes_files_created(tmp_path):
     assert len(bin_files) == 2
 
 
-@pytest.mark.parametrize(
-    "func",
-    [
-        partial(operator.add, 0),
-        partial(operator.sub, 0),
-        partial(operator.mul, 1),
-        partial(operator.truediv, 1),
-        partial(operator.pow, 1),
-        partial(operator.matmul, np.eye(N_SAMPLES)),
-        partial(operator.ge, 0),
-        partial(operator.gt, 0),
-        partial(operator.le, 0),
-        partial(operator.lt, 0),
-        partial(operator.eq, 0),
-        operator.neg,
-        operator.attrgetter("real"),
-        operator.attrgetter("real", "real"),
-        operator.itemgetter(None),
-        operator.itemgetter(None, None),
-        operator.methodcaller("round"),
-        operator.methodcaller("round", 2),
-    ],
-)
-def test_persist_operator(func):
+OPERATORS = [
+    ("add", partial(operator.add, 0)),
+    ("sub", partial(operator.sub, 0)),
+    ("mul", partial(operator.mul, 1)),
+    ("truediv", partial(operator.truediv, 1)),
+    ("pow", partial(operator.pow, 1)),
+    ("matmul", partial(operator.matmul, np.eye(N_SAMPLES))),
+    ("ge", partial(operator.ge, 0)),
+    ("gt", partial(operator.gt, 0)),
+    ("le", partial(operator.le, 0)),
+    ("lt", partial(operator.lt, 0)),
+    ("eq", partial(operator.eq, 0)),
+    ("neg", operator.neg),
+    ("attrgetter", operator.attrgetter("real")),
+    ("attrgetter", operator.attrgetter("real", "real")),
+    ("itemgetter", operator.itemgetter(None)),
+    ("itemgetter", operator.itemgetter(None, None)),
+    ("methodcaller", operator.methodcaller("round")),
+    ("methodcaller", operator.methodcaller("round", 2)),
+]
+
+
+@pytest.mark.parametrize("op", OPERATORS)
+def test_persist_operator(op):
     # Test a couple of functions from the operator module. This is not an
     # exhaustive list but rather the most plausible functions. To check all
     # operators would require specific tests, not a generic one like this.
     # Fixes #283
 
+    _, func = op
     # unfitted
     est = FunctionTransformer(func)
     loaded = loads(dumps(est), trusted=True)
@@ -930,3 +931,13 @@ def test_persist_operator(func):
     # but it would be useless in practice, since methodcaller is not properly
     # instantiated.
     est.transform(X)
+
+
+@pytest.mark.parametrize("op", OPERATORS)
+def test_persist_operator_raises_untrusted(op):
+    # check that operators are not trusted by default, because at least some of
+    # them could perform unsafe operations
+    name, func = op
+    est = FunctionTransformer(func)
+    with pytest.raises(UntrustedTypesFoundException, match=name):
+        loads(dumps(est), trusted=False)

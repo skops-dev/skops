@@ -539,7 +539,7 @@ def operator_func_get_state(obj: Any, save_context: SaveContext) -> dict[str, An
         "__class__": obj.__class__.__name__,
         "__module__": "operator",
         "__loader__": "OperatorFuncNode",
-        "attrs": attrs,
+        "attrs": get_state(attrs, save_context),
     }
     return res
 
@@ -553,11 +553,12 @@ class OperatorFuncNode(Node):
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.trusted = self._get_trusted(trusted, [])
-        self.children["attrs"] = state["attrs"]
+        self.children["attrs"] = get_tree(state["attrs"], load_context)
 
     def _construct(self):
         op = getattr(operator, self.class_name)
-        return op(*self.children["attrs"])
+        attrs = self.children["attrs"].construct()
+        return op(*attrs)
 
 
 # <class 'builtin_function_or_method'>
