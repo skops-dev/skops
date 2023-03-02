@@ -153,7 +153,7 @@ class TestAddModelPlot:
             "Model description/Training Procedure/Model Plot"
         ).content
         # don't compare whole text, as it's quite long and non-deterministic
-        assert result.startswith("The model plot is below.<style>#sk-")
+        assert result.startswith("The model plot is below.\n\n<style>#sk-")
         assert "<style>" in result
         assert result.endswith(
             "<pre>LinearRegression()</pre></div></div></div></div></div>"
@@ -178,7 +178,7 @@ class TestAddModelPlot:
     def test_other_section(self, model_card):
         model_card.add_model_plot(section="Other section")
         result = model_card.select("Other section").content
-        assert result.startswith("The model plot is below.<style>#sk-")
+        assert result.startswith("The model plot is below.\n\n<style>#sk-")
         assert "<style>" in result
         assert result.endswith(
             "<pre>LinearRegression()</pre></div></div></div></div></div>"
@@ -189,7 +189,7 @@ class TestAddModelPlot:
         result = model_card.select(
             "Model description/Training Procedure/Model Plot"
         ).content
-        assert result.startswith("Awesome diagram below<style>#sk-")
+        assert result.startswith("Awesome diagram below\n\n<style>#sk-")
 
     @pytest.mark.parametrize("template", CUSTOM_TEMPLATES)
     def test_custom_template_no_section_raises(self, template):
@@ -253,7 +253,7 @@ class TestAddHyperparams:
         if (major >= 1) and (minor >= 2):
             del lines[10]
 
-        table = "".join(lines)
+        table = "\n".join(lines)
         # remove multiple whitespaces and dashes, as they're not important and may
         # differ depending on OS
         table = _strip_multiple_chars(table, " ")
@@ -312,12 +312,12 @@ class TestAddHyperparams:
         assert text1 == text2
 
     def test_hyperparameter_table_with_line_break(self):
-        # Hyperparameters can contain values with line breaks, "", in them. In
+        # Hyperparameters can contain values with line breaks, "\n", in them. In
         # that case, the markdown table is broken. Check that the hyperparameter
-        # table we create properly replaces the "" with "<br />".
+        # table we create properly replaces the "\n" with "<br />".
         class EstimatorWithLbInParams:
             def get_params(self, deep=False):
-                return {"fit_intercept": True, "n_jobs": "linewithbreak"}
+                return {"fit_intercept": True, "n_jobs": "line\nwith\nbreak"}
 
         model_card = Card(EstimatorWithLbInParams())
         section_name = "Model description/Training Procedure/Hyperparameters"
@@ -342,8 +342,8 @@ class TestAddMetrics:
         result = model_card.select("Model description/Evaluation Results").content
         expected = (
             "You can find the details about evaluation process and the evaluation "
-            "results."
-            "| Metric   | Value   |"
+            "results.\n\n"
+            "| Metric   | Value   |\n"
             "|----------|---------|"
         )
         assert result == expected
@@ -357,11 +357,11 @@ class TestAddMetrics:
         result = model_card.select("Model description/Evaluation Results").content
         expected = (
             "You can find the details about evaluation process and the evaluation "
-            "results."
-            "| Metric      |   Value |"
-            "|-------------|---------|"
-            "| acc         |     0.1 |"
-            "| f1          |     0.1 |"
+            "results.\n\n"
+            "| Metric      |   Value |\n"
+            "|-------------|---------|\n"
+            "| acc         |     0.1 |\n"
+            "| f1          |     0.1 |\n"
             "| awesomeness |   123   |"
         )
         assert result == expected
@@ -371,9 +371,9 @@ class TestAddMetrics:
         result = model_card.select("Other section").content
         expected = (
             "You can find the details about evaluation process and the evaluation "
-            "results."
-            "| Metric   |   Value |"
-            "|----------|---------|"
+            "results.\n\n"
+            "| Metric   |   Value |\n"
+            "|----------|---------|\n"
             "| accuracy |     0.9 |"
         )
         assert result == expected
@@ -541,15 +541,15 @@ class TestAddGetStartedCode:
         # by default, don't add a table, as there are no metrics
         result = model_card.select("How to Get Started with the Model").content
         expected = (
-            "Use the code below to get started with the model."
-            "```python"
-            "import json"
-            "import pandas as pd"
-            "import joblib"
-            'model = joblib.load("my-model.pickle")'
-            'with open("config.json") as f:'
-            "    config = json.load(f)"
-            'model.predict(pd.DataFrame.from_dict(config["sklearn"]["example_input"]))'
+            "Use the code below to get started with the model.\n\n"
+            "```python\n"
+            "import json\n"
+            "import pandas as pd\n"
+            "import joblib\n"
+            'model = joblib.load("my-model.pickle")\n'
+            'with open("config.json") as f:\n'
+            "    config = json.load(f)\n"
+            'model.predict(pd.DataFrame.from_dict(config["sklearn"]["example_input"]))\n'
             "```"
         )
         assert result == expected
@@ -558,15 +558,15 @@ class TestAddGetStartedCode:
         # by default, don't add a table, as there are no metrics
         result = model_card_skops.select("How to Get Started with the Model").content
         expected = (
-            "Use the code below to get started with the model."
-            "```python"
-            "import json"
-            "import pandas as pd"
-            "import skops.io as sio"
-            'model = sio.load("my-model.skops")'
-            'with open("config.json") as f:'
-            "    config = json.load(f)"
-            'model.predict(pd.DataFrame.from_dict(config["sklearn"]["example_input"]))'
+            "Use the code below to get started with the model.\n\n"
+            "```python\n"
+            "import json\n"
+            "import pandas as pd\n"
+            "import skops.io as sio\n"
+            'model = sio.load("my-model.skops")\n'
+            'with open("config.json") as f:\n'
+            "    config = json.load(f)\n"
+            'model.predict(pd.DataFrame.from_dict(config["sklearn"]["example_input"]))\n'
             "```"
         )
         assert result == expected
@@ -603,15 +603,15 @@ class TestAddGetStartedCode:
         model_card.add_get_started_code(file_name="foobar.pkl")
         result = model_card.select("How to Get Started with the Model").content
         expected = (
-            "Use the code below to get started with the model."
-            "```python"
-            "import json"
-            "import pandas as pd"
-            "import joblib"
-            'model = joblib.load("foobar.pkl")'
-            'with open("config.json") as f:'
-            "    config = json.load(f)"
-            'model.predict(pd.DataFrame.from_dict(config["sklearn"]["example_input"]))'
+            "Use the code below to get started with the model.\n\n"
+            "```python\n"
+            "import json\n"
+            "import pandas as pd\n"
+            "import joblib\n"
+            'model = joblib.load("foobar.pkl")\n'
+            'with open("config.json") as f:\n'
+            "    config = json.load(f)\n"
+            'model.predict(pd.DataFrame.from_dict(config["sklearn"]["example_input"]))\n'
             "```"
         )
         assert result == expected
@@ -620,15 +620,15 @@ class TestAddGetStartedCode:
         model_card.add_get_started_code(model_format="skops")
         result = model_card.select("How to Get Started with the Model").content
         expected = (
-            "Use the code below to get started with the model."
-            "```python"
-            "import json"
-            "import pandas as pd"
-            "import skops.io as sio"
-            'model = sio.load("my-model.pickle")'
-            'with open("config.json") as f:'
-            "    config = json.load(f)"
-            'model.predict(pd.DataFrame.from_dict(config["sklearn"]["example_input"]))'
+            "Use the code below to get started with the model.\n\n"
+            "```python\n"
+            "import json\n"
+            "import pandas as pd\n"
+            "import skops.io as sio\n"
+            'model = sio.load("my-model.pickle")\n'
+            'with open("config.json") as f:\n'
+            "    config = json.load(f)\n"
+            'model.predict(pd.DataFrame.from_dict(config["sklearn"]["example_input"]))\n'
             "```"
         )
         assert result == expected
@@ -1139,7 +1139,7 @@ class TestCardRepr:
         )
         """
         expected = textwrap.dedent(card_repr).strip()
-        lines = expected.split("")
+        lines = expected.split("\n")
 
         # TODO: remove when dropping sklearn v0.24 and when dropping v1.1 and
         # below. This is because the "normalize" parameter was changed after
@@ -1162,7 +1162,7 @@ class TestCardRepr:
     @pytest.mark.parametrize("meth", [repr, str])
     def test_card_repr(self, card: Card, meth, expected_lines):
         result = meth(card)
-        expected = "".join(expected_lines)
+        expected = "\n".join(expected_lines)
         assert result == expected
 
     @pytest.mark.parametrize("meth", [repr, str])
@@ -1190,7 +1190,7 @@ class TestCardRepr:
             "line very long line very long line ,"
         )
         expected_lines.insert(-1, extra_line)
-        expected = "".join(expected_lines)
+        expected = "\n".join(expected_lines)
 
         result = meth(card)
         assert result == expected
@@ -1201,7 +1201,7 @@ class TestCardRepr:
 
         # remove line 1 from expected results, which corresponds to the model
         del expected_lines[1]
-        expected = "".join(expected_lines)
+        expected = "\n".join(expected_lines)
 
         result = meth(card)
         assert result == expected
@@ -1227,7 +1227,7 @@ class TestCardRepr:
             "  metadata.foo={'bar': 123},",
             "  metadata.widget={...},",
         ]
-        expected = "".join(expected_lines[:2] + extra_lines + expected_lines[2:])
+        expected = "\n".join(expected_lines[:2] + extra_lines + expected_lines[2:])
 
         result = meth(card)
         assert result == expected
@@ -1251,7 +1251,7 @@ class TestCardModelAttributeIsPath:
         card_from_path = self.path_to_card(file_name)
 
         result0 = meth(card_from_path)
-        expected = "Card(  model=LinearRegression(fit_intercept=False),"
+        expected = "Card(\n  model=LinearRegression(fit_intercept=False),"
         assert result0.startswith(expected)
 
         # change file name, same card should show different result
@@ -1259,7 +1259,7 @@ class TestCardModelAttributeIsPath:
         file_handle, file_name = save_model_to_file(model, suffix)
         card_from_path.model = file_name
         result1 = meth(card_from_path)
-        expected = "Card(  model=LinearRegression(),"
+        expected = "Card(\n  model=LinearRegression(),"
         assert result1.startswith(expected)
 
         # change model on disk but keep same file name, should show different
@@ -1269,7 +1269,7 @@ class TestCardModelAttributeIsPath:
             dump_fn = pickle.dump if suffix == ".pkl" else dump
             dump_fn(model, f)
         result2 = meth(card_from_path)
-        expected = "Card(  model=LinearRegression(fit_intercept=None),"
+        expected = "Card(\n  model=LinearRegression(fit_intercept=None),"
         assert result2.startswith(expected)
 
     @pytest.mark.parametrize("suffix", [".pkl", ".skops"])
@@ -1419,11 +1419,11 @@ class TestTableSection:
             """Custom object whose repr has a line break"""
 
             def __repr__(self) -> str:
-                return "objwith lb"
+                return "obj\nwith lb"
 
         table_dict["with break"] = [
             LineBreakInRepr(),
-            "hithere",
+            "hi\nthere",
             """
 entry with
 line breaks
@@ -1520,13 +1520,13 @@ class TestRenderedCardVisibility:
     def test_all_visible_by_default(self, card):
         rendered = card.render()
         expected = (
-            "# Model"
-            "Here goes model related stuff"
-            "## Metrics"
-            "123"
-            "## Bar"
-            "Baz"
-            "# Authors"
+            "# Model\n\n"
+            "Here goes model related stuff\n\n"
+            "## Metrics\n\n"
+            "123\n\n"
+            "## Bar\n\n"
+            "Baz\n\n"
+            "# Authors\n\n"
             "Jane Doe"
         )
         assert rendered.strip() == expected
@@ -1534,20 +1534,27 @@ class TestRenderedCardVisibility:
     def test_section_invisible(self, card):
         card.select("Model/Metrics").visible = False
         rendered = card.render()
-        expected = "# ModelHere goes model related stuff## BarBaz# AuthorsJane Doe"
+        expected = (
+            "# Model\n\n"
+            "Here goes model related stuff\n\n"
+            "## Bar\n\n"
+            "Baz\n\n"
+            "# Authors\n\n"
+            "Jane Doe"
+        )
         assert rendered.strip() == expected
 
     def test_restoring_visibility_works(self, card):
         card.select("Model/Metrics").visible = False
         card.select("Model/Metrics").visible = True
         expected = (
-            "# Model"
-            "Here goes model related stuff"
-            "## Metrics"
-            "123"
-            "## Bar"
-            "Baz"
-            "# Authors"
+            "# Model\n\n"
+            "Here goes model related stuff\n\n"
+            "## Metrics\n\n"
+            "123\n\n"
+            "## Bar\n\n"
+            "Baz\n\n"
+            "# Authors\n\n"
             "Jane Doe"
         )
         rendered = card.render()
@@ -1559,7 +1566,7 @@ class TestRenderedCardVisibility:
         card.select("Model").visible = False
         # fmt: off
         expected = (
-            "# Authors"
+            "# Authors\n\n"
             "Jane Doe"
         )
         # fmt: on
@@ -1577,7 +1584,14 @@ class TestRenderedCardVisibility:
         with open(file, "r") as f:
             loaded = f.read()
 
-        expected = "# ModelHere goes model related stuff## BarBaz# AuthorsJane Doe"
+        expected = (
+            "# Model\n\n"
+            "Here goes model related stuff\n\n"
+            "## Bar\n\n"
+            "Baz\n\n"
+            "# Authors\n\n"
+            "Jane Doe"
+        )
         assert loaded.strip() == expected
 
 
@@ -1586,43 +1600,19 @@ class TestCardTableOfContents:
     def card(self):
         model = LinearRegression()
         card = Card(model=model)
+        return card
+
+    def test_toc(self, card):
         card.add_model_plot()
         card.add_hyperparams()
         card.add_metrics(accuracy=0.1)
         card.add_get_started_code()
-        return card
-
-    def test_toc(self, card):
         toc = card.create_toc()
-        exptected_toc = [
-            "- Model description",
-            "  - Intended uses & limitations",
-            "  - Training Procedure",
-            "    - Hyperparameters",
-            "    - Model Plot",
-            "  - Evaluation Results",
-            "- How to Get Started with the Model",
-            "- Model Card Authors",
-            "- Model Card Contact",
-            "- Citation",
-        ]
+        exptected_toc = (
+            "- Model description\n  - Intended uses & limitations\n  - Training"
+            " Procedure\n    - Hyperparameters\n    - Model Plot\n  - Evaluation"
+            " Results\n- How to Get Started with the Model\n- Model Card Authors\n-"
+            " Model Card Contact\n- Citation"
+        )
 
-        assert toc == "\n".join(exptected_toc)
-
-    def test_toc_with_invisible_section(self, card):
-        section = card.select("Citation")
-        section.visible = False
-        toc = card.create_toc()
-        exptected_toc = [
-            "- Model description",
-            "  - Intended uses & limitations",
-            "  - Training Procedure",
-            "    - Hyperparameters",
-            "    - Model Plot",
-            "  - Evaluation Results",
-            "- How to Get Started with the Model",
-            "- Model Card Authors",
-            "- Model Card Contact",
-        ]
-
-        assert toc == "\n".join(exptected_toc)
+        assert toc == exptected_toc
