@@ -19,6 +19,7 @@ from skops import hub_utils
 from skops.card import Card, metadata_from_config
 from skops.card._model_card import (
     SKOPS_TEMPLATE,
+    PlainSection,
     PlotSection,
     TableSection,
     _load_model,
@@ -863,6 +864,70 @@ class TestAdd:
         assert num_subsection_before == num_subsection_after
         assert section.content == "sklearn FTW"
 
+    def test_add_plain_section_works(self, model_card):
+        # It is allowed to add a *Section object, but it's not documented and
+        # users should normally not use that feature
+        section = PlainSection("title may differ from section name", "some content")
+        model_card.add(
+            a_string="normal string",
+            a_section=section,
+        )
+        assert model_card.select("a_section") == section
+
+    def test_add_section_preserves_subsections(self, model_card):
+        # As explained in the previous test, users can theoretically add section
+        # instances. If they override an existing section with a new section,
+        # the subsections of the existing section should be preserved.
+
+        # first let's add a section and a subsection
+        model_card.add(**{"new section": "hello", "new section/subsection": "world"})
+        assert model_card.select("new section").format() == "hello"
+        assert model_card.select("new section/subsection").format() == "world"
+
+        # now let's override the section, the subsection should be preserved
+        new_section = PlainSection("new section", "bonjour")
+        model_card.add(**{"new section": new_section})
+        assert model_card.select("new section").format() == "bonjour"
+        assert model_card.select("new section/subsection").format() == "world"
+
+    def test_add_section_with_identical_subsection_preserves_subsections(
+        self, model_card
+    ):
+        # As explained in the previous tests, users can theoretically add
+        # section instances. If they override an existing section with a new
+        # section, the subsections of the existing section should be preserved.
+        # If the new section they add has its own subsections, and these
+        # subsections are identical to the old subsections, that should be fine.
+
+        # first let's add a section and a subsection
+        model_card.add(**{"new section": "hello", "new section/subsection": "world"})
+
+        # now let's override the section using the same subsections
+        old_subsection = model_card.select("new section").subsections
+        new_section = PlainSection("new section", "bonjour", subsections=old_subsection)
+        model_card.add(**{"new section": new_section})
+        assert model_card.select("new section").format() == "bonjour"
+        assert model_card.select("new section/subsection").format() == "world"
+
+    def test_add_section_with_different_subsection_raises(self, model_card):
+        # This is the same as the previous test, but now the section used to
+        # override the previous section has different subsections. Now we don't
+        # know what to do and should raise. This is okay because normally, a
+        # user shouldn't add section instances anyway.
+
+        # first let's add a section and a subsection
+        model_card.add(**{"new section": "hello", "new section/subsection": "world"})
+
+        # now let's override the section using different subsections
+        new_subsection = {"new subsection": PlainSection("subsection", "mars")}
+        new_section = PlainSection("new section", "bonjour", subsections=new_subsection)
+
+        match = (
+            "Trying to override section 'new section' but found conflicting subsections"
+        )
+        with pytest.raises(ValueError, match=match):
+            model_card.add(**{"new section": new_section})
+
 
 class TestDelete:
     """Deleting sections and subsections"""
@@ -963,6 +1028,24 @@ class TestAddPlot:
         model_card = model_card.add_plot(**{"Model description/Figure 1": "fig1.png"})
         plot_content = model_card.select("Model description/Figure 1").format()
         assert plot_content == "![Figure 1](fig1.png)"
+
+    def test_add_plot_with_description(self, destination_path, model_card):
+        import matplotlib.pyplot as plt
+
+        plt.plot([4, 5, 6, 7])
+        plt.savefig(Path(destination_path) / "fig1.png")
+        model_card = model_card.add_plot(description="My fancy plot", fig1="fig1.png")
+        plot_content = model_card.select("fig1").format()
+        assert plot_content == "My fancy plot\n\n![fig1](fig1.png)"
+
+    def test_add_plot_with_alt_text(self, destination_path, model_card):
+        import matplotlib.pyplot as plt
+
+        plt.plot([4, 5, 6, 7])
+        plt.savefig(Path(destination_path) / "fig1.png")
+        model_card = model_card.add_plot(alt_text="the figure", fig1="fig1.png")
+        plot_content = model_card.select("fig1").format()
+        assert plot_content == "![the figure](fig1.png)"
 
 
 class TestMetadata:
@@ -1455,9 +1538,18 @@ line breaks
         result = _strip_multiple_chars(result, "-")
         assert result == expected
 
-    def test_add_table_with_description(self):
-        # FIXME
-        pass
+    def test_add_table_with_description(self, model_card, table_dict):
+        model_card.add_table(description="My fancy table", **{"The table": table_dict})
+        section = model_card.select("The table")
+        content = section.format()
+        expected = """My fancy table
+
+|   split |   score |
+|---------|---------|
+|       1 |       4 |
+|       2 |       5 |
+|       3 |       6 |"""
+        assert content == expected
 
 
 class TestCustomTemplate:

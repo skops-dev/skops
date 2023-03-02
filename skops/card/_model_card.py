@@ -729,8 +729,10 @@ class Card:
         key: str
             The name of the (sub)section.
 
-        val: Section
-            TODO
+        val: str or Section
+            The value to assign to the (sub)section. If this is already a
+            section, leave it as it is. If it's a string, create a
+            :class:`skops.card._model_card.PlainSection`.
 
         Returns
         -------
@@ -751,11 +753,14 @@ class Card:
         if leaf_node_name in section:
             # entry exists, preserve its subsections
             old_section = section[leaf_node_name]
-            if (
-                new_section.subsections
-                and new_section.subsections != old_section.subsections
+            if new_section.subsections and (
+                new_section.subsections != old_section.subsections
             ):
-                raise ValueError("Uh oh")  # FIXME
+                msg = (
+                    f"Trying to override section '{leaf_node_name}' but found "
+                    "conflicting subsections."
+                )
+                raise ValueError(msg)
             new_section.subsections = old_section.subsections
 
         section[leaf_node_name] = new_section
@@ -1018,9 +1023,19 @@ class Card:
 
         Parameters
         ----------
-        description: TODO
+        description: str or None (default=None)
+            If a string is passed as description, it is shown before the figure.
+            If multiple figures are added with one call, they all get the same
+            description. To add multiple figures with different descriptions,
+            call this method multiple times.
 
-        alt_text: TODO
+        alt_text: : str or None (default=None)
+            If a string is passed as ``alt_text``, it is used as the alternative
+            text for the figure (i.e. what is shown if the figure cannot be
+            rendered). If this argument is ``None``, the alt_text will just be
+            the same as the section title. If multiple figures are added with
+            one call, they all get the same alt text. To add multiple figures
+            with different alt texts, call this method multiple times.
 
         folded: bool (default=False)
             If set to ``True``, the plot will be enclosed in a ``details`` tag.
@@ -1044,7 +1059,7 @@ class Card:
         description = description or ""
         for section_name, plot_path in kwargs.items():
             title = split_subsection_names(section_name)[-1]
-            alt_text = alt_text or title  # TODO write test
+            alt_text = alt_text or title
             section = PlotSection(
                 title=title,
                 content=description,
@@ -1086,7 +1101,11 @@ class Card:
 
         Parameters
         ----------
-        description: TODO
+        description: str or None (default=None)
+            If a string is passed as description, it is shown before the table.
+            If multiple tables are added with one call, they all get the same
+            description. To add multiple tables with different descriptions,
+            call this method multiple times.
 
         folded: bool (default=False)
             If set to ``True``, the table will be enclosed in a ``details`` tag.
