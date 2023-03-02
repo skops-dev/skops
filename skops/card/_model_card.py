@@ -1180,6 +1180,13 @@ class Card:
         -------
         self: Card
             The model card with the metric frame added.
+
+        Notes
+        --------
+        You can check `fairlearn's documentation
+        <https://fairlearn.org/v0.8/user_guide/assessment/index.html>`__ on how to
+        work with `MetricFrame`s.
+
         """
         frame_dict = {
             "difference": metric_frame.difference(),
