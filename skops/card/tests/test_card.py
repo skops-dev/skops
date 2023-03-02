@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 import sklearn
-from huggingface_hub import CardData, metadata_load
+from huggingface_hub import ModelCardData, metadata_load
 from sklearn.datasets import load_iris
 from sklearn.inspection import permutation_importance
 from sklearn.linear_model import LinearRegression, LogisticRegression
@@ -263,7 +263,7 @@ class TestAddHyperparams:
     def test_default(self, model_card, expected):
         result = model_card.select(
             "Model description/Training Procedure/Hyperparameters"
-        ).content
+        ).format()
 
         # remove multiple whitespaces and dashes, as they're not important and may
         # differ depending on OS
@@ -273,7 +273,7 @@ class TestAddHyperparams:
 
     def test_other_section(self, model_card, expected):
         model_card.add_hyperparams(section="Other section")
-        result = model_card.select("Other section").content
+        result = model_card.select("Other section").format()
 
         # remove multiple whitespaces and dashes, as they're not important and may
         # differ depending on OS
@@ -285,7 +285,7 @@ class TestAddHyperparams:
         model_card.add_hyperparams(description="Awesome hyperparams")
         result = model_card.select(
             "Model description/Training Procedure/Hyperparameters"
-        ).content
+        ).format()
         assert result.startswith("Awesome hyperparams")
 
     @pytest.mark.parametrize("template", CUSTOM_TEMPLATES)
@@ -305,9 +305,9 @@ class TestAddHyperparams:
         # of sense
         text1 = model_card.select(
             "Model description/Training Procedure/Hyperparameters"
-        ).content
+        ).format()
         model_card.add_hyperparams(section="Other section")
-        text2 = model_card.select("Other section").content
+        text2 = model_card.select("Other section").format()
 
         assert text1 == text2
 
@@ -321,7 +321,7 @@ class TestAddHyperparams:
 
         model_card = Card(EstimatorWithLbInParams())
         section_name = "Model description/Training Procedure/Hyperparameters"
-        text_hyperparams = model_card.select(section_name).content
+        text_hyperparams = model_card.select(section_name).format()
 
         # remove multiple whitespaces, as they're not important
         text_cleaned = _strip_multiple_chars(text_hyperparams, " ")
@@ -333,13 +333,13 @@ class TestAddMetrics:
 
     def test_default(self, model_card):
         # by default, don't add a table, as there are no metrics
-        result = model_card.select("Model description/Evaluation Results").content
+        result = model_card.select("Model description/Evaluation Results").format()
         expected = "[More Information Needed]"
         assert result == expected
 
     def test_empty_metrics_table(self, model_card):
         model_card.add_metrics()
-        result = model_card.select("Model description/Evaluation Results").content
+        result = model_card.select("Model description/Evaluation Results").format()
         expected = (
             "You can find the details about evaluation process and the evaluation "
             "results.\n\n"
@@ -354,7 +354,7 @@ class TestAddMetrics:
             f1=0.1,  # float
             awesomeness=123,  # int
         )
-        result = model_card.select("Model description/Evaluation Results").content
+        result = model_card.select("Model description/Evaluation Results").format()
         expected = (
             "You can find the details about evaluation process and the evaluation "
             "results.\n\n"
@@ -368,7 +368,7 @@ class TestAddMetrics:
 
     def test_other_section(self, model_card):
         model_card.add_metrics(accuracy=0.9, section="Other section")
-        result = model_card.select("Other section").content
+        result = model_card.select("Other section").format()
         expected = (
             "You can find the details about evaluation process and the evaluation "
             "results.\n\n"
@@ -380,7 +380,7 @@ class TestAddMetrics:
 
     def test_other_description(self, model_card):
         model_card.add_metrics(accuracy=0.9, description="Awesome metrics")
-        result = model_card.select("Model description/Evaluation Results").content
+        result = model_card.select("Model description/Evaluation Results").format()
         assert result.startswith("Awesome metrics")
 
     @pytest.mark.parametrize("template", CUSTOM_TEMPLATES)
@@ -398,9 +398,9 @@ class TestAddMetrics:
         # it's possible to add the section twice, even if it doesn't make a lot
         # of sense
         model_card.add_metrics(accuracy=0.9)
-        text1 = model_card.select("Model description/Evaluation Results").content
+        text1 = model_card.select("Model description/Evaluation Results").format()
         model_card.add_metrics(section="Other section")
-        text2 = model_card.select("Other section").content
+        text2 = model_card.select("Other section").format()
         assert text1 == text2
 
 
@@ -539,7 +539,7 @@ class TestAddGetStartedCode:
 
     def test_default_pickle(self, model_card):
         # by default, don't add a table, as there are no metrics
-        result = model_card.select("How to Get Started with the Model").content
+        result = model_card.select("How to Get Started with the Model").format()
         expected = (
             "Use the code below to get started with the model.\n\n"
             "```python\n"
@@ -556,7 +556,7 @@ class TestAddGetStartedCode:
 
     def test_default_skops(self, model_card_skops):
         # by default, don't add a table, as there are no metrics
-        result = model_card_skops.select("How to Get Started with the Model").content
+        result = model_card_skops.select("How to Get Started with the Model").format()
         expected = (
             "Use the code below to get started with the model.\n\n"
             "```python\n"
@@ -590,18 +590,18 @@ class TestAddGetStartedCode:
 
     def test_other_section(self, model_card):
         model_card.add_get_started_code(section="Other section")
-        result = model_card.select("Other section").content
+        result = model_card.select("Other section").format()
         expected = "Use the code below to get started with the model."
         assert result.startswith(expected)
 
     def test_other_description(self, model_card):
         model_card.add_get_started_code(description="Awesome code")
-        result = model_card.select("How to Get Started with the Model").content
+        result = model_card.select("How to Get Started with the Model").format()
         assert result.startswith("Awesome code")
 
     def test_other_filename(self, model_card):
         model_card.add_get_started_code(file_name="foobar.pkl")
-        result = model_card.select("How to Get Started with the Model").content
+        result = model_card.select("How to Get Started with the Model").format()
         expected = (
             "Use the code below to get started with the model.\n\n"
             "```python\n"
@@ -618,7 +618,7 @@ class TestAddGetStartedCode:
 
     def test_other_model_format(self, model_card):
         model_card.add_get_started_code(model_format="skops")
-        result = model_card.select("How to Get Started with the Model").content
+        result = model_card.select("How to Get Started with the Model").format()
         expected = (
             "Use the code below to get started with the model.\n\n"
             "```python\n"
@@ -670,9 +670,9 @@ class TestAddGetStartedCode:
     def test_add_twice(self, model_card):
         # it's possible to add the section twice, even if it doesn't make a lot
         # of sense
-        text1 = model_card.select("How to Get Started with the Model").content
+        text1 = model_card.select("How to Get Started with the Model").format()
         model_card.add_get_started_code(section="Other section")
-        text2 = model_card.select("Other section").content
+        text2 = model_card.select("Other section").format()
         assert text1 == text2
 
 
@@ -952,7 +952,7 @@ class TestAddPlot:
         plt.plot([4, 5, 6, 7])
         plt.savefig(Path(destination_path) / "fig1.png")
         model_card = model_card.add_plot(fig1="fig1.png")
-        plot_content = model_card.select("fig1").content.format()
+        plot_content = model_card.select("fig1").format()
         assert plot_content == "![fig1](fig1.png)"
 
     def test_add_plot_to_existing_section(self, destination_path, model_card):
@@ -961,7 +961,7 @@ class TestAddPlot:
         plt.plot([4, 5, 6, 7])
         plt.savefig(Path(destination_path) / "fig1.png")
         model_card = model_card.add_plot(**{"Model description/Figure 1": "fig1.png"})
-        plot_content = model_card.select("Model description/Figure 1").content.format()
+        plot_content = model_card.select("Model description/Figure 1").format()
         assert plot_content == "![Figure 1](fig1.png)"
 
 
@@ -1129,34 +1129,17 @@ class TestCardRepr:
         card_repr = """
         Card(
           model=LinearRegression(fit_intercept=False),
-          Model description/Training Procedure/...ed | | positive | False | </details>,
+          Model description/Training Procedure/Hyperparameters=TableSection(4x2),
           Model description/Training Procedure/...</pre></div></div></div></div></div>,
           Model Card Authors=Jane Doe,
-          Figures/ROC='ROC.png',
-          Figures/Confusion matrix='confusion_matrix.jpg',
+          Figures/ROC=PlotSection(ROC.png),
+          Figures/Confusion matrix=PlotSection(confusion_matrix.jpg),
           Model Description=A description,
-          Search Results=Table(3x2),
+          Search Results=TableSection(3x2),
         )
         """
         expected = textwrap.dedent(card_repr).strip()
         lines = expected.split("\n")
-
-        # TODO: remove when dropping sklearn v0.24 and when dropping v1.1 and
-        # below. This is because the "normalize" parameter was changed after
-        # v0.24 will be removed completely in sklearn v1.2.
-        major, minor, *_ = sklearn.__version__.split(".")
-        if int(major) < 1:
-            # v0.24: "deprecated" -> "False"
-            lines[2] = (
-                "  Model description/Training Procedure/...se | | positive | False | "
-                "</details>,"
-            )
-        elif int(minor) >= 2:
-            # >= v1.2: remove argument completely
-            lines[2] = (
-                "  Model description/Training Procedure/... | | | positive | False | "
-                "</details>,"
-            )
         return lines
 
     @pytest.mark.parametrize("meth", [repr, str])
@@ -1208,7 +1191,7 @@ class TestCardRepr:
 
     @pytest.mark.parametrize("meth", [repr, str])
     def test_with_metadata(self, card: Card, meth, expected_lines):
-        metadata = CardData(
+        metadata = ModelCardData(
             language="fr",
             license="bsd",
             library_name="sklearn",
@@ -1299,36 +1282,57 @@ class TestCardModelAttributeIsPath:
 
 class TestPlotSection:
     def test_format_path_is_str(self):
-        section = PlotSection(alt_text="some title", path="path/plot.png")
+        title, description = "", ""
+        section = PlotSection(
+            title, description, alt_text="some title", path="path/plot.png"
+        )
         expected = "![some title](path/plot.png)"
         assert section.format() == expected
 
     def test_format_path_is_pathlib(self):
-        section = PlotSection(alt_text="some title", path=Path("path") / "plot.png")
+        title, description = "", ""
+        section = PlotSection(
+            title, description, alt_text="some title", path=Path("path") / "plot.png"
+        )
         expected = f"![some title](path{os.path.sep}plot.png)"
         assert section.format() == expected
 
     @pytest.mark.parametrize("meth", [str, repr])
     def test_str_and_repr(self, meth):
-        section = PlotSection(alt_text="some title", path="path/plot.png")
-        expected = "'path/plot.png'"
+        title, description = "", ""
+        section = PlotSection(
+            title, description, alt_text="some title", path="path/plot.png"
+        )
+        expected = "PlotSection(path/plot.png)"
         assert meth(section) == expected
 
     def test_str(self):
-        section = PlotSection(alt_text="some title", path="path/plot.png")
-        expected = "'path/plot.png'"
+        title, description = "", ""
+        section = PlotSection(
+            title, description, alt_text="some title", path="path/plot.png"
+        )
+        expected = "PlotSection(path/plot.png)"
         assert str(section) == expected
 
     @pytest.mark.parametrize("folded", [True, False])
     def test_folded(self, folded):
+        title, description = "", ""
         section = PlotSection(
-            alt_text="some title", path="path/plot.png", folded=folded
+            title,
+            description,
+            alt_text="some title",
+            path="path/plot.png",
+            folded=folded,
         )
         output = section.format()
         if folded:
             assert "<details>" in output
         else:
             assert "<details>" not in output
+
+    def test_add_with_description(self):
+        # FIXME
+        pass
 
 
 class TestTableSection:
@@ -1337,7 +1341,8 @@ class TestTableSection:
         return {"split": [1, 2, 3], "score": [4, 5, 6]}
 
     def test_table_is_dict(self, table_dict):
-        section = TableSection(table=table_dict)
+        title, description = "", ""
+        section = TableSection(title, description, table=table_dict)
         expected = """|   split |   score |
 |---------|---------|
 |       1 |       4 |
@@ -1348,7 +1353,8 @@ class TestTableSection:
     def test_table_is_dataframe(self, table_dict):
         pd = pytest.importorskip("pandas")
         df = pd.DataFrame(table_dict)
-        section = TableSection(table=df)
+        title, description = "", ""
+        section = TableSection(title, description, table=df)
         expected = """|   split |   score |
 |---------|---------|
 |       1 |       4 |
@@ -1358,16 +1364,18 @@ class TestTableSection:
 
     @pytest.mark.parametrize("meth", [str, repr])
     def test_str_and_repr_table_is_dict(self, table_dict, meth):
-        section = TableSection(table=table_dict)
-        expected = "Table(3x2)"
+        title, description = "", ""
+        section = TableSection(title, description, table=table_dict)
+        expected = "TableSection(3x2)"
         assert meth(section) == expected
 
     @pytest.mark.parametrize("meth", [str, repr])
     def test_str_and_repr_table_is_dataframe(self, table_dict, meth):
         pd = pytest.importorskip("pandas")
         df = pd.DataFrame(table_dict)
-        section = TableSection(table=df)
-        expected = "Table(3x2)"
+        title, description = "", ""
+        section = TableSection(title, description, table=df)
+        expected = "TableSection(3x2)"
         assert meth(section) == expected
 
     @pytest.mark.parametrize("table", [{}, "pandas"])
@@ -1377,9 +1385,10 @@ class TestTableSection:
             pd = pytest.importorskip("pandas")
             table = pd.DataFrame([])
 
+        title, description = "", ""
         msg = "Trying to add table with no columns"
         with pytest.raises(ValueError, match=msg):
-            TableSection(table=table)
+            TableSection(title, description, table=table)
 
     @pytest.mark.parametrize("table", [{"col0": []}, "pandas"])
     def test_table_with_no_rows_works(self, table):
@@ -1388,17 +1397,20 @@ class TestTableSection:
             pd = pytest.importorskip("pandas")
             table = pd.DataFrame(data=[], columns=["col0"])
 
-        TableSection(table=table).format()  # no error raised
+        title, description = "", ""
+        TableSection(title, description, table=table).format()  # no error raised
 
     def test_pandas_not_installed(self, table_dict, pandas_not_installed):
         # use pandas_not_installed fixture from conftest.py to pretend that
         # pandas is not installed
-        section = TableSection(table=table_dict)
+        title, description = "", ""
+        section = TableSection(title, description, table=table_dict)
         assert section._is_pandas_df is False
 
     @pytest.mark.parametrize("folded", [True, False])
     def test_folded(self, table_dict, folded):
-        section = TableSection(table=table_dict, folded=folded)
+        title, description = "", ""
+        section = TableSection(title, description, table=table_dict, folded=folded)
         output = section.format()
         if folded:
             assert "<details>" in output
@@ -1429,7 +1441,8 @@ entry with
 line breaks
 """,
         ]
-        section = TableSection(table=table_dict)
+        title, description = "", ""
+        section = TableSection(title, description, table=table_dict)
         expected = """| split | score | with break |
 |-|-|-|
 | 1 | 4 | obj<br />with lb |
@@ -1441,6 +1454,10 @@ line breaks
         result = _strip_multiple_chars(result, " ")
         result = _strip_multiple_chars(result, "-")
         assert result == expected
+
+    def test_add_table_with_description(self):
+        # FIXME
+        pass
 
 
 class TestCustomTemplate:
@@ -1461,17 +1478,17 @@ class TestCustomTemplate:
 
     def test_add_model_plot(self, card):
         card.add_model_plot(section="Model/Model plot")
-        content = card.select("Model/Model plot").content
+        content = card.select("Model/Model plot").format()
         assert "LinearRegression" in content
 
     def test_add_hyperparams(self, card):
         card.add_hyperparams(section="Model/Hyperparams")
-        content = card.select("Model/Hyperparams").content
+        content = card.select("Model/Hyperparams").format()
         assert "fit_intercept" in content
 
     def test_add_metrics(self, card):
         card.add_metrics(accuracy=0.1, section="Model/Metrics")
-        content = card.select("Model/Metrics").content
+        content = card.select("Model/Metrics").format()
         assert "accuracy" in content
         assert "0.1" in content
 
