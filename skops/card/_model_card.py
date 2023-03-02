@@ -479,7 +479,7 @@ class Card:
       Model description/Training Procedure/Hyperparameters=TableSection(15x2),
       Model description/Training Procedure/...</pre></div></div></div></div></div>,
       Model description/Evaluation Results=TableSection(2x2),
-      Model description/Confusion Matrix=Pl.../confusion_matrix.png),
+      Model description/Confusion Matrix=Pl...confusion_matrix.png),
       Model description/Model name=This model is called Bob,
       A new section=Please rate my model,
     )
