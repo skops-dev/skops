@@ -19,8 +19,8 @@ from skops import hub_utils
 from skops.card import Card, metadata_from_config
 from skops.card._model_card import (
     SKOPS_TEMPLATE,
-    PlainSection,
     PlotSection,
+    Section,
     TableSection,
     _load_model,
 )
@@ -890,7 +890,7 @@ class TestAdd:
     def test_add_plain_section_works(self, model_card):
         # It is allowed to add a *Section object, but it's not documented and
         # users should normally not use that feature
-        section = PlainSection("title may differ from section name", "some content")
+        section = Section("title may differ from section name", "some content")
         model_card.add(
             a_string="normal string",
             a_section=section,
@@ -908,7 +908,7 @@ class TestAdd:
         assert model_card.select("new section/subsection").format() == "world"
 
         # now let's override the section, the subsection should be preserved
-        new_section = PlainSection("new section", "bonjour")
+        new_section = Section("new section", "bonjour")
         model_card.add(**{"new section": new_section})
         assert model_card.select("new section").format() == "bonjour"
         assert model_card.select("new section/subsection").format() == "world"
@@ -927,7 +927,7 @@ class TestAdd:
 
         # now let's override the section using the same subsections
         old_subsection = model_card.select("new section").subsections
-        new_section = PlainSection("new section", "bonjour", subsections=old_subsection)
+        new_section = Section("new section", "bonjour", subsections=old_subsection)
         model_card.add(**{"new section": new_section})
         assert model_card.select("new section").format() == "bonjour"
         assert model_card.select("new section/subsection").format() == "world"
@@ -942,8 +942,8 @@ class TestAdd:
         model_card.add(**{"new section": "hello", "new section/subsection": "world"})
 
         # now let's override the section using different subsections
-        new_subsection = {"new subsection": PlainSection("subsection", "mars")}
-        new_section = PlainSection("new section", "bonjour", subsections=new_subsection)
+        new_subsection = {"new subsection": Section("subsection", "mars")}
+        new_section = Section("new section", "bonjour", subsections=new_subsection)
 
         match = (
             "Trying to override section 'new section' but found conflicting subsections"

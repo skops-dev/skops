@@ -181,9 +181,22 @@ def _getting_started_code(
 
 @dataclass
 class Section:
-    """Base (data)class for all types of sections.
+    """Building block of the model card.
 
-    Subclasses should implement at the very least the ``.format`` method.
+    The model card is represented internally as a dict with keys being strings
+    and values being ``Section``s. The key is identical to the section title.
+
+    Additionally, the section may hold content in the form of strings (can be an
+    empty string) or a ``Formattable``, which is simply an object with a
+    ``format`` method that returns a string.
+
+    The section can contain subsections, which again are dicts of
+    string keys and section values (the dict can be empty). Therefore, the model
+    card representation forms a tree structure, making use of the fact that dict
+    order is preserved.
+
+    The section may also contain a ``visible`` flag, which determines if the
+    section will be shown when the card is rendered.
 
     """
 
@@ -227,37 +240,11 @@ class Section:
         return section
 
     def format(self) -> str:
-        """Format determines how the content of this section will be rendered."""
-        raise NotImplementedError
+        return self.content
 
     def __repr__(self) -> str:
         """repr determines how the content of this section is shown in the
         Card's repr"""
-        return self.content
-
-
-@dataclass(repr=False)
-class PlainSection(Section):
-    """Building block of the model card.
-
-    The model card is represented internally as a dict with keys being strings
-    and values being Sections. The key is identical to the section title.
-
-    Additionally, the section may hold content in the form of strings (can be an
-    empty string) or a ``Formattable``, which is simply an object with a
-    ``format`` method that returns a string.
-
-    The section can contain subsections, which again are dicts of
-    string keys and section values (the dict can be empty). Therefore, the model
-    card representation forms a tree structure, making use of the fact that dict
-    order is preserved.
-
-    The section may also contain a ``visible`` flag, which determines if the
-    section will be shown when the card is rendered.
-
-    """
-
-    def format(self):
         return self.content
 
 
@@ -732,7 +719,7 @@ class Card:
         val: str or Section
             The value to assign to the (sub)section. If this is already a
             section, leave it as it is. If it's a string, create a
-            :class:`skops.card._model_card.PlainSection`.
+            :class:`skops.card._model_card.Section`.
 
         Returns
         -------
@@ -744,8 +731,8 @@ class Card:
         section = self._select(subsection_names)
 
         if isinstance(val, str):
-            # val is a str, create a PlainSection
-            new_section: Section = PlainSection(title=leaf_node_name, content=val)
+            # val is a str, create a Section
+            new_section = Section(title=leaf_node_name, content=val)
         else:
             # val is already a section and can be used as is
             new_section = val
@@ -840,7 +827,7 @@ class Card:
 
         description = description or ""
         title = split_subsection_names(section_name)[-1]
-        section = PlainSection(title=title, content=content)
+        section = Section(title=title, content=content)
         self._add_single(section_name, section)
 
     def add_hyperparams(
@@ -1005,7 +992,7 @@ class Card:
             content = code
 
         title = split_subsection_names(section_name)[-1]
-        section = PlainSection(title=title, content=content)
+        section = Section(title=title, content=content)
         self._add_single(section_name, section)
 
     def add_plot(
