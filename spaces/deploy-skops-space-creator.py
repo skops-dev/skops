@@ -20,7 +20,7 @@ repo_name = f"skops-space-creator-{uuid4()}"
 repo_id = f"{user_name}/{repo_name}"
 print(f"Creating and pushing to repo: {repo_id}")
 
-space_repo = Path(skops.__path__[0]).parent / "spaces" / "skops-space-creator"
+space_repo = Path(skops.__path__[0]).parent / "spaces" / "skops_space_creator"
 
 client.create_repo(
     repo_id=repo_id,
