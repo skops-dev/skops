@@ -41,6 +41,6 @@ jobs:
       # if HF_HUB_TOKEN_SKLEARN, use that instead of skops CI orga
       if: github.ref == 'refs/heads/main'
       env:
-        HF_HUB_TOKEN_SKLEARN: "this-is-just-a-test"
+        HF_HUB_TOKEN_SKLEARN: ${{ secrets.HF_HUB_TOKEN_SKLEARN }}
       run: |
         python spaces/deploy-skops-space-creator.py
