@@ -1,4 +1,4 @@
-name: Deploy space creator
+name: Deploy-Space-Creator
 
 on:
   - push
