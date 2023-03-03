@@ -73,7 +73,7 @@ jobs:
     - name: Create skops space creator app
       run: |
         cd spaces
-        python spaces/deploy-skops-space-creator.py
+        python deploy-skops-space-creator.py
 
     - name: Check black
       run: black --check --diff .
