@@ -7,6 +7,8 @@ from uuid import uuid4
 from huggingface_hub import HfApi
 
 import skops
+import skops.hub_utils
+import skops.hub_utils.tests
 from skops.hub_utils.tests.common import HF_HUB_TOKEN
 
 token = HF_HUB_TOKEN
