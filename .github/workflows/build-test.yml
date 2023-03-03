@@ -55,7 +55,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        pip install -e .[docs,tests]
+        pip install .[docs,tests]
         pip install black=="22.6.0" isort=="5.10.1" mypy=="1.0.0"
         pip uninstall --yes scikit-learn
         if [ ${{ matrix.sklearn_version }} == "nightly" ];
@@ -69,10 +69,6 @@ jobs:
         pip --version
         pip list
       shell: bash
-
-    - name: Create skops space creator app
-      run: |
-        python spaces/deploy-skops-space-creator.py
 
     - name: Check black
       run: black --check --diff .
