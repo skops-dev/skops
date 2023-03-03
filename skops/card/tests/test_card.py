@@ -288,17 +288,11 @@ class TestAddModelPlot:
     def test_setting_model_diagram_false_custom_template(self, model_card, template):
         model = fit_model()
         model_card = Card(model, template=template, model_diagram=True)
+        model_card.add_model_plot("A beautiful estimator")
 
-        # now set value to False and check that the diagram is no longer shown
-        model_card.model_diagram = False
-        rendered = model_card.render()
-
-        assert "The model plot is below.\n\n<style>#sk-" not in rendered
-        assert "<style>" not in rendered
-        assert (
-            "<pre>LinearRegression()</pre></div></div></div></div></div>"
-            not in rendered
-        )
+        match = "You are trying to deactivate the model diagram"
+        with pytest.raises(ValueError, match=match):
+            model_card.model_diagram = False
 
     def test_setting_model_diagram_false_twice_no_error(self, model_card):
         # check that this does not raise

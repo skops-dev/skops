@@ -718,13 +718,22 @@ class Card:
 
     @model_diagram.setter
     def model_diagram(self, value: bool) -> None:
+        if self._model_diagram is value:
+            # nothing to change, early return
+            return
+
         self._model_diagram = value
 
         # If we use the skops template, we know what section to add or remove
         # when model_diagram changes values. If not, we don't know and thus need
         # to skip this step.
         if self.template != Templates.skops.value:
-            return
+            msg = (
+                "You are trying to deactivate the model diagram, which does not work "
+                "when using a custom template. Instead, delete the diagram directly by "
+                "calling 'model_card.delete(<name-of-model-diagram-section>)"
+            )
+            raise ValueError(msg)
 
         section_name = "Model description/Training Procedure/Model Plot"
         if not value:  # don't show model diagram
