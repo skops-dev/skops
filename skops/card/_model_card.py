@@ -1191,6 +1191,7 @@ class Card:
         plot_file: str = "permutation_importances.png",
         plot_name: str = "Permutation Importances",
         overwrite: bool = False,
+        description: str | None = None,
     ) -> Self:
         """Plots permutation importance and saves it to model card.
 
@@ -1211,6 +1212,9 @@ class Card:
         overwrite : bool (default=False)
             Whether to overwrite the permutation importance plot file, if a plot by that
             name already exists.
+
+        description : str | None (default=None)
+            An optional description to be added before the plot.
 
         Returns
         -------
@@ -1234,7 +1238,7 @@ class Card:
         ax.set_title(plot_name)
         ax.set_xlabel("Decrease in Score")
         plt.savefig(plot_file)
-        self.add_plot(**{plot_name: plot_file})
+        self.add_plot(description=description, **{plot_name: plot_file})
 
         return self
 

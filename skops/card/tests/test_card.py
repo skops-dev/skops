@@ -405,94 +405,117 @@ class TestAddMetrics:
         assert text1 == text2
 
 
-def test_permutation_importances(
-    iris_estimator, iris_data, model_card, destination_path
-):
-    X, y = iris_data
-    result = permutation_importance(
-        iris_estimator, X, y, n_repeats=10, random_state=42, n_jobs=2
-    )
+class TestAddPermutationImportance:
+    @pytest.fixture
+    def importances(self, iris_estimator, iris_data):
+        X, y = iris_data
+        result = permutation_importance(
+            iris_estimator, X, y, n_repeats=10, random_state=42, n_jobs=2
+        )
+        return result
 
-    model_card.add_permutation_importances(
-        result,
-        X.columns,
-        Path(destination_path) / "importance.png",
-        "Permutation Importance",
-    )
-    temp_path = Path(destination_path) / "importance.png"
-    assert f"![Permutation Importance]({temp_path}" in model_card.render()
-
-
-def test_multiple_permutation_importances(
-    iris_estimator, iris_data, model_card, destination_path
-):
-    X, y = iris_data
-    result = permutation_importance(
-        iris_estimator, X, y, n_repeats=10, random_state=42, n_jobs=2
-    )
-    model_card.add_permutation_importances(
-        result, X.columns, plot_file=Path(destination_path) / "importance.png"
-    )
-    f1 = make_scorer(f1_score, average="micro")
-    result = permutation_importance(
-        iris_estimator, X, y, scoring=f1, n_repeats=10, random_state=42, n_jobs=2
-    )
-    model_card.add_permutation_importances(
-        result,
-        X.columns,
-        plot_file=Path(destination_path) / "f1_importance.png",
-        plot_name="Permutation Importance on f1",
-    )
-    # check for default one
-    temp_path = Path(destination_path) / "importance.png"
-    assert f"![Permutation Importances]({temp_path}" in model_card.render()
-    # check for F1
-    temp_path_f1 = Path(destination_path) / "f1_importance.png"
-    assert f"![Permutation Importance on f1]({temp_path_f1}" in model_card.render()
-
-
-def test_duplicate_permutation_importances(
-    iris_estimator, iris_data, model_card, destination_path
-):
-    X, y = iris_data
-    result = permutation_importance(
-        iris_estimator, X, y, n_repeats=10, random_state=42, n_jobs=2
-    )
-    plot_path = os.path.join(destination_path, "importance.png")
-    model_card.add_permutation_importances(result, X.columns, plot_file=plot_path)
-    with pytest.raises(
-        ValueError,
-        match=(
-            "already exists. Set `overwrite` to `True` or pass a"
-            " different filename for the plot."
-        ),
+    def test_permutation_importances(
+        self, iris_data, importances, model_card, destination_path
     ):
+        X, _ = iris_data
         model_card.add_permutation_importances(
-            result,
-            X.columns,
-            plot_file=plot_path,
+            importances,
+            columns=X.columns,
+            plot_file=Path(destination_path) / "importance.png",
+            plot_name="Permutation Importance",
+        )
+        temp_path = Path(destination_path) / "importance.png"
+        section = model_card.select("Permutation Importance")
+        expected = f"![Permutation Importance]({temp_path})"
+        assert section.format() == expected
+
+    def test_multiple_permutation_importances(
+        self, iris_data, iris_estimator, importances, model_card, destination_path
+    ):
+        X, y = iris_data
+        model_card.add_permutation_importances(
+            importances, X.columns, plot_file=Path(destination_path) / "importance.png"
+        )
+
+        f1 = make_scorer(f1_score, average="micro")
+        importances_f1 = permutation_importance(
+            iris_estimator, X, y, scoring=f1, n_repeats=10, random_state=42, n_jobs=2
+        )
+        model_card.add_permutation_importances(
+            importances_f1,
+            columns=X.columns,
+            plot_file=Path(destination_path) / "f1_importance.png",
             plot_name="Permutation Importance on f1",
         )
 
+        # check for default one
+        temp_path = Path(destination_path) / "importance.png"
+        section = model_card.select("Permutation Importances")
+        expected = f"![Permutation Importances]({temp_path})"
+        assert section.format() == expected
 
-def test_duplicate_permutation_importances_overwrite(
-    iris_estimator, iris_data, model_card, destination_path
-):
-    X, y = iris_data
-    result = permutation_importance(
-        iris_estimator, X, y, n_repeats=10, random_state=42, n_jobs=2
-    )
-    plot_path = os.path.join(destination_path, "importance.png")
-    model_card.add_permutation_importances(result, X.columns, plot_file=plot_path)
+        # check for F1
+        temp_path_f1 = Path(destination_path) / "f1_importance.png"
+        section = model_card.select("Permutation Importance on f1")
+        expected = f"![Permutation Importance on f1]({temp_path_f1})"
+        assert section.format() == expected
 
-    model_card.add_permutation_importances(
-        result,
-        X.columns,
-        plot_file=plot_path,
-        plot_name="Permutation Importance on f1",
-        overwrite=True,
-    )
-    assert f"![Permutation Importance on f1]({plot_path}" in model_card.render()
+    def test_duplicate_permutation_importances(
+        self, iris_data, importances, model_card, destination_path
+    ):
+        X, _ = iris_data
+        plot_path = os.path.join(destination_path, "importance.png")
+        model_card.add_permutation_importances(
+            importances, X.columns, plot_file=plot_path
+        )
+        with pytest.raises(
+            ValueError,
+            match=(
+                "already exists. Set `overwrite` to `True` or pass a"
+                " different filename for the plot."
+            ),
+        ):
+            model_card.add_permutation_importances(
+                importances,
+                columns=X.columns,
+                plot_file=plot_path,
+                plot_name="Permutation Importance on f1",
+            )
+
+    def test_duplicate_permutation_importances_overwrite(
+        self, iris_data, importances, model_card, destination_path
+    ):
+        X, _ = iris_data
+        plot_path = os.path.join(destination_path, "importance.png")
+        model_card.add_permutation_importances(
+            importances, X.columns, plot_file=plot_path
+        )
+
+        model_card.add_permutation_importances(
+            importances,
+            columns=X.columns,
+            plot_file=plot_path,
+            plot_name="Permutation Importance on f1",
+            overwrite=True,
+        )
+        section = model_card.select("Permutation Importance on f1")
+        expected = f"![Permutation Importance on f1]({plot_path})"
+        assert section.format() == expected
+
+    def test_permutation_importances_with_description(
+        self, iris_data, importances, model_card, destination_path
+    ):
+        X, _ = iris_data
+        model_card.add_permutation_importances(
+            importances,
+            columns=X.columns,
+            plot_file=Path(destination_path) / "importance.png",
+            description="Very important",
+        )
+        temp_path = Path(destination_path) / "importance.png"
+        section = model_card.select("Permutation Importances")
+        expected = f"Very important\n\n![Permutation Importances]({temp_path})"
+        assert section.format() == expected
 
 
 class TestAddGetStartedCode:
