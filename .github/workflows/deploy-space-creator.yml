@@ -9,7 +9,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deploy space creator:
+  deploy-space-creator:
     runs-on: "ubuntu-latest"
     if: "github.repository == 'skops-dev/skops'"
     # Timeout: https://stackoverflow.com/a/59076067/4521646
