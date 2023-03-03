@@ -3,6 +3,7 @@ import inspect
 import io
 import json
 import operator
+import sys
 import warnings
 from collections import Counter
 from functools import partial, wraps
@@ -890,6 +891,12 @@ OPERATORS = [
     ("truediv", partial(operator.truediv, 1)),
     ("pow", partial(operator.pow, 1)),
     ("matmul", partial(operator.matmul, np.eye(N_SAMPLES))),
+    ("iadd", partial(operator.iadd, 1)),
+    ("isub", partial(operator.isub, 1)),
+    ("imul", partial(operator.imul, 1)),
+    ("itruediv", partial(operator.itruediv, 1)),
+    ("ipow", partial(operator.ipow, 1)),
+    # note: inplace matmul is not supported by numpy
     ("ge", partial(operator.ge, 0)),
     ("gt", partial(operator.gt, 0)),
     ("le", partial(operator.le, 0)),
@@ -903,6 +910,9 @@ OPERATORS = [
     ("methodcaller", operator.methodcaller("round")),
     ("methodcaller", operator.methodcaller("round", 2)),
 ]
+
+if sys.version_info >= (3, 11):
+    OPERATORS.append(("call", partial(operator.call, len)))
 
 
 @pytest.mark.parametrize("op", OPERATORS)
