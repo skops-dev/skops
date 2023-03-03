@@ -1,4 +1,4 @@
-name: pytest
+name: Deploy space creator
 
 on:
   - push
