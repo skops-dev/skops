@@ -243,8 +243,11 @@ class Section:
         return self.content
 
     def __repr__(self) -> str:
-        """repr determines how the content of this section is shown in the
-        Card's repr"""
+        """Generates the ``repr`` of this section.
+
+        ``repr`` determines how the content of this section is shown in the
+        Card's repr.
+        """
         return self.content
 
 

@@ -1388,44 +1388,39 @@ class TestCardModelAttributeIsPath:
 
 class TestPlotSection:
     def test_format_path_is_str(self):
-        title, description = "", ""
         section = PlotSection(
-            title, description, alt_text="some title", path="path/plot.png"
+            title="", content="", alt_text="some title", path="path/plot.png"
         )
         expected = "![some title](path/plot.png)"
         assert section.format() == expected
 
     def test_format_path_is_pathlib(self):
-        title, description = "", ""
         section = PlotSection(
-            title, description, alt_text="some title", path=Path("path") / "plot.png"
+            title="", content="", alt_text="some title", path=Path("path") / "plot.png"
         )
         expected = f"![some title](path{os.path.sep}plot.png)"
         assert section.format() == expected
 
     @pytest.mark.parametrize("meth", [str, repr])
     def test_str_and_repr(self, meth):
-        title, description = "", ""
         section = PlotSection(
-            title, description, alt_text="some title", path="path/plot.png"
+            title="", content="", alt_text="some title", path="path/plot.png"
         )
         expected = "PlotSection(path/plot.png)"
         assert meth(section) == expected
 
     def test_str(self):
-        title, description = "", ""
         section = PlotSection(
-            title, description, alt_text="some title", path="path/plot.png"
+            title="", content="", alt_text="some title", path="path/plot.png"
         )
         expected = "PlotSection(path/plot.png)"
         assert str(section) == expected
 
     @pytest.mark.parametrize("folded", [True, False])
     def test_folded(self, folded):
-        title, description = "", ""
         section = PlotSection(
-            title,
-            description,
+            title="",
+            content="",
             alt_text="some title",
             path="path/plot.png",
             folded=folded,
@@ -1447,8 +1442,7 @@ class TestTableSection:
         return {"split": [1, 2, 3], "score": [4, 5, 6]}
 
     def test_table_is_dict(self, table_dict):
-        title, description = "", ""
-        section = TableSection(title, description, table=table_dict)
+        section = TableSection(title="", content="", table=table_dict)
         expected = """|   split |   score |
 |---------|---------|
 |       1 |       4 |
@@ -1459,8 +1453,7 @@ class TestTableSection:
     def test_table_is_dataframe(self, table_dict):
         pd = pytest.importorskip("pandas")
         df = pd.DataFrame(table_dict)
-        title, description = "", ""
-        section = TableSection(title, description, table=df)
+        section = TableSection(title="", content="", table=df)
         expected = """|   split |   score |
 |---------|---------|
 |       1 |       4 |
@@ -1470,8 +1463,7 @@ class TestTableSection:
 
     @pytest.mark.parametrize("meth", [str, repr])
     def test_str_and_repr_table_is_dict(self, table_dict, meth):
-        title, description = "", ""
-        section = TableSection(title, description, table=table_dict)
+        section = TableSection(title="", content="", table=table_dict)
         expected = "TableSection(3x2)"
         assert meth(section) == expected
 
@@ -1479,8 +1471,7 @@ class TestTableSection:
     def test_str_and_repr_table_is_dataframe(self, table_dict, meth):
         pd = pytest.importorskip("pandas")
         df = pd.DataFrame(table_dict)
-        title, description = "", ""
-        section = TableSection(title, description, table=df)
+        section = TableSection(title="", content="", table=df)
         expected = "TableSection(3x2)"
         assert meth(section) == expected
 
@@ -1491,10 +1482,9 @@ class TestTableSection:
             pd = pytest.importorskip("pandas")
             table = pd.DataFrame([])
 
-        title, description = "", ""
         msg = "Trying to add table with no columns"
         with pytest.raises(ValueError, match=msg):
-            TableSection(title, description, table=table)
+            TableSection(title="", content="", table=table)
 
     @pytest.mark.parametrize("table", [{"col0": []}, "pandas"])
     def test_table_with_no_rows_works(self, table):
@@ -1503,20 +1493,17 @@ class TestTableSection:
             pd = pytest.importorskip("pandas")
             table = pd.DataFrame(data=[], columns=["col0"])
 
-        title, description = "", ""
-        TableSection(title, description, table=table).format()  # no error raised
+        TableSection(title="", content="", table=table).format()  # no error raised
 
     def test_pandas_not_installed(self, table_dict, pandas_not_installed):
         # use pandas_not_installed fixture from conftest.py to pretend that
         # pandas is not installed
-        title, description = "", ""
-        section = TableSection(title, description, table=table_dict)
+        section = TableSection(title="", content="", table=table_dict)
         assert section._is_pandas_df is False
 
     @pytest.mark.parametrize("folded", [True, False])
     def test_folded(self, table_dict, folded):
-        title, description = "", ""
-        section = TableSection(title, description, table=table_dict, folded=folded)
+        section = TableSection(title="", content="", table=table_dict, folded=folded)
         output = section.format()
         if folded:
             assert "<details>" in output
@@ -1547,8 +1534,7 @@ entry with
 line breaks
 """,
         ]
-        title, description = "", ""
-        section = TableSection(title, description, table=table_dict)
+        section = TableSection(title="", content="", table=table_dict)
         expected = """| split | score | with break |
 |-|-|-|
 | 1 | 4 | obj<br />with lb |
