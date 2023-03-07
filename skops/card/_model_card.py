@@ -1236,7 +1236,8 @@ class Card:
         self,
         metric_frame,
         table_name: str = "Fairlearn MetricFrame Table",
-        transpose=True,
+        transpose: bool = True,
+        description: str | None = None,
     ) -> Self:
         """
         Add a :class:`fairlearn.metrics.MetricFrame` table to the model card. The table contains
@@ -1247,11 +1248,15 @@ class Card:
         metric_frame: MetricFrame
             The Fairlearn MetricFrame to add to the model card.
 
+        table_name: str
+            The desired name of the table section in the model card.
+
         transpose: bool, default=True
             Whether to transpose the table or not.
 
-        table_name: str
-            The desired name of the table section in the model card.
+
+        description : str | None (default=None)
+            An optional description to be added before the table.
 
         Returns
         -------
@@ -1277,7 +1282,9 @@ class Card:
 
             frame_dict = pd.DataFrame(frame_dict).T
 
-        return self.add_table(folded=True, **{table_name: frame_dict})
+        return self.add_table(
+            folded=True, description=description, **{table_name: frame_dict}
+        )
 
     def _add_metrics(
         self,

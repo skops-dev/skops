@@ -1721,8 +1721,8 @@ class TestAddFairlearnMetricFrame:
         card = Card(model=model)
         return card
 
-    @pytest.mark.parametrize("transpose", [True, False])
-    def test_metric_table(self, card: Card, transpose):
+    @pytest.fixture
+    def metric_frame(self):
         metrics = import_or_raise(
             "fairlearn.metrics", "model card fairlearn metricframe"
         )
@@ -1734,13 +1734,17 @@ class TestAddFairlearnMetricFrame:
         metric_frame = metrics.MetricFrame(
             y_true=y_true, y_pred=y_pred, sensitive_features=sex, metrics=metric_dict
         )
+        return metric_frame
+
+    @pytest.mark.parametrize("transpose", [True, False])
+    def test_metric_table(self, card: Card, transpose, metric_frame):
         card.add_fairlearn_metric_frame(
             metric_frame=metric_frame,
             transpose=transpose,
             table_name="Metric Frame Table",
         )
 
-        actual_table = card.select("Metric Frame Table").content.format()
+        actual_table = card.select("Metric Frame Table").format()
 
         if transpose is True:
             expected_table = (
@@ -1756,4 +1760,20 @@ class TestAddFairlearnMetricFrame:
                 " 0.4 |         0.8 |         0.4 |     0.5 |\n\n</details>"
             )
 
+        assert expected_table == actual_table
+
+    def test_metric_table_with_description(self, card: Card, metric_frame):
+        card.add_fairlearn_metric_frame(
+            description="An awesome table",
+            metric_frame=metric_frame,
+            table_name="Metric Frame Table",
+        )
+
+        actual_table = card.select("Metric Frame Table").format()
+        expected_table = (
+            "An awesome table\n\n"
+            "<details>\n<summary> Click to expand </summary>\n\n|   selection_rate"
+            " |\n|------------------|\n|              0.4 |\n|              0.8"
+            " |\n|              0.4 |\n|              0.5 |\n\n</details>"
+        )
         assert expected_table == actual_table
