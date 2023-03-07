@@ -24,6 +24,7 @@ from skops.card._model_card import (
     _load_model,
 )
 from skops.io import dump
+from skops.utils.importutils import import_or_raise
 
 
 def fit_model():
@@ -1593,3 +1594,48 @@ class TestRenderedCardVisibility:
             "Jane Doe"
         )
         assert loaded.strip() == expected
+
+
+class TestAddFairlearnMetricFrame:
+    @pytest.fixture
+    def card(self):
+        model = LinearRegression()
+        card = Card(model=model)
+        return card
+
+    @pytest.mark.parametrize("transpose", [True, False])
+    def test_metric_table(self, card: Card, transpose):
+        metrics = import_or_raise(
+            "fairlearn.metrics", "model card fairlearn metricframe"
+        )
+
+        y_true = [1, 1, 1, 1, 1, 0, 0, 1, 1, 0]
+        y_pred = [0, 1, 1, 1, 1, 0, 0, 0, 1, 1]
+        sex = ["Female"] * 5 + ["Male"] * 5
+        metric_dict = {"selection_rate": metrics.selection_rate}
+        metric_frame = metrics.MetricFrame(
+            y_true=y_true, y_pred=y_pred, sensitive_features=sex, metrics=metric_dict
+        )
+        card.add_fairlearn_metric_frame(
+            metric_frame=metric_frame,
+            transpose=transpose,
+            table_name="Metric Frame Table",
+        )
+
+        actual_table = card.select("Metric Frame Table").content.format()
+
+        if transpose is True:
+            expected_table = (
+                "<details>\n<summary> Click to expand </summary>\n\n|   selection_rate"
+                " |\n|------------------|\n|              0.4 |\n|              0.8"
+                " |\n|              0.4 |\n|              0.5 |\n\n</details>"
+            )
+        else:
+            expected_table = (
+                "<details>\n<summary> Click to expand </summary>\n\n|   difference |  "
+                " group_max |   group_min |   ratio"
+                " |\n|--------------|-------------|-------------|---------|\n|         "
+                " 0.4 |         0.8 |         0.4 |     0.5 |\n\n</details>"
+            )
+
+        assert expected_table == actual_table

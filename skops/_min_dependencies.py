@@ -33,6 +33,7 @@ dependent_packages = {
     "xgboost": ("1.6", "tests", None),
     # TODO: remove condition when catboost supports python 3.11
     "catboost": ("1.0", "tests", "python_version < '3.11'"),
+    "fairlearn": ("0.7.0", "docs, tests", None),
 }
 
 

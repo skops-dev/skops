@@ -1155,6 +1155,53 @@ class Card:
 
         return self
 
+    def add_fairlearn_metric_frame(
+        self,
+        metric_frame,
+        table_name: str = "Fairlearn MetricFrame Table",
+        transpose=True,
+    ) -> Self:
+        """
+        Add a :class:`fairlearn.metrics.MetricFrame` table to the model card. The table contains
+        the difference, group_ma, group_min, and ratio for each metric.
+
+        Parameters
+        ----------
+        metric_frame: MetricFrame
+            The Fairlearn MetricFrame to add to the model card.
+
+        transpose: bool, default=True
+            Whether to transpose the table or not.
+
+        table_name: str
+            The desired name of the table section in the model card.
+
+        Returns
+        -------
+        self: Card
+            The model card with the metric frame added.
+
+        Notes
+        --------
+        You can check `fairlearn's documentation
+        <https://fairlearn.org/v0.8/user_guide/assessment/index.html>`__ on how to
+        work with `MetricFrame`s.
+
+        """
+        frame_dict = {
+            "difference": metric_frame.difference(),
+            "group_max": metric_frame.group_max(),
+            "group_min": metric_frame.group_min(),
+            "ratio": metric_frame.ratio(),
+        }
+
+        if transpose is True:
+            pd = import_or_raise("pandas", "Pandas is used to pivot the table.")
+
+            frame_dict = pd.DataFrame(frame_dict).T
+
+        return self.add_table(folded=True, **{table_name: frame_dict})
+
     def _add_metrics(
         self,
         section: str,
