@@ -266,7 +266,7 @@ class Markdown:
             data_transposed = zip(*body)
             table = {key: val for key, val in zip(columns, data_transposed)}
 
-        res = TableSection(table).format()
+        res = TableSection(title="", content="", table=table).format()
         return res
 
     def _parse_div(self, item) -> str:
