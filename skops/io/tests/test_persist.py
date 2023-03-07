@@ -2,6 +2,8 @@ import importlib
 import inspect
 import io
 import json
+import operator
+import sys
 import warnings
 from collections import Counter
 from functools import partial, wraps
@@ -53,7 +55,7 @@ from skops.io._audit import NODE_TYPE_MAPPING, get_tree
 from skops.io._sklearn import UNSUPPORTED_TYPES
 from skops.io._trusted_types import SCIPY_UFUNC_TYPE_NAMES, SKLEARN_ESTIMATOR_TYPE_NAMES
 from skops.io._utils import LoadContext, SaveContext, _get_state, get_state, gettype
-from skops.io.exceptions import UnsupportedTypeException
+from skops.io.exceptions import UnsupportedTypeException, UntrustedTypesFoundException
 from skops.io.tests._utils import assert_method_outputs_equal, assert_params_equal
 
 # Default settings for X
@@ -880,3 +882,72 @@ def test_estimator_with_bytes_files_created(tmp_path):
         files = input_zip.namelist()
     bin_files = [file for file in files if file.endswith(".bin")]
     assert len(bin_files) == 2
+
+
+OPERATORS = [
+    ("add", partial(operator.add, 0)),
+    ("sub", partial(operator.sub, 0)),
+    ("mul", partial(operator.mul, 1)),
+    ("truediv", partial(operator.truediv, 1)),
+    ("pow", partial(operator.pow, 1)),
+    ("matmul", partial(operator.matmul, np.eye(N_SAMPLES))),
+    ("iadd", partial(operator.iadd, 1)),
+    ("isub", partial(operator.isub, 1)),
+    ("imul", partial(operator.imul, 1)),
+    ("itruediv", partial(operator.itruediv, 1)),
+    ("ipow", partial(operator.ipow, 1)),
+    # note: inplace matmul is not supported by numpy
+    ("ge", partial(operator.ge, 0)),
+    ("gt", partial(operator.gt, 0)),
+    ("le", partial(operator.le, 0)),
+    ("lt", partial(operator.lt, 0)),
+    ("eq", partial(operator.eq, 0)),
+    ("neg", operator.neg),
+    ("attrgetter", operator.attrgetter("real")),
+    ("attrgetter", operator.attrgetter("real", "real")),
+    ("itemgetter", operator.itemgetter(None)),
+    ("itemgetter", operator.itemgetter(None, None)),
+    ("methodcaller", operator.methodcaller("round")),
+    ("methodcaller", operator.methodcaller("round", 2)),
+]
+
+if sys.version_info >= (3, 11):
+    OPERATORS.append(("call", partial(operator.call, len)))
+
+
+@pytest.mark.parametrize("op", OPERATORS)
+def test_persist_operator(op):
+    # Test a couple of functions from the operator module. This is not an
+    # exhaustive list but rather the most plausible functions. To check all
+    # operators would require specific tests, not a generic one like this.
+    # Fixes #283
+
+    _, func = op
+    # unfitted
+    est = FunctionTransformer(func)
+    loaded = loads(dumps(est), trusted=True)
+    assert_params_equal(est.__dict__, loaded.__dict__)
+
+    # fitted
+    X, y = get_input(est)
+    est.fit(X, y)
+    loaded = loads(dumps(est), trusted=True)
+    assert_params_equal(est.__dict__, loaded.__dict__)
+
+    # Technically, we don't need to call transform. However, if this is skipped,
+    # there is a danger to not define the function sufficiently, which could
+    # lead to the test passing but being useless in practice -- e.g. for
+    # func=operator.methodcaller, the test would pass without the fix for #283
+    # but it would be useless in practice, since methodcaller is not properly
+    # instantiated.
+    est.transform(X)
+
+
+@pytest.mark.parametrize("op", OPERATORS)
+def test_persist_operator_raises_untrusted(op):
+    # check that operators are not trusted by default, because at least some of
+    # them could perform unsafe operations
+    name, func = op
+    est = FunctionTransformer(func)
+    with pytest.raises(UntrustedTypesFoundException, match=name):
+        loads(dumps(est), trusted=False)

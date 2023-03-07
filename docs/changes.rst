@@ -18,6 +18,8 @@ v0.6
   add metrics to their model cards. :pr:`298` by :user:`Thomas Lazarus <lazarust>`
 - Add example of using model card without the skops template. :pr:`291` by
   `Benjamin Bossan`_.
+- Fix: skops persistence now also works with many functions from the
+  :mod:`operator` module. :pr:`287` by `Benjamin Bossan`_.
 
 v0.5
 ----
