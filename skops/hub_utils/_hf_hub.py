@@ -267,6 +267,7 @@ def _create_config(
         does not support it. For more info, see
         https://intel.github.io/scikit-learn-intelex/.
     """
+
     # so that we don't have to explicitly add keys and they're added as a
     # dictionary if they are not found
     # see: https://stackoverflow.com/a/13151294/2536294
