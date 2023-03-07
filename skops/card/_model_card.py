@@ -1321,7 +1321,30 @@ class Card:
         data: dict[str, Section],
         level: int = 0,
     ):
-        """Iterate through the key sections and yield the title and level."""
+        """Iterate through the key sections and yield the title and level.
+
+        Parameters
+        ----------
+        data : dict[str, Section]
+            The card data to iterate through. This is usually the sections and subsections.
+
+        level : int, optional
+            The level of the section, by default 0. This keeps track of subsections.
+
+        Returns
+        -------
+        table_of_contents : str
+            Example:
+                - Model description
+                    - Intended uses & limitations
+                    - Training Procedure
+                        - Hyperparameters
+                        - Model Plot
+                    - Evaluation Results
+                - How to Get Started with the Model
+                - Model Card Authors
+                - Model Card Contact
+        """
         for key, val in data.items():
             if not getattr(val, "visible", True):
                 continue
@@ -1335,7 +1358,7 @@ class Card:
                     level=level + 1,
                 )
 
-    def create_toc(self) -> str:
+    def get_toc(self) -> str:
         """Create a table of contents for the model card.
 
         Returns

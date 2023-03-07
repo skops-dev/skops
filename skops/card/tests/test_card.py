@@ -1607,7 +1607,7 @@ class TestCardTableOfContents:
         return card
 
     def test_toc(self, card):
-        toc = card.create_toc()
+        toc = card.get_toc()
         exptected_toc = [
             "- Model description",
             "  - Intended uses & limitations",
@@ -1626,7 +1626,7 @@ class TestCardTableOfContents:
     def test_toc_with_invisible_section(self, card):
         section = card.select("Citation")
         section.visible = False
-        toc = card.create_toc()
+        toc = card.get_toc()
         exptected_toc = [
             "- Model description",
             "  - Intended uses & limitations",
