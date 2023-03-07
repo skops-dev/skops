@@ -5,6 +5,9 @@ codecov:
   notify:
     after_n_builds: 12
     wait_for_ci: true
+  # the coverage is uploaded with or without a token. This only helps with some
+  # codecov errors. It's a recommended action from here:
+  # https://github.com/codecov/codecov-action/issues/837#issuecomment-1453877750
   token: 2b8d4d69-6de6-4e1d-840a-5ccf9d849565
 ignore:
   - "skops/_min_dependencies.py"  # This file is not tested, and won't be.
