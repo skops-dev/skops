@@ -177,6 +177,26 @@ class TestAddModelPlot:
         ).content
         assert result == "The model plot is below."
 
+    def test_model_diagram_str(self):
+        # if passing a str, use that as the section name
+        model = fit_model()
+        other_section_name = "Here is the model diagram"
+        model_card = Card(model, model_diagram=other_section_name)
+
+        # first check that default section only contains placeholder
+        result = model_card.select(
+            "Model description/Training Procedure/Model Plot"
+        ).format()
+        assert result == "The model plot is below."
+
+        # now check that the actual model diagram is in the other section
+        result = model_card.select(other_section_name).format()
+        assert result.startswith("The model plot is below.\n\n<style>#sk-")
+        assert "<style>" in result
+        assert result.endswith(
+            "<pre>LinearRegression()</pre></div></div></div></div></div>"
+        )
+
     def test_other_section(self, model_card):
         model_card.add_model_plot(section="Other section")
         result = model_card.select("Other section").content
@@ -203,6 +223,19 @@ class TestAddModelPlot:
         )
         with pytest.raises(ValueError, match=msg):
             model_card.add_model_plot()
+
+    @pytest.mark.parametrize("template", CUSTOM_TEMPLATES)
+    def test_custom_template_init_str_works(self, template):
+        model = fit_model()
+        section_name = "Here is the model diagram"
+        model_card = Card(model, template=template, model_diagram=section_name)
+
+        result = model_card.select(section_name).format()
+        assert result.startswith("<style>#sk-")
+        assert "<style>" in result
+        assert result.endswith(
+            "<pre>LinearRegression()</pre></div></div></div></div></div>"
+        )
 
     def test_add_twice(self, model_card):
         # it's possible to add the section twice, even if it doesn't make a lot
