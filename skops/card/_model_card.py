@@ -488,7 +488,7 @@ class Card:
     def __init__(
         self,
         model,
-        model_diagram: bool = True,
+        model_diagram: bool | str = True,
         metadata: ModelCardData | None = None,
         template: Literal["skops"] | dict[str, str] | None = "skops",
         trusted: bool = False,
