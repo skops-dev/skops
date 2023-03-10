@@ -48,6 +48,7 @@ Community / About
 .. toctree::
    :maxdepth: 1
 
+   roadmap
    community
    changes
 
