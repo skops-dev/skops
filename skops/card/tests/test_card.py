@@ -237,6 +237,34 @@ class TestAddModelPlot:
             "<pre>LinearRegression()</pre></div></div></div></div></div>"
         )
 
+    def test_default_template_and_model_diagram_true(self, model_card):
+        # setting model_diagram=True should not change anything vs auto with the
+        # default template
+        model = fit_model()
+        model_card = Card(model, model_diagram=True)
+        result = model_card.select(
+            "Model description/Training Procedure/Model Plot"
+        ).content
+        # don't compare whole text, as it's quite long and non-deterministic
+        assert result.startswith("The model plot is below.\n\n<style>#sk-")
+        assert "<style>" in result
+        assert result.endswith(
+            "<pre>LinearRegression()</pre></div></div></div></div></div>"
+        )
+
+    @pytest.mark.parametrize("template", CUSTOM_TEMPLATES)
+    def test_custom_template_and_model_diagram_true(self, model_card, template):
+        # in contrast to the previous test, when setting model_diagram=True but
+        # using a custom template, we expect an error during initialization of
+        # the model cord
+        model = fit_model()
+        msg = (
+            "You are trying to add a model plot but you're using a custom template, "
+            "please pass the 'section' argument to determine where to put the content"
+        )
+        with pytest.raises(ValueError, match=msg):
+            Card(model, template=template, model_diagram=True)
+
     def test_add_twice(self, model_card):
         # it's possible to add the section twice, even if it doesn't make a lot
         # of sense
