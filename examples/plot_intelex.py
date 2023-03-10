@@ -85,7 +85,7 @@ X_train, X_test, y_train, y_test = train_test_split(
 # Now we can train a stock Scikit-learn
 # :class:`sklearn.neighbors.KNeighborsClassifier`
 
-clf = KNeighborsClassifier(3)
+clf = KNeighborsClassifier(3, n_jobs=-1)
 start = perf_counter()
 clf.fit(X_train, y_train)
 print(f"Training finished in {perf_counter() - start:.2f}s")
