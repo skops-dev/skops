@@ -1334,16 +1334,6 @@ class Card:
         Returns
         -------
         table_of_contents : str
-            Example:
-                - Model description
-                    - Intended uses & limitations
-                    - Training Procedure
-                        - Hyperparameters
-                        - Model Plot
-                    - Evaluation Results
-                - How to Get Started with the Model
-                - Model Card Authors
-                - Model Card Contact
         """
         for key, val in data.items():
             if not getattr(val, "visible", True):
@@ -1359,12 +1349,22 @@ class Card:
                 )
 
     def get_toc(self) -> str:
-        """Create a table of contents for the model card.
+        """Get the table of contents for the model card.
 
         Returns
         -------
         toc : str
             The table of contents for the model card formatted as a markdown string.
+            Example:
+                - Model description
+                    - Intended uses & limitations
+                    - Training Procedure
+                        - Hyperparameters
+                        - Model Plot
+                    - Evaluation Results
+                - How to Get Started with the Model
+                - Model Card Authors
+                - Model Card Contact
         """
         sections = []
         for title, level in self._iterate_key_section_content(self._data):
