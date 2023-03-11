@@ -1777,7 +1777,7 @@ class TestAddFairlearnMetricFrame:
             " |\n|              0.4 |\n|              0.5 |\n\n</details>"
         )
         assert expected_table == actual_table
-       
+
 
 class TestCardTableOfContents:
     @pytest.fixture
