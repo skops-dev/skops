@@ -130,7 +130,7 @@ t_opt = perf_counter() - start
 log_loss_score = log_loss(y_test, y_proba)
 print(
     f"[sklearnex] Inference took t_opt = {t_opt:.2f}s with a log-loss score of"
-    f" {log_loss_score:.1f}"
+    f" {log_loss_score:.3f}"
 )
 
 print(f"t_stock / t_opt = {t_stock/t_opt:.1f}")
