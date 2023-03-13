@@ -120,7 +120,7 @@ t_stock = perf_counter() - start
 log_loss_score = log_loss(y_test, y_proba)
 print(
     f"[stock scikit-learn] Inference took t_stock = {t_stock:.2f}s with a "
-    f"log-loss score of {log_loss_score:.1f}"
+    f"log-loss score of {log_loss_score:.3f}"
 )
 
 start = perf_counter()
