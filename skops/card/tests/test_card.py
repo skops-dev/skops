@@ -177,6 +177,26 @@ class TestAddModelPlot:
         ).content
         assert result == "The model plot is below."
 
+    def test_model_diagram_str(self):
+        # if passing a str, use that as the section name
+        model = fit_model()
+        other_section_name = "Here is the model diagram"
+        model_card = Card(model, model_diagram=other_section_name)
+
+        # first check that default section only contains placeholder
+        result = model_card.select(
+            "Model description/Training Procedure/Model Plot"
+        ).format()
+        assert result == "The model plot is below."
+
+        # now check that the actual model diagram is in the other section
+        result = model_card.select(other_section_name).format()
+        assert result.startswith("The model plot is below.\n\n<style>#sk-")
+        assert "<style>" in result
+        assert result.endswith(
+            "<pre>LinearRegression()</pre></div></div></div></div></div>"
+        )
+
     def test_other_section(self, model_card):
         model_card.add_model_plot(section="Other section")
         result = model_card.select("Other section").content
@@ -203,6 +223,47 @@ class TestAddModelPlot:
         )
         with pytest.raises(ValueError, match=msg):
             model_card.add_model_plot()
+
+    @pytest.mark.parametrize("template", CUSTOM_TEMPLATES)
+    def test_custom_template_init_str_works(self, template):
+        model = fit_model()
+        section_name = "Here is the model diagram"
+        model_card = Card(model, template=template, model_diagram=section_name)
+
+        result = model_card.select(section_name).format()
+        assert result.startswith("<style>#sk-")
+        assert "<style>" in result
+        assert result.endswith(
+            "<pre>LinearRegression()</pre></div></div></div></div></div>"
+        )
+
+    def test_default_template_and_model_diagram_true(self, model_card):
+        # setting model_diagram=True should not change anything vs auto with the
+        # default template
+        model = fit_model()
+        model_card = Card(model, model_diagram=True)
+        result = model_card.select(
+            "Model description/Training Procedure/Model Plot"
+        ).content
+        # don't compare whole text, as it's quite long and non-deterministic
+        assert result.startswith("The model plot is below.\n\n<style>#sk-")
+        assert "<style>" in result
+        assert result.endswith(
+            "<pre>LinearRegression()</pre></div></div></div></div></div>"
+        )
+
+    @pytest.mark.parametrize("template", CUSTOM_TEMPLATES)
+    def test_custom_template_and_model_diagram_true(self, model_card, template):
+        # in contrast to the previous test, when setting model_diagram=True but
+        # using a custom template, we expect an error during initialization of
+        # the model cord
+        model = fit_model()
+        msg = (
+            "You are trying to add a model plot but you're using a custom template, "
+            "please pass the 'section' argument to determine where to put the content"
+        )
+        with pytest.raises(ValueError, match=msg):
+            Card(model, template=template, model_diagram=True)
 
     def test_add_twice(self, model_card):
         # it's possible to add the section twice, even if it doesn't make a lot
@@ -1777,3 +1838,50 @@ class TestAddFairlearnMetricFrame:
             " |\n|              0.4 |\n|              0.5 |\n\n</details>"
         )
         assert expected_table == actual_table
+
+
+class TestCardTableOfContents:
+    @pytest.fixture
+    def card(self):
+        model = LinearRegression()
+        card = Card(model=model)
+        card.add_model_plot()
+        card.add_hyperparams()
+        card.add_metrics(accuracy=0.1)
+        card.add_get_started_code()
+        return card
+
+    def test_toc(self, card):
+        toc = card.get_toc()
+        exptected_toc = [
+            "- Model description",
+            "  - Intended uses & limitations",
+            "  - Training Procedure",
+            "    - Hyperparameters",
+            "    - Model Plot",
+            "  - Evaluation Results",
+            "- How to Get Started with the Model",
+            "- Model Card Authors",
+            "- Model Card Contact",
+            "- Citation",
+        ]
+
+        assert toc == "\n".join(exptected_toc)
+
+    def test_toc_with_invisible_section(self, card):
+        section = card.select("Citation")
+        section.visible = False
+        toc = card.get_toc()
+        exptected_toc = [
+            "- Model description",
+            "  - Intended uses & limitations",
+            "  - Training Procedure",
+            "    - Hyperparameters",
+            "    - Model Plot",
+            "  - Evaluation Results",
+            "- How to Get Started with the Model",
+            "- Model Card Authors",
+            "- Model Card Contact",
+        ]
+
+        assert toc == "\n".join(exptected_toc)
