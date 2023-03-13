@@ -163,7 +163,9 @@ _, plot_file_name = mkstemp(prefix="skops-", suffix=".png")
 display.figure_.savefig(plot_file_name)
 model_card.add_plot(
     **{
-        "Regression on California Housing dataset/Results/Partial Dependence Plots": plot_file_name
+        "Regression on California Housing dataset/Results/Partial Dependence Plots": (
+            plot_file_name
+        )
     },
 )
 
