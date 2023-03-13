@@ -1777,3 +1777,50 @@ class TestAddFairlearnMetricFrame:
             " |\n|              0.4 |\n|              0.5 |\n\n</details>"
         )
         assert expected_table == actual_table
+
+
+class TestCardTableOfContents:
+    @pytest.fixture
+    def card(self):
+        model = LinearRegression()
+        card = Card(model=model)
+        card.add_model_plot()
+        card.add_hyperparams()
+        card.add_metrics(accuracy=0.1)
+        card.add_get_started_code()
+        return card
+
+    def test_toc(self, card):
+        toc = card.get_toc()
+        exptected_toc = [
+            "- Model description",
+            "  - Intended uses & limitations",
+            "  - Training Procedure",
+            "    - Hyperparameters",
+            "    - Model Plot",
+            "  - Evaluation Results",
+            "- How to Get Started with the Model",
+            "- Model Card Authors",
+            "- Model Card Contact",
+            "- Citation",
+        ]
+
+        assert toc == "\n".join(exptected_toc)
+
+    def test_toc_with_invisible_section(self, card):
+        section = card.select("Citation")
+        section.visible = False
+        toc = card.get_toc()
+        exptected_toc = [
+            "- Model description",
+            "  - Intended uses & limitations",
+            "  - Training Procedure",
+            "    - Hyperparameters",
+            "    - Model Plot",
+            "  - Evaluation Results",
+            "- How to Get Started with the Model",
+            "- Model Card Authors",
+            "- Model Card Contact",
+        ]
+
+        assert toc == "\n".join(exptected_toc)

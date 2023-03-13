@@ -1442,3 +1442,59 @@ class Card:
             sections inserted.
         """
         return "\n".join(self._generate_card())
+
+    def _iterate_key_section_content(
+        self,
+        data: dict[str, Section],
+        level: int = 0,
+    ):
+        """Iterate through the key sections and yield the title and level.
+
+        Parameters
+        ----------
+        data : dict[str, Section]
+            The card data to iterate through. This is usually the sections and subsections.
+
+        level : int, optional
+            The level of the section, by default 0. This keeps track of subsections.
+
+        Returns
+        -------
+        table_of_contents : str
+        """
+        for key, val in data.items():
+            if not getattr(val, "visible", True):
+                continue
+
+            title = val.title
+            yield title, level
+
+            if val.subsections:
+                yield from self._iterate_key_section_content(
+                    val.subsections,
+                    level=level + 1,
+                )
+
+    def get_toc(self) -> str:
+        """Get the table of contents for the model card.
+
+        Returns
+        -------
+        toc : str
+            The table of contents for the model card formatted as a markdown string.
+            Example:
+                - Model description
+                    - Intended uses & limitations
+                    - Training Procedure
+                        - Hyperparameters
+                        - Model Plot
+                    - Evaluation Results
+                - How to Get Started with the Model
+                - Model Card Authors
+                - Model Card Contact
+        """
+        sections = []
+        for title, level in self._iterate_key_section_content(self._data):
+            sections.append(f"{'  ' * level}- {title}")
+
+        return "\n".join(sections)
