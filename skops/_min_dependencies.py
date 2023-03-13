@@ -11,6 +11,7 @@ PYTEST_MIN_VERSION = "5.0.1"
 #     "tomli": ("1.1.0", "install", "python_full_version < '3.11.0a7'"),
 dependent_packages = {
     "scikit-learn": ("0.24", "install", None),
+    "scikit-learn-intelex": ("2021.7.1", "docs", None),
     "huggingface_hub": ("0.10.1", "install", None),
     "tabulate": ("0.8.8", "install", None),
     "pytest": (PYTEST_MIN_VERSION, "tests", None),
@@ -32,6 +33,7 @@ dependent_packages = {
     "xgboost": ("1.6", "tests", None),
     # TODO: remove condition when catboost supports python 3.11
     "catboost": ("1.0", "tests", "python_version < '3.11'"),
+    "fairlearn": ("0.7.0", "docs, tests", None),
 }
 
 
