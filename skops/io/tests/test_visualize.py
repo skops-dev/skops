@@ -10,11 +10,7 @@ from sklearn.preprocessing import (
 )
 
 import skops.io as sio
-from skops.io._visualize import (
-    _check_node_and_children_safe,
-    _check_should_print,
-    visualize_tree,
-)
+from skops.io._visualize import visualize_tree
 
 
 class TestVisualizeTree:
@@ -54,24 +50,6 @@ class TestVisualizeTree:
         sio.dump(pipeline, f_name)
         return f_name
 
-    @pytest.fixture
-    def side_effect_and_contents(self):
-        # This side effect collects the contents of what would normally be
-        # printed. That way, we can test more precisely than just capturing
-        # stdout and inspecting strings.
-        contents = []
-
-        def side_effect(node, key, level, trusted, show):
-            node_is_safe = node.is_self_safe()
-            node_and_children_are_safe = _check_node_and_children_safe(node, trusted)
-            should_print = _check_should_print(
-                node, node_is_safe, node_and_children_are_safe, show
-            )
-            if should_print:
-                contents.append((node, key, level, trusted, show))
-
-        return side_effect, contents
-
     @pytest.mark.parametrize("show", ["all", "trusted", "untrusted"])
     def test_print_simple(self, simple_file, show):
         visualize_tree(simple_file, show=show)
@@ -79,11 +57,11 @@ class TestVisualizeTree:
     @pytest.mark.parametrize(
         "show_tell", [("all", 8), ("trusted", 8), ("untrusted", 0)]
     )
-    def test_inspect_simple(self, simple_file, side_effect_and_contents, show_tell):
-        side_effect, contents = side_effect_and_contents
+    def test_inspect_simple(self, simple_file, show_tell):
+        nodes = []
         show, expected_elements = show_tell
-        visualize_tree(simple_file, sink=side_effect, show=show)
-        assert len(contents) == expected_elements
+        visualize_tree(simple_file, sink=lambda n, _: nodes.extend(list(n)), show=show)
+        assert len([node for node in nodes if node.visible]) == expected_elements
 
     @pytest.mark.parametrize("show", ["all", "trusted", "untrusted"])
     def test_print_pipeline(self, pipeline_file, show):
@@ -92,8 +70,10 @@ class TestVisualizeTree:
     @pytest.mark.parametrize(
         "show_tell", [("all", 129), ("trusted", 127), ("untrusted", 19)]
     )
-    def test_inspect_pipeline(self, pipeline_file, side_effect_and_contents, show_tell):
-        side_effect, contents = side_effect_and_contents
+    def test_inspect_pipeline(self, pipeline_file, show_tell):
+        nodes = []
         show, expected_elements = show_tell
-        visualize_tree(pipeline_file, sink=side_effect, show=show)
-        assert len(contents) == expected_elements
+        visualize_tree(
+            pipeline_file, sink=lambda n, _: nodes.extend(list(n)), show=show
+        )
+        assert len([node for node in nodes if node.visible]) == expected_elements
