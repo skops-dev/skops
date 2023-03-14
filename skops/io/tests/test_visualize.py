@@ -10,7 +10,11 @@ from sklearn.preprocessing import (
 )
 
 import skops.io as sio
-from skops.io._visualize import _check_should_print, visualize_tree
+from skops.io._visualize import (
+    _check_node_and_children_safe,
+    _check_should_print,
+    visualize_tree,
+)
 
 
 class TestVisualizeTree:
@@ -58,7 +62,11 @@ class TestVisualizeTree:
         contents = []
 
         def side_effect(node, key, level, trusted, show):
-            should_print = _check_should_print(node, trusted, show)
+            node_is_safe = node.is_self_safe()
+            node_and_children_are_safe = _check_node_and_children_safe(node, trusted)
+            should_print = _check_should_print(
+                node, node_is_safe, node_and_children_are_safe, show
+            )
             if should_print:
                 contents.append((node, key, level, trusted, show))
 
@@ -82,7 +90,7 @@ class TestVisualizeTree:
         visualize_tree(pipeline_file, show=show)
 
     @pytest.mark.parametrize(
-        "show_tell", [("all", 129), ("trusted", 110), ("untrusted", 19)]
+        "show_tell", [("all", 129), ("trusted", 127), ("untrusted", 19)]
     )
     def test_inspect_pipeline(self, pipeline_file, side_effect_and_contents, show_tell):
         side_effect, contents = side_effect_and_contents
