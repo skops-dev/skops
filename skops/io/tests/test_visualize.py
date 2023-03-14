@@ -58,7 +58,7 @@ class TestVisualizeTree:
         contents = []
 
         def side_effect(node, key, level, trusted, show):
-            should_print, _ = _check_should_print(node, trusted, show)
+            should_print = _check_should_print(node, trusted, show)
             if should_print:
                 contents.append((node, key, level, trusted, show))
 

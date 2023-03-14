@@ -21,20 +21,23 @@ def _check_should_print(
     node: Node,
     trusted: bool | Sequence[str],
     show: Literal["all", "untrusted", "trusted"],
-) -> tuple[bool, bool]:
+) -> bool:
+    # Note: this is very inefficient, because get_unsafe_set will be called many
+    # times on the same node (since parents recursively call children) but maybe
+    # that's acceptable for this context. If not, caching could be an option.
     if trusted is True:
-        is_safe = True
+        node_and_children_are_safe = True
     elif trusted is False:
-        is_safe = not node.get_unsafe_set()
+        node_and_children_are_safe = not node.get_unsafe_set()
     else:
-        is_safe = not (node.get_unsafe_set() - set(trusted))
+        node_and_children_are_safe = not (node.get_unsafe_set() - set(trusted))
 
     should_print = (
         (show == "all")
-        or ((show == "untrusted") and (not is_safe))
-        or ((show == "trusted") and is_safe)
+        or ((show == "untrusted") and (not node_and_children_are_safe))
+        or ((show == "trusted") and node_and_children_are_safe)
     )
-    return should_print, is_safe
+    return should_print
 
 
 def _print_node(
@@ -45,7 +48,8 @@ def _print_node(
     trusted: bool | Sequence[str],
     show: Literal["all", "untrusted", "trusted"],
 ):
-    should_print, is_safe = _check_should_print(node, trusted=trusted, show=show)
+    is_safe = node.is_self_safe()
+    should_print = _check_should_print(node, trusted=trusted, show=show)
     if not should_print:
         return
 
