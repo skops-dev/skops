@@ -443,6 +443,8 @@ class Card:
     >>> X, y = load_iris(return_X_y=True)
     >>> model = LogisticRegression(solver="liblinear", random_state=0).fit(X, y)
     >>> model_card = Card(model)
+    >>> model_card.populate_template()
+    Card(...)
     >>> model_card.metadata.license = "mit"
     >>> y_pred = model.predict(X)
     >>> model_card.add_metrics(**{
@@ -491,7 +493,6 @@ class Card:
     def __init__(
         self,
         model,
-        model_diagram: bool | Literal["auto"] | str = "auto",
         metadata: ModelCardData | None = None,
         template: Literal["skops"] | dict[str, str] | None = "skops",
         trusted: bool = False,
@@ -504,9 +505,10 @@ class Card:
         self._data: dict[str, Section] = {}
         self._metrics: dict[str, str | float | int] = {}
 
-        self._populate_template(model_diagram=model_diagram)
-
-    def _populate_template(self, model_diagram: bool | Literal["auto"] | str):
+    def populate_template(
+        self,
+        model_diagram: bool | Literal["auto"] | str = "auto",
+    ):
         """If initialized with a template, use it to populate the card.
 
         Parameters
