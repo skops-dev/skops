@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from functools import singledispatch
 from pathlib import Path
 from typing import Callable, Iterator, Literal, Sequence
 from zipfile import ZipFile
@@ -85,33 +84,6 @@ def _check_node_and_children_safe(node: Node, trusted: bool | Sequence[str]) -> 
     return node_and_children_are_safe
 
 
-# use singledispatch so that we can register specialized visualization functions
-@singledispatch
-def format_node(node: Node) -> str:
-    """Format the name of the node.
-
-    By default, this is just the fully qualified name of the class, e.g.
-    ``"sklearn.preprocessing._data.MinMaxScaler"``. But for some types of nodes,
-    having a more specific output is desirable. These node types can be
-    registered with this function.
-
-    """
-    return f"{node.module_name}.{node.class_name}"
-
-
-@format_node.register
-def _format_function_node(node: FunctionNode) -> str:
-    # if a FunctionNode, children are not visited, but safety should still be checked
-    child = node.children["content"]
-    fn_name = f"{child['module_path']}.{child['function']}"
-    return f"{node.module_name}.{node.class_name} => {fn_name}"
-
-
-@format_node.register
-def _format_json_node(node: JsonNode) -> str:
-    return f"json-type({node.content})"
-
-
 def walk_tree(
     node: Node | dict[str, Node] | Sequence[Node],
     trusted: bool | Sequence[str] = False,
@@ -164,7 +136,7 @@ def walk_tree(
         show=show,
     )
 
-    node_val = format_node(node)
+    node_val = node.format()
     tag = config.tag_safe if node_is_safe else config.tag_unsafe
     if tag:
         node_val += f" {tag}"
