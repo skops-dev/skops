@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -54,7 +55,7 @@ class NodeInfo:
 
 
 def pretty_print_tree(
-    formatted_nodes: Iterator[NodeInfo],
+    nodes_iter: Iterator[NodeInfo],
     show: Literal["all", "untrusted", "trusted"],
     config: PrintConfig,
 ) -> None:
@@ -62,7 +63,7 @@ def pretty_print_tree(
     rich = import_or_raise("rich", "pretty printing the object")
     from rich.tree import Tree
 
-    nodes = list(formatted_nodes)
+    nodes = list(nodes_iter)
     node = nodes.pop(0)
     cur_level = 0
     root = tree = Tree(f"{node.key}: {node.val}")
@@ -93,7 +94,7 @@ def pretty_print_tree(
         node_val = node.val
         tag = config.tag_safe if node.is_self_safe else config.tag_unsafe
         if tag:
-            node_val += f" {tag}".rstrip(" ")
+            node_val += f" {tag}"
 
         # colorize if so desired
         if config.use_colors:
@@ -184,7 +185,7 @@ def walk_tree(
             "https://github.com/skops-dev/skops/issues"
         )
 
-    # YIELDING THE ACTUAL FORMATTED NODE HERE
+    # YIELDING THE ACTUAL NODE INFORMATION HERE
 
     # Note: calling node.is_safe() on all nodes is potentially wasteful because
     # it is already a recursive call, i.e. child nodes will be checked many
@@ -223,7 +224,7 @@ def walk_tree(
 
 
 def visualize_tree(
-    file: Path | str,  # TODO: from bytes
+    file: Path | str | bytes,
     show: Literal["all", "untrusted", "trusted"] = "all",
     sink: Callable[
         [Iterator[NodeInfo], Literal["all", "untrusted", "trusted"], PrintConfig], None
@@ -266,7 +267,12 @@ def visualize_tree(
     kwargs : TODO
 
     """
-    with ZipFile(file, "r") as zip_file:
+    if isinstance(file, bytes):
+        zf = ZipFile(io.BytesIO(file), "r")
+    else:
+        zf = ZipFile(file, "r")
+
+    with zf as zip_file:
         schema = json.loads(zip_file.read("schema.json"))
         tree = get_tree(schema, load_context=LoadContext(src=zip_file))
 
