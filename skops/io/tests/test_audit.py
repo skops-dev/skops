@@ -178,6 +178,7 @@ def test_format_object_node():
     [
         ("hello", 'json-type("hello")'),
         (123, "json-type(123)"),
+        (0.456, "json-type(0.456)"),
         (True, "json-type(true)"),
         (False, "json-type(false)"),
         (None, "json-type(null)"),
