@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Iterator, Literal, Sequence
+from typing import Callable, Iterator, Literal
 from zipfile import ZipFile
 
 from ._audit import Node, get_tree
@@ -17,7 +17,7 @@ from ._utils import LoadContext
 class PrintConfig:
     # fmt: off
     tag_safe: str =   ""  # noqa: E222
-    tag_unsafe: str = " [UNSAFE]"
+    tag_unsafe: str = "[UNSAFE]"
 
     line_start: str = "├─"
     line: str =       "──"  # noqa: E222
@@ -71,22 +71,8 @@ def _check_visibility(
     return should_print
 
 
-def _check_node_and_children_safe(node: Node, trusted: bool | Sequence[str]) -> bool:
-    # Note: this is very inefficient, because get_unsafe_set will be called many
-    # times on the same node (since parents recursively call children) but maybe
-    # that's acceptable for this context. If not, caching could be an option.
-    if trusted is True:
-        node_and_children_are_safe = True
-    elif trusted is False:
-        node_and_children_are_safe = not node.get_unsafe_set()
-    else:
-        node_and_children_are_safe = not (node.get_unsafe_set() - set(trusted))
-    return node_and_children_are_safe
-
-
 def walk_tree(
-    node: Node | dict[str, Node] | Sequence[Node],
-    trusted: bool | Sequence[str] = False,
+    node: Node | dict[str, Node] | list[Node],
     show: Literal["all", "untrusted", "trusted"] = "all",
     node_name: str = "root",
     level: int = 0,
@@ -104,19 +90,17 @@ def walk_tree(
                 val,
                 node_name=key,
                 level=level,
-                trusted=trusted,
                 show=show,
                 config=config,
             )
         return
 
-    if isinstance(node, (list, tuple)):
+    if isinstance(node, (list, tuple)):  # shouldn't be tuple, but to be sure
         for val in node:
             yield from walk_tree(
                 val,
                 node_name=node_name,
                 level=level,
-                trusted=trusted,
                 show=show,
                 config=config,
             )
@@ -128,7 +112,7 @@ def walk_tree(
 
     # THE ACTUAL FORMATTING HAPPENS HERE
     node_is_safe = node.is_self_safe()
-    node_and_children_are_safe = _check_node_and_children_safe(node, trusted)
+    node_and_children_are_safe = node.is_safe()
     visible = _check_visibility(
         node,
         node_is_safe=node_is_safe,
@@ -139,7 +123,7 @@ def walk_tree(
     node_val = node.format()
     tag = config.tag_safe if node_is_safe else config.tag_unsafe
     if tag:
-        node_val += f" {tag}"
+        node_val += f" {tag}".rstrip(" ")
 
     if config.use_colors:
         if node_and_children_are_safe:
@@ -174,7 +158,6 @@ def walk_tree(
         node.children,
         node_name=node_name,
         level=level + 1,
-        trusted=trusted,
         show=show,
         config=config,
     )
@@ -182,7 +165,6 @@ def walk_tree(
 
 def visualize_tree(
     file: Path | str,  # TODO: from bytes
-    trusted: bool | Sequence[str] = False,
     show: Literal["all", "untrusted", "trusted"] = "all",
     sink: Callable[[Iterator[FormattedNode], PrintConfig], None] = pretty_print_tree,
     print_config: PrintConfig = print_config,
@@ -197,13 +179,6 @@ def visualize_tree(
     ----------
     file: str or pathlib.Path
         The file name of the object to be loaded.
-
-    trusted: bool, or list of str, default=False
-        If ``True``, the object will be loaded without any security checks. If
-        ``False``, the object will be loaded only if there are only trusted
-        objects in the dumped file. If a list of strings, the object will be
-        loaded only if there are only trusted objects and objects of types
-        listed in ``trusted`` are in the dumped file.
 
     show: "all" or "untrusted" or "trusted"
         Whether to print all nodes, only untrusted nodes, or only trusted nodes.
@@ -230,5 +205,5 @@ def visualize_tree(
         schema = json.loads(zip_file.read("schema.json"))
         tree = get_tree(schema, load_context=LoadContext(src=zip_file))
 
-    nodes = walk_tree(tree, trusted=trusted, show=show, config=print_config)
+    nodes = walk_tree(tree, show=show, config=print_config)
     sink(nodes, print_config)
