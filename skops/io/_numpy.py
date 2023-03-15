@@ -196,18 +196,6 @@ class RandomGeneratorNode(Node):
         return gettype(self.module_name, self.class_name)(bit_generator=bit_generator)
 
 
-# For numpy.ufunc we need to get the type from the type's module, but for other
-# functions we get it from objet's module directly. Therefore sett a especial
-# get_state method for them here. The load is the same as other functions.
-def ufunc_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
-    res = {
-        "__class__": obj.__name__,
-        "__module__": get_module(obj),
-        "__loader__": "FunctionNode",
-    }
-    return res
-
-
 def dtype_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     # we use numpy's internal save mechanism to store the dtype by
     # saving/loading an empty array with that dtype.
