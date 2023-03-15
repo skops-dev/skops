@@ -180,13 +180,9 @@ class TupleNode(Node):
 
 def function_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     res = {
-        "__class__": obj.__class__.__name__,
+        "__class__": obj.__name__,
         "__module__": get_module(obj),
         "__loader__": "FunctionNode",
-        "content": {
-            "module_path": get_module(obj),
-            "function": obj.__name__,
-        },
     }
     return res
 
@@ -201,26 +197,20 @@ class FunctionNode(Node):
         super().__init__(state, load_context, trusted)
         # TODO: what do we trust?
         self.trusted = self._get_trusted(trusted, default=SCIPY_UFUNC_TYPE_NAMES)
-        self.children = {"content": state["content"]}
+        self.children = {}
 
     def _construct(self):
-        return _import_obj(
-            self.children["content"]["module_path"],
-            self.children["content"]["function"],
-        )
+        return gettype(self.module_name, self.class_name)
 
     def _get_function_name(self) -> str:
-        return (
-            self.children["content"]["module_path"]
-            + "."
-            + self.children["content"]["function"]
-        )
+        return f"{self.module_name}.{self.class_name}"
 
     def get_unsafe_set(self) -> set[str]:
-        if (self.trusted is True) or (self._get_function_name() in self.trusted):
+        fn_name = self._get_function_name()
+        if (self.trusted is True) or (fn_name in self.trusted):
             return set()
 
-        return {self._get_function_name()}
+        return {fn_name}
 
 
 def partial_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
