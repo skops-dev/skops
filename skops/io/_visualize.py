@@ -56,19 +56,17 @@ def pretty_print_tree(
         print(line)
 
 
-def _check_visibility(
-    node: Node,
-    node_is_safe: bool,
-    node_and_children_are_safe: bool,
-    show: Literal["all", "untrusted", "trusted"],
-) -> bool:
+def _check_visibility(node: Node, show: Literal["all", "untrusted", "trusted"]) -> bool:
     if show == "all":
-        should_print = True
-    elif show == "untrusted":
-        should_print = not node_and_children_are_safe
-    else:  # only trusted
-        should_print = node_is_safe
-    return should_print
+        return True
+
+    if show == "untrusted":
+        node_or_children_unsafe = not node.is_safe()
+        return node_or_children_unsafe
+
+    # case: show only safe node
+    node_safe = node.is_self_safe()
+    return node_safe
 
 
 def walk_tree(
@@ -111,21 +109,16 @@ def walk_tree(
         raise TypeError(f"{type(node)}")
 
     # THE ACTUAL FORMATTING HAPPENS HERE
-    node_is_safe = node.is_self_safe()
-    node_and_children_are_safe = node.is_safe()
-    visible = _check_visibility(
-        node,
-        node_is_safe=node_is_safe,
-        node_and_children_are_safe=node_and_children_are_safe,
-        show=show,
-    )
+    visible = _check_visibility(node, show=show)
 
     node_val = node.format()
+    node_is_safe = node.is_self_safe()
     tag = config.tag_safe if node_is_safe else config.tag_unsafe
     if tag:
         node_val += f" {tag}".rstrip(" ")
 
     if config.use_colors:
+        node_and_children_are_safe = node.is_safe()
         if node_and_children_are_safe:
             color = config.color_safe
         elif node_is_safe:
