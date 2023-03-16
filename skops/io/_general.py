@@ -11,6 +11,7 @@ from typing import Any, Sequence
 import numpy as np
 
 from ._audit import Node, get_tree
+from ._protocol import PROTOCOL
 from ._trusted_types import (
     PRIMITIVE_TYPE_NAMES,
     SCIPY_UFUNC_TYPE_NAMES,
@@ -586,18 +587,18 @@ GET_STATE_DISPATCH_FUNCTIONS = [
 ]
 
 NODE_TYPE_MAPPING = {
-    "DictNode": DictNode,
-    "ListNode": ListNode,
-    "SetNode": SetNode,
-    "TupleNode": TupleNode,
-    "BytesNode": BytesNode,
-    "BytearrayNode": BytearrayNode,
-    "SliceNode": SliceNode,
-    "FunctionNode": FunctionNode,
-    "MethodNode": MethodNode,
-    "PartialNode": PartialNode,
-    "TypeNode": TypeNode,
-    "ObjectNode": ObjectNode,
-    "JsonNode": JsonNode,
-    "OperatorFuncNode": OperatorFuncNode,
+    ("DictNode", PROTOCOL): DictNode,
+    ("ListNode", PROTOCOL): ListNode,
+    ("SetNode", PROTOCOL): SetNode,
+    ("TupleNode", PROTOCOL): TupleNode,
+    ("BytesNode", PROTOCOL): BytesNode,
+    ("BytearrayNode", PROTOCOL): BytearrayNode,
+    ("SliceNode", PROTOCOL): SliceNode,
+    ("FunctionNode", PROTOCOL): FunctionNode,
+    ("MethodNode", PROTOCOL): MethodNode,
+    ("PartialNode", PROTOCOL): PartialNode,
+    ("TypeNode", PROTOCOL): TypeNode,
+    ("ObjectNode", PROTOCOL): ObjectNode,
+    ("JsonNode", PROTOCOL): JsonNode,
+    ("OperatorFuncNode", PROTOCOL): OperatorFuncNode,
 }

@@ -6,6 +6,7 @@ from typing import Any, Sequence
 import numpy as np
 
 from ._audit import Node, get_tree
+from ._protocol import PROTOCOL
 from ._utils import LoadContext, SaveContext, get_module, get_state, gettype
 from .exceptions import UnsupportedTypeException
 
@@ -254,9 +255,9 @@ GET_STATE_DISPATCH_FUNCTIONS = [
 ]
 # tuples of type and function that creates the instance of that type
 NODE_TYPE_MAPPING = {
-    "NdArrayNode": NdArrayNode,
-    "MaskedArrayNode": MaskedArrayNode,
-    "DTypeNode": DTypeNode,
-    "RandomStateNode": RandomStateNode,
-    "RandomGeneratorNode": RandomGeneratorNode,
+    ("NdArrayNode", PROTOCOL): NdArrayNode,
+    ("MaskedArrayNode", PROTOCOL): MaskedArrayNode,
+    ("DTypeNode", PROTOCOL): DTypeNode,
+    ("RandomStateNode", PROTOCOL): RandomStateNode,
+    ("RandomGeneratorNode", PROTOCOL): RandomGeneratorNode,
 }

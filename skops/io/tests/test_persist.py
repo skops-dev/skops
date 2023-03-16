@@ -521,7 +521,7 @@ def test_metainfo():
     schema = json.loads(ZipFile(io.BytesIO(dumped)).read("schema.json"))
 
     # check some schema metainfo
-    assert schema["protocol"] == skops.io._utils.DEFAULT_PROTOCOL
+    assert schema["protocol"] == skops.io._protocol.PROTOCOL
     assert schema["_skops_version"] == skops.__version__
 
     # additionally, check following metainfo: class, module, and version
@@ -655,7 +655,7 @@ def test_get_tree_unknown_type_error_msg():
     state["__loader__"] = "this_get_tree_does_not_exist"
     msg = "Can't find loader this_get_tree_does_not_exist for type builtins.tuple."
     with pytest.raises(TypeError, match=msg):
-        get_tree(state, LoadContext(None))
+        get_tree(state, LoadContext(None, -1))
 
 
 class _BoundMethodHolder:

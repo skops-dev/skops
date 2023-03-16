@@ -41,7 +41,7 @@ def test_check_type(module_name, type_name, trusted, expected):
 def test_audit_tree_untrusted():
     var = {"a": CustomType(1), 2: CustomType(2)}
     state = dict_get_state(var, SaveContext(None, 0, {}))
-    node = DictNode(state, LoadContext(None), trusted=False)
+    node = DictNode(state, LoadContext(None, -1), trusted=False)
     with pytest.raises(
         TypeError,
         match=re.escape(
@@ -64,7 +64,7 @@ def test_audit_tree_defaults():
     # test that the default types are trusted
     var = {"a": 1, 2: "b"}
     state = dict_get_state(var, SaveContext(None, 0, {}))
-    node = DictNode(state, LoadContext(None), trusted=False)
+    node = DictNode(state, LoadContext(None, -1), trusted=False)
     audit_tree(node, trusted=[])
 
 
@@ -97,7 +97,7 @@ def test_list_safety(values, is_safe):
 
     with ZipFile(io.BytesIO(content), "r") as zip_file:
         schema = json.loads(zip_file.read("schema.json"))
-        tree = get_tree(schema, load_context=LoadContext(src=zip_file))
+        tree = get_tree(schema, load_context=LoadContext(src=zip_file, protocol=-1))
         assert tree.is_safe() == is_safe
 
 
