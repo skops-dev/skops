@@ -245,6 +245,6 @@ if _DictWithDeprecatedKeys is not None:
     GET_STATE_DISPATCH_FUNCTIONS.append(
         (_DictWithDeprecatedKeys, _DictWithDeprecatedKeys_get_state)
     )
-    NODE_TYPE_MAPPING[("_DictWithDeprecatedKeysNode", PROTOCOL)] = (
-        _DictWithDeprecatedKeysNode  # type: ignore
-    )
+    NODE_TYPE_MAPPING[
+        ("_DictWithDeprecatedKeysNode", PROTOCOL)
+    ] = _DictWithDeprecatedKeysNode  # type: ignore
