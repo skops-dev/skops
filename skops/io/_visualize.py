@@ -16,18 +16,12 @@ from ._utils import LoadContext
 
 
 @dataclass
-class PrintConfig:
-    tag_safe: str = ""
-    tag_unsafe: str = "[UNSAFE]"
-
-    use_colors: bool = True
-    # use rich for coloring
-    color_safe: str = "green"
-    color_unsafe: str = "red"
-    color_child_unsafe: str = "yellow"
-
-
-print_config = PrintConfig()
+class NodeInfo:
+    level: int
+    key: str  # the key to the node
+    val: str  # the value of the node
+    is_self_safe: bool  # whether this specific node is safe
+    is_safe: bool  # whether this node and all of its children are safe
 
 
 def _check_visibility(
@@ -35,6 +29,12 @@ def _check_visibility(
     is_safe: bool,
     show: Literal["all", "untrusted", "trusted"],
 ) -> bool:
+    """Determine visibility of the node.
+
+    Users can indicate if they want to see all nodes, all trusted nodes, or all
+    untrusted nodes.
+
+    """
     if show == "all":
         return True
 
@@ -45,28 +45,63 @@ def _check_visibility(
     return is_self_safe
 
 
-@dataclass
-class NodeInfo:
-    level: int
-    key: str  # the key to the node
-    val: str  # the value of the node
-    is_self_safe: bool  # whether this specific node is safe
-    is_safe: bool  # whether this node and all of its children are safe
+def _get_node_label(
+    node: NodeInfo,
+    tag_safe: str = "",
+    tag_unsafe: str = "[UNSAFE]",
+    use_colors: bool = True,
+    # use rich for coloring
+    color_safe: str = "green",
+    color_unsafe: str = "red",
+    color_child_unsafe: str = "yellow",
+):
+    """Determine the label of a node.
+
+    Nodes are labeled differently based on how they're trusted.
+
+    """
+    # note: when changing the arguments to this function, also update the
+    # docstring of visualize_tree!
+
+    # add tag if necessary
+    node_val = node.val
+    tag = tag_safe if node.is_self_safe else tag_unsafe
+    if tag:
+        node_val += f" {tag}"
+
+    # colorize if so desired
+    if use_colors:
+        if node.is_safe:
+            color = color_safe
+        elif node.is_self_safe:
+            color = color_child_unsafe
+        else:
+            color = color_unsafe
+        node_val = f"[{color}]{node_val}"
+
+    return node_val
 
 
 def pretty_print_tree(
     nodes_iter: Iterator[NodeInfo],
     show: Literal["all", "untrusted", "trusted"],
-    config: PrintConfig,
+    **kwargs,
 ) -> None:
-    # TODO: print html representation if inside a notebook
+    # This function loops through the flattened nodes of the tree and creates a
+    # rich Tree based on the node information. Rich can then create a pretty
+    # visualization of said tree.
     rich = import_or_raise("rich", "pretty printing the object")
     from rich.tree import Tree
 
     nodes = list(nodes_iter)
+    if not nodes:  # empty tree, hmm
+        return
+
+    # start with root node, it is always visible
     node = nodes.pop(0)
-    cur_level = 0
-    root = tree = Tree(f"{node.key}: {node.val}")
+    node_label = _get_node_label(node, **kwargs)
+    cur_level = node.level  # should be 0
+    root = tree = Tree(f"{node.key}: {node_label}")
     trace = [tree]  # trace keeps track of what is the current node to add to
 
     while nodes:
@@ -84,29 +119,23 @@ def pretty_print_tree(
                 "report the issue here: https://github.com/skops-dev/skops/issues"
             )
 
+        # Level diff of -1 means that this node is a child of the previous node.
+        # E.g. if the current level if 4 and the previous level was 3, the
+        # current node is a child node of the previous one. Since the previous
+        # node is already the last node in the trace, there is nothing more that
+        # needs to be done. Therefore, for a diff of -1, we don't pop from the
+        # trace.
         for _ in range(level_diff + 1):
+            # If the level diff is greater than -1, it means that the current
+            # node is not the child of the last node, but of a node higher up.
+            # E.g. if the current level is 2 and previous level was 3, it means
+            # that we should move up 2 layers of nesting, therefore, we pop
+            # 3-2+1 = 2 levels.
             trace.pop(-1)
-            # If level_diff == -1, we're fine with not popping, as the code
-            # assumes that the current node is a child node of the previous one,
-            # which corresponds to a level_diff of -1.
 
-        # add unsafe tag if necessary
-        node_val = node.val
-        tag = config.tag_safe if node.is_self_safe else config.tag_unsafe
-        if tag:
-            node_val += f" {tag}"
-
-        # colorize if so desired
-        if config.use_colors:
-            if node.is_safe:
-                color = config.color_safe
-            elif node.is_self_safe:
-                color = config.color_child_unsafe
-            else:
-                color = config.color_unsafe
-            node_val = f"[{color}]{node_val}"
-
-        text = f"{node.key}: {node_val}"
+        # add tag if necessary
+        node_label = _get_node_label(node, **kwargs)
+        text = f"{node.key}: {node_label}"
         tree = trace[-1]
         trace.append(tree.add(text))
         cur_level = node.level
@@ -153,9 +182,11 @@ def walk_tree(
         A dataclass containing the aforementioned information.
 
     """
-    # helper function to pretty-print the nodes
+    # key_types is not helpful, as it is artificially added by skops to
+    # circumvent the fact that json only allows keys to be strings. It is not
+    # useful to the user and adds a lot of noise, thus skip key_types.
+    # TODO: check that no funny business is going on in key types
     if node_name == "key_types":
-        # _check_key_types_schema(node)
         return
 
     # COMPOSITE TYPES: CHECK ALL ITEMS
@@ -199,20 +230,18 @@ def walk_tree(
     )
 
     # TYPES WHOSE CHILDREN IT MAKES NO SENSE TO VISIT
+    # TODO: For better security, we should check the schema if we return early,
+    # otherwise something nefarious could be hidden inside.
     if isinstance(node, (NdArrayNode, SparseMatrixNode)) and (node.type != "json"):
-        # _check_array_schema(node)
         return
 
     if isinstance(node, (NdArrayNode, SparseMatrixNode)) and (node.type == "json"):
-        # _check_array_json_schema(node)
         return
 
     if isinstance(node, FunctionNode):
-        # _check_function_schema(node)
         return
 
     if isinstance(node, JsonNode):
-        # _check_json_schema(node)
         pass
 
     # RECURSE
@@ -226,9 +255,7 @@ def walk_tree(
 def visualize_tree(
     file: Path | str | bytes,
     show: Literal["all", "untrusted", "trusted"] = "all",
-    sink: Callable[
-        [Iterator[NodeInfo], Literal["all", "untrusted", "trusted"], PrintConfig], None
-    ] = pretty_print_tree,
+    sink: Callable[..., None] = pretty_print_tree,
     **kwargs: Any,
 ) -> None:
     """Visualize the contents of a skops file.
@@ -236,6 +263,14 @@ def visualize_tree(
     Shows the schema of a skops file as a tree view. In particular, highlights
     untrusted nodes. A node is considered untrusted if at least one of its child
     nodes is untrusted.
+
+    Visualizing the tree using the default visualization function requires the
+    ``rich`` library, which can be installed as:
+
+        python -m pip install rich
+
+    If passing a custom visualization function to ``sink``, ``rich`` is not
+    required.
 
     Parameters
     ----------
@@ -245,26 +280,36 @@ def visualize_tree(
     show: "all" or "untrusted" or "trusted"
         Whether to print all nodes, only untrusted nodes, or only trusted nodes.
 
-    sink: function
+    sink: function (default=:func:`~pretty_print_tree`)
 
-        This function should take three arguments, an iterator of
-        :class:`~NodeInfo` instances, an indicator of what to show, and a config
-        of :class:`~PrintConfig`. The ``NodeInfo`` contains the information
-        about the node, namely:
+        This function should take at least two arguments, an iterator of
+        :class:`~NodeInfo` instances and an indicator of what to show. The
+        ``NodeInfo`` contains the information about the node, namely:
 
             - the level of nesting (int)
             - the key of the node (str)
             - the value of the node as a string representation (str)
             - the safety of the node and its children
 
-        The ``show`` argument is explained above.
+        The ``show`` argument is explained above. Any additional ``kwargs``
+        passed to ``visualize_tree`` will also be passed to ``sink``.
 
-        The last argument is a :class:`~PrintConfig` instance, which is a
-        simple dataclass with attributes that determine how the node should be
-        visualized, e.g. the ``use_colors`` attribute determines if colors
-        should be used.
+        The default sink is :func:`~pretty_print_tree`, which takes these
+        additional parameters:
 
-    kwargs : TODO
+            - tag_safe: The tag used to mark trusted nodes (default="", i.e no
+              tag)
+            - tag_unsafe: The tag used to mark untrusted nodes
+              (default="[UNSAFE]")
+            - use_colors: Whether to colorize the nodes (default=True)
+            - color_safe: Color to use for trusted nodes (default="green")
+            - color_unsafe: Color to use for untrusted nodes (default="red")
+            - color_child_unsafe: Color to use for nodes that are trusted but
+              that have untrusted child ndoes (default="yellow")
+
+        So if you don't want to have colored output, just pass
+        ``use_colors=False`` to ``visualize_tree``. The colors themselves, such
+        as "red" and "green", refer to the standard colors used by ``rich``.
 
     """
     if isinstance(file, bytes):
@@ -276,10 +321,6 @@ def visualize_tree(
         schema = json.loads(zip_file.read("schema.json"))
         tree = get_tree(schema, load_context=LoadContext(src=zip_file))
 
-    if kwargs:
-        config = PrintConfig(**kwargs)
-    else:
-        config = print_config
-
     nodes = walk_tree(tree)
-    sink(nodes, show, config)
+    # TODO: it would be nice to print html representation if inside a notebook
+    sink(nodes, show, **kwargs)

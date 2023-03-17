@@ -134,11 +134,37 @@ For example, to convert all ``.pkl`` flies in the current directory:
 Further help for the different supported options can be found by calling
 ``skops convert --help`` in a terminal.
 
+Visualization
+#############
+
+Skops files can be visualized using :func:`skops.io.visualize_tree`. If you have
+a skops file called ``my-model.skops``, you can visualize it like this:
+
+.. code:: python
+
+    import skops.io as sio
+    sio.visualize_tree("my-model.skops")
+
+The output could look like this:
+
+.. code::
+
+    root: sklearn.preprocessing._data.MinMaxScaler
+    └── attrs: builtins.dict
+        ├── feature_range: builtins.tuple
+        │   ├── content: json-type(-555)
+        │   └── content: json-type(123)
+        ├── copy: unsafe_lib.UnsafeType [UNSAFE]
+        ├── clip: json-type(false)
+        └── _sklearn_version: json-type("1.2.0")
+
+``unsafe_lib.UnsafeType`` was recognized as untrusted and marked. There are
+various options, like colorizing nodes that are untrusted.
 
 Supported libraries
 -------------------
 
-Skops intends to support all of **scikit-learn**, that is, not only its
+Skops intends to support all of ````scikit-learn**, that is, not only its
 estimators, but also other classes like cross validation splitters. Furthermore,
 most types from **numpy** and **scipy** should be supported, such as (sparse)
 arrays, dtypes, random generators, and ufuncs.
