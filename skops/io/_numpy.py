@@ -6,6 +6,7 @@ from typing import Any, Sequence
 import numpy as np
 
 from ._audit import Node, get_tree
+from ._general import function_get_state
 from ._protocol import PROTOCOL
 from ._utils import LoadContext, SaveContext, get_module, get_state, gettype
 from .exceptions import UnsupportedTypeException
@@ -196,22 +197,6 @@ class RandomGeneratorNode(Node):
         return gettype(self.module_name, self.class_name)(bit_generator=bit_generator)
 
 
-# For numpy.ufunc we need to get the type from the type's module, but for other
-# functions we get it from objet's module directly. Therefore sett a especial
-# get_state method for them here. The load is the same as other functions.
-def ufunc_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
-    res = {
-        "__class__": obj.__class__.__name__,  # ufunc
-        "__module__": get_module(type(obj)),  # numpy
-        "__loader__": "FunctionNode",
-        "content": {
-            "module_path": get_module(obj),
-            "function": obj.__name__,
-        },
-    }
-    return res
-
-
 def dtype_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     # we use numpy's internal save mechanism to store the dtype by
     # saving/loading an empty array with that dtype.
@@ -248,7 +233,7 @@ GET_STATE_DISPATCH_FUNCTIONS = [
     (np.generic, ndarray_get_state),
     (np.ndarray, ndarray_get_state),
     (np.ma.MaskedArray, maskedarray_get_state),
-    (np.ufunc, ufunc_get_state),
+    (np.ufunc, function_get_state),
     (np.dtype, dtype_get_state),
     (np.random.RandomState, random_state_get_state),
     (np.random.Generator, random_generator_get_state),
