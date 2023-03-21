@@ -306,7 +306,9 @@ def get_input(estimator):
         return [(1, 2), (3,)], None
 
     if "categorical" in tags["X_types"]:
-        return [["Male", 1], ["Female", 3], ["Female", 2]], None
+        X = [["Male", 1], ["Female", 3], ["Female", 2]]
+        y = y[: len(X)] if tags["requires_y"] else None
+        return X, y
 
     if "dict" in tags["X_types"]:
         return [{"foo": 1, "bar": 2}, {"foo": 3, "baz": 1}], None
