@@ -22,6 +22,9 @@ v0.6
   `Benjamin Bossan`_.
 - Fix: skops persistence now also works with many functions from the
   :mod:`operator` module. :pr:`287` by `Benjamin Bossan`_.
+- ``add_*`` methods on :class:`.Card` now have default section names (but
+  ``None`` is no longer valid) and no longer add descriptions by default.
+  :pr:`321` by `Benjamin Bossan`_.
 
 v0.5
 ----
