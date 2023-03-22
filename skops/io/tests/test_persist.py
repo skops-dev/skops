@@ -523,7 +523,7 @@ def test_metainfo():
     schema = json.loads(ZipFile(io.BytesIO(dumped)).read("schema.json"))
 
     # check some schema metainfo
-    assert schema["protocol"] == skops.io._utils.DEFAULT_PROTOCOL
+    assert schema["protocol"] == skops.io._protocol.PROTOCOL
     assert schema["_skops_version"] == skops.__version__
 
     # additionally, check following metainfo: class, module, and version
@@ -657,7 +657,7 @@ def test_get_tree_unknown_type_error_msg():
     state["__loader__"] = "this_get_tree_does_not_exist"
     msg = "Can't find loader this_get_tree_does_not_exist for type builtins.tuple."
     with pytest.raises(TypeError, match=msg):
-        get_tree(state, LoadContext(None))
+        get_tree(state, LoadContext(None, -1))
 
 
 class _BoundMethodHolder:
@@ -953,3 +953,21 @@ def test_persist_operator_raises_untrusted(op):
     est = FunctionTransformer(func)
     with pytest.raises(UntrustedTypesFoundException, match=name):
         loads(dumps(est), trusted=False)
+
+
+def dummy_func(X):
+    return X
+
+
+@pytest.mark.parametrize("func", [np.sqrt, len, special.exp10, dummy_func])
+def test_persist_function(func):
+    estimator = FunctionTransformer(func=func)
+    X, y = [0, 1], [2, 3]
+    estimator.fit(X, y)
+
+    dumped = dumps(estimator)
+    loaded = loads(dumped, trusted=True)
+
+    # check that loaded estimator is identical
+    assert_params_equal(estimator.__dict__, loaded.__dict__)
+    assert_method_outputs_equal(estimator, loaded, X)

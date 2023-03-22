@@ -4,11 +4,12 @@ import io
 from contextlib import contextmanager
 from typing import Any, Generator, Literal, Sequence, Type, Union
 
+from ._protocol import PROTOCOL
 from ._trusted_types import PRIMITIVE_TYPE_NAMES
 from ._utils import LoadContext, get_module, get_type_paths
 from .exceptions import UntrustedTypesFoundException
 
-NODE_TYPE_MAPPING = {}  # type: ignore
+NODE_TYPE_MAPPING: dict[tuple[str, int], Node] = {}
 
 
 def check_type(
@@ -315,7 +316,7 @@ class CachedNode(Node):
         return self.cached.construct()
 
 
-NODE_TYPE_MAPPING["CachedNode"] = CachedNode
+NODE_TYPE_MAPPING[("CachedNode", PROTOCOL)] = CachedNode  # type: ignore
 
 
 def get_tree(state: dict[str, Any], load_context: LoadContext) -> Node:
@@ -351,14 +352,27 @@ def get_tree(state: dict[str, Any], load_context: LoadContext) -> Node:
         # node's ``construct`` method caches the instance.
         return load_context.get_object(saved_id)
 
-    try:
-        node_cls = NODE_TYPE_MAPPING[state["__loader__"]]
-    except KeyError:
-        type_name = f"{state['__module__']}.{state['__class__']}"
-        raise TypeError(
-            f" Can't find loader {state['__loader__']} for type {type_name}."
-        )
+    loader: str = state["__loader__"]
+    protocol = load_context.protocol
+    key = (loader, protocol)
+
+    if key in NODE_TYPE_MAPPING:
+        node_cls = NODE_TYPE_MAPPING[key]
+    else:
+        # What probably happened here is that we released a new protocol. If
+        # there is no specific key for the old protocol, it means it is safe to
+        # use the current protocol instead, because this node was not changed.
+        key_new = (loader, PROTOCOL)
+        try:
+            node_cls = NODE_TYPE_MAPPING[key_new]
+        except KeyError:
+            # If we still cannot find the loader for this key, something went
+            # wrong.
+            type_name = f"{state['__module__']}.{state['__class__']}"
+            raise TypeError(
+                f" Can't find loader {state['__loader__']} for type {type_name} and "
+                f"protocol {protocol}."
+            )
 
     loaded_tree = node_cls(state, load_context, trusted=False)  # type: ignore
-
     return loaded_tree

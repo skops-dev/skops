@@ -13,8 +13,10 @@ from ._audit import NODE_TYPE_MAPPING, audit_tree, get_tree
 from ._utils import LoadContext, SaveContext, _get_state, get_state
 
 # We load the dispatch functions from the corresponding modules and register
-# them.
+# them. Old protocols are found in the 'old/' directory, with the protocol
+# version appended to the corresponding module name.
 modules = ["._general", "._numpy", "._scipy", "._sklearn"]
+modules.extend([".old._general_v0"])
 for module_name in modules:
     # register exposed functions for get_state and get_tree
     module = importlib.import_module(module_name, package="skops.io")
@@ -123,9 +125,9 @@ def load(file: str | Path, trusted: bool | Sequence[str] = False) -> Any:
 
     """
     with ZipFile(file, "r") as input_zip:
-        schema = input_zip.read("schema.json")
-        load_context = LoadContext(src=input_zip)
-        tree = get_tree(json.loads(schema), load_context)
+        schema = json.loads(input_zip.read("schema.json"))
+        load_context = LoadContext(src=input_zip, protocol=schema["protocol"])
+        tree = get_tree(schema, load_context)
         audit_tree(tree, trusted)
         instance = tree.construct()
 
@@ -164,7 +166,7 @@ def loads(data: bytes, trusted: bool | Sequence[str] = False) -> Any:
 
     with ZipFile(io.BytesIO(data), "r") as zip_file:
         schema = json.loads(zip_file.read("schema.json"))
-        load_context = LoadContext(src=zip_file)
+        load_context = LoadContext(src=zip_file, protocol=schema["protocol"])
         tree = get_tree(schema, load_context)
         audit_tree(tree, trusted)
         instance = tree.construct()
@@ -208,7 +210,9 @@ def get_untrusted_types(
 
     with ZipFile(content, "r") as zip_file:
         schema = json.loads(zip_file.read("schema.json"))
-        tree = get_tree(schema, load_context=LoadContext(src=zip_file))
+        tree = get_tree(
+            schema, load_context=LoadContext(src=zip_file, protocol=schema["protocol"])
+        )
         untrusted_types = tree.get_unsafe_set()
 
     return sorted(untrusted_types)

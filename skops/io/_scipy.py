@@ -6,6 +6,7 @@ from typing import Any, Sequence
 from scipy.sparse import load_npz, save_npz, spmatrix
 
 from ._audit import Node
+from ._protocol import PROTOCOL
 from ._utils import LoadContext, SaveContext, get_module
 
 
@@ -65,5 +66,5 @@ GET_STATE_DISPATCH_FUNCTIONS = [
 NODE_TYPE_MAPPING = {
     # use 'spmatrix' to check if a matrix is a sparse matrix because that is
     # what scipy.sparse.issparse checks
-    "SparseMatrixNode": SparseMatrixNode,
+    ("SparseMatrixNode", PROTOCOL): SparseMatrixNode,
 }

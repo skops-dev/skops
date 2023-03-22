@@ -7,6 +7,8 @@ from functools import singledispatch
 from typing import Any, Type
 from zipfile import ZipFile
 
+from ._protocol import PROTOCOL
+
 
 # The following two functions are copied from cpython's pickle.py file.
 # ---------------------------------------------------------------------
@@ -83,10 +85,6 @@ def get_module(obj: Any) -> str:
     return whichmodule(obj, obj.__name__)
 
 
-# For now, there is just one protocol version
-DEFAULT_PROTOCOL = 0
-
-
 @dataclass(frozen=True)
 class SaveContext:
     """Context required for saving the objects
@@ -105,7 +103,7 @@ class SaveContext:
     """
 
     zip_file: ZipFile
-    protocol: int = DEFAULT_PROTOCOL
+    protocol: int = PROTOCOL
     memo: dict[int, Any] = field(default_factory=dict)
 
     def memoize(self, obj: Any) -> int:
@@ -135,6 +133,7 @@ class LoadContext:
     """
 
     src: ZipFile
+    protocol: int
     memo: dict[int, Any] = field(default_factory=dict)
 
     def memoize(self, obj: Any, id: int) -> None:
