@@ -791,7 +791,7 @@ class Card:
 
     def add_model_plot(
         self,
-        section: str | None = None,
+        section: str = "Model description/Training Procedure/Model Plot",
         description: str | None = None,
     ) -> Self:
         """Add a model plot
@@ -805,11 +805,10 @@ class Card:
 
         Parameters
         ----------
-        section : str or None, default=None
-            The section that the model plot should be added to. If you're using
-            the default skops template, you can leave this parameter as
-            ``None``, otherwise you have to indicate the section. If the section
-            does not exist, it will be created for you.
+        section : str (default="Model description/Training Procedure/Model Plot")
+            The section that the model plot should be added to. By default, the
+            section is set to fit the skops model card template. If you're using
+            a different template, you may have to choose a different section name.
 
         description : str or None, default=None
             An optional description to be added before the model plot. If you're
@@ -821,18 +820,8 @@ class Card:
         -------
         self : object
             Card object.
+
         """
-        if section is None:
-            if self.template == Templates.skops.value:
-                section = "Model description/Training Procedure/Model Plot"
-            else:
-                msg = NEED_SECTION_ERR_MSG.format(action="add a model plot")
-                raise ValueError(msg)
-
-        if description is None:
-            if self.template == Templates.skops.value:
-                description = "The model plot is below."
-
         self._add_model_plot(
             self.get_model(), section_name=section, description=description
         )
@@ -864,17 +853,19 @@ class Card:
         self._add_single(section_name, section)
 
     def add_hyperparams(
-        self, section: str | None = None, description: str | None = None
+        self,
+        section: str = "Model description/Training Procedure/Hyperparameters",
+        description: str | None = None,
     ) -> Self:
         """Add the model's hyperparameters as a table
 
         Parameters
         ----------
-        section : str or None, default=None
-            The section that the hyperparamters should be added to. If you're
-            using the default skops template, you can leave this parameter as
-            ``None``, otherwise you have to indicate the section. If the section
-            does not exist, it will be created for you.
+        section : str (default="Model description/Training Procedure/Hyperparameters")
+            The section that the hyperparameters should be added to. By default,
+            the section is set to fit the skops model card template. If you're
+            using a different template, you may have to choose a different section
+            name.
 
         description : str or None, default=None
             An optional description to be added before the hyperparamters. If
@@ -888,17 +879,6 @@ class Card:
             Card object.
 
         """
-        if section is None:
-            if self.template == Templates.skops.value:
-                section = "Model description/Training Procedure/Hyperparameters"
-            else:
-                msg = NEED_SECTION_ERR_MSG.format(action="add model hyperparameters")
-                raise ValueError(msg)
-
-        if description is None:
-            if self.template == Templates.skops.value:
-                description = "The model is trained with below hyperparameters."
-
         self._add_hyperparams(
             self.get_model(), section_name=section, description=description
         )
@@ -924,7 +904,7 @@ class Card:
 
     def add_get_started_code(
         self,
-        section: str | None = None,
+        section: str = "How to Get Started with the Model",
         description: str | None = None,
         file_name: str | None = None,
         model_format: Literal["pickle", "skops"] | None = None,
@@ -936,11 +916,11 @@ class Card:
 
         Parameters
         ----------
-        section : str or None, default=None
-            The section that the code should be added to. If you're using the
-            default skops template, you can leave this parameter as ``None``,
-            otherwise you have to indicate the section. If the section does not
-            exist, it will be created for you.
+        section : str (default="How to Get Started with the Model")
+            The section that the code for loading the model should be added to.
+            By default, the section is set to fit the skops model card template.
+            If you're using a different template, you may have to choose a
+            different section name.
 
         description : str or None, default=None
             An optional description to be added before the code. If you're using
@@ -983,17 +963,6 @@ class Card:
 
         if (not file_name) or (not model_format):
             return self
-
-        if section is None:
-            if self.template == Templates.skops.value:
-                section = "How to Get Started with the Model"
-            else:
-                msg = NEED_SECTION_ERR_MSG.format(action="add get started code")
-                raise ValueError(msg)
-
-        if description is None:
-            if self.template == Templates.skops.value:
-                description = "Use the code below to get started with the model."
 
         self._add_get_started_code(
             section,
@@ -1157,7 +1126,7 @@ class Card:
 
     def add_metrics(
         self,
-        section: str | None = None,
+        section: str = "Model description/Evaluation Results",
         description: str | None = None,
         **kwargs: str | int | float,
     ) -> Self:
@@ -1167,11 +1136,10 @@ class Card:
 
         Parameters
         ----------
-        section : str or None, default=None
-            The section that the metrics should be added to. If you're using the
-            default skops template, you can leave this parameter as ``None``,
-            otherwise you have to indicate the section. If the section does not
-            exist, it will be created for you.
+        section : str (default="Model description/Evaluation Results")
+            The section that metrics should be added to. By default, the section
+            is set to fit the skops model card template. If you're using a
+            different template, you may have to choose a different section name.
 
         description : str or None, default=None
             An optional description to be added before the metrics. If you're
@@ -1186,20 +1154,8 @@ class Card:
         -------
         self : object
             Card object.
-        """
-        if section is None:
-            if self.template == Templates.skops.value:
-                section = "Model description/Evaluation Results"
-            else:
-                msg = NEED_SECTION_ERR_MSG.format(action="add metrics")
-                raise ValueError(msg)
 
-        if description is None:
-            if self.template == Templates.skops.value:
-                description = (
-                    "You can find the details about evaluation process and "
-                    "the evaluation results."
-                )
+        """
         self._metrics.update(kwargs)
         self._add_metrics(section, description=description, metrics=self._metrics)
         return self
