@@ -27,14 +27,14 @@ class FunctionNode(Node):
             self.children["content"]["function"],
         )
 
-    def _get_function_name(self) -> str:
+    def _get_function_name(self) -> str:  # pragma: no cover
         return (
             self.children["content"]["module_path"]
             + "."
             + self.children["content"]["function"]
         )
 
-    def get_unsafe_set(self) -> set[str]:
+    def get_unsafe_set(self) -> set[str]:  # pragma: no cover
         if (self.trusted is True) or (self._get_function_name() in self.trusted):
             return set()
 

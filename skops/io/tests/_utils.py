@@ -181,7 +181,7 @@ def assert_method_outputs_equal(estimator, loaded, X):
 
 
 def downgrade_state(*, data: bytes, keys: list[str], old_state: dict, protocol: int):
-    """Function to downgrade the persistence state to an older version.
+    """Function to downgrade the persisted state of a skops object.
 
     This function is important for testing upgrades to the skops persistence
     protocol. When an upgrade is made, we add a test to ensure that the old
@@ -194,6 +194,25 @@ def downgrade_state(*, data: bytes, keys: list[str], old_state: dict, protocol: 
     of that old version. Then this function will replace the new state with the
     old state and insert the old protocol number. It also adds an ``__id__``
     field, which is expected for memoization.
+
+    Here is an example of how to use it:
+
+    .. code:: python
+
+        estimator = ...
+        # get the state of the object using current protocol
+        dumped = sio.dumps(estimator)
+        # let's assume that estimator.foo.bar was changed
+        keys = ["foo", "bar"]
+        old_state = old_get_state_function(bar)
+        downgraded = downgrad_state(
+            data=dumped,
+            keys=keys,
+            old_state=old_state
+            protocol=current_protocol - 1,
+        )
+        # check that this does not raise an error:
+        sio.loads(downgrade, trusted=...)
 
     Parameters
     ----------
