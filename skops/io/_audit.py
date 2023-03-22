@@ -287,6 +287,10 @@ class Node:
 
         return res
 
+    def format(self) -> str:
+        """Representation of the node's content."""
+        return f"{self.module_name}.{self.class_name}"
+
 
 class CachedNode(Node):
     def __init__(

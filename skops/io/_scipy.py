@@ -40,9 +40,9 @@ class SparseMatrixNode(Node):
         trusted: bool | Sequence[str] = False,
     ) -> None:
         super().__init__(state, load_context, trusted)
-        type = state["type"]
+        self.type = state["type"]
         self.trusted = self._get_trusted(trusted, [spmatrix])
-        if type != "scipy":
+        if self.type != "scipy":
             raise TypeError(
                 f"Cannot load object of type {self.module_name}.{self.class_name}"
             )

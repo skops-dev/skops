@@ -482,6 +482,14 @@ class JsonNode(Node):
     def _construct(self):
         return json.loads(self.content)
 
+    def format(self) -> str:
+        """Representation of the node's content.
+
+        Since no module is used, just show the content.
+
+        """
+        return f"json-type({self.content})"
+
 
 def bytes_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     f_name = f"{uuid.uuid4()}.bin"

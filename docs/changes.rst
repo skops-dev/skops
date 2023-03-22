@@ -25,6 +25,9 @@ v0.6
 - ``add_*`` methods on :class:`.Card` now have default section names (but
   ``None`` is no longer valid) and no longer add descriptions by default.
   :pr:`321` by `Benjamin Bossan`_.
+- Add possibility to visualize a skops object and show untrusted types by using
+  :func:`skops.io.visualize`. For colored output, install `rich`: `pip install
+  rich`. :pr:`317` by `Benjamin Bossan`_.
 
 v0.5
 ----

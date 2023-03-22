@@ -134,6 +134,64 @@ For example, to convert all ``.pkl`` flies in the current directory:
 Further help for the different supported options can be found by calling
 ``skops convert --help`` in a terminal.
 
+Visualization
+#############
+
+Skops files can be visualized using :func:`skops.io.visualize`. If you have
+a skops file called ``my-model.skops``, you can visualize it like this:
+
+.. code:: python
+
+    import skops.io as sio
+    sio.visualize("my-model.skops")
+
+The output could look like this:
+
+.. code::
+
+    root: sklearn.preprocessing._data.MinMaxScaler
+    └── attrs: builtins.dict
+        ├── feature_range: builtins.tuple
+        │   ├── content: json-type(-555)
+        │   └── content: json-type(123)
+        ├── copy: unsafe_lib.UnsafeType [UNSAFE]
+        ├── clip: json-type(false)
+        └── _sklearn_version: json-type("1.2.0")
+
+``unsafe_lib.UnsafeType`` was recognized as untrusted and marked.
+
+It's also possible to visualize the object dumped as bytes:
+
+    import skops.io as sio
+    my_model = ...
+    sio.visualize(sio.dumps(my_model))
+
+There are various options to customize the output. By default, the security of
+nodes is color coded if `rich <https://github.com/Textualize/rich>`_ is
+installed, otherwise they all have the same color. To install ``rich``, run:
+
+.. code::
+
+    python -m pip install rich
+
+or, when installing skops, install it like this:
+
+    python -m pip install skops[rich]
+
+To disable colors, even if ``rich`` is installed, pass ``use_colors=False`` to
+:func:`skops.io.visualize`.
+
+It's also possible to change what colors are being used, e.g. by passing
+``visualize(..., color_safe="cyan")`` to change the color for trusted nodes from
+green to cyan. The ``rich`` docs list the `supported standard colors
+<https://rich.readthedocs.io/en/stable/appendix/colors.html>`_.
+
+Note that the visualization feature is intended to help understand the structure
+of the object, e.g. what attributes are identified as untrusted. It is not a
+replacement for a proper security check. In particular, just because an object's
+visualization looks innocent does *not* mean you can just call `sio.load(<file>,
+trusted=True)` on this object -- only pass the types you really trust to the
+``trusted`` argument.
 
 Supported libraries
 -------------------
