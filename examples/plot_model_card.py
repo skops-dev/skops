@@ -158,7 +158,7 @@ importances = permutation_importance(model, X_test, y_test, n_repeats=10)
 model_card.add_permutation_importances(
     importances,
     X_test.columns,
-    plot_file=str(Path(local_repo) / "importance.png"),
+    plot_file=Path(local_repo) / "importance.png",
     plot_name="Permutation Importance",
 )
 
@@ -174,7 +174,9 @@ clf_report = pd.DataFrame(clf_report).T.reset_index()
 model_card.add_table(
     folded=True,
     **{
-        "Model description/Evaluation Results/Hyperparameter search results": cv_results,
+        "Model description/Evaluation Results/Hyperparameter search results": (
+            cv_results
+        ),
         "Model description/Evaluation Results/Classification report": clf_report,
     },
 )
