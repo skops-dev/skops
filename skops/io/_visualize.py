@@ -7,9 +7,8 @@ from pathlib import Path
 from typing import Any, Callable, Iterator, Literal
 from zipfile import ZipFile
 
-from ..utils.importutils import import_or_raise
 from ._audit import Node, get_tree
-from ._general import FunctionNode, JsonNode
+from ._general import FunctionNode, JsonNode, ListNode
 from ._numpy import NdArrayNode
 from ._scipy import SparseMatrixNode
 from ._utils import LoadContext
@@ -17,11 +16,25 @@ from ._utils import LoadContext
 
 @dataclass
 class NodeInfo:
+    """Information pertinent for visualizatoin, extracted from ``Node``s.
+
+    This class contains all information necessary for visualizing nodes. This
+    way, we can have separate functions for:
+
+    - visiting nodes and determining their safety
+    - visualizing the nodes
+
+    The visualization function will only receive the ``NodeInfo`` and does not
+    have to concern itself with how to discover children or determine safety.
+
+    """
+
     level: int
     key: str  # the key to the node
     val: str  # the value of the node
     is_self_safe: bool  # whether this specific node is safe
     is_safe: bool  # whether this node and all of its children are safe
+    is_last: bool  # whether this is the last child of parent node
 
 
 def _check_visibility(
@@ -61,7 +74,13 @@ def _get_node_label(
 
     """
     # note: when changing the arguments to this function, also update the
-    # docstring of visualize_tree!
+    # docstring of visualize!
+
+    if use_colors:
+        try:
+            import rich  # noqa
+        except ImportError:
+            use_colors = False
 
     # add tag if necessary
     node_val = node.val
@@ -69,7 +88,7 @@ def _get_node_label(
     if tag:
         node_val += f" {tag}"
 
-    # colorize if so desired
+    # colorize if so desired and if rich is installed
     if use_colors:
         if node.is_safe:
             color = color_safe
@@ -88,29 +107,31 @@ def pretty_print_tree(
     **kwargs,
 ) -> None:
     # This function loops through the flattened nodes of the tree and creates a
-    # rich Tree based on the node information. Rich can then create a pretty
-    # visualization of said tree.
-    rich = import_or_raise("rich", "pretty printing the object")
-    from rich.tree import Tree
+    # tree visualization based on the node information. If rich is installed,
+    # nodes can be colored.
 
-    nodes = list(nodes_iter)
-    if not nodes:  # empty tree, hmm
-        return
+    print_ = print
+    try:
+        import rich
 
-    # start with root node, it is always visible
-    node = nodes.pop(0)
-    node_label = _get_node_label(node, **kwargs)
-    cur_level = node.level  # should be 0
-    root = tree = Tree(f"{node.key}: {node_label}")
-    trace = [tree]  # trace keeps track of what is the current node to add to
+        # use rich for printing if available
+        print_ = rich.print  # type: ignore
+    except ImportError:
+        pass
 
-    while nodes:
-        node = nodes.pop(0)
+    # start with root node
+    node = next(nodes_iter)
+    label = _get_node_label(node, **kwargs)
+    print_(f"{node.key}: {label}")
+    prev_level = node.level  # should be 0
+    prefix = ""
+
+    for node in nodes_iter:
         visible = _check_visibility(node.is_self_safe, node.is_safe, show=show)
         if not visible:
             continue
 
-        level_diff = cur_level - node.level
+        level_diff = prev_level - node.level
         if level_diff < -1:
             # this would mean it is a "(great-)grandchild" node
             raise ValueError(
@@ -121,39 +142,44 @@ def pretty_print_tree(
 
         # Level diff of -1 means that this node is a child of the previous node.
         # E.g. if the current level if 4 and the previous level was 3, the
-        # current node is a child node of the previous one. Since the previous
-        # node is already the last node in the trace, there is nothing more that
-        # needs to be done. Therefore, for a diff of -1, we don't pop from the
-        # trace.
+        # current node is a child node of the previous one. Since the prefix for
+        # a child node was already added, there is nothing more left to do.
+
         for _ in range(level_diff + 1):
-            # If the level diff is greater than -1, it means that the current
-            # node is not the child of the last node, but of a node higher up.
-            # E.g. if the current level is 2 and previous level was 3, it means
-            # that we should move up 2 layers of nesting, therefore, we pop
-            # 3-2+1 = 2 levels.
-            trace.pop(-1)
+            # This loop is entered if the current node is at the same level as,
+            # or higher than, the previous node. This means the prefix has to be
+            # truncated according to the level difference. E.g. if the current
+            # level is 2 and previous level was 3, it means that we should move
+            # up 2 layers of nesting, therefore, we trunce 3-2+1 = 2 times.
+            prefix = prefix[:-4]
 
-        # add tag if necessary
-        node_label = _get_node_label(node, **kwargs)
-        text = f"{node.key}: {node_label}"
-        tree = trace[-1]
-        trace.append(tree.add(text))
-        cur_level = node.level
+        print_(prefix, end="")
+        if node.is_last:
+            print_("└──", end="")
+            prefix += "    "
+        else:
+            print_("├──", end="")
+            prefix += "│   "
 
-    rich.print(root)
+        label = _get_node_label(node, **kwargs)
+        print_(f" {node.key}: {label}")
+
+        prev_level = node.level
 
 
 def walk_tree(
     node: Node | dict[str, Node] | list[Node],
     node_name: str = "root",
     level: int = 0,
+    is_last: bool = False,
 ) -> Iterator[NodeInfo]:
     """Visit all nodes of the tree and yield their important attributes.
 
     This function visits all nodes of the object tree and determines:
 
     - level: how nested the node is
-    - key: the key of the node, e.g. the key of a dict.
+    - key: the key of the node. E.g. if the node is an attribute of an object,
+      the key would be the name of the attribute.
     - val: the value of the node, e.g. builtins.list
     - safety: whether it, and its children, are trusted
 
@@ -176,6 +202,9 @@ def walk_tree(
     level: int (default=0)
         The current level of nesting.
 
+    is_last: bool (default=False)
+        Whether this is the last node among its sibling nodes.
+
     Yields
     ------
     :class:`~NodeInfo`:
@@ -185,34 +214,40 @@ def walk_tree(
     # key_types is not helpful, as it is artificially added by skops to
     # circumvent the fact that json only allows keys to be strings. It is not
     # useful to the user and adds a lot of noise, thus skip key_types.
-    # TODO: check that no funny business is going on in key types
     if node_name == "key_types":
-        return
+        if isinstance(node, ListNode) and node.is_safe():
+            return
+        raise ValueError(
+            "An invalid 'key_types' node was encountered, please report the issue "
+            "here: https://github.com/skops-dev/skops/issues"
+        )
 
-    # COMPOSITE TYPES: CHECK ALL ITEMS
     if isinstance(node, dict):
-        for key, val in node.items():
+        num_nodes = len(node)
+        for i, (key, val) in enumerate(node.items(), start=1):
             yield from walk_tree(
                 val,
                 node_name=key,
                 level=level,
+                is_last=i == num_nodes,
             )
         return
 
     if isinstance(node, (list, tuple)):
-        # shouldn't be tuple, but check just to be sure
-        for val in node:
+        num_nodes = len(node)
+        for i, val in enumerate(node, start=1):
             yield from walk_tree(
                 val,
                 node_name=node_name,
                 level=level,
+                is_last=i == num_nodes,
             )
         return
 
     # NO MATCH: RAISE ERROR
     if not isinstance(node, Node):
         raise TypeError(
-            f"Cannot deal with {type(node)}, please report the issue here "
+            f"Cannot deal with {type(node)}, please report the issue here: "
             "https://github.com/skops-dev/skops/issues"
         )
 
@@ -227,24 +262,16 @@ def walk_tree(
         val=node.format(),
         is_self_safe=node.is_self_safe(),
         is_safe=node.is_safe(),
+        is_last=is_last,
     )
 
     # TYPES WHOSE CHILDREN IT MAKES NO SENSE TO VISIT
     # TODO: For better security, we should check the schema if we return early,
-    # otherwise something nefarious could be hidden inside.
-    if isinstance(node, (NdArrayNode, SparseMatrixNode)) and (node.type != "json"):
+    # otherwise something nefarious could be hidden inside (however, if there
+    # is, the node should be marked as unsafe)
+    if isinstance(node, (NdArrayNode, SparseMatrixNode, FunctionNode, JsonNode)):
         return
 
-    if isinstance(node, (NdArrayNode, SparseMatrixNode)) and (node.type == "json"):
-        return
-
-    if isinstance(node, FunctionNode):
-        return
-
-    if isinstance(node, JsonNode):
-        pass
-
-    # RECURSE
     yield from walk_tree(
         node.children,
         node_name=node_name,
@@ -252,7 +279,7 @@ def walk_tree(
     )
 
 
-def visualize_tree(
+def visualize(
     file: Path | str | bytes,
     show: Literal["all", "untrusted", "trusted"] = "all",
     sink: Callable[..., None] = pretty_print_tree,
@@ -292,7 +319,7 @@ def visualize_tree(
             - the safety of the node and its children
 
         The ``show`` argument is explained above. Any additional ``kwargs``
-        passed to ``visualize_tree`` will also be passed to ``sink``.
+        passed to ``visualize`` will also be passed to ``sink``.
 
         The default sink is :func:`~pretty_print_tree`, which takes these
         additional parameters:
@@ -301,14 +328,15 @@ def visualize_tree(
               tag)
             - tag_unsafe: The tag used to mark untrusted nodes
               (default="[UNSAFE]")
-            - use_colors: Whether to colorize the nodes (default=True)
+            - use_colors: Whether to colorize the nodes (default=True). Colors
+              requires the ``rich`` package to be installed.
             - color_safe: Color to use for trusted nodes (default="green")
             - color_unsafe: Color to use for untrusted nodes (default="red")
             - color_child_unsafe: Color to use for nodes that are trusted but
               that have untrusted child ndoes (default="yellow")
 
         So if you don't want to have colored output, just pass
-        ``use_colors=False`` to ``visualize_tree``. The colors themselves, such
+        ``use_colors=False`` to ``visualize``. The colors themselves, such
         as "red" and "green", refer to the standard colors used by ``rich``.
 
     """

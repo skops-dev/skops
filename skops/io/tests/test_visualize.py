@@ -47,7 +47,7 @@ class TestVisualizeTree:
     @pytest.mark.parametrize("show", ["all", "trusted", "untrusted"])
     def test_print_simple(self, simple, show, capsys):
         file = sio.dumps(simple)
-        sio.visualize_tree(file, show=show)
+        sio.visualize(file, show=show)
 
         # Output is the same for "all" and "trusted" because all nodes are
         # trusted. Colors are not recorded by capsys.
@@ -70,7 +70,7 @@ class TestVisualizeTree:
 
     def test_print_pipeline(self, pipeline, capsys):
         file = sio.dumps(pipeline)
-        sio.visualize_tree(file)
+        sio.visualize(file)
 
         # no point in checking the whole output with > 120 lines
         expected_start = [
@@ -97,7 +97,7 @@ class TestVisualizeTree:
         def sink(nodes_iter, *args, **kwargs):
             nodes.extend(nodes_iter)
 
-        sio.visualize_tree(file, sink=sink)
+        sio.visualize(file, sink=sink)
         nodes_self_unsafe = [node for node in nodes if not node.is_self_safe]
         nodes_unsafe = [node for node in nodes if not node.is_safe]
 
@@ -129,7 +129,7 @@ class TestVisualizeTree:
                 assert sink_kwargs[key] == val
 
         file = sio.dumps(simple)
-        sio.visualize_tree(file, sink=my_sink, **kwargs)
+        sio.visualize(file, sink=my_sink, **kwargs)
 
     def test_custom_tags(self, simple, capsys):
         class UnsafeType:
@@ -138,7 +138,7 @@ class TestVisualizeTree:
         simple.copy = UnsafeType
 
         file = sio.dumps(simple)
-        sio.visualize_tree(file, tag_safe="NICE", tag_unsafe="OHNO")
+        sio.visualize(file, tag_safe="NICE", tag_unsafe="OHNO")
         expected = [
             "root: sklearn.preprocessing._data.MinMaxScaler NICE",
             "└── attrs: builtins.dict NICE",
@@ -156,36 +156,93 @@ class TestVisualizeTree:
         assert stdout.strip() == "\n".join(expected)
 
     def test_custom_colors(self, simple):
-        # Colors are not recorded by capsys, so we cannot use it
+        # test that custom colors are used in node representation, requires rich
+        # to work
+        pytest.importorskip("rich")
+
         class UnsafeType:
             pass
 
         simple.copy = UnsafeType
-
         file = sio.dumps(simple)
+
+        # Colors are not recorded by capsys, so we cannot use it and must mock
+        # printing
         mock_print = Mock()
         with patch("rich.print", mock_print):
-            sio.visualize_tree(
+            sio.visualize(
                 file,
                 color_safe="black",
                 color_unsafe="cyan",
                 color_child_unsafe="orange3",
             )
 
-        assert mock_print.call_count == 1
+        mock_print.assert_called()
 
-        tree = mock_print.call_args_list[0].args[0]
+        calls = mock_print.call_args_list
         # The root node is indirectly unsafe through child
-        assert "[orange3]" in tree.label
-        # feature_range is safe
-        assert "[black]" in tree.children[0].children[0].label
-        # copy is unsafe
-        assert "[cyan]" in tree.children[0].children[1].label
+        assert (
+            calls[0].args[0]
+            == "root: [orange3]sklearn.preprocessing._data.MinMaxScaler"
+        )
+        # 'feature_range' is safe
+        assert calls[6].args[0] == " feature_range: [black]builtins.tuple"
+        # 'copy' is unsafe
+        assert calls[15].args[0] == " copy: [cyan]test_visualize.UnsafeType [UNSAFE]"
+
+    @pytest.mark.usefixtures("rich_not_installed")
+    def test_no_colors_if_rich_not_installed(self, simple):
+        # this test is similar to the previous one, except that we test that the
+        # colors are *not* used if rich is not installed
+        file = sio.dumps(simple)
+
+        # don't use capsys, because it wouldn't capture the colors, thus need to
+        # use mock
+        mock_print = Mock()
+        with patch("builtins.print", mock_print):
+            sio.visualize(
+                file,
+                color_safe="black",
+                color_unsafe="cyan",
+                color_child_unsafe="orange3",
+            )
+        mock_print.assert_called()
+
+        # check that none of the colors are being used
+        colors = ("black", "cyan", "orange3")
+        for call in mock_print.call_args_list:
+            for color in colors:
+                assert color not in call.args[0]
+
+    def test_no_colors_if_use_colors_false(self, simple):
+        # this test is similar to the previous one, except that we test that the
+        # colors are *not* used, even if rich is installed, when passing
+        # use_colors=False
+        file = sio.dumps(simple)
+
+        # don't use capsys, because it wouldn't capture the colors, thus need to
+        # use mock
+        mock_print = Mock()
+        with patch("rich.print", mock_print):
+            sio.visualize(
+                file,
+                color_safe="black",
+                color_unsafe="cyan",
+                color_child_unsafe="orange3",
+                use_colors=False,
+            )
+        mock_print.assert_called()
+
+        # check that none of the colors are being used
+        colors = ("black", "cyan", "orange3")
+        for call in mock_print.call_args_list:
+            for color in colors:
+                assert color not in call.args[0]
 
     def test_from_file(self, simple, tmp_path, capsys):
         f_name = tmp_path / "estimator.skops"
         sio.dump(simple, f_name)
-        sio.visualize_tree(f_name)
+        sio.visualize(f_name)
 
         expected = [
             "root: sklearn.preprocessing._data.MinMaxScaler",
