@@ -953,3 +953,21 @@ def test_persist_operator_raises_untrusted(op):
     est = FunctionTransformer(func)
     with pytest.raises(UntrustedTypesFoundException, match=name):
         loads(dumps(est), trusted=False)
+
+
+def dummy_func(X):
+    return X
+
+
+@pytest.mark.parametrize("func", [np.sqrt, len, special.exp10, dummy_func])
+def test_persist_function(func):
+    estimator = FunctionTransformer(func=func)
+    X, y = [0, 1], [2, 3]
+    estimator.fit(X, y)
+
+    dumped = dumps(estimator)
+    loaded = loads(dumped, trusted=True)
+
+    # check that loaded estimator is identical
+    assert_params_equal(estimator.__dict__, loaded.__dict__)
+    assert_method_outputs_equal(estimator, loaded, X)

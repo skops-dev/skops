@@ -25,7 +25,7 @@ def dummy_func(X):
 
 
 @pytest.mark.parametrize("func", [np.sqrt, len, special.exp10, dummy_func])
-def test_function_v0(func):
+def test_persist_function_v0(func):
     call_count = 0
 
     # function_get_state as it was for protocol 0
