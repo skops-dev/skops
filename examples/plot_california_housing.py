@@ -781,7 +781,8 @@ plt.tight_layout()
 
 
 # %%
-N_JOBS = 6  # this controls the level of parallelism
+# this controls the level of parallelism, feel free to set to a higher number
+N_JOBS = 1
 
 # %%
 _, ax = plt.subplots(figsize=(5, 5))
