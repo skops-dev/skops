@@ -18,6 +18,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from skops import hub_utils
 from skops.card import Card, metadata_from_config
 from skops.card._model_card import (
+    CONTENT_PLACEHOLDER,
     SKOPS_TEMPLATE,
     PlotSection,
     Section,
@@ -153,9 +154,9 @@ class TestAddModelPlot:
     def test_default(self, model_card):
         result = model_card.select(
             "Model description/Training Procedure/Model Plot"
-        ).content
+        ).format()
         # don't compare whole text, as it's quite long and non-deterministic
-        assert result.startswith("The model plot is below.\n\n<style>#sk-")
+        assert result.startswith("<style>#sk-")
         assert "<style>" in result
         assert result.endswith(
             "<pre>LinearRegression()</pre></div></div></div></div></div>"
@@ -164,7 +165,7 @@ class TestAddModelPlot:
     def test_no_overflow(self, model_card):
         result = model_card.select(
             "Model description/Training Procedure/Model Plot"
-        ).content
+        ).format()
         # test if the model doesn't overflow the huggingface models page
         assert result.count("sk-top-container") == 1
         assert 'style="overflow: auto;' in result
@@ -174,35 +175,106 @@ class TestAddModelPlot:
         model_card = Card(model, model_diagram=False)
         result = model_card.select(
             "Model description/Training Procedure/Model Plot"
-        ).content
-        assert result == "The model plot is below."
+        ).format()
+        assert result == CONTENT_PLACEHOLDER
 
-    def test_other_section(self, model_card):
-        model_card.add_model_plot(section="Other section")
-        result = model_card.select("Other section").content
-        assert result.startswith("The model plot is below.\n\n<style>#sk-")
+    def test_model_diagram_str(self):
+        # if passing a str, use that as the section name
+        model = fit_model()
+        other_section_name = "Here is the model diagram"
+        model_card = Card(model, model_diagram=other_section_name)
+
+        # first check that default section only contains placeholder
+        result = model_card.select(
+            "Model description/Training Procedure/Model Plot"
+        ).format()
+        assert result == CONTENT_PLACEHOLDER
+
+        # now check that the actual model diagram is in the other section
+        result = model_card.select(other_section_name).format()
+        assert result.startswith("<style>#sk-")
         assert "<style>" in result
         assert result.endswith(
             "<pre>LinearRegression()</pre></div></div></div></div></div>"
         )
 
-    def test_other_description(self, model_card):
+    def test_other_section(self, model_card):
+        model_card.add_model_plot(section="Other section")
+        result = model_card.select("Other section").content
+        assert result.startswith("<style>#sk-")
+        assert "<style>" in result
+        assert result.endswith(
+            "<pre>LinearRegression()</pre></div></div></div></div></div>"
+        )
+
+    def test_with_description(self, model_card):
         model_card.add_model_plot(description="Awesome diagram below")
         result = model_card.select(
             "Model description/Training Procedure/Model Plot"
-        ).content
+        ).format()
         assert result.startswith("Awesome diagram below\n\n<style>#sk-")
 
     @pytest.mark.parametrize("template", CUSTOM_TEMPLATES)
-    def test_custom_template_no_section_raises(self, template):
+    def test_custom_template_no_section_uses_default(self, template):
         model = fit_model()
         model_card = Card(model, template=template)
-        msg = (
-            "You are trying to add a model plot but you're using a custom template, "
-            "please pass the 'section' argument to determine where to put the content"
+        model_card.add_model_plot()
+        result = model_card.select(
+            "Model description/Training Procedure/Model Plot"
+        ).format()
+
+        # don't compare whole text, as it's quite long and non-deterministic
+        assert result.startswith("<style>#sk-")
+        assert "<style>" in result
+        assert result.endswith(
+            "<pre>LinearRegression()</pre></div></div></div></div></div>"
         )
-        with pytest.raises(ValueError, match=msg):
-            model_card.add_model_plot()
+
+    @pytest.mark.parametrize("template", CUSTOM_TEMPLATES)
+    def test_custom_template_init_str_works(self, template):
+        model = fit_model()
+        section_name = "Here is the model diagram"
+        model_card = Card(model, template=template, model_diagram=section_name)
+
+        result = model_card.select(section_name).format()
+        assert result.startswith("<style>#sk-")
+        assert "<style>" in result
+        assert result.endswith(
+            "<pre>LinearRegression()</pre></div></div></div></div></div>"
+        )
+
+    def test_default_template_and_model_diagram_true(self, model_card):
+        # setting model_diagram=True should not change anything vs auto with the
+        # default template
+        model = fit_model()
+        model_card = Card(model, model_diagram=True)
+        result = model_card.select(
+            "Model description/Training Procedure/Model Plot"
+        ).format()
+        # don't compare whole text, as it's quite long and non-deterministic
+        assert result.startswith("<style>#sk-")
+        assert "<style>" in result
+        assert result.endswith(
+            "<pre>LinearRegression()</pre></div></div></div></div></div>"
+        )
+
+    @pytest.mark.parametrize("template", CUSTOM_TEMPLATES)
+    def test_custom_template_and_model_diagram_true_uses_default(
+        self, model_card, template
+    ):
+        # when using a custom template and not indicating a section, use the
+        # default section
+        model = fit_model()
+        Card(model, template=template, model_diagram=True)
+        result = model_card.select(
+            "Model description/Training Procedure/Model Plot"
+        ).format()
+        # don't compare whole text, as it's quite long and non-deterministic
+        assert result.startswith("<style>#sk-")
+        assert "<style>" in result
+        assert result.endswith(
+            "<pre>LinearRegression()</pre></div></div></div></div></div>"
+        )
 
     def test_add_twice(self, model_card):
         # it's possible to add the section twice, even if it doesn't make a lot
@@ -233,8 +305,6 @@ class TestAddHyperparams:
     @pytest.fixture
     def expected(self):
         lines = [
-            "The model is trained with below hyperparameters.",
-            "",
             "<details>",
             "<summary> Click to expand </summary>",
             "",
@@ -253,7 +323,7 @@ class TestAddHyperparams:
         major, minor, *_ = sklearn.__version__.split(".")
         major, minor = int(major), int(minor)
         if (major >= 1) and (minor >= 2):
-            del lines[10]
+            del lines[8]
 
         table = "\n".join(lines)
         # remove multiple whitespaces and dashes, as they're not important and may
@@ -283,7 +353,7 @@ class TestAddHyperparams:
         result = _strip_multiple_chars(result, "-")
         assert result == expected
 
-    def test_other_description(self, model_card, expected):
+    def test_with_description(self, model_card, expected):
         model_card.add_hyperparams(description="Awesome hyperparams")
         result = model_card.select(
             "Model description/Training Procedure/Hyperparameters"
@@ -291,16 +361,19 @@ class TestAddHyperparams:
         assert result.startswith("Awesome hyperparams")
 
     @pytest.mark.parametrize("template", CUSTOM_TEMPLATES)
-    def test_custom_template_no_section_raises(self, template):
+    def test_custom_template_no_section_uses_default(self, template, expected):
         model = fit_model()
         model_card = Card(model, template=template)
-        msg = (
-            "You are trying to add model hyperparameters but you're using a custom "
-            "template, please pass the 'section' argument to determine where to put "
-            "the content"
-        )
-        with pytest.raises(ValueError, match=msg):
-            model_card.add_hyperparams()
+        model_card.add_hyperparams()
+        result = model_card.select(
+            "Model description/Training Procedure/Hyperparameters"
+        ).format()
+
+        # remove multiple whitespaces and dashes, as they're not important and may
+        # differ depending on OS
+        result = _strip_multiple_chars(result, " ")
+        result = _strip_multiple_chars(result, "-")
+        assert result == expected
 
     def test_add_twice(self, model_card):
         # it's possible to add the section twice, even if it doesn't make a lot
@@ -336,16 +409,14 @@ class TestAddMetrics:
     def test_default(self, model_card):
         # by default, don't add a table, as there are no metrics
         result = model_card.select("Model description/Evaluation Results").format()
-        expected = "[More Information Needed]"
+        expected = CONTENT_PLACEHOLDER
         assert result == expected
 
     def test_empty_metrics_table(self, model_card):
         model_card.add_metrics()
         result = model_card.select("Model description/Evaluation Results").format()
         expected = (
-            "You can find the details about evaluation process and the evaluation "
-            "results.\n\n"
-            "| Metric   | Value   |\n"
+            "| Metric   | Value   |\n"  # fmt: skip
             "|----------|---------|"
         )
         assert result == expected
@@ -358,8 +429,6 @@ class TestAddMetrics:
         )
         result = model_card.select("Model description/Evaluation Results").format()
         expected = (
-            "You can find the details about evaluation process and the evaluation "
-            "results.\n\n"
             "| Metric      |   Value |\n"
             "|-------------|---------|\n"
             "| acc         |     0.1 |\n"
@@ -371,30 +440,35 @@ class TestAddMetrics:
     def test_other_section(self, model_card):
         model_card.add_metrics(accuracy=0.9, section="Other section")
         result = model_card.select("Other section").format()
+        # fmt: off
         expected = (
-            "You can find the details about evaluation process and the evaluation "
-            "results.\n\n"
             "| Metric   |   Value |\n"
             "|----------|---------|\n"
             "| accuracy |     0.9 |"
         )
+        # fmt: on
         assert result == expected
 
-    def test_other_description(self, model_card):
+    def test_with_description(self, model_card):
         model_card.add_metrics(accuracy=0.9, description="Awesome metrics")
         result = model_card.select("Model description/Evaluation Results").format()
-        assert result.startswith("Awesome metrics")
+        assert result.startswith("Awesome metrics\n\n| Metric ")
 
     @pytest.mark.parametrize("template", CUSTOM_TEMPLATES)
     def test_custom_template_no_section_raises(self, template):
         model = fit_model()
         model_card = Card(model, template=template)
-        msg = (
-            "You are trying to add metrics but you're using a custom template, "
-            "please pass the 'section' argument to determine where to put the content"
+        model_card.add_metrics(accuracy=0.9)
+
+        result = model_card.select("Model description/Evaluation Results").format()
+        # fmt: off
+        expected = (
+            "| Metric   |   Value |\n"
+            "|----------|---------|\n"
+            "| accuracy |     0.9 |"
         )
-        with pytest.raises(ValueError, match=msg):
-            model_card.add_metrics(accuracy=0.9)
+        # fmt: on
+        assert result == expected
 
     def test_add_twice(self, model_card):
         # it's possible to add the section twice, even if it doesn't make a lot
@@ -562,11 +636,9 @@ class TestAddGetStartedCode:
         card = Card(model, metadata=metadata_skops)
         return card
 
-    def test_default_pickle(self, model_card):
-        # by default, don't add a table, as there are no metrics
-        result = model_card.select("How to Get Started with the Model").format()
-        expected = (
-            "Use the code below to get started with the model.\n\n"
+    @pytest.fixture
+    def text_pickle(self):
+        return (
             "```python\n"
             "import json\n"
             "import pandas as pd\n"
@@ -577,13 +649,10 @@ class TestAddGetStartedCode:
             'model.predict(pd.DataFrame.from_dict(config["sklearn"]["example_input"]))\n'
             "```"
         )
-        assert result == expected
 
-    def test_default_skops(self, model_card_skops):
-        # by default, don't add a table, as there are no metrics
-        result = model_card_skops.select("How to Get Started with the Model").format()
-        expected = (
-            "Use the code below to get started with the model.\n\n"
+    @pytest.fixture
+    def text_skops(self):
+        return (
             "```python\n"
             "import json\n"
             "import pandas as pd\n"
@@ -594,7 +663,16 @@ class TestAddGetStartedCode:
             'model.predict(pd.DataFrame.from_dict(config["sklearn"]["example_input"]))\n'
             "```"
         )
-        assert result == expected
+
+    def test_default_pickle(self, model_card, text_pickle):
+        # by default, don't add a table, as there are no metrics
+        result = model_card.select("How to Get Started with the Model").format()
+        assert result == text_pickle
+
+    def test_default_skops(self, model_card_skops, text_skops):
+        # by default, don't add a table, as there are no metrics
+        result = model_card_skops.select("How to Get Started with the Model").format()
+        assert result == text_skops
 
     def test_no_metadata_file_name(self):
         model = fit_model()
@@ -613,50 +691,28 @@ class TestAddGetStartedCode:
         card = Card(model, metadata=Metadata())
         card.add_get_started_code()  # does not raise
 
-    def test_other_section(self, model_card):
+    def test_other_section(self, model_card, text_pickle):
         model_card.add_get_started_code(section="Other section")
         result = model_card.select("Other section").format()
-        expected = "Use the code below to get started with the model."
-        assert result.startswith(expected)
+        assert result == text_pickle
 
-    def test_other_description(self, model_card):
+    def test_use_description(self, model_card):
         model_card.add_get_started_code(description="Awesome code")
         result = model_card.select("How to Get Started with the Model").format()
         assert result.startswith("Awesome code")
 
-    def test_other_filename(self, model_card):
+    def test_other_filename(self, model_card, text_pickle):
         model_card.add_get_started_code(file_name="foobar.pkl")
+        text = text_pickle.replace("my-model.pickle", "foobar.pkl")
         result = model_card.select("How to Get Started with the Model").format()
-        expected = (
-            "Use the code below to get started with the model.\n\n"
-            "```python\n"
-            "import json\n"
-            "import pandas as pd\n"
-            "import joblib\n"
-            'model = joblib.load("foobar.pkl")\n'
-            'with open("config.json") as f:\n'
-            "    config = json.load(f)\n"
-            'model.predict(pd.DataFrame.from_dict(config["sklearn"]["example_input"]))\n'
-            "```"
-        )
-        assert result == expected
+        assert result == text
 
-    def test_other_model_format(self, model_card):
+    def test_explicitly_set_other_model_format(self, model_card, text_skops):
         model_card.add_get_started_code(model_format="skops")
         result = model_card.select("How to Get Started with the Model").format()
-        expected = (
-            "Use the code below to get started with the model.\n\n"
-            "```python\n"
-            "import json\n"
-            "import pandas as pd\n"
-            "import skops.io as sio\n"
-            'model = sio.load("my-model.pickle")\n'
-            'with open("config.json") as f:\n'
-            "    config = json.load(f)\n"
-            'model.predict(pd.DataFrame.from_dict(config["sklearn"]["example_input"]))\n'
-            "```"
-        )
-        assert result == expected
+        # file name is still "my-model.pickle", only the loading code changes
+        text = text_skops.replace(".skops", ".pickle")
+        assert result == text
 
     def test_invalid_model_format_passed(self, model_card):
         # json is not a valid model format
@@ -682,15 +738,22 @@ class TestAddGetStartedCode:
             Card(model, metadata=Metadata())
 
     @pytest.mark.parametrize("template", CUSTOM_TEMPLATES)
-    def test_custom_template_no_section_raises(self, template):
+    def test_custom_template_no_section_uses_default(self, template, text_pickle):
         model = fit_model()
-        model_card = Card(model, template=template)
-        msg = (
-            "You are trying to add get started code but you're using a custom template,"
-            " please pass the 'section' argument to determine where to put the content"
-        )
-        with pytest.raises(ValueError, match=msg):
-            model_card.add_get_started_code(file_name="foo.bar", model_format="skops")
+
+        class Metadata:
+            def to_dict(self):
+                return {
+                    "model_file": "my-model.pickle",
+                    "sklearn": {
+                        "model_format": "pickle",
+                    },
+                }
+
+        model_card = Card(model, metadata=Metadata(), template=template)
+        model_card.add_get_started_code()
+        result = model_card.select("How to Get Started with the Model").format()
+        assert result == text_pickle
 
     def test_add_twice(self, model_card):
         # it's possible to add the section twice, even if it doesn't make a lot
@@ -1777,3 +1840,50 @@ class TestAddFairlearnMetricFrame:
             " |\n|              0.4 |\n|              0.5 |\n\n</details>"
         )
         assert expected_table == actual_table
+
+
+class TestCardTableOfContents:
+    @pytest.fixture
+    def card(self):
+        model = LinearRegression()
+        card = Card(model=model)
+        card.add_model_plot()
+        card.add_hyperparams()
+        card.add_metrics(accuracy=0.1)
+        card.add_get_started_code()
+        return card
+
+    def test_toc(self, card):
+        toc = card.get_toc()
+        exptected_toc = [
+            "- Model description",
+            "  - Intended uses & limitations",
+            "  - Training Procedure",
+            "    - Hyperparameters",
+            "    - Model Plot",
+            "  - Evaluation Results",
+            "- How to Get Started with the Model",
+            "- Model Card Authors",
+            "- Model Card Contact",
+            "- Citation",
+        ]
+
+        assert toc == "\n".join(exptected_toc)
+
+    def test_toc_with_invisible_section(self, card):
+        section = card.select("Citation")
+        section.visible = False
+        toc = card.get_toc()
+        exptected_toc = [
+            "- Model description",
+            "  - Intended uses & limitations",
+            "  - Training Procedure",
+            "    - Hyperparameters",
+            "    - Model Plot",
+            "  - Evaluation Results",
+            "- How to Get Started with the Model",
+            "- Model Card Authors",
+            "- Model Card Contact",
+        ]
+
+        assert toc == "\n".join(exptected_toc)

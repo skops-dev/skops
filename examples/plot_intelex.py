@@ -85,7 +85,7 @@ X_train, X_test, y_train, y_test = train_test_split(
 # Now we can train a stock Scikit-learn
 # :class:`sklearn.neighbors.KNeighborsClassifier`
 
-clf = KNeighborsClassifier(3)
+clf = KNeighborsClassifier(3, n_jobs=-1)
 start = perf_counter()
 clf.fit(X_train, y_train)
 print(f"Training finished in {perf_counter() - start:.2f}s")
@@ -98,7 +98,7 @@ print(f"Training finished in {perf_counter() - start:.2f}s")
 # details in the `documentation
 # <https://intel.github.io/scikit-learn-intelex/#usage>`_.
 
-clf_opt = KNeighborsClassifierOptimized(3)
+clf_opt = KNeighborsClassifierOptimized(3, n_jobs=-1)
 start = perf_counter()
 clf_opt.fit(X_train, y_train)
 print(f"Training finished in {perf_counter() - start:.2f}s")
@@ -120,7 +120,7 @@ t_stock = perf_counter() - start
 log_loss_score = log_loss(y_test, y_proba)
 print(
     f"[stock scikit-learn] Inference took t_stock = {t_stock:.2f}s with a "
-    f"log-loss score of {log_loss_score:.1%}"
+    f"log-loss score of {log_loss_score:.3f}"
 )
 
 start = perf_counter()
@@ -130,7 +130,7 @@ t_opt = perf_counter() - start
 log_loss_score = log_loss(y_test, y_proba)
 print(
     f"[sklearnex] Inference took t_opt = {t_opt:.2f}s with a log-loss score of"
-    f" {log_loss_score:.1%}"
+    f" {log_loss_score:.3f}"
 )
 
 print(f"t_stock / t_opt = {t_stock/t_opt:.1f}")
@@ -262,7 +262,7 @@ t_stock = perf_counter() - start
 log_loss_score = log_loss(y_test, y_proba)
 print(
     f"[stock scikit-learn] Inference took t_stock = {t_stock:.2f}s with a "
-    f"log-loss score of {log_loss_score:.1%}"
+    f"log-loss score of {log_loss_score:.3f}"
 )
 
 
