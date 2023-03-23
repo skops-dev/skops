@@ -347,7 +347,8 @@ def visualize(
 
     with zf as zip_file:
         schema = json.loads(zip_file.read("schema.json"))
-        tree = get_tree(schema, load_context=LoadContext(src=zip_file))
+        load_context = LoadContext(src=zip_file, protocol=schema["protocol"])
+        tree = get_tree(schema, load_context=load_context)
 
     nodes = walk_tree(tree)
     # TODO: it would be nice to print html representation if inside a notebook
