@@ -1,6 +1,6 @@
 """
 scikit-learn model cards
---------------------------------------
+------------------------
 
 This guide demonstrates how you can use this package to create a model card on a
 scikit-learn compatible model and save it.
@@ -174,7 +174,9 @@ clf_report = pd.DataFrame(clf_report).T.reset_index()
 model_card.add_table(
     folded=True,
     **{
-        "Model description/Evaluation Results/Hyperparameter search results": cv_results,
+        "Model description/Evaluation Results/Hyperparameter search results": (
+            cv_results
+        ),
         "Model description/Evaluation Results/Classification report": clf_report,
     },
 )

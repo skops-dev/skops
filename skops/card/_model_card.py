@@ -1003,7 +1003,7 @@ class Card:
         description: str | None = None,
         alt_text: str | None = None,
         folded=False,
-        **kwargs: str,
+        **kwargs: str | Path,
     ) -> Self:
         """Add plots to the model card.
 
@@ -1035,9 +1035,9 @@ class Card:
         **kwargs : dict
             The arguments should be of the form ``name=plot_path``, where
             ``name`` is the name of the plot and section, and ``plot_path`` is
-            the path to the plot on the file system, relative to the root of the
-            project. The plots should have already been saved under the
-            project's folder.
+            the path to the plot on the file system (either a str or
+            ``pathlib.Path``), relative to the root of the project. The plots
+            should have already been saved under the project's folder.
 
         Returns
         -------
@@ -1164,7 +1164,7 @@ class Card:
         self,
         permutation_importances,
         columns: Sequence[str],
-        plot_file: str = "permutation_importances.png",
+        plot_file: str | Path = "permutation_importances.png",
         plot_name: str = "Permutation Importances",
         overwrite: bool = False,
         description: str | None = None,
@@ -1179,7 +1179,7 @@ class Card:
         columns : str, list or pandas.Index
             Column names of the data used to generate importances.
 
-        plot_file : str
+        plot_file : str or pathlib.Path
             Filename for the plot.
 
         plot_name : str
@@ -1214,7 +1214,7 @@ class Card:
         ax.set_title(plot_name)
         ax.set_xlabel("Decrease in Score")
         plt.savefig(plot_file)
-        self.add_plot(description=description, **{plot_name: plot_file})
+        self.add_plot(description=description, alt_text=None, **{plot_name: plot_file})
 
         return self
 

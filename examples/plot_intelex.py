@@ -53,7 +53,6 @@ from sklearn.datasets import make_classification
 from sklearn.metrics import log_loss
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier
-from sklearnex import patch_sklearn
 from sklearnex.neighbors import KNeighborsClassifier as KNeighborsClassifierOptimized
 
 from skops import card, hub_utils
@@ -237,32 +236,6 @@ hub_utils.push(
     commit_message="Add scikit-learn-intelex KNN model example",
     create_remote=True,
     private=False,
-)
-
-
-# %%
-# Loading non-optimized models
-# ============================
-# It is possible to load non-optimized models even after Intel(R) optimizations
-# were loaded with ``patch_sklearn()``. Note, however, that this will not result
-# in faster inference times, since loading a persisted model will always load
-# the objects exactly as they were saved.
-
-patch_sklearn()
-
-with NamedTemporaryFile(mode="bw+") as fp:
-    pickle.dump(clf, file=fp)
-    fp.seek(0)
-    clf = pickle.load(fp)
-
-start = perf_counter()
-clf.predict_proba(X_test)
-t_stock = perf_counter() - start
-
-log_loss_score = log_loss(y_test, y_proba)
-print(
-    f"[stock scikit-learn] Inference took t_stock = {t_stock:.2f}s with a "
-    f"log-loss score of {log_loss_score:.3f}"
 )
 
 
