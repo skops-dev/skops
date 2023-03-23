@@ -23,5 +23,9 @@ jobs:
         pip install .[docs,tests]
         pip --version
         pip list
+        python -c "import skops;path=skops.__path__;print(path);import os;print(os.listdir(path[0]));print(os.listdir(path[0]+'/io'))"
+        cd scripts
+        python -c "import skops;path=skops.__path__;print(path);import os;print(os.listdir(path[0]));print(os.listdir(path[0]+'/io'))"
+        cd ..
     - name: Run persistence performance checks
       run: python scripts/check_persistence_performance.py
