@@ -168,7 +168,7 @@ def test_complex_pipeline_untrusted_set():
 def test_format_object_node():
     estimator = LogisticRegression(random_state=0, solver="liblinear")
     state = get_state(estimator, SaveContext(None))
-    node = ObjectNode(state, LoadContext(None))
+    node = ObjectNode(state, LoadContext(None, -1))
     expected = "sklearn.linear_model._logistic.LogisticRegression"
     assert node.format() == expected
 
@@ -186,5 +186,5 @@ def test_format_object_node():
 )
 def test_format_json_node(inp, expected):
     state = get_state(inp, SaveContext(None))
-    node = JsonNode(state, LoadContext(None))
+    node = JsonNode(state, LoadContext(None, -1))
     assert node.format() == expected
