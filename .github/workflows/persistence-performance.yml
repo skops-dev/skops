@@ -1,4 +1,4 @@
-name: HF integration tests
+name: Test performance of skops persistence
 
 on:
   schedule:
@@ -19,7 +19,7 @@ jobs:
       uses: actions/setup-python@v4
     - name: Install requirements
       run: |
-        pip install .[tests]
+        pip install -e .[tests]
         pip --version
         pip list
     - name: Run persistence performance checks
