@@ -240,15 +240,6 @@ hub_utils.push(
 
 
 # %%
-# Loading non-optimized models
-# ============================
-# It is possible to load non-optimized models even after Intel(R) optimizations
-# were loaded with ``patch_sklearn()``. Note, however, that this will not result
-# in faster inference times, since loading a persisted model will always load
-# the objects exactly as they were saved.
-
-
-# %%
 # Delete Repository
 # =================
 # At the end, we can delete the created repositories again using
