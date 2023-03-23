@@ -788,6 +788,10 @@ N_JOBS = 1
 _, ax = plt.subplots(figsize=(5, 5))
 knn = KNeighborsRegressor(n_jobs=N_JOBS)
 knn.fit(df_train[["Longitude", "Latitude"]], y_train)
+# DEBUG
+print(knn.classes_)
+print(knn.classes_[0])
+# DEBUG END
 DecisionBoundaryDisplay.from_estimator(
     knn,
     df_train[["Longitude", "Latitude"]],
