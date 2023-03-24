@@ -19,11 +19,9 @@ jobs:
         pip --version
         pip install --no-cache-dir .
         pip list
-        which python
         python -c "import skops;path=skops.__path__"
         mkdir tmp
         cd tmp
-        which python
         python -c "import skops;path=skops.__path__"
 
   run-debugging-steps-v4:
@@ -40,9 +38,7 @@ jobs:
         pip --version
         pip install --no-cache-dir .
         pip list
-        which python
         python -c "import skops;path=skops.__path__"
         mkdir tmp
         cd tmp
-        which python
         python -c "import skops;path=skops.__path__"
