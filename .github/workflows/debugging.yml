@@ -19,10 +19,10 @@ jobs:
         pip --version
         pip install --no-cache-dir .
         pip list
-        python -c "import skops;path=skops.__path__"
+        python -c "import skops;path=skops.__path__;print(path);import os;print(os.listdir(path[0]));print(os.listdir(path[0]+'/io'))"
         mkdir tmp
         cd tmp
-        python -c "import skops;path=skops.__path__"
+        python -c "import skops;path=skops.__path__;print(path);import os;print(os.listdir(path[0]));print(os.listdir(path[0]+'/io'))"
 
   run-debugging-steps-v4:
 
@@ -38,7 +38,7 @@ jobs:
         pip --version
         pip install --no-cache-dir .
         pip list
-        python -c "import skops;path=skops.__path__"
+        python -c "import skops;path=skops.__path__;print(path);import os;print(os.listdir(path[0]));print(os.listdir(path[0]+'/io'))"
         mkdir tmp
         cd tmp
-        python -c "import skops;path=skops.__path__"
+        python -c "import skops;path=skops.__path__;print(path);import os;print(os.listdir(path[0]));print(os.listdir(path[0]+'/io'))"
