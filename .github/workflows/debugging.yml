@@ -1,0 +1,43 @@
+name: Debugging skops install
+
+on:
+  - pull_request:
+
+jobs:
+  run-debugging-steps-v3:
+
+    runs-on: ubuntu-latest
+    if: "github.repository == 'skops-dev/skops'"
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python
+      uses: actions/setup-python@v3
+    - name: Install requirements
+      run: |
+        pip --version
+        pip install --no-cache-dir .
+        pip list
+        python -c "import skops;path=skops.__path__;print(path);import os;print(os.listdir(path[0]));print(os.listdir(path[0]+'/io'))"
+        mkdir tmp
+        cd tmp
+        python -c "import skops;path=skops.__path__;print(path);import os;print(os.listdir(path[0]));print(os.listdir(path[0]+'/io'))"
+
+  run-debugging-steps-v4:
+
+    runs-on: ubuntu-latest
+    if: "github.repository == 'skops-dev/skops'"
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python
+      uses: actions/setup-python@v4
+    - name: Install requirements
+      run: |
+        pip --version
+        pip install --no-cache-dir .
+        pip list
+        python -c "import skops;path=skops.__path__;print(path);import os;print(os.listdir(path[0]));print(os.listdir(path[0]+'/io'))"
+        mkdir tmp
+        cd tmp
+        python -c "import skops;path=skops.__path__;print(path);import os;print(os.listdir(path[0]));print(os.listdir(path[0]+'/io'))"
