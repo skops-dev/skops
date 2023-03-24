@@ -80,7 +80,6 @@ def setup_package():
             "rich": min_deps.tag_to_packages["rich"],
         },
         include_package_data=True,
-        packages=["skops"],
     )
 
     setup(**package_data, **metadata)
