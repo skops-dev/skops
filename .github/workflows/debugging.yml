@@ -19,9 +19,12 @@ jobs:
         pip --version
         pip install --no-cache-dir .
         pip list
+        pwd
+        echo "skops location when running from root"
         python -c "import skops;path=skops.__path__;print(path)"
         mkdir tmp
         cd tmp
+        echo "skops location when not running from root"
         python -c "import skops;path=skops.__path__;print(path)"
 
   run-debugging-steps-v4:
@@ -38,7 +41,10 @@ jobs:
         pip --version
         pip install --no-cache-dir .
         pip list
+        pwd
+        echo "skops location when running from root"
         python -c "import skops;path=skops.__path__;print(path)"
         mkdir tmp
         cd tmp
+        echo "skops location when not running from root"
         python -c "import skops;path=skops.__path__;print(path)"
