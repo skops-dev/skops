@@ -9,7 +9,7 @@ from ._trusted_types import PRIMITIVE_TYPE_NAMES
 from ._utils import LoadContext, get_module, get_type_paths
 from .exceptions import UntrustedTypesFoundException
 
-NODE_TYPE_MAPPING: dict[tuple[str, int], Node] = {}
+NODE_TYPE_MAPPING: dict[tuple[str, int], Type[Node]] = {}
 
 
 def check_type(
@@ -41,7 +41,7 @@ def check_type(
     return module_name + "." + type_name in trusted
 
 
-def audit_tree(tree: Node, trusted: bool | Sequence[str]) -> None:
+def audit_tree(tree: Node) -> None:
     """Audit a tree of nodes.
 
     A tree is safe if it only contains trusted types. Audit is skipped if
@@ -52,24 +52,12 @@ def audit_tree(tree: Node, trusted: bool | Sequence[str]) -> None:
     tree : skops.io._dispatch.Node
         The tree to audit.
 
-    trusted : True, or list of str
-        If ``True``, the tree is considered safe. Otherwise trusted has to be
-        a list of trusted types names.
-
-        An entry in the list is typically of the form
-        ``skops.io._utils.get_module(obj) + "." + obj.__class__.__name__``.
-
     Raises
     ------
     UntrustedTypesFoundException
         If the tree contains an untrusted type.
     """
-    if trusted is True:
-        return
-
     unsafe = tree.get_unsafe_set()
-    if isinstance(trusted, (list, set)):
-        unsafe -= set(trusted)
     if unsafe:
         raise UntrustedTypesFoundException(unsafe)
 
@@ -191,6 +179,8 @@ class Node:
     ) -> Literal[True] | list[str]:
         """Return a trusted list, or True.
 
+        TODO
+
         If ``trusted`` is ``False``, we return the ``default``, otherwise the
         ``trusted`` value is used.
 
@@ -205,7 +195,7 @@ class Node:
             return get_type_paths(default)
 
         # otherwise, we trust the given list
-        return get_type_paths(trusted)
+        return get_type_paths(trusted) + get_type_paths(default)
 
     def is_self_safe(self) -> bool:
         """True only if the node's type is considered safe.
@@ -316,10 +306,14 @@ class CachedNode(Node):
         return self.cached.construct()
 
 
-NODE_TYPE_MAPPING[("CachedNode", PROTOCOL)] = CachedNode  # type: ignore
+NODE_TYPE_MAPPING[("CachedNode", PROTOCOL)] = CachedNode
 
 
-def get_tree(state: dict[str, Any], load_context: LoadContext) -> Node:
+def get_tree(
+    state: dict[str, Any],
+    load_context: LoadContext,
+    trusted: bool | Sequence[str] = False,
+) -> Node:
     """Get the tree of nodes.
 
     This function returns the root node of the tree of nodes. The tree is
@@ -337,6 +331,8 @@ def get_tree(state: dict[str, Any], load_context: LoadContext) -> Node:
 
     load_context : LoadContext
         The context of the loading process.
+
+    trusted : TODO
 
     Returns
     -------
@@ -374,5 +370,5 @@ def get_tree(state: dict[str, Any], load_context: LoadContext) -> Node:
                 f"protocol {protocol}."
             )
 
-    loaded_tree = node_cls(state, load_context, trusted=False)  # type: ignore
+    loaded_tree = node_cls(state, load_context, trusted=trusted)
     return loaded_tree

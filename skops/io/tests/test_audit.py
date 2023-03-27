@@ -41,31 +41,35 @@ def test_check_type(module_name, type_name, trusted, expected):
 def test_audit_tree_untrusted():
     var = {"a": CustomType(1), 2: CustomType(2)}
     state = dict_get_state(var, SaveContext(None, 0, {}))
-    node = DictNode(state, LoadContext(None, -1), trusted=False)
+    load_context = LoadContext(None, -1)
+
+    node = DictNode(state, load_context, trusted=False)
     with pytest.raises(
         TypeError,
         match=re.escape(
             "Untrusted types found in the file: ['test_audit.CustomType']."
         ),
     ):
-        audit_tree(node, trusted=False)
+        audit_tree(node)
 
     # there shouldn't be an error with trusted=True
-    audit_tree(node, trusted=True)
+    node = DictNode(state, LoadContext(None, -1), trusted=True)
+    audit_tree(node)
 
     untrusted_list = get_untrusted_types(data=dumps(var))
     assert untrusted_list == ["test_audit.CustomType"]
 
     # passing the type would fix it.
-    audit_tree(node, trusted=untrusted_list)
+    node = DictNode(state, LoadContext(None, -1), trusted=untrusted_list)
+    audit_tree(node)
 
 
 def test_audit_tree_defaults():
     # test that the default types are trusted
     var = {"a": 1, 2: "b"}
     state = dict_get_state(var, SaveContext(None, 0, {}))
-    node = DictNode(state, LoadContext(None, -1), trusted=False)
-    audit_tree(node, trusted=[])
+    node = DictNode(state, LoadContext(None, -1), trusted=[])
+    audit_tree(node)
 
 
 @pytest.mark.parametrize(
