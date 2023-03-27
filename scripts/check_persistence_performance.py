@@ -99,6 +99,7 @@ def format_result(results: dict[str, list[Any]], topk: int) -> None:
     df = df.sort_values(["abs_diff"], ascending=False).reset_index(drop=True)
     print(f"{topk} largest differences:")
     print(df.head(10))
+    print(df[["name", "abs_diff", "rel_diff"]].head(10))
 
     df_slow = df.query("too_slow")
     if df_slow.empty:
