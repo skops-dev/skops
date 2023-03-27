@@ -17,15 +17,13 @@ jobs:
     - uses: actions/checkout@v3
     - name: Set up Python
       uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
     - name: Install requirements
       run: |
         pip install .[tests]
         pip --version
         pip list
     - name: Run persistence performance checks
-      # TODO: once https://github.com/actions/setup-python/issues/634 is
-      # resolved copying the script is no longer necessary, so change to:
-      # python scripts/check_persistence_performance.py .
       run: |
-        cp scripts/check_persistence_performance.py .
-        python check_persistence_performance.py
+        python3.11 scripts/check_persistence_performance.py
