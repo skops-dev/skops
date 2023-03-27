@@ -26,5 +26,4 @@ jobs:
         pip --version
         pip list
     - name: Run persistence performance checks
-      run: |
-        python3.11 scripts/check_persistence_performance.py
+      run: python scripts/check_persistence_performance.py
