@@ -238,9 +238,10 @@ of skops to benefit from the updates to the protocol.
 
 One caveat to the backwards compatibility promise is that the skops files have
 to be created based on a release version of skops. If you create skops files
-using a skops version installed from the main branch, it is possible to end up
-in an inconsistent state. Therefore, don't use the main branch of skops for
-creating skops files intended to be loaded with future skops versions.
+using a skops version installed from, say, the ``main`` git branch, it is
+possible to end up in an inconsistent state. Therefore, don't use any
+non-release version of skops for creating skops files intended to be loaded with
+future skops versions.
 
 Compatibility across sklearn versions
 #####################################
