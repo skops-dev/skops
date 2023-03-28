@@ -28,6 +28,9 @@ v0.6
 - Add possibility to visualize a skops object and show untrusted types by using
   :func:`skops.io.visualize`. For colored output, install `rich`: `pip install
   rich`. :pr:`317` by `Benjamin Bossan`_.
+- Fix issue with persisting :class:`numpy.random.Generator` using the skops
+  format (the object could be loaded correctly but security could not be
+  checked). :pr:`331` by `Benjamin Bossan`_.
 
 v0.5
 ----
