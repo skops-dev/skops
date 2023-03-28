@@ -222,7 +222,7 @@ Backwards compatibility
 -----------------------
 
 Compatibility across skops versions
-===================================
+###################################
 
 The skops persistence format is in flux, as we steadily work on improving it,
 making it more secure and supporting more types. When we make a change that is
@@ -243,7 +243,7 @@ in an inconsistent state. Therefore, don't use the main branch of skops for
 creating skops files intended to be loaded with future skops versions.
 
 Compatibility across sklearn versions
-=====================================
+#####################################
 
 Using skops to load a model saved in one sklearn version and loading it with
 another sklearn version is not recommended, because the behavior of the model
