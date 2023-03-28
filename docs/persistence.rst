@@ -218,8 +218,32 @@ Therefore, you should only load a skops file containing a model of any of those
 libraries if you trust them to be secure. It's not a perfect solution, but it's
 still better than trusting pickle files, which anyone can tamper with easily.
 
+Backwards compatibility
+-----------------------
+
+Compatibility across skops versions
+===================================
+
+The skops persistence format is in flux, as we steadily work on improving it,
+making it more secure and supporting more types. When we make a change that is
+incompatible with existing skops files, the protocol will be bumped to the next
+higher number (the protocol can be checked in the schema of the skops file). At
+the same time, we will ensure that existing skops files with lower protocol
+versions still load as always, even if they contained a bug (in which case we
+will warn about it). Therefore, it is generally safe to assume that your skops
+files will keep on working with future versions of skops.
+
+You may want to periodically load and dump old skops files using newer versions
+of skops to benefit from the updates to the protocol.
+
+One caveat to the backwards compatibility promise is that the skops files have
+to be created based on a release version of skops. If you create skops files
+using a skops version installed from the main branch, it is possible to end up
+in an inconsistent state. Therefore, don't use the main branch of skops for
+creating skops files intended to be loaded with future skops versions.
+
 Compatibility across sklearn versions
--------------------------------------
+=====================================
 
 Using skops to load a model saved in one sklearn version and loading it with
 another sklearn version is not recommended, because the behavior of the model
