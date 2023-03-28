@@ -11,7 +11,7 @@ skops Changelog
 
 v0.6
 ----
-- Added tabular regression example. :pr:`254` by :user:`Thomas Lazarus <lazarust>`.
+- Add tabular regression example. :pr:`254` by :user:`Thomas Lazarus <lazarust>`.
 - All public ``scipy.special`` ufuncs (Universal Functions) are trusted by default
   by :func:`.io.load`. :pr:`295` by :user:`Omar Arab Oghli <omar-araboghli>`.
 - Add a new function :func:`skops.card.Card.add_metric_frame` to help users
@@ -34,7 +34,7 @@ v0.6
 
 v0.5
 ----
-- Added CLI entrypoint support (:func:`.cli.entrypoint.main_cli`)
+- Add CLI entrypoint support (:func:`.cli.entrypoint.main_cli`)
   and a command line function to convert Pickle files
   to Skops files (:func:`.cli._convert.main`). :pr:`249` by `Erin Aho`_
 - Support more array-like data types for tabular data and list-like data types
