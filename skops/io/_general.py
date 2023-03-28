@@ -28,12 +28,47 @@ from ._utils import (
 from .exceptions import UnsupportedTypeException
 
 
+def _check_pure_json(obj: Any) -> bool:
+    # TODO
+
+    if type(obj) in (int, float, str, type(None)):
+        return True
+
+    if type(obj) == list:
+        return all(_check_pure_json(item) for item in obj)
+
+    if type(obj) == dict:
+        return all(
+            (type(key) == str) and _check_pure_json(val) for key, val in obj.items()
+        )
+
+    return False
+
+
+def get_pure_json(obj: Any) -> str | None:
+    """TODO"""
+    if not _check_pure_json(obj):
+        return None
+
+    obj_json = json.dumps(obj)
+    loaded = json.loads(obj_json)
+    if loaded == obj:
+        return obj_json
+    return None
+
+
 def dict_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
         "__loader__": "DictNode",
     }
+
+    pure_json_obj = get_pure_json(obj)
+    if pure_json_obj is not None:
+        res["content"] = pure_json_obj
+        res["_is_json"] = True
+        return res
 
     key_types = get_state([type(key) for key in obj.keys()], save_context)
     content = {}
@@ -58,20 +93,33 @@ class DictNode(Node):
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.trusted = self._get_trusted(trusted, [dict])
-        self.children = {
-            "key_types": get_tree(state["key_types"], load_context),
-            "content": {
-                key: get_tree(value, load_context)
-                for key, value in state["content"].items()
-            },
-        }
+        if state.get("_is_json"):
+            self._is_json = True
+            self._json = state["content"]
+            self.children = {}
+        else:
+            self.children = {
+                "key_types": get_tree(state["key_types"], load_context),
+                "content": {
+                    key: get_tree(value, load_context)
+                    for key, value in state["content"].items()
+                },
+            }
 
     def _construct(self):
+        if self._is_json:
+            return json.loads(self._json)
+
         content = gettype(self.module_name, self.class_name)()
         key_types = self.children["key_types"].construct()
         for k_type, (key, val) in zip(key_types, self.children["content"].items()):
             content[k_type(key)] = val.construct()
         return content
+
+    def format(self) -> str:
+        if not self._is_json:
+            return super().format()
+        return f"json-type({self._json})"
 
 
 def list_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
@@ -80,6 +128,13 @@ def list_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
         "__module__": get_module(type(obj)),
         "__loader__": "ListNode",
     }
+
+    pure_json_obj = get_pure_json(obj)
+    if pure_json_obj is not None:
+        res["content"] = pure_json_obj
+        res["_is_json"] = True
+        return res
+
     content = [get_state(value, save_context) for value in obj]
 
     res["content"] = content
@@ -95,13 +150,26 @@ class ListNode(Node):
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.trusted = self._get_trusted(trusted, [list])
-        self.children = {
-            "content": [get_tree(value, load_context) for value in state["content"]]
-        }
+        if state.get("_is_json"):
+            self._is_json = True
+            self._json = state["content"]
+            self.children = {}
+        else:
+            self.children = {
+                "content": [get_tree(value, load_context) for value in state["content"]]
+            }
 
     def _construct(self):
+        if self._is_json:
+            return json.loads(self._json)
+
         content_type = gettype(self.module_name, self.class_name)
         return content_type([item.construct() for item in self.children["content"]])
+
+    def format(self):
+        if not self._is_json:
+            return super().format()
+        return f"json-type({self._json})"
 
 
 def set_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:

@@ -154,6 +154,7 @@ class Node:
     ) -> None:
         self.class_name, self.module_name = state["__class__"], state["__module__"]
         self._is_safe = None
+        self._is_json = False  # for pure json objects
         self._constructed = UNINITIALIZED
         saved_id = state.get("__id__")
         if saved_id and memoize:
@@ -237,6 +238,9 @@ class Node:
             # this means we're already computing this node's unsafe set, so we
             # return an empty set and let the computation of the parent node
             # continue. This is to avoid infinite recursion.
+            return set()
+
+        if self._is_json:
             return set()
 
         with temp_setattr(self, _computing_unsafe_set=True):
