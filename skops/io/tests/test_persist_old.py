@@ -66,3 +66,51 @@ def test_persist_function_v0(func):
     # check that loaded estimator is identical
     assert_params_equal(estimator.__dict__, loaded.__dict__)
     assert_method_outputs_equal(estimator, loaded, X)
+
+
+@pytest.mark.parametrize(
+    "rng",
+    [
+        np.random.default_rng(),
+        np.random.Generator(np.random.PCG64DXSM(seed=123)),
+    ],
+    ids=["default_rng", "Generator"],
+)
+def test_random_generator_v0(rng):
+    call_count = 0
+
+    # random_generator_get_state as it was for protocol 0
+    def old_random_generator_get_state(obj, save_context):
+        # added for testing
+        nonlocal call_count
+        call_count += 1
+        # end
+
+        bit_generator_state = obj.bit_generator.state
+        res = {
+            "__class__": obj.__class__.__name__,
+            "__module__": get_module(type(obj)),
+            "__loader__": "RandomGeneratorNode",
+            "content": {"bit_generator": bit_generator_state},
+        }
+        return res
+
+    rng.random(123)  # move RNG forwards
+    dumped = dumps(rng)
+    # importent: downgrade the whole state to mimic older version
+    downgraded = downgrade_state(
+        data=dumped,
+        keys=None,
+        old_state=old_random_generator_get_state(rng, None),
+        protocol=0,
+    )
+
+    # old loader only worked with trusted=True, see #329
+    loaded = loads(downgraded, trusted=True)
+
+    # sanity check: ensure that the old get_state function was really called
+    assert call_count == 1
+
+    rand_floats_expected = rng.random(100)
+    rand_floats_loaded = loaded.random(100)
+    np.testing.assert_equal(rand_floats_loaded, rand_floats_expected)
