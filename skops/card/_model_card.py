@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 import sys
 import textwrap
 import zipfile
@@ -1003,6 +1004,7 @@ class Card:
         description: str | None = None,
         alt_text: str | None = None,
         folded=False,
+        path_in_repo: str | None = None,
         **kwargs: str | Path,
     ) -> Self:
         """Add plots to the model card.
@@ -1032,6 +1034,11 @@ class Card:
             to show the content. This option is useful if the added plot is
             large.
 
+        path_in_repo: str or None (default=None)
+            If a string is passed as ``path_in_repo``, it is used as the path to
+            copy the plot to in the repository. If this argument is ``None``,
+            the plot will not be copied.
+
         **kwargs : dict
             The arguments should be of the form ``name=plot_path``, where
             ``name`` is the name of the plot and section, and ``plot_path`` is
@@ -1057,6 +1064,9 @@ class Card:
                 folded=folded,
             )
             self._add_single(section_name, section)
+
+            if path_in_repo is not None:
+                shutil.copy(plot_path, path_in_repo)
         return self
 
     def add_table(
@@ -1168,6 +1178,7 @@ class Card:
         plot_name: str = "Permutation Importances",
         overwrite: bool = False,
         description: str | None = None,
+        path_in_repo: str | None = None,
     ) -> Self:
         """Plots permutation importance and saves it to model card.
 
@@ -1214,7 +1225,12 @@ class Card:
         ax.set_title(plot_name)
         ax.set_xlabel("Decrease in Score")
         plt.savefig(plot_file)
-        self.add_plot(description=description, alt_text=None, **{plot_name: plot_file})
+        self.add_plot(
+            description=description,
+            alt_text=None,
+            path_in_repo=path_in_repo,
+            **{plot_name: plot_file},
+        )
 
         return self
 
