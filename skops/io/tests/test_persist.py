@@ -421,7 +421,14 @@ def test_random_state(random_state):
     est = RandomStateEstimator(random_state=random_state).fit(None, None)
     est.random_state_.random(123)  # move RNG forwards
 
-    loaded = loads(dumps(est), trusted=True)
+    dumped = dumps(est)
+    untrusted_types = get_untrusted_types(data=dumped)
+    loaded = loads(dumped, trusted=untrusted_types)
+
+    if hasattr(est, "__dict__"):
+        # what to do if object has no __dict__, like Generator?
+        assert_params_equal(est.__dict__, loaded.__dict__)
+
     rand_floats_expected = est.random_state_.random(100)
     rand_floats_loaded = loaded.random_state_.random(100)
     np.testing.assert_equal(rand_floats_loaded, rand_floats_expected)
