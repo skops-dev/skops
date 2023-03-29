@@ -536,7 +536,7 @@ def test_metainfo():
     # additionally, check following metainfo: class, module, and version
     expected = {
         "builtin_": {
-            "__class__": "list",
+            "__class__": "str",
             "__module__": "builtins",
         },
         "stdlib_": {
@@ -853,14 +853,15 @@ def test_dump_and_load_with_file_wrapper(tmp_path):
     "obj",
     [
         np.array([1, 2]),
-        [1, 2, 3],
         {1: 1, 2: 2},
-        {1, 2, 3},
-        "A string",
+        {1, 2, "3"},
         np.random.RandomState(42),
     ],
 )
 def test_when_given_object_referenced_twice_loads_as_one_object(obj):
+    # note: memoizing will not work if 'obj' is json-serializable, because then
+    # the whole object will be json-serialized, individual fields are not
+    # memoized.
     an_object = {"obj_1": obj, "obj_2": obj}
     persisted_object = loads(dumps(an_object), trusted=True)
 

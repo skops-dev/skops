@@ -104,12 +104,12 @@ class ReduceNode(Node):
         self.children = {
             "attrs": get_tree(state["content"], load_context),
             "args": get_tree(reduce["args"], load_context),
-            "constructor": constructor,
         }
+        self.constructor = constructor
 
     def _construct(self):
         args = self.children["args"].construct()
-        constructor = self.children["constructor"]
+        constructor = self.constructor
         instance = constructor(*args)
         attrs = self.children["attrs"].construct()
         if not attrs:

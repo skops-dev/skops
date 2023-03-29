@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import json
+import math
 import operator
 import uuid
 from functools import partial
@@ -28,7 +29,54 @@ from ._utils import (
 from .exceptions import UnsupportedTypeException
 
 
+def _check_pure_json(obj: Any) -> bool:
+    # TODO
+    type_ = type(obj)
+
+    if type_ in (int, float, str, bool, type(None)):
+        return True
+
+    if type_ == list:
+        return all(_check_pure_json(item) for item in obj)
+
+    if type_ == dict:
+        return all(
+            (type(key) == str) and _check_pure_json(val) for key, val in obj.items()
+        )
+
+    return False
+
+
+def _get_pure_json(obj: Any) -> str | None:
+    """TODO"""
+    if not _check_pure_json(obj):
+        return None
+
+    obj_json = json.dumps(obj)
+    loaded = json.loads(obj_json)
+    if loaded == obj:
+        return obj_json
+    if isinstance(obj, float) and math.isnan(obj) and math.isnan(loaded):
+        # special case for nan because nan != nan
+        return obj_json
+    return None
+
+
+def _json_get_state(obj_str: str, save_context: SaveContext) -> dict[str, Any]:
+    return {
+        "__class__": "str",
+        "__module__": "builtins",
+        "__loader__": "JsonNode",
+        "content": obj_str,
+        "is_json": True,
+    }
+
+
 def dict_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
+    pure_json_obj = _get_pure_json(obj)
+    if pure_json_obj is not None:
+        return _json_get_state(pure_json_obj, save_context)
+
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
@@ -75,6 +123,10 @@ class DictNode(Node):
 
 
 def list_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
+    pure_json_obj = _get_pure_json(obj)
+    if pure_json_obj is not None:
+        return _json_get_state(pure_json_obj, save_context)
+
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
@@ -329,18 +381,9 @@ def object_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     # This method is for objects which can either be persisted with json, or
     # the ones for which we can get/set attributes through
     # __getstate__/__setstate__ or reading/writing to __dict__.
-    try:
-        # if we can simply use json, then we're done.
-        obj_str = json.dumps(obj)
-        return {
-            "__class__": "str",
-            "__module__": "builtins",
-            "__loader__": "JsonNode",
-            "content": obj_str,
-            "is_json": True,
-        }
-    except Exception:
-        pass
+    pure_json_obj = _get_pure_json(obj)
+    if pure_json_obj is not None:
+        return _json_get_state(pure_json_obj, save_context)
 
     res = {
         "__class__": obj.__class__.__name__,

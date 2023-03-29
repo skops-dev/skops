@@ -25,7 +25,7 @@ def ndarray_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
         # recursively call get_state on it.
         if obj.dtype == object:
             obj_serialized = get_state(obj.tolist(), save_context)
-            res["content"] = obj_serialized["content"]
+            res["content"] = obj_serialized
             res["type"] = "json"
             res["shape"] = get_state(obj.shape, save_context)
         else:
@@ -67,9 +67,7 @@ class NdArrayNode(Node):
             }
         elif self.type == "json":
             self.children = {
-                "content": [  # type: ignore
-                    get_tree(o, load_context) for o in state["content"]  # type: ignore
-                ],
+                "content": get_tree(state["content"], load_context),
                 "shape": get_tree(state["shape"], load_context),
             }
         else:
@@ -87,7 +85,7 @@ class NdArrayNode(Node):
             # We explicitly set the dtype to "O" since we only save object
             # arrays in json.
             shape = self.children["shape"].construct()
-            tmp = [o.construct() for o in self.children["content"]]
+            tmp = self.children["content"].construct()
 
             # TODO: this is a hack to get the correct shape of the array. We
             # should find _a better way_ to do this.
