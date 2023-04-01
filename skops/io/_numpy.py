@@ -8,6 +8,7 @@ import numpy as np
 from ._audit import Node, get_tree
 from ._general import function_get_state
 from ._protocol import PROTOCOL
+from ._trusted_types import NUMPY_DTYPE_TYPE_NAMES
 from ._utils import LoadContext, SaveContext, get_module, get_state, gettype
 from .exceptions import UnsupportedTypeException
 
@@ -60,7 +61,7 @@ class NdArrayNode(Node):
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.type = state["type"]
-        self.trusted = self._get_trusted(trusted, [np.ndarray])
+        self.trusted = self._get_trusted(trusted, [np.ndarray] + NUMPY_DTYPE_TYPE_NAMES)
         if self.type == "numpy":
             self.children = {
                 "content": io.BytesIO(load_context.src.read(state["file"]))

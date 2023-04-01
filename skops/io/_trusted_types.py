@@ -24,3 +24,25 @@ SCIPY_UFUNC_TYPE_NAMES = sorted(
         ]
     )
 )
+
+NUMPY_UFUNC_TYPE_NAMES = sorted(
+    set(
+        [
+            get_type_name(getattr(np, attr))
+            for attr in dir(np)
+            if isinstance(getattr(np, attr), np.ufunc)
+            and get_type_name(getattr(np, attr)).startswith("numpy")
+        ]
+    )
+)
+
+NUMPY_DTYPE_TYPE_NAMES = sorted(
+    set(
+        [
+            get_type_name(dtype)
+            for dtypes in np.sctypes.values()
+            for dtype in dtypes
+            if get_type_name(dtype).startswith("numpy")
+        ]
+    )
+)
