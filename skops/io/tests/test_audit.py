@@ -151,9 +151,9 @@ def test_complex_pipeline_untrusted_set():
     clf = Pipeline([
         ("features", FeatureUnion([
             ("scaler", StandardScaler()),
-            ("sqrt", FunctionTransformer(
-                    func=np.sqrt,
-                    inverse_func=np.square,
+            ("np.funcs", FunctionTransformer(
+                    func=np.split,
+                    inverse_func=np.angle,
                 )),
         ])),
         ("clf", LogisticRegression(random_state=0, solver="liblinear")),
@@ -162,7 +162,9 @@ def test_complex_pipeline_untrusted_set():
 
     untrusted = get_untrusted_types(data=dumps(clf))
     type_names = [x.split(".")[-1] for x in untrusted]
-    assert type_names == ["sqrt", "square"]
+
+    # choosing random numpy functions that are yet not considered as default trusted ones.
+    assert type_names == ["angle", "split"]
 
 
 def test_format_object_node():

@@ -101,12 +101,8 @@ class TestVisualizeTree:
         nodes_self_unsafe = [node for node in nodes if not node.is_self_safe]
         nodes_unsafe = [node for node in nodes if not node.is_safe]
 
-        # there are currently 2 unsafe nodes, a numpy int and the custom
-        # functions. The former might be considered safe in the future, in which
-        # case this test needs to be changed.
-        assert len(nodes_self_unsafe) == 2
-        assert nodes_self_unsafe[0].val == "numpy.int64"
-        assert nodes_self_unsafe[1].val == "test_visualize.unsafe_function"
+        assert len(nodes_self_unsafe) == 1
+        assert nodes_self_unsafe[0].val == "test_visualize.unsafe_function"
 
         # it's not easy to test the number of indirectly unsafe nodes, because
         # it will depend on the nesting structure; we can only be sure that it's
