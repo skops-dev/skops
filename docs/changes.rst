@@ -31,6 +31,8 @@ v0.6
 - Fix issue with persisting :class:`numpy.random.Generator` using the skops
   format (the object could be loaded correctly but security could not be
   checked). :pr:`331` by `Benjamin Bossan`_.
+- All public ``numpy`` ufuncs (Universal Functions) and dtypes are trusted by default
+  by :func:`.io.load`. :pr:`336` by :user:`Omar Arab Oghli <omar-araboghli>`.
 
 v0.5
 ----
