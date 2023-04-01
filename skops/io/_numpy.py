@@ -61,7 +61,9 @@ class NdArrayNode(Node):
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.type = state["type"]
-        self.trusted = self._get_trusted(trusted, [np.ndarray] + NUMPY_DTYPE_TYPE_NAMES)
+        self.trusted = self._get_trusted(
+            trusted, [np.ndarray] + NUMPY_DTYPE_TYPE_NAMES  # type: ignore
+        )
         if self.type == "numpy":
             self.children = {
                 "content": io.BytesIO(load_context.src.read(state["file"]))

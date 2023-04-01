@@ -41,7 +41,7 @@ NUMPY_DTYPE_TYPE_NAMES = sorted(
         [
             get_type_name(dtype)
             for dtypes in np.sctypes.values()
-            for dtype in dtypes
+            for dtype in dtypes  # type: ignore
             if get_type_name(dtype).startswith("numpy")
         ]
     )
