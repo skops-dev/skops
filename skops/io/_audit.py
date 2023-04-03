@@ -182,12 +182,12 @@ class Node:
     ) -> Literal[True] | list[str]:
         """Return a trusted list, or True.
 
-        TODO
-
-        If ``trusted`` is ``False``, we return the ``default``, otherwise the
-        ``trusted`` value is used.
+        If ``trusted`` is ``False``, we return the ``default``. If a list of
+        types are being passed, those types, as well as default trusted types,
+        are returned.
 
         This is a convenience method called by child classes.
+
         """
         if trusted is True:
             # if trusted is True, we trust the node
@@ -197,7 +197,7 @@ class Node:
             # if trusted is False, we only trust the defaults
             return get_type_paths(default)
 
-        # otherwise, we trust the given list
+        # otherwise, we trust the given list and default trusted types
         return get_type_paths(trusted) + get_type_paths(default)
 
     def is_self_safe(self) -> bool:

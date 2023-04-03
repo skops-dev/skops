@@ -68,7 +68,7 @@ def test_audit_tree_defaults():
     # test that the default types are trusted
     var = {"a": 1, 2: "b"}
     state = dict_get_state(var, SaveContext(None, 0, {}))
-    node = DictNode(state, LoadContext(None, -1), trusted=[])
+    node = DictNode(state, LoadContext(None, -1), trusted=False)
     audit_tree(node)
 
 
