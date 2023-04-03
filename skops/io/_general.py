@@ -444,14 +444,14 @@ class MethodNode(Node):
         super().__init__(state, load_context, trusted)
         self.children = {
             "obj": get_tree(state["content"]["obj"], load_context, trusted=trusted),
-            "func": state["content"]["func"],
         }
+        self.func_name = state["content"]["func"]
         # TODO: what do we trust?
         self.trusted = self._get_trusted(trusted, [])
 
     def _construct(self):
         loaded_obj = self.children["obj"].construct()
-        method = getattr(loaded_obj, self.children["func"])
+        method = getattr(loaded_obj, self.func_name)
         return method
 
 

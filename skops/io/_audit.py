@@ -57,6 +57,9 @@ def audit_tree(tree: Node) -> None:
     UntrustedTypesFoundException
         If the tree contains an untrusted type.
     """
+    if tree.trusted is True:
+        return
+
     unsafe = tree.get_unsafe_set()
     if unsafe:
         raise UntrustedTypesFoundException(unsafe)
@@ -332,7 +335,12 @@ def get_tree(
     load_context : LoadContext
         The context of the loading process.
 
-    trusted : TODO
+    trusted : bool, or list of str, default=False
+        If ``True``, the object will be loaded without any security checks. If
+        ``False``, the object will be loaded only if there are only trusted
+        objects in the dumped file. If a list of strings, the object will be
+        loaded only if there are only trusted objects and objects of types
+        listed in ``trusted`` in the dumped file.
 
     Returns
     -------

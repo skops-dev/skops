@@ -116,7 +116,7 @@ def load(file: str | Path, trusted: bool | Sequence[str] = False) -> Any:
         ``False``, the object will be loaded only if there are only trusted
         objects in the dumped file. If a list of strings, the object will be
         loaded only if there are only trusted objects and objects of types
-        listed in ``trusted`` are in the dumped file.
+        listed in ``trusted`` in the dumped file.
 
     Returns
     -------
@@ -154,7 +154,7 @@ def loads(data: bytes, trusted: bool | Sequence[str] = False) -> Any:
         ``False``, the object will be loaded only if there are only trusted
         objects in the dumped file. If a list of strings, the object will be
         loaded only if there are only trusted objects and objects of types
-        listed in ``trusted`` are in the dumped file.
+        listed in ``trusted`` in the dumped file.
 
     Returns
     -------
