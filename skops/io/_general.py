@@ -469,7 +469,7 @@ class JsonNode(Node):
         super().__init__(state, load_context, trusted)
         self.content = state["content"]
         self.children = {}
-        self.trusted = self._get_trusted(trusted, [int, float, str, type(None)])
+        self.trusted = self._get_trusted(trusted, PRIMITIVE_TYPE_NAMES)
 
     def is_safe(self) -> bool:
         # JsonNode is always considered safe.

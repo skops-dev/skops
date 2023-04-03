@@ -281,6 +281,7 @@ def walk_tree(
 
 def visualize(
     file: Path | str | bytes,
+    *,
     show: Literal["all", "untrusted", "trusted"] = "all",
     trusted: bool | Sequence[str] = False,
     sink: Callable[..., None] = pretty_print_tree,

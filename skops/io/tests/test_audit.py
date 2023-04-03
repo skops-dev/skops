@@ -101,7 +101,9 @@ def test_list_safety(values, is_safe):
 
     with ZipFile(io.BytesIO(content), "r") as zip_file:
         schema = json.loads(zip_file.read("schema.json"))
-        tree = get_tree(schema, load_context=LoadContext(src=zip_file, protocol=-1))
+        tree = get_tree(
+            schema, load_context=LoadContext(src=zip_file, protocol=-1), trusted=False
+        )
         assert tree.is_safe() == is_safe
 
 

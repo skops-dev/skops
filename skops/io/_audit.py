@@ -315,7 +315,7 @@ NODE_TYPE_MAPPING[("CachedNode", PROTOCOL)] = CachedNode
 def get_tree(
     state: dict[str, Any],
     load_context: LoadContext,
-    trusted: bool | Sequence[str] = False,
+    trusted: bool | Sequence[str],
 ) -> Node:
     """Get the tree of nodes.
 
@@ -335,7 +335,7 @@ def get_tree(
     load_context : LoadContext
         The context of the loading process.
 
-    trusted : bool, or list of str, default=False
+    trusted : bool, or list of str
         If ``True``, the object will be loaded without any security checks. If
         ``False``, the object will be loaded only if there are only trusted
         objects in the dumped file. If a list of strings, the object will be

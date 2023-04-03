@@ -188,7 +188,7 @@ class RandomGeneratorNode(Node):
         super().__init__(state, load_context, trusted)
         self.children = {
             "bit_generator_state": get_tree(
-                state["content"]["bit_generator"], load_context
+                state["content"]["bit_generator"], load_context, trusted=trusted
             )
         }
         self.trusted = self._get_trusted(trusted, [np.random.Generator])
