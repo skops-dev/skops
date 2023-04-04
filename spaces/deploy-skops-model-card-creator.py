@@ -1,5 +1,5 @@
-# Deploy the app in skops_space_creator as a Hugging Face Space
-# requires the HF_HUB_TOKEN to be set as environment variable
+# Deploying the app in skops_model_card_creator as a Hugging Face Space requires
+# the HF_HUB_TOKEN to be set as environment variable
 
 import os
 from pathlib import Path
@@ -21,11 +21,11 @@ else:
 
 client = HfApi(token=token)
 user_name = client.whoami(token=token)["name"]
-repo_name = f"skops-space-creator-{uuid4()}"
+repo_name = f"skops-model-card-creator-{uuid4()}"
 repo_id = f"{user_name}/{repo_name}"
 print(f"Creating and pushing to repo: {repo_id}")
 
-space_repo = Path(skops.__path__[0]).parent / "spaces" / "skops_space_creator"
+space_repo = Path(skops.__path__[0]).parent / "spaces" / "skops_model_card_creator"
 
 client.create_repo(
     repo_id=repo_id,
@@ -38,7 +38,7 @@ out = client.upload_folder(
     repo_id=repo_id,
     path_in_repo=".",
     folder_path=space_repo,
-    commit_message="Create skops-space-creator space",
+    commit_message="Create skops-model-card-creator space",
     token=token,
     repo_type="space",
     create_pr=False,
