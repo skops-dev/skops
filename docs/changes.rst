@@ -9,6 +9,11 @@ skops Changelog
     :depth: 1
     :local:
 
+
+v0.7
+----
+
+
 v0.6
 ----
 - Add tabular regression example. :pr:`254` by :user:`Thomas Lazarus <lazarust>`.
