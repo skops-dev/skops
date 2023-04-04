@@ -35,7 +35,7 @@ jobs:
       # by default, deploy to skops CI
       if: github.ref != 'refs/heads/main'
       run: |
-        python spaces/deploy-skops-space-creator.py
+        python spaces/deploy-skops-model-card-creator.py
 
     - name: Create main skops space creator app
       # if HF_HUB_TOKEN_SKLEARN, use that instead of skops CI orga
@@ -43,4 +43,4 @@ jobs:
       env:
         HF_HUB_TOKEN_SKLEARN: ${{ secrets.HF_HUB_TOKEN_SKLEARN }}
       run: |
-        python spaces/deploy-skops-space-creator.py
+        python spaces/deploy-skops-model-card-creator.py
