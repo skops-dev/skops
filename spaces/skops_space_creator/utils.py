@@ -5,11 +5,11 @@ from __future__ import annotations
 import base64
 import os
 import re
-from dataclasses import dataclass
 from pathlib import Path
+from typing import Iterator
 
 from skops import card
-from skops.card._model_card import PlotSection, Section
+from skops.card._model_card import Section
 
 PAT_MD_IMG = re.compile(
     r'(!\[(?P<image_title>[^\]]+)\]\((?P<image_path>[^\)"\s]+)\s*([^\)]*)\))'
@@ -80,56 +80,28 @@ def process_card_for_rendering(rendered: str) -> tuple[str, str]:
     return metadata, rendered_with_img
 
 
-@dataclass(frozen=True)
-class SectionInfo:
-    return_key: str
-    title: str
-    content: str
-    is_fig: bool
-    level: int
-
-
 def iterate_key_section_content(
     data: dict[str, Section],
     parent_section: str = "",
     parent_keys: list[str] | None = None,
-    level: int = 0,
-) -> SectionInfo:
+) -> Iterator[tuple[str, str]]:
     parent_keys = parent_keys or []
 
     for key, val in data.items():
+        if not val.visible:
+            continue
+
         if parent_section:
             title = "/".join((parent_section, val.title))
         else:
             title = val.title
 
-        if not getattr(val, "visible", True):
-            continue
-
         return_key = key if not parent_keys else "/".join(parent_keys + [key])
-        content = val.content
-
-        is_fig = getattr(val, "is_fig", False)
-        if isinstance(val.content, str):
-            img_match = PAT_MD_IMG.match(val.content)
-            if img_match:  # image section found in parsed model card
-                is_fig = True
-                img_title = img_match.groupdict()["image_title"]
-                img_path = img_match.groupdict()["image_path"]
-                content = PlotSection(alt_text=img_title, path=img_path)
-
-        yield SectionInfo(
-            return_key=return_key,
-            title=title,
-            content=content,
-            is_fig=is_fig,
-            level=level,
-        )
+        yield return_key, title
 
         if val.subsections:
             yield from iterate_key_section_content(
                 val.subsections,
                 parent_section=title,
                 parent_keys=parent_keys + [key],
-                level=level + 1,
             )

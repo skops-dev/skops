@@ -115,7 +115,6 @@ class AddFigureTask(Task):
         self.model_card.add_plot(**{self.key: self.content})
         section = self.model_card.select(self.key)
         section.title = split_subsection_names(self.title)[-1]
-        section.is_fig = True  # type: ignore
 
     def undo(self) -> None:
         self.content.unlink(missing_ok=True)
@@ -185,6 +184,36 @@ class UpdateSectionTask(Task):
         section.content = self.old_content
 
 
+class UpdateFigureTitleTask(Task):
+    """Change the title a plot section
+
+    Changing the title is easy, just replace it and be done.
+
+    """
+
+    def __init__(
+        self,
+        model_card: card.Card,
+        key: str,
+        old_name: str,
+        new_name: str,
+    ) -> None:
+        self.model_card = model_card
+        self.key = key
+        self.old_name = old_name
+        self.new_name = new_name
+
+    def do(self) -> None:
+        section = self.model_card.select(self.key)
+        new_title = split_subsection_names(self.new_name)[-1]
+        section.title = self.title = new_title
+
+    def undo(self) -> None:
+        section = self.model_card.select(self.key)
+        old_title = split_subsection_names(self.old_name)[-1]
+        section.title = old_title
+
+
 class UpdateFigureTask(Task):
     """Change the title or image of a figure section
 
@@ -207,31 +236,25 @@ class UpdateFigureTask(Task):
         key: str,
         old_name: str,
         new_name: str,
-        data: UploadedFile | None,
-        new_path: Path | None,
-        old_path: Path | None,
+        data: UploadedFile,
+        new_path: Path,
+        old_path: Path,
     ) -> None:
         self.model_card = model_card
         self.key = key
         self.old_name = old_name
         self.new_name = new_name
-        self.old_data = self.model_card.select(self.key).content
         self.new_path = new_path
         self.old_path = old_path
+        self.new_data = data
         # when 'deleting' the old image, move to temp path
         self.tmp_path = Path(mkdtemp(prefix="skops-")) / str(uuid4())
 
-        if not data:
-            self.new_data = self.old_data
-        else:
-            self.new_data = data
-
     def do(self) -> None:
         section = self.model_card.select(self.key)
+        assert isinstance(section, PlotSection), "has to be a PlotSection"
         new_title = split_subsection_names(self.new_name)[-1]
         section.title = self.title = new_title
-        if self.new_data == self.old_data:  # image is same
-            return
 
         # write figure
         # note: this can still be the same image if the image is a file, there
@@ -240,21 +263,18 @@ class UpdateFigureTask(Task):
 
         with open(self.new_path, "wb") as f:
             f.write(self.new_data.getvalue())
-        section.content = PlotSection(
-            alt_text=self.new_data.name,
-            path=self.new_path,
-        )
+
+        section.path = self.new_path
 
     def undo(self) -> None:
         section = self.model_card.select(self.key)
+        assert isinstance(section, PlotSection), "has to be a PlotSection"
         old_title = split_subsection_names(self.old_name)[-1]
         section.title = old_title
-        if self.new_data == self.old_data:  # image is same
-            return
 
         self.new_path.unlink(missing_ok=True)
         shutil.move(self.tmp_path, self.old_path)
-        section.content = self.old_data
+        section.path = self.old_path
 
 
 class AddMetricsTask(Task):

@@ -39,6 +39,7 @@ from tasks import (
     DeleteSectionTask,
     TaskState,
     UpdateFigureTask,
+    UpdateFigureTitleTask,
     UpdateSectionTask,
 )
 from utils import (
@@ -67,7 +68,6 @@ def _update_model_card(
     key: str,
     section_name: str,
     content: str,
-    is_fig: bool,
 ) -> None:
     # This is a very roundabout way to update the model card but it's necessary
     # because of how streamlit handles session state. Basically, there have to
@@ -85,34 +85,13 @@ def _update_model_card(
     is_title_same = old_title_split == new_title_split
 
     # determine if content is the same
-    if is_fig:
-        if isinstance(new_content, PlotSection):
-            is_content_same = content == new_content
-        else:
-            is_content_same = not bool(new_content)
-    else:
-        is_content_same = content == new_content
-
+    is_content_same = (content == new_content) or (not content and not new_content)
     if is_title_same and is_content_same:
         return
 
-    if is_fig:
-        old_path, fpath = None, None
-        if new_content:  # new figure uploaded
-            fname = new_content.name.replace(" ", "_")
-            fpath = st.session_state.hf_path / fname
-            old_path = fpath.parent / model_card.select(key).content.path
-
-        task = UpdateFigureTask(
-            model_card,
-            key=key,
-            old_name=section_name,
-            new_name=new_title,
-            data=new_content,
-            new_path=fpath,
-            old_path=old_path,
-        )
-    else:
+    section = model_card.select(key)
+    if not isinstance(section, PlotSection):
+        # a normal section
         task = UpdateSectionTask(
             model_card,
             key=key,
@@ -121,6 +100,25 @@ def _update_model_card(
             old_content=content,
             new_content=new_content,
         )
+    else:
+        # a plot sectoin
+        if not new_content:  # only title changed
+            task = UpdateFigureTitleTask(
+                model_card, key=key, old_name=section_name, new_name=new_title
+            )
+        else:  # new figure uploaded
+            fname = new_content.name.replace(" ", "_")
+            fpath = st.session_state.hf_path / fname
+            old_path = fpath.parent / Path(section.path).name
+            task = UpdateFigureTask(
+                model_card,
+                key=key,
+                old_name=section_name,
+                new_name=new_title,
+                data=new_content,
+                new_path=fpath,
+                old_path=old_path,
+            )
     st.session_state.task_state.add(task)
 
 
@@ -154,11 +152,10 @@ def _add_section_form(
         # setting the 'key' argument below to update the session_state
         st.text_input("Section name", value=old_title, key=f"{key}.title")
         st.text_area("Content", value=content, key=f"{key}.content")
-        is_fig = False
         st.form_submit_button(
             "Update",
             on_click=_update_model_card,
-            args=(model_card, key, section_name, content, is_fig),
+            args=(model_card, key, section_name, content),
         )
 
 
@@ -170,11 +167,10 @@ def _add_fig_form(
         # setting the 'key' argument below to update the session_state
         st.text_input("Section name", value=old_title, key=f"{key}.title")
         st.file_uploader("Upload image", key=f"{key}.content")
-        is_fig = True
         st.form_submit_button(
             "Update",
             on_click=_update_model_card,
-            args=(model_card, key, section_name, content, is_fig),
+            args=(model_card, key, section_name, content),
         )
 
 
@@ -182,12 +178,14 @@ def create_form_from_section(
     model_card: card.Card,
     key: str,
     section_name: str,
-    content: str,
-    is_fig: bool = False,
 ) -> None:
+    # Code for creating a single section, plot or text
+    section = model_card.select(key)
+    content = section.content
     split_sections = split_subsection_names(section_name)
     old_title = split_sections[-1]
-    if is_fig:
+
+    if isinstance(section, PlotSection):
         _add_fig_form(
             model_card=model_card,
             key=key,
@@ -195,6 +193,7 @@ def create_form_from_section(
             old_title=old_title,
             content=content,
         )
+        path = st.session_state.hf_path / Path(section.path).name
     else:
         _add_section_form(
             model_card=model_card,
@@ -203,10 +202,10 @@ def create_form_from_section(
             old_title=old_title,
             content=content,
         )
+        path = None
 
     col_0, col_1, col_2 = st.columns([4, 2, 2])
     with col_0:
-        path = st.session_state.hf_path / content.path if is_fig else None
         st.button(
             f"Delete '{arepr.repr(old_title)}'",
             on_click=_delete_section,
@@ -233,23 +232,14 @@ def create_form_from_section(
 
 
 def display_sections(model_card: card.Card) -> None:
-    for section_info in iterate_key_section_content(model_card._data):
-        create_form_from_section(
-            model_card,
-            key=section_info.return_key,
-            section_name=section_info.title,
-            content=section_info.content,
-            is_fig=section_info.is_fig,
-        )
+    # display all sections, looping through them recursively
+    for key, title in iterate_key_section_content(model_card._data):
+        create_form_from_section(model_card, key=key, section_name=title)
 
 
 def display_toc(model_card: card.Card) -> None:
-    elements = []
-    for section_info in iterate_key_section_content(model_card._data):
-        title, level = section_info.title, section_info.level
-        section_name = split_subsection_names(title)[-1]
-        elements.append("  " * level + "- " + section_name)
-    st.markdown("\n".join(elements))
+    toc = model_card.get_toc()
+    st.markdown(toc)
 
 
 def display_model_card(model_card: card.Card) -> None:
