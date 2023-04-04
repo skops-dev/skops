@@ -9,7 +9,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from reprlib import Repr
-from typing import Any, Iterator, Literal, Protocol, Sequence, Union
+from typing import Any, Iterator, Literal, Sequence, Union
 
 import joblib
 from huggingface_hub import ModelCardData
@@ -56,66 +56,6 @@ def _clean_table(table: str) -> str:
         .replace(placeholder, eol_lb)
     )
     return table
-
-
-@dataclass
-class PlotSection:
-    """Adds a link to a figure to the model card"""
-
-    alt_text: str
-    path: str | Path
-    folded: bool = False
-
-    def format(self) -> str:
-        text = f"![{self.alt_text}]({self.path})"
-        return wrap_as_details(text, folded=self.folded)
-
-    def __repr__(self) -> str:
-        return repr(self.path)
-
-
-@dataclass
-class TableSection:
-    """Adds a table to the model card"""
-
-    table: Mapping[str, Sequence[Any]]
-    folded: bool = False
-
-    def __post_init__(self) -> None:
-        try:
-            import pandas as pd
-
-            self._is_pandas_df = isinstance(self.table, pd.DataFrame)
-        except ImportError:
-            self._is_pandas_df = False
-
-        if self._is_pandas_df:
-            ncols = len(self.table.columns)  # type: ignore
-        else:
-            ncols = len(self.table)
-        if ncols == 0:
-            raise ValueError("Trying to add table with no columns")
-
-    def format(self) -> str:
-        if self._is_pandas_df:
-            headers = self.table.columns  # type: ignore
-        else:
-            headers = self.table.keys()
-
-        table = _clean_table(
-            tabulate(self.table, tablefmt="github", headers=headers, showindex=False)
-        )
-        return wrap_as_details(table, folded=self.folded)
-
-    def __repr__(self) -> str:
-        if self._is_pandas_df:
-            nrows, ncols = self.table.shape  # type: ignore
-        else:
-            # table cannot be empty, so no checks needed here
-            ncols = len(self.table)
-            key = next(iter(self.table.keys()))
-            nrows = len(self.table[key])
-        return f"Table({nrows}x{ncols})"
 
 
 def metadata_from_config(config_path: Union[str, Path]) -> ModelCardData:
@@ -244,7 +184,7 @@ class Section:
     """Building block of the model card.
 
     The model card is represented internally as a dict with keys being strings
-    and values being Sections. The key is identical to the section title.
+    and values being ``Section``s. The key is identical to the section title.
 
     Additionally, the section may hold content in the form of strings (can be an
     empty string) or a ``Formattable``, which is simply an object with a
@@ -261,7 +201,7 @@ class Section:
     """
 
     title: str
-    content: Formattable | str
+    content: str
     subsections: dict[str, Section] = field(default_factory=dict)
     visible: bool = True
 
@@ -279,13 +219,14 @@ class Section:
         -------
         section : Section
             A dataclass containing all information relevant to the selected
-            section. Those are the title, the content, and subsections (in a
-            dict).
+            section. Those are the title, the content, subsections (in a dict),
+            and additional fields that depend on the type of section.
 
         Raises
         ------
         KeyError
             If the given section name was not found, a ``KeyError`` is raised.
+
         """
         section_names = split_subsection_names(key)
         # check that no section name is empty
@@ -293,15 +234,97 @@ class Section:
             msg = f"Section name cannot be empty but got '{key}'"
             raise KeyError(msg)
 
-        section = self
+        section: Section = self
         for section_name in section_names:
             section = section.subsections[section_name]
         return section
 
-
-class Formattable(Protocol):
     def format(self) -> str:
-        ...  # pragma: no cover
+        return self.content
+
+    def __repr__(self) -> str:
+        """Generates the ``repr`` of this section.
+
+        ``repr`` determines how the content of this section is shown in the
+        Card's repr.
+        """
+        return self.content
+
+
+@dataclass
+class PlotSection(Section):
+    """Adds a link to a figure to the model card"""
+
+    path: str | Path = ""
+    alt_text: str = ""
+    folded: bool = False
+
+    def __post_init__(self) -> None:
+        if not self.path:
+            raise TypeError(f"{self.__class__.__name__} requires a path")
+
+    def format(self) -> str:
+        # if no alt text provided, fall back to figure path
+        alt_text = self.alt_text or self.path
+        text = f"![{alt_text}]({self.path})"
+        val = wrap_as_details(text, folded=self.folded)
+        if self.content:
+            val = f"{self.content}\n\n{val}"
+        return val
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}({self.path})"
+
+
+@dataclass
+class TableSection(Section):
+    """Adds a table to the model card"""
+
+    table: Mapping[str, Sequence[Any]] = field(default_factory=dict)
+    folded: bool = False
+
+    def __post_init__(self) -> None:
+        self._check_table()
+
+    def _check_table(self) -> None:
+        try:
+            import pandas as pd
+
+            self._is_pandas_df = isinstance(self.table, pd.DataFrame)
+        except ImportError:
+            self._is_pandas_df = False
+
+        if self._is_pandas_df:
+            ncols = len(self.table.columns)  # type: ignore
+        else:
+            ncols = len(self.table)
+        if ncols == 0:
+            raise ValueError("Trying to add table with no columns")
+
+    def format(self) -> str:
+        if self._is_pandas_df:
+            headers = self.table.columns  # type: ignore
+        else:
+            headers = self.table.keys()
+
+        table = _clean_table(
+            tabulate(self.table, tablefmt="github", headers=headers, showindex=False)
+        )
+        val = wrap_as_details(table, folded=self.folded)
+
+        if self.content:
+            val = f"{self.content}\n\n{val}"
+        return val
+
+    def __repr__(self) -> str:
+        if self._is_pandas_df:
+            nrows, ncols = self.table.shape  # type: ignore
+        else:
+            # table cannot be empty, so no checks needed here
+            ncols = len(self.table)
+            key = next(iter(self.table.keys()))
+            nrows = len(self.table[key])
+        return f"{self.__class__.__name__}({nrows}x{ncols})"
 
 
 def _load_model(model: Any, trusted=False) -> Any:
@@ -357,8 +380,18 @@ class Card:
         ``Path``/``str`` of the model or the actual model instance that will be
         documented. If a ``Path`` or ``str`` is provided, model will be loaded.
 
-    model_diagram: bool, default=True
-        Set to True if model diagram should be plotted in the card.
+    model_diagram: bool or "auto" or str, default="auto"
+        If using the skops template, setting this to ``True`` or ``"auto"`` will
+        add the model diagram, as generated by sckit-learn, to the default
+        section, i.e "Model description/Training Procedure/Model Plot". Passing
+        a string to ``model_diagram`` will instead use that string as the
+        section name for the diagram. Set to ``False`` to not include the model
+        diagram.
+
+        If using a non-skops template, passing ``"auto"`` won't add the model
+        diagram because there is no pre-defined section to put it. The model
+        diagram can, however, always be added later using
+        :meth:`Card.add_model_plot`.
 
     metadata: ModelCardData, optional
         :class:`huggingface_hub.ModelCardData` object. The contents of this
@@ -443,10 +476,10 @@ class Card:
       model=LogisticRegression(random_state=0, solver='liblinear'),
       metadata.license=mit,
       Model description=This is the best model,
-      Model description/Training Procedure/... | | warm_start | False | </details>,
+      Model description/Training Procedure/Hyperparameters=TableSection(15x2),
       Model description/Training Procedure/...</pre></div></div></div></div></div>,
-      Model description/Evaluation Results=...ccuracy | 0.96 | | f1 score | 0.96 |,
-      Model description/Confusion Matrix=...confusion_matrix.png'),
+      Model description/Evaluation Results=TableSection(2x2),
+      Model description/Confusion Matrix=Pl...confusion_matrix.png),
       Model description/Model name=This model is called Bob,
       A new section=Please rate my model,
     )
@@ -458,13 +491,12 @@ class Card:
     def __init__(
         self,
         model,
-        model_diagram: bool = True,
+        model_diagram: bool | Literal["auto"] | str = "auto",
         metadata: ModelCardData | None = None,
         template: Literal["skops"] | dict[str, str] | None = "skops",
         trusted: bool = False,
     ) -> None:
         self.model = model
-        self.model_diagram = model_diagram
         self.metadata = metadata or ModelCardData()
         self.template = template
         self.trusted = trusted
@@ -472,13 +504,23 @@ class Card:
         self._data: dict[str, Section] = {}
         self._metrics: dict[str, str | float | int] = {}
 
-        self._populate_template()
+        self._populate_template(model_diagram=model_diagram)
 
-    def _populate_template(self):
-        """If initialized with a template, use it to populate the card."""
-        if not self.template:
-            return
+    def _populate_template(self, model_diagram: bool | Literal["auto"] | str):
+        """If initialized with a template, use it to populate the card.
 
+        Parameters
+        ----------
+        model_diagram: bool or "auto" or str
+            If using the default template, ``"auto"`` and ``True`` will add the
+            diagram in its default section. If using a custom template,
+            ``"auto"`` will not add the diagram, and passing ``True`` will
+            result in an error. For either, passing ``False`` will result in the
+            model diagram being omitted, and passing a string (other than
+            ``"auto"``) will put the model diagram into a section corresponding
+            to that string.
+
+        """
         if isinstance(self.template, str) and (self.template not in VALID_TEMPLATES):
             valid_templates = ", ".join(f"'{val}'" for val in sorted(VALID_TEMPLATES))
             msg = (
@@ -487,14 +529,28 @@ class Card:
             )
             raise ValueError(msg)
 
+        # default template
         if self.template == Templates.skops.value:
             self.add(**SKOPS_TEMPLATE)
             # for the skops template, automatically add some default sections
-            self.add_model_plot()
             self.add_hyperparams()
             self.add_get_started_code()
-        elif isinstance(self.template, Mapping):
+
+            if (model_diagram is True) or (model_diagram == "auto"):
+                self.add_model_plot()
+            elif isinstance(model_diagram, str):
+                self.add_model_plot(section=model_diagram)
+            return
+
+        # non-default template
+        if isinstance(self.template, Mapping):
             self.add(**self.template)
+
+        if isinstance(model_diagram, str) and (model_diagram != "auto"):
+            self.add_model_plot(section=model_diagram)
+        elif model_diagram is True:
+            # will trigger an error
+            self.add_model_plot()
 
     def get_model(self) -> Any:
         """Returns sklearn estimator object.
@@ -513,7 +569,7 @@ class Card:
         # model has changed, but at the moment we have no way of knowing that
         return model
 
-    def add(self, **kwargs: str | Formattable) -> Self:
+    def add(self, **kwargs: str) -> Self:
         """Add new section(s) to the model card.
 
         Add one or multiple sections to the model card. The section names are
@@ -685,7 +741,7 @@ class Card:
         parent_section = self._select(subsection_names, create=False)
         del parent_section[leaf_node_name]
 
-    def _add_single(self, key: str, val: Formattable | str) -> Section:
+    def _add_single(self, key: str, val: str | Section) -> Section:
         """Add a single section.
 
         If the (sub)section does not exist, it is created. Otherwise, the
@@ -696,8 +752,10 @@ class Card:
         key: str
             The name of the (sub)section.
 
-        val: str or Formattable
-            The value to assign to the (sub)section.
+        val: str or Section
+            The value to assign to the (sub)section. If this is already a
+            section, leave it as it is. If it's a string, create a
+            :class:`skops.card._model_card.Section`.
 
         Returns
         -------
@@ -708,18 +766,32 @@ class Card:
         *subsection_names, leaf_node_name = split_subsection_names(key)
         section = self._select(subsection_names)
 
-        if leaf_node_name in section:
-            # entry exists, only overwrite content
-            section[leaf_node_name].content = val
+        if isinstance(val, str):
+            # val is a str, create a Section
+            new_section = Section(title=leaf_node_name, content=val)
         else:
-            # entry does not exist, create a new one
-            section[leaf_node_name] = Section(title=leaf_node_name, content=val)
+            # val is already a section and can be used as is
+            new_section = val
 
+        if leaf_node_name in section:
+            # entry exists, preserve its subsections
+            old_section = section[leaf_node_name]
+            if new_section.subsections and (
+                new_section.subsections != old_section.subsections
+            ):
+                msg = (
+                    f"Trying to override section '{leaf_node_name}' but found "
+                    "conflicting subsections."
+                )
+                raise ValueError(msg)
+            new_section.subsections = old_section.subsections
+
+        section[leaf_node_name] = new_section
         return section[leaf_node_name]
 
     def add_model_plot(
         self,
-        section: str | None = None,
+        section: str = "Model description/Training Procedure/Model Plot",
         description: str | None = None,
     ) -> Self:
         """Add a model plot
@@ -733,11 +805,10 @@ class Card:
 
         Parameters
         ----------
-        section : str or None, default=None
-            The section that the model plot should be added to. If you're using
-            the default skops template, you can leave this parameter as
-            ``None``, otherwise you have to indicate the section. If the section
-            does not exist, it will be created for you.
+        section : str (default="Model description/Training Procedure/Model Plot")
+            The section that the model plot should be added to. By default, the
+            section is set to fit the skops model card template. If you're using
+            a different template, you may have to choose a different section name.
 
         description : str or None, default=None
             An optional description to be added before the model plot. If you're
@@ -749,27 +820,16 @@ class Card:
         -------
         self : object
             Card object.
+
         """
-        if not self.model_diagram:
-            return self
-
-        if section is None:
-            if self.template == Templates.skops.value:
-                section = "Model description/Training Procedure/Model Plot"
-            else:
-                msg = NEED_SECTION_ERR_MSG.format(action="add a model plot")
-                raise ValueError(msg)
-
-        if description is None:
-            if self.template == Templates.skops.value:
-                description = "The model plot is below."
-
-        self._add_model_plot(self.get_model(), section=section, description=description)
+        self._add_model_plot(
+            self.get_model(), section_name=section, description=description
+        )
 
         return self
 
     def _add_model_plot(
-        self, model: Any, section: str, description: str | None
+        self, model: Any, section_name: str, description: str | None
     ) -> None:
         """Add model plot section
 
@@ -787,20 +847,25 @@ class Card:
         else:
             content = model_plot_div
 
-        self._add_single(section, content)
+        description = description or ""
+        title = split_subsection_names(section_name)[-1]
+        section = Section(title=title, content=content)
+        self._add_single(section_name, section)
 
     def add_hyperparams(
-        self, section: str | None = None, description: str | None = None
+        self,
+        section: str = "Model description/Training Procedure/Hyperparameters",
+        description: str | None = None,
     ) -> Self:
         """Add the model's hyperparameters as a table
 
         Parameters
         ----------
-        section : str or None, default=None
-            The section that the hyperparamters should be added to. If you're
-            using the default skops template, you can leave this parameter as
-            ``None``, otherwise you have to indicate the section. If the section
-            does not exist, it will be created for you.
+        section : str (default="Model description/Training Procedure/Hyperparameters")
+            The section that the hyperparameters should be added to. By default,
+            the section is set to fit the skops model card template. If you're
+            using a different template, you may have to choose a different section
+            name.
 
         description : str or None, default=None
             An optional description to be added before the hyperparamters. If
@@ -814,58 +879,32 @@ class Card:
             Card object.
 
         """
-        if section is None:
-            if self.template == Templates.skops.value:
-                section = "Model description/Training Procedure/Hyperparameters"
-            else:
-                msg = NEED_SECTION_ERR_MSG.format(action="add model hyperparameters")
-                raise ValueError(msg)
-
-        if description is None:
-            if self.template == Templates.skops.value:
-                description = "The model is trained with below hyperparameters."
-
         self._add_hyperparams(
-            self.get_model(), section=section, description=description
+            self.get_model(), section_name=section, description=description
         )
         return self
 
     def _add_hyperparams(
-        self, model: Any, section: str, description: str | None
+        self, model: Any, section_name: str, description: str | None
     ) -> None:
         """Add hyperparameter section.
 
         The model should be a loaded sklearn model, not a path.
 
         """
-        hyperparameter_dict = model.get_params(deep=True)
-        table = _clean_table(
-            tabulate(
-                list(hyperparameter_dict.items()),
-                headers=["Hyperparameter", "Value"],
-                tablefmt="github",
-            )
+        params = model.get_params(deep=True)
+        table = {"Hyperparameter": list(params.keys()), "Value": list(params.values())}
+
+        description = description or ""
+        title = split_subsection_names(section_name)[-1]
+        section = TableSection(
+            title=title, content=description, table=table, folded=True
         )
-        table_folded = textwrap.dedent(
-            """
-            <details>
-            <summary> Click to expand </summary>
-
-            {}
-
-            </details>"""
-        ).format(table)
-
-        if description:
-            content = f"{description}\n{table_folded}"
-        else:
-            content = table_folded
-
-        self._add_single(section, content)
+        self._add_single(section_name, section)
 
     def add_get_started_code(
         self,
-        section: str | None = None,
+        section: str = "How to Get Started with the Model",
         description: str | None = None,
         file_name: str | None = None,
         model_format: Literal["pickle", "skops"] | None = None,
@@ -877,11 +916,11 @@ class Card:
 
         Parameters
         ----------
-        section : str or None, default=None
-            The section that the code should be added to. If you're using the
-            default skops template, you can leave this parameter as ``None``,
-            otherwise you have to indicate the section. If the section does not
-            exist, it will be created for you.
+        section : str (default="How to Get Started with the Model")
+            The section that the code for loading the model should be added to.
+            By default, the section is set to fit the skops model card template.
+            If you're using a different template, you may have to choose a
+            different section name.
 
         description : str or None, default=None
             An optional description to be added before the code. If you're using
@@ -925,17 +964,6 @@ class Card:
         if (not file_name) or (not model_format):
             return self
 
-        if section is None:
-            if self.template == Templates.skops.value:
-                section = "How to Get Started with the Model"
-            else:
-                msg = NEED_SECTION_ERR_MSG.format(action="add get started code")
-                raise ValueError(msg)
-
-        if description is None:
-            if self.template == Templates.skops.value:
-                description = "Use the code below to get started with the model."
-
         self._add_get_started_code(
             section,
             file_name=file_name,
@@ -947,7 +975,7 @@ class Card:
 
     def _add_get_started_code(
         self,
-        section: str,
+        section_name: str,
         file_name: str,
         model_format: Literal["pickle", "skops"],
         description: str | None,
@@ -965,9 +993,18 @@ class Card:
         else:
             content = code
 
-        self._add_single(section, content)
+        title = split_subsection_names(section_name)[-1]
+        section = Section(title=title, content=content)
+        self._add_single(section_name, section)
 
-    def add_plot(self, *, folded=False, **kwargs: str) -> Self:
+    def add_plot(
+        self,
+        *,
+        description: str | None = None,
+        alt_text: str | None = None,
+        folded=False,
+        **kwargs: str | Path,
+    ) -> Self:
         """Add plots to the model card.
 
         The plot should be saved on the file system and the path passed as
@@ -975,6 +1012,20 @@ class Card:
 
         Parameters
         ----------
+        description: str or None (default=None)
+            If a string is passed as description, it is shown before the figure.
+            If multiple figures are added with one call, they all get the same
+            description. To add multiple figures with different descriptions,
+            call this method multiple times.
+
+        alt_text: : str or None (default=None)
+            If a string is passed as ``alt_text``, it is used as the alternative
+            text for the figure (i.e. what is shown if the figure cannot be
+            rendered). If this argument is ``None``, the alt_text will just be
+            the same as the section title. If multiple figures are added with
+            one call, they all get the same alt text. To add multiple figures
+            with different alt texts, call this method multiple times.
+
         folded: bool (default=False)
             If set to ``True``, the plot will be enclosed in a ``details`` tag.
             That means the content is folded by default and users have to click
@@ -984,9 +1035,9 @@ class Card:
         **kwargs : dict
             The arguments should be of the form ``name=plot_path``, where
             ``name`` is the name of the plot and section, and ``plot_path`` is
-            the path to the plot on the file system, relative to the root of the
-            project. The plots should have already been saved under the
-            project's folder.
+            the path to the plot on the file system (either a str or
+            ``pathlib.Path``), relative to the root of the project. The plots
+            should have already been saved under the project's folder.
 
         Returns
         -------
@@ -994,14 +1045,26 @@ class Card:
             Card object.
 
         """
+        description = description or ""
         for section_name, plot_path in kwargs.items():
-            plot_name = split_subsection_names(section_name)[-1]
-            section = PlotSection(alt_text=plot_name, path=plot_path, folded=folded)
+            title = split_subsection_names(section_name)[-1]
+            alt_text = alt_text or title
+            section = PlotSection(
+                title=title,
+                content=description,
+                alt_text=alt_text,
+                path=plot_path,
+                folded=folded,
+            )
             self._add_single(section_name, section)
         return self
 
     def add_table(
-        self, *, folded: bool = False, **kwargs: dict["str", list[Any]]
+        self,
+        *,
+        description: str | None = None,
+        folded: bool = False,
+        **kwargs: dict["str", list[Any]],
     ) -> Self:
         """Add a table to the model card.
 
@@ -1027,6 +1090,12 @@ class Card:
 
         Parameters
         ----------
+        description: str or None (default=None)
+            If a string is passed as description, it is shown before the table.
+            If multiple tables are added with one call, they all get the same
+            description. To add multiple tables with different descriptions,
+            call this method multiple times.
+
         folded: bool (default=False)
             If set to ``True``, the table will be enclosed in a ``details`` tag.
             That means the content is folded by default and users have to click
@@ -1047,14 +1116,17 @@ class Card:
             Card object.
 
         """
+        description = description or ""
         for key, val in kwargs.items():
-            section = TableSection(table=val, folded=folded)
+            section = TableSection(
+                title=key, content=description, table=val, folded=folded
+            )
             self._add_single(key, section)
         return self
 
     def add_metrics(
         self,
-        section: str | None = None,
+        section: str = "Model description/Evaluation Results",
         description: str | None = None,
         **kwargs: str | int | float,
     ) -> Self:
@@ -1064,11 +1136,10 @@ class Card:
 
         Parameters
         ----------
-        section : str or None, default=None
-            The section that the metrics should be added to. If you're using the
-            default skops template, you can leave this parameter as ``None``,
-            otherwise you have to indicate the section. If the section does not
-            exist, it will be created for you.
+        section : str (default="Model description/Evaluation Results")
+            The section that metrics should be added to. By default, the section
+            is set to fit the skops model card template. If you're using a
+            different template, you may have to choose a different section name.
 
         description : str or None, default=None
             An optional description to be added before the metrics. If you're
@@ -1083,31 +1154,20 @@ class Card:
         -------
         self : object
             Card object.
-        """
-        if section is None:
-            if self.template == Templates.skops.value:
-                section = "Model description/Evaluation Results"
-            else:
-                msg = NEED_SECTION_ERR_MSG.format(action="add metrics")
-                raise ValueError(msg)
 
-        if description is None:
-            if self.template == Templates.skops.value:
-                description = (
-                    "You can find the details about evaluation process and "
-                    "the evaluation results."
-                )
+        """
         self._metrics.update(kwargs)
-        self._add_metrics(section, self._metrics, description=description)
+        self._add_metrics(section, description=description, metrics=self._metrics)
         return self
 
     def add_permutation_importances(
         self,
         permutation_importances,
         columns: Sequence[str],
-        plot_file: str = "permutation_importances.png",
+        plot_file: str | Path = "permutation_importances.png",
         plot_name: str = "Permutation Importances",
         overwrite: bool = False,
+        description: str | None = None,
     ) -> Self:
         """Plots permutation importance and saves it to model card.
 
@@ -1119,7 +1179,7 @@ class Card:
         columns : str, list or pandas.Index
             Column names of the data used to generate importances.
 
-        plot_file : str
+        plot_file : str or pathlib.Path
             Filename for the plot.
 
         plot_name : str
@@ -1128,6 +1188,9 @@ class Card:
         overwrite : bool (default=False)
             Whether to overwrite the permutation importance plot file, if a plot by that
             name already exists.
+
+        description : str | None (default=None)
+            An optional description to be added before the plot.
 
         Returns
         -------
@@ -1151,31 +1214,85 @@ class Card:
         ax.set_title(plot_name)
         ax.set_xlabel("Decrease in Score")
         plt.savefig(plot_file)
-        self.add_plot(**{plot_name: plot_file})
+        self.add_plot(description=description, alt_text=None, **{plot_name: plot_file})
 
         return self
 
+    def add_fairlearn_metric_frame(
+        self,
+        metric_frame,
+        table_name: str = "Fairlearn MetricFrame Table",
+        transpose: bool = True,
+        description: str | None = None,
+    ) -> Self:
+        """
+        Add a :class:`fairlearn.metrics.MetricFrame` table to the model card. The table contains
+        the difference, group_ma, group_min, and ratio for each metric.
+
+        Parameters
+        ----------
+        metric_frame: MetricFrame
+            The Fairlearn MetricFrame to add to the model card.
+
+        table_name: str
+            The desired name of the table section in the model card.
+
+        transpose: bool, default=True
+            Whether to transpose the table or not.
+
+
+        description : str | None (default=None)
+            An optional description to be added before the table.
+
+        Returns
+        -------
+        self: Card
+            The model card with the metric frame added.
+
+        Notes
+        --------
+        You can check `fairlearn's documentation
+        <https://fairlearn.org/v0.8/user_guide/assessment/index.html>`__ on how to
+        work with `MetricFrame`s.
+
+        """
+        frame_dict = {
+            "difference": metric_frame.difference(),
+            "group_max": metric_frame.group_max(),
+            "group_min": metric_frame.group_min(),
+            "ratio": metric_frame.ratio(),
+        }
+
+        if transpose is True:
+            pd = import_or_raise("pandas", "Pandas is used to pivot the table.")
+
+            frame_dict = pd.DataFrame(frame_dict).T
+
+        return self.add_table(
+            folded=True, description=description, **{table_name: frame_dict}
+        )
+
     def _add_metrics(
         self,
-        section: str,
-        metrics: dict[str, str | float | int],
+        section_name: str,
         description: str | None,
+        metrics: dict[str, str | float | int],
     ) -> None:
         """Add metrics to the Evaluation Results section."""
         if self._metrics:
-            data_transposed = zip(*self._metrics.items())  # make column oriented
-            inp = {key: val for key, val in zip(["Metric", "Value"], data_transposed)}
-            table = TableSection(inp).format()
+            # transpose from row oriented to column oriented
+            data_transposed = zip(*self._metrics.items())
+            table = {
+                key: list(val) for key, val in zip(["Metric", "Value"], data_transposed)
+            }
         else:
             # create empty table
-            table = TableSection({"Metric": [], "Value": []}).format()
+            table = {"Metric": [], "Value": []}
 
-        if description:
-            content = f"{description}\n\n{table}"
-        else:
-            content = table
-
-        self._add_single(section, content)
+        description = description or ""
+        title = split_subsection_names(section_name)[-1]
+        section = TableSection(title=title, content=description, table=table)
+        self._add_single(section_name, section)
 
     def _generate_metadata(self, metadata: ModelCardData) -> Iterator[str]:
         """Yield metadata in yaml format"""
@@ -1192,24 +1309,21 @@ class Card:
         content.
 
         """
-        for val in data.values():
-            if not val.visible:
+        for section in data.values():
+            if not section.visible:
                 continue
 
-            title = f"{depth * '#'} {val.title}"
+            title = f"{depth * '#'} {section.title}"
             yield title
 
-            if isinstance(val.content, str):
-                yield val.content
-            else:  # is a Formattable
-                yield val.content.format()
+            yield section.format()
 
-            if val.subsections:
-                yield from self._generate_content(val.subsections, depth=depth + 1)
+            if section.subsections:
+                yield from self._generate_content(section.subsections, depth=depth + 1)
 
     def _iterate_content(
         self, data: dict[str, Section], parent_section: str = ""
-    ) -> Iterator[tuple[str, Formattable | str]]:
+    ) -> Iterator[tuple[str, Section]]:
         """Yield tuples of title and (non-formatted) content."""
         for val in data.values():
             if parent_section:
@@ -1217,7 +1331,7 @@ class Card:
             else:
                 title = val.title
 
-            yield title, val.content
+            yield title, val
 
             if val.subsections:
                 yield from self._iterate_content(val.subsections, parent_section=title)
@@ -1252,15 +1366,14 @@ class Card:
 
         # repr for contents
         content_reprs = []
-        for title, content in self._iterate_content(self._data):
+        for title, section in self._iterate_content(self._data):
+            content = section.format()
             if not content:
                 continue
-            if isinstance(content, str) and content.rstrip("`").rstrip().endswith(
-                CONTENT_PLACEHOLDER
-            ):
+            if content.rstrip("`").rstrip().endswith(CONTENT_PLACEHOLDER):
                 # if content is just some default text, no need to show it
                 continue
-            content_reprs.append(self._format_repr(f"{title}={content},"))
+            content_reprs.append(self._format_repr(f"{title}={section},"))
         content_repr = "\n".join(content_reprs)
 
         # combine all parts
@@ -1315,3 +1428,59 @@ class Card:
             sections inserted.
         """
         return "\n".join(self._generate_card())
+
+    def _iterate_key_section_content(
+        self,
+        data: dict[str, Section],
+        level: int = 0,
+    ):
+        """Iterate through the key sections and yield the title and level.
+
+        Parameters
+        ----------
+        data : dict[str, Section]
+            The card data to iterate through. This is usually the sections and subsections.
+
+        level : int, optional
+            The level of the section, by default 0. This keeps track of subsections.
+
+        Returns
+        -------
+        table_of_contents : str
+        """
+        for key, val in data.items():
+            if not getattr(val, "visible", True):
+                continue
+
+            title = val.title
+            yield title, level
+
+            if val.subsections:
+                yield from self._iterate_key_section_content(
+                    val.subsections,
+                    level=level + 1,
+                )
+
+    def get_toc(self) -> str:
+        """Get the table of contents for the model card.
+
+        Returns
+        -------
+        toc : str
+            The table of contents for the model card formatted as a markdown string.
+            Example:
+                - Model description
+                    - Intended uses & limitations
+                    - Training Procedure
+                        - Hyperparameters
+                        - Model Plot
+                    - Evaluation Results
+                - How to Get Started with the Model
+                - Model Card Authors
+                - Model Card Contact
+        """
+        sections = []
+        for title, level in self._iterate_key_section_content(self._data):
+            sections.append(f"{'  ' * level}- {title}")
+
+        return "\n".join(sections)

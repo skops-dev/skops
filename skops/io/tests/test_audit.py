@@ -12,8 +12,8 @@ from sklearn.preprocessing import FunctionTransformer, StandardScaler
 
 from skops.io import dumps, get_untrusted_types
 from skops.io._audit import Node, audit_tree, check_type, get_tree, temp_setattr
-from skops.io._general import DictNode, dict_get_state
-from skops.io._utils import LoadContext, SaveContext, gettype
+from skops.io._general import DictNode, JsonNode, ObjectNode, dict_get_state
+from skops.io._utils import LoadContext, SaveContext, get_state, gettype
 
 
 class CustomType:
@@ -41,7 +41,7 @@ def test_check_type(module_name, type_name, trusted, expected):
 def test_audit_tree_untrusted():
     var = {"a": CustomType(1), 2: CustomType(2)}
     state = dict_get_state(var, SaveContext(None, 0, {}))
-    node = DictNode(state, LoadContext(None), trusted=False)
+    node = DictNode(state, LoadContext(None, -1), trusted=False)
     with pytest.raises(
         TypeError,
         match=re.escape(
@@ -64,7 +64,7 @@ def test_audit_tree_defaults():
     # test that the default types are trusted
     var = {"a": 1, 2: "b"}
     state = dict_get_state(var, SaveContext(None, 0, {}))
-    node = DictNode(state, LoadContext(None), trusted=False)
+    node = DictNode(state, LoadContext(None, -1), trusted=False)
     audit_tree(node, trusted=[])
 
 
@@ -97,7 +97,7 @@ def test_list_safety(values, is_safe):
 
     with ZipFile(io.BytesIO(content), "r") as zip_file:
         schema = json.loads(zip_file.read("schema.json"))
-        tree = get_tree(schema, load_context=LoadContext(src=zip_file))
+        tree = get_tree(schema, load_context=LoadContext(src=zip_file, protocol=-1))
         assert tree.is_safe() == is_safe
 
 
@@ -163,3 +163,28 @@ def test_complex_pipeline_untrusted_set():
     untrusted = get_untrusted_types(data=dumps(clf))
     type_names = [x.split(".")[-1] for x in untrusted]
     assert type_names == ["sqrt", "square"]
+
+
+def test_format_object_node():
+    estimator = LogisticRegression(random_state=0, solver="liblinear")
+    state = get_state(estimator, SaveContext(None))
+    node = ObjectNode(state, LoadContext(None, -1))
+    expected = "sklearn.linear_model._logistic.LogisticRegression"
+    assert node.format() == expected
+
+
+@pytest.mark.parametrize(
+    "inp, expected",
+    [
+        ("hello", 'json-type("hello")'),
+        (123, "json-type(123)"),
+        (0.456, "json-type(0.456)"),
+        (True, "json-type(true)"),
+        (False, "json-type(false)"),
+        (None, "json-type(null)"),
+    ],
+)
+def test_format_json_node(inp, expected):
+    state = get_state(inp, SaveContext(None))
+    node = JsonNode(state, LoadContext(None, -1))
+    assert node.format() == expected

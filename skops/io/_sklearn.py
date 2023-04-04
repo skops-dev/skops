@@ -4,6 +4,8 @@ from typing import Any, Callable, Sequence, Type
 
 from sklearn.cluster import Birch
 
+from ._protocol import PROTOCOL
+
 try:
     # TODO: remove once support for sklearn<1.2 is dropped. See #187
     from sklearn.covariance._graph_lasso import _DictWithDeprecatedKeys
@@ -232,8 +234,8 @@ for type_ in UNSUPPORTED_TYPES:
 
 # tuples of type and function that creates the instance of that type
 NODE_TYPE_MAPPING = {
-    "SGDNode": SGDNode,
-    "TreeNode": TreeNode,
+    ("SGDNode", PROTOCOL): SGDNode,
+    ("TreeNode", PROTOCOL): TreeNode,
 }
 
 # TODO: remove once support for sklearn<1.2 is dropped.
@@ -244,5 +246,5 @@ if _DictWithDeprecatedKeys is not None:
         (_DictWithDeprecatedKeys, _DictWithDeprecatedKeys_get_state)
     )
     NODE_TYPE_MAPPING[
-        "_DictWithDeprecatedKeysNode"
+        ("_DictWithDeprecatedKeysNode", PROTOCOL)
     ] = _DictWithDeprecatedKeysNode  # type: ignore

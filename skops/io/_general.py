@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import json
+import operator
 import uuid
 from functools import partial
 from types import FunctionType, MethodType
@@ -10,6 +11,7 @@ from typing import Any, Sequence
 import numpy as np
 
 from ._audit import Node, get_tree
+from ._protocol import PROTOCOL
 from ._trusted_types import (
     PRIMITIVE_TYPE_NAMES,
     SCIPY_UFUNC_TYPE_NAMES,
@@ -179,13 +181,9 @@ class TupleNode(Node):
 
 def function_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     res = {
-        "__class__": obj.__class__.__name__,
+        "__class__": obj.__name__,
         "__module__": get_module(obj),
         "__loader__": "FunctionNode",
-        "content": {
-            "module_path": get_module(obj),
-            "function": obj.__name__,
-        },
     }
     return res
 
@@ -200,26 +198,20 @@ class FunctionNode(Node):
         super().__init__(state, load_context, trusted)
         # TODO: what do we trust?
         self.trusted = self._get_trusted(trusted, default=SCIPY_UFUNC_TYPE_NAMES)
-        self.children = {"content": state["content"]}
+        self.children = {}
 
     def _construct(self):
-        return _import_obj(
-            self.children["content"]["module_path"],
-            self.children["content"]["function"],
-        )
+        return gettype(self.module_name, self.class_name)
 
     def _get_function_name(self) -> str:
-        return (
-            self.children["content"]["module_path"]
-            + "."
-            + self.children["content"]["function"]
-        )
+        return f"{self.module_name}.{self.class_name}"
 
     def get_unsafe_set(self) -> set[str]:
-        if (self.trusted is True) or (self._get_function_name() in self.trusted):
+        fn_name = self._get_function_name()
+        if (self.trusted is True) or (fn_name in self.trusted):
             return set()
 
-        return {self._get_function_name()}
+        return {fn_name}
 
 
 def partial_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
@@ -481,6 +473,14 @@ class JsonNode(Node):
     def _construct(self):
         return json.loads(self.content)
 
+    def format(self) -> str:
+        """Representation of the node's content.
+
+        Since no module is used, just show the content.
+
+        """
+        return f"json-type({self.content})"
+
 
 def bytes_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     f_name = f"{uuid.uuid4()}.bin"
@@ -532,6 +532,38 @@ class BytearrayNode(BytesNode):
         return content_bytearray
 
 
+def operator_func_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
+    _, attrs = obj.__reduce__()
+    res = {
+        "__class__": obj.__class__.__name__,
+        "__module__": "operator",
+        "__loader__": "OperatorFuncNode",
+        "attrs": get_state(attrs, save_context),
+    }
+    return res
+
+
+class OperatorFuncNode(Node):
+    def __init__(
+        self,
+        state: dict[str, Any],
+        load_context: LoadContext,
+        trusted: bool | Sequence[str] = False,
+    ) -> None:
+        super().__init__(state, load_context, trusted)
+        self.trusted = self._get_trusted(trusted, [])
+        self.children["attrs"] = get_tree(state["attrs"], load_context)
+
+    def _construct(self):
+        op = getattr(operator, self.class_name)
+        attrs = self.children["attrs"].construct()
+        return op(*attrs)
+
+
+# <class 'builtin_function_or_method'>
+builtin_function_or_method = type(len)
+
+
 # tuples of type and function that gets the state of that type
 GET_STATE_DISPATCH_FUNCTIONS = [
     (dict, dict_get_state),
@@ -545,21 +577,26 @@ GET_STATE_DISPATCH_FUNCTIONS = [
     (MethodType, method_get_state),
     (partial, partial_get_state),
     (type, type_get_state),
+    (builtin_function_or_method, type_get_state),
+    (operator.attrgetter, operator_func_get_state),
+    (operator.itemgetter, operator_func_get_state),
+    (operator.methodcaller, operator_func_get_state),
     (object, object_get_state),
 ]
 
 NODE_TYPE_MAPPING = {
-    "DictNode": DictNode,
-    "ListNode": ListNode,
-    "SetNode": SetNode,
-    "TupleNode": TupleNode,
-    "BytesNode": BytesNode,
-    "BytearrayNode": BytearrayNode,
-    "SliceNode": SliceNode,
-    "FunctionNode": FunctionNode,
-    "MethodNode": MethodNode,
-    "PartialNode": PartialNode,
-    "TypeNode": TypeNode,
-    "ObjectNode": ObjectNode,
-    "JsonNode": JsonNode,
+    ("DictNode", PROTOCOL): DictNode,
+    ("ListNode", PROTOCOL): ListNode,
+    ("SetNode", PROTOCOL): SetNode,
+    ("TupleNode", PROTOCOL): TupleNode,
+    ("BytesNode", PROTOCOL): BytesNode,
+    ("BytearrayNode", PROTOCOL): BytearrayNode,
+    ("SliceNode", PROTOCOL): SliceNode,
+    ("FunctionNode", PROTOCOL): FunctionNode,
+    ("MethodNode", PROTOCOL): MethodNode,
+    ("PartialNode", PROTOCOL): PartialNode,
+    ("TypeNode", PROTOCOL): TypeNode,
+    ("ObjectNode", PROTOCOL): ObjectNode,
+    ("JsonNode", PROTOCOL): JsonNode,
+    ("OperatorFuncNode", PROTOCOL): OperatorFuncNode,
 }

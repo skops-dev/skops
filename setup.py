@@ -77,6 +77,7 @@ def setup_package():
         extras_require={
             "docs": min_deps.tag_to_packages["docs"],
             "tests": min_deps.tag_to_packages["tests"],
+            "rich": min_deps.tag_to_packages["rich"],
         },
         include_package_data=True,
         packages=["skops"],

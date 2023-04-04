@@ -2,6 +2,8 @@ import importlib
 import inspect
 import io
 import json
+import operator
+import sys
 import warnings
 from collections import Counter
 from functools import partial, wraps
@@ -53,7 +55,7 @@ from skops.io._audit import NODE_TYPE_MAPPING, get_tree
 from skops.io._sklearn import UNSUPPORTED_TYPES
 from skops.io._trusted_types import SCIPY_UFUNC_TYPE_NAMES, SKLEARN_ESTIMATOR_TYPE_NAMES
 from skops.io._utils import LoadContext, SaveContext, _get_state, get_state, gettype
-from skops.io.exceptions import UnsupportedTypeException
+from skops.io.exceptions import UnsupportedTypeException, UntrustedTypesFoundException
 from skops.io.tests._utils import assert_method_outputs_equal, assert_params_equal
 
 # Default settings for X
@@ -304,7 +306,9 @@ def get_input(estimator):
         return [(1, 2), (3,)], None
 
     if "categorical" in tags["X_types"]:
-        return [["Male", 1], ["Female", 3], ["Female", 2]], None
+        X = [["Male", 1], ["Female", 3], ["Female", 2]]
+        y = y[: len(X)] if tags["requires_y"] else None
+        return X, y
 
     if "dict" in tags["X_types"]:
         return [{"foo": 1, "bar": 2}, {"foo": 3, "baz": 1}], None
@@ -417,7 +421,14 @@ def test_random_state(random_state):
     est = RandomStateEstimator(random_state=random_state).fit(None, None)
     est.random_state_.random(123)  # move RNG forwards
 
-    loaded = loads(dumps(est), trusted=True)
+    dumped = dumps(est)
+    untrusted_types = get_untrusted_types(data=dumped)
+    loaded = loads(dumped, trusted=untrusted_types)
+
+    if hasattr(est, "__dict__"):
+        # what to do if object has no __dict__, like Generator?
+        assert_params_equal(est.__dict__, loaded.__dict__)
+
     rand_floats_expected = est.random_state_.random(100)
     rand_floats_loaded = loaded.random_state_.random(100)
     np.testing.assert_equal(rand_floats_loaded, rand_floats_expected)
@@ -519,7 +530,7 @@ def test_metainfo():
     schema = json.loads(ZipFile(io.BytesIO(dumped)).read("schema.json"))
 
     # check some schema metainfo
-    assert schema["protocol"] == skops.io._utils.DEFAULT_PROTOCOL
+    assert schema["protocol"] == skops.io._protocol.PROTOCOL
     assert schema["_skops_version"] == skops.__version__
 
     # additionally, check following metainfo: class, module, and version
@@ -653,7 +664,7 @@ def test_get_tree_unknown_type_error_msg():
     state["__loader__"] = "this_get_tree_does_not_exist"
     msg = "Can't find loader this_get_tree_does_not_exist for type builtins.tuple."
     with pytest.raises(TypeError, match=msg):
-        get_tree(state, LoadContext(None))
+        get_tree(state, LoadContext(None, -1))
 
 
 class _BoundMethodHolder:
@@ -880,3 +891,90 @@ def test_estimator_with_bytes_files_created(tmp_path):
         files = input_zip.namelist()
     bin_files = [file for file in files if file.endswith(".bin")]
     assert len(bin_files) == 2
+
+
+OPERATORS = [
+    ("add", partial(operator.add, 0)),
+    ("sub", partial(operator.sub, 0)),
+    ("mul", partial(operator.mul, 1)),
+    ("truediv", partial(operator.truediv, 1)),
+    ("pow", partial(operator.pow, 1)),
+    ("matmul", partial(operator.matmul, np.eye(N_SAMPLES))),
+    ("iadd", partial(operator.iadd, 1)),
+    ("isub", partial(operator.isub, 1)),
+    ("imul", partial(operator.imul, 1)),
+    ("itruediv", partial(operator.itruediv, 1)),
+    ("ipow", partial(operator.ipow, 1)),
+    # note: inplace matmul is not supported by numpy
+    ("ge", partial(operator.ge, 0)),
+    ("gt", partial(operator.gt, 0)),
+    ("le", partial(operator.le, 0)),
+    ("lt", partial(operator.lt, 0)),
+    ("eq", partial(operator.eq, 0)),
+    ("neg", operator.neg),
+    ("attrgetter", operator.attrgetter("real")),
+    ("attrgetter", operator.attrgetter("real", "real")),
+    ("itemgetter", operator.itemgetter(None)),
+    ("itemgetter", operator.itemgetter(None, None)),
+    ("methodcaller", operator.methodcaller("round")),
+    ("methodcaller", operator.methodcaller("round", 2)),
+]
+
+if sys.version_info >= (3, 11):
+    OPERATORS.append(("call", partial(operator.call, len)))
+
+
+@pytest.mark.parametrize("op", OPERATORS)
+def test_persist_operator(op):
+    # Test a couple of functions from the operator module. This is not an
+    # exhaustive list but rather the most plausible functions. To check all
+    # operators would require specific tests, not a generic one like this.
+    # Fixes #283
+
+    _, func = op
+    # unfitted
+    est = FunctionTransformer(func)
+    loaded = loads(dumps(est), trusted=True)
+    assert_params_equal(est.__dict__, loaded.__dict__)
+
+    # fitted
+    X, y = get_input(est)
+    est.fit(X, y)
+    loaded = loads(dumps(est), trusted=True)
+    assert_params_equal(est.__dict__, loaded.__dict__)
+
+    # Technically, we don't need to call transform. However, if this is skipped,
+    # there is a danger to not define the function sufficiently, which could
+    # lead to the test passing but being useless in practice -- e.g. for
+    # func=operator.methodcaller, the test would pass without the fix for #283
+    # but it would be useless in practice, since methodcaller is not properly
+    # instantiated.
+    est.transform(X)
+
+
+@pytest.mark.parametrize("op", OPERATORS)
+def test_persist_operator_raises_untrusted(op):
+    # check that operators are not trusted by default, because at least some of
+    # them could perform unsafe operations
+    name, func = op
+    est = FunctionTransformer(func)
+    with pytest.raises(UntrustedTypesFoundException, match=name):
+        loads(dumps(est), trusted=False)
+
+
+def dummy_func(X):
+    return X
+
+
+@pytest.mark.parametrize("func", [np.sqrt, len, special.exp10, dummy_func])
+def test_persist_function(func):
+    estimator = FunctionTransformer(func=func)
+    X, y = [0, 1], [2, 3]
+    estimator.fit(X, y)
+
+    dumped = dumps(estimator)
+    loaded = loads(dumped, trusted=True)
+
+    # check that loaded estimator is identical
+    assert_params_equal(estimator.__dict__, loaded.__dict__)
+    assert_method_outputs_equal(estimator, loaded, X)

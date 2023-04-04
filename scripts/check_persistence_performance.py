@@ -53,9 +53,10 @@ def check_persist_performance() -> None:
                     estimator.fit(X)
 
         name = _get_check_estimator_ids(estimator)
+        cls_name, _, _ = name.partition("(")
         time_pickle, time_skops = run_check(estimator, number=NUM_REPS)
 
-        results["name"].append(name)
+        results["name"].append(cls_name)
         results["pickle (s)"].append(time_pickle)
         results["skops (s)"].append(time_skops)
 
@@ -98,7 +99,7 @@ def format_result(results: dict[str, list[Any]], topk: int) -> None:
 
     df = df.sort_values(["abs_diff"], ascending=False).reset_index(drop=True)
     print(f"{topk} largest differences:")
-    print(df.head(10))
+    print(df[["name", "pickle (s)", "skops (s)", "abs_diff", "rel_diff"]].head(10))
 
     df_slow = df.query("too_slow")
     if df_slow.empty:

@@ -6,6 +6,8 @@ from typing import Any, Sequence
 import numpy as np
 
 from ._audit import Node, get_tree
+from ._general import function_get_state
+from ._protocol import PROTOCOL
 from ._utils import LoadContext, SaveContext, get_module, get_state, gettype
 from .exceptions import UnsupportedTypeException
 
@@ -163,7 +165,7 @@ class RandomStateNode(Node):
 
 
 def random_generator_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
-    bit_generator_state = obj.bit_generator.state
+    bit_generator_state = get_state(obj.bit_generator.state, save_context)
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
@@ -181,34 +183,24 @@ class RandomGeneratorNode(Node):
         trusted: bool | Sequence[str] = False,
     ) -> None:
         super().__init__(state, load_context, trusted)
-        self.children = {"bit_generator_state": state["content"]["bit_generator"]}
+        self.children = {
+            "bit_generator_state": get_tree(
+                state["content"]["bit_generator"], load_context
+            )
+        }
         self.trusted = self._get_trusted(trusted, [np.random.Generator])
 
     def _construct(self):
         # first restore the state of the bit generator
-        bit_generator = gettype(
-            "numpy.random", self.children["bit_generator_state"]["bit_generator"]
-        )()
-        bit_generator.state = self.children["bit_generator_state"]
+        bit_generator_state = self.children["bit_generator_state"].construct()
+        bit_generator_cls = gettype(
+            "numpy.random", bit_generator_state["bit_generator"]
+        )
+        bit_generator = bit_generator_cls()
+        bit_generator.state = bit_generator_state
 
         # next create the generator instance
         return gettype(self.module_name, self.class_name)(bit_generator=bit_generator)
-
-
-# For numpy.ufunc we need to get the type from the type's module, but for other
-# functions we get it from objet's module directly. Therefore sett a especial
-# get_state method for them here. The load is the same as other functions.
-def ufunc_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
-    res = {
-        "__class__": obj.__class__.__name__,  # ufunc
-        "__module__": get_module(type(obj)),  # numpy
-        "__loader__": "FunctionNode",
-        "content": {
-            "module_path": get_module(obj),
-            "function": obj.__name__,
-        },
-    }
-    return res
 
 
 def dtype_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
@@ -247,16 +239,16 @@ GET_STATE_DISPATCH_FUNCTIONS = [
     (np.generic, ndarray_get_state),
     (np.ndarray, ndarray_get_state),
     (np.ma.MaskedArray, maskedarray_get_state),
-    (np.ufunc, ufunc_get_state),
+    (np.ufunc, function_get_state),
     (np.dtype, dtype_get_state),
     (np.random.RandomState, random_state_get_state),
     (np.random.Generator, random_generator_get_state),
 ]
 # tuples of type and function that creates the instance of that type
 NODE_TYPE_MAPPING = {
-    "NdArrayNode": NdArrayNode,
-    "MaskedArrayNode": MaskedArrayNode,
-    "DTypeNode": DTypeNode,
-    "RandomStateNode": RandomStateNode,
-    "RandomGeneratorNode": RandomGeneratorNode,
+    ("NdArrayNode", PROTOCOL): NdArrayNode,
+    ("MaskedArrayNode", PROTOCOL): MaskedArrayNode,
+    ("DTypeNode", PROTOCOL): DTypeNode,
+    ("RandomStateNode", PROTOCOL): RandomStateNode,
+    ("RandomGeneratorNode", PROTOCOL): RandomGeneratorNode,
 }
