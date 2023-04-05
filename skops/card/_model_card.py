@@ -1400,15 +1400,15 @@ class Card:
         # add an empty line add the end
         yield ""
 
-    def _copy_plots(self, data, parent_path: str, plot_path: str) -> None:
+    def _copy_plots(self, data, parent_path: str | Path, plot_path: str | Path) -> None:
         """Copy the plots to the specified path."""
         for section in data.values():
             self._copy_plots(section.subsections, plot_path, parent_path)
 
             if hasattr(section, "path"):
-                shutil.copy(parent_path / section.path, plot_path + "/" + section.path)
+                shutil.copy(parent_path / section.path, plot_path / section.path)
 
-    def save(self, path: str | Path, plot_path: None) -> None:
+    def save(self, path: str | Path, plot_path=None) -> None:
         """Save the model card.
 
         This method renders the model card in markdown format and then saves it
@@ -1431,6 +1431,8 @@ class Card:
             f.write("\n".join(self._generate_card()))
 
         if plot_path is not None:
+            if not isinstance(path, Path):
+                path = Path(path)
             self._copy_plots(self._data, path.parent, plot_path)
 
     def render(self) -> str:
