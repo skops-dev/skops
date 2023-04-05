@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 import sys
 import textwrap
 import zipfile
@@ -1399,7 +1400,15 @@ class Card:
         # add an empty line add the end
         yield ""
 
-    def save(self, path: str | Path) -> None:
+    def _copy_plots(self, data, plot_path: str):
+        """Copy the plots to the specified path."""
+        for section in data.values():
+            self._copy_plots(section.subsections, plot_path)
+
+            if hasattr(section, "path"):
+                shutil.copy(section.path, plot_path + "/" + section.path)
+
+    def save(self, path: str | Path, plot_path: None) -> None:
         """Save the model card.
 
         This method renders the model card in markdown format and then saves it
@@ -1410,6 +1419,9 @@ class Card:
         path: str, or Path
             Filepath to save your card.
 
+        plot_path: str
+            Filepath to save the plots.
+
         Notes
         -----
         The keys in model card metadata can be seen `here
@@ -1417,6 +1429,9 @@ class Card:
         """
         with open(path, "w", encoding="utf-8") as f:
             f.write("\n".join(self._generate_card()))
+
+        if plot_path is not None:
+            self._copy_plots(self._data, plot_path)
 
     def render(self) -> str:
         """Render the final model card as a string.
