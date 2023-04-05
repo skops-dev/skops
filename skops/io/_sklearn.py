@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Sequence, Type
+from typing import Any, Sequence, Type
 
 from sklearn.cluster import Birch
 
@@ -96,7 +96,7 @@ class ReduceNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        constructor: Type[Any] | Callable[..., Any],
+        constructor: Type[Any],
         trusted: bool | Sequence[str] = False,
     ) -> None:
         super().__init__(state, load_context, trusted)
