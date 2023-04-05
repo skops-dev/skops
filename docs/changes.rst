@@ -12,6 +12,8 @@ skops Changelog
 
 v0.7
 ----
+- Add ability to copy plots on :meth:`.Card.save` so that they can be
+  referenced in the model card. :pr:`330` by :user:`Thomas Lazarus <lazarust>`.
 
 
 v0.6

@@ -1898,7 +1898,9 @@ class TestCardSaveWithPlots:
         model_card = model_card.add_plot(fig1="fig1.png")
 
         with tempfile.TemporaryDirectory(prefix="skops-test-plots") as plot_path:
-            model_card.save(Path(destination_path) / "README.md", plot_path=plot_path)
+            model_card.save(
+                Path(destination_path) / "README.md", plot_path=Path(plot_path)
+            )
 
             assert (Path(destination_path) / "README.md").exists()
             assert (Path(plot_path) / "fig1.png").exists()
