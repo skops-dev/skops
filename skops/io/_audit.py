@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import io
 from contextlib import contextmanager
-from typing import Any, Generator, Literal, Optional, Sequence, Type, Union
+from typing import Any, Dict, Generator, List, Literal, Optional, Sequence, Type, Union
 
 from ._protocol import PROTOCOL
 from ._utils import LoadContext, get_module, get_type_paths
@@ -10,7 +10,7 @@ from .exceptions import UntrustedTypesFoundException
 
 NODE_TYPE_MAPPING: dict[tuple[str, int], Node] = {}
 VALID_NODE_CHILD_TYPES = Optional[
-    Union["Node", list["Node"], dict[str, "Node"], Type, str, io.BytesIO]
+    Union["Node", List["Node"], Dict[str, "Node"], Type, str, io.BytesIO]
 ]
 
 
