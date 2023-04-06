@@ -34,6 +34,6 @@ omit = [
 ]
 
 [tool.mypy]
-exclude = "(\\w+/)*test_\\w+\\.py$|spaces/skops_model_card_creator"
+exclude = "(\\w+/)*test_\\w+\\.py$|spaces/skops_model_card_creator|old"
 ignore_missing_imports = true
 no_implicit_optional = true

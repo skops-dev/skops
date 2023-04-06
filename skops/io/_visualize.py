@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, Callable, Iterator, Literal
 from zipfile import ZipFile
 
-from ._audit import Node, get_tree
+from ._audit import VALID_NODE_CHILD_TYPES, Node, get_tree
 from ._general import FunctionNode, JsonNode, ListNode
 from ._numpy import NdArrayNode
 from ._scipy import SparseMatrixNode
@@ -168,7 +168,7 @@ def pretty_print_tree(
 
 
 def walk_tree(
-    node: Node | dict[str, Node] | list[Node],
+    node: VALID_NODE_CHILD_TYPES | dict[str, VALID_NODE_CHILD_TYPES],
     node_name: str = "root",
     level: int = 0,
     is_last: bool = False,
