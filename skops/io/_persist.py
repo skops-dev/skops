@@ -116,7 +116,7 @@ def load(file: str | Path, trusted: bool | Sequence[str] = False) -> Any:
         ``False``, the object will be loaded only if there are only trusted
         objects in the dumped file. If a list of strings, the object will be
         loaded only if there are only trusted objects and objects of types
-        listed in ``trusted`` are in the dumped file.
+        listed in ``trusted`` in the dumped file.
 
     Returns
     -------
@@ -127,8 +127,8 @@ def load(file: str | Path, trusted: bool | Sequence[str] = False) -> Any:
     with ZipFile(file, "r") as input_zip:
         schema = json.loads(input_zip.read("schema.json"))
         load_context = LoadContext(src=input_zip, protocol=schema["protocol"])
-        tree = get_tree(schema, load_context)
-        audit_tree(tree, trusted)
+        tree = get_tree(schema, load_context, trusted=trusted)
+        audit_tree(tree)
         instance = tree.construct()
 
     return instance
@@ -154,7 +154,7 @@ def loads(data: bytes, trusted: bool | Sequence[str] = False) -> Any:
         ``False``, the object will be loaded only if there are only trusted
         objects in the dumped file. If a list of strings, the object will be
         loaded only if there are only trusted objects and objects of types
-        listed in ``trusted`` are in the dumped file.
+        listed in ``trusted`` in the dumped file.
 
     Returns
     -------
@@ -167,8 +167,8 @@ def loads(data: bytes, trusted: bool | Sequence[str] = False) -> Any:
     with ZipFile(io.BytesIO(data), "r") as zip_file:
         schema = json.loads(zip_file.read("schema.json"))
         load_context = LoadContext(src=zip_file, protocol=schema["protocol"])
-        tree = get_tree(schema, load_context)
-        audit_tree(tree, trusted)
+        tree = get_tree(schema, load_context, trusted=trusted)
+        audit_tree(tree)
         instance = tree.construct()
 
     return instance
@@ -210,9 +210,8 @@ def get_untrusted_types(
 
     with ZipFile(content, "r") as zip_file:
         schema = json.loads(zip_file.read("schema.json"))
-        tree = get_tree(
-            schema, load_context=LoadContext(src=zip_file, protocol=schema["protocol"])
-        )
+        load_context = LoadContext(src=zip_file, protocol=schema["protocol"])
+        tree = get_tree(schema, load_context=load_context, trusted=False)
         untrusted_types = tree.get_unsafe_set()
 
     return sorted(untrusted_types)

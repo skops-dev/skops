@@ -2,14 +2,16 @@ from __future__ import annotations
 
 import io
 from contextlib import contextmanager
-from typing import Any, Generator, Literal, Sequence, Type, Union
+from typing import Any, Dict, Generator, List, Literal, Optional, Sequence, Type, Union
 
 from ._protocol import PROTOCOL
-from ._trusted_types import PRIMITIVE_TYPE_NAMES
 from ._utils import LoadContext, get_module, get_type_paths
 from .exceptions import UntrustedTypesFoundException
 
-NODE_TYPE_MAPPING: dict[tuple[str, int], Node] = {}
+NODE_TYPE_MAPPING: dict[tuple[str, int], Type[Node]] = {}
+VALID_NODE_CHILD_TYPES = Optional[
+    Union["Node", List["Node"], Dict[str, "Node"], Type, str, io.BytesIO]
+]
 
 
 def check_type(
@@ -41,7 +43,7 @@ def check_type(
     return module_name + "." + type_name in trusted
 
 
-def audit_tree(tree: Node, trusted: bool | Sequence[str]) -> None:
+def audit_tree(tree: Node) -> None:
     """Audit a tree of nodes.
 
     A tree is safe if it only contains trusted types. Audit is skipped if
@@ -52,24 +54,15 @@ def audit_tree(tree: Node, trusted: bool | Sequence[str]) -> None:
     tree : skops.io._dispatch.Node
         The tree to audit.
 
-    trusted : True, or list of str
-        If ``True``, the tree is considered safe. Otherwise trusted has to be
-        a list of trusted types names.
-
-        An entry in the list is typically of the form
-        ``skops.io._utils.get_module(obj) + "." + obj.__class__.__name__``.
-
     Raises
     ------
     UntrustedTypesFoundException
         If the tree contains an untrusted type.
     """
-    if trusted is True:
+    if tree.trusted is True:
         return
 
     unsafe = tree.get_unsafe_set()
-    if isinstance(trusted, (list, set)):
-        unsafe -= set(trusted)
     if unsafe:
         raise UntrustedTypesFoundException(unsafe)
 
@@ -168,7 +161,7 @@ class Node:
         # 3. set self.children, where children are states of child nodes; do not
         #    construct the children objects yet
         self.trusted = self._get_trusted(trusted, [])
-        self.children: dict[str, Any] = {}
+        self.children: dict[str, VALID_NODE_CHILD_TYPES] = {}
 
     def construct(self):
         """Construct the object.
@@ -191,10 +184,12 @@ class Node:
     ) -> Literal[True] | list[str]:
         """Return a trusted list, or True.
 
-        If ``trusted`` is ``False``, we return the ``default``, otherwise the
-        ``trusted`` value is used.
+        If ``trusted`` is ``False``, we return the ``default``. If a list of
+        types are being passed, those types, as well as default trusted types,
+        are returned.
 
         This is a convenience method called by child classes.
+
         """
         if trusted is True:
             # if trusted is True, we trust the node
@@ -204,8 +199,8 @@ class Node:
             # if trusted is False, we only trust the defaults
             return get_type_paths(default)
 
-        # otherwise, we trust the given list
-        return get_type_paths(trusted)
+        # otherwise, we trust the given list and default trusted types
+        return get_type_paths(trusted) + get_type_paths(default)
 
     def is_self_safe(self) -> bool:
         """True only if the node's type is considered safe.
@@ -269,15 +264,11 @@ class Node:
                     if not check_type(get_module(child), child.__name__, self.trusted):
                         # if the child is a type, we check its safety
                         res.add(get_module(child) + "." + child.__name__)
-                elif isinstance(child, io.BytesIO):
+                elif isinstance(child, (io.BytesIO, str)):
                     # We trust BytesIO objects, which are read by other
-                    # libraries such as numpy, scipy.
-                    continue
-                elif check_type(
-                    get_module(child), child.__class__.__name__, PRIMITIVE_TYPE_NAMES
-                ):
-                    # if the child is a primitive type, we don't need to check its
-                    # safety.
+                    # libraries such as numpy, scipy. We trust str but have to
+                    # be careful that anything with str is dealt with
+                    # appropriately.
                     continue
                 else:
                     raise ValueError(
@@ -316,10 +307,14 @@ class CachedNode(Node):
         return self.cached.construct()
 
 
-NODE_TYPE_MAPPING[("CachedNode", PROTOCOL)] = CachedNode  # type: ignore
+NODE_TYPE_MAPPING[("CachedNode", PROTOCOL)] = CachedNode
 
 
-def get_tree(state: dict[str, Any], load_context: LoadContext) -> Node:
+def get_tree(
+    state: dict[str, Any],
+    load_context: LoadContext,
+    trusted: bool | Sequence[str],
+) -> Node:
     """Get the tree of nodes.
 
     This function returns the root node of the tree of nodes. The tree is
@@ -337,6 +332,13 @@ def get_tree(state: dict[str, Any], load_context: LoadContext) -> Node:
 
     load_context : LoadContext
         The context of the loading process.
+
+    trusted : bool, or list of str
+        If ``True``, the object will be loaded without any security checks. If
+        ``False``, the object will be loaded only if there are only trusted
+        objects in the dumped file. If a list of strings, the object will be
+        loaded only if there are only trusted objects and objects of types
+        listed in ``trusted`` in the dumped file.
 
     Returns
     -------
@@ -374,5 +376,5 @@ def get_tree(state: dict[str, Any], load_context: LoadContext) -> Node:
                 f"protocol {protocol}."
             )
 
-    loaded_tree = node_cls(state, load_context, trusted=False)  # type: ignore
+    loaded_tree = node_cls(state, load_context, trusted=trusted)
     return loaded_tree

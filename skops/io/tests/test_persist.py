@@ -263,7 +263,9 @@ def _unsupported_estimators(type_filter=None):
 )
 def test_can_persist_non_fitted(estimator):
     """Check that non-fitted estimators can be persisted."""
-    loaded = loads(dumps(estimator), trusted=True)
+    dumped = dumps(estimator)
+    untrusted_types = get_untrusted_types(data=dumped)
+    loaded = loads(dumped, trusted=untrusted_types)
     assert_params_equal(estimator.get_params(), loaded.get_params())
 
 
@@ -458,7 +460,9 @@ class CVEstimator(BaseEstimator):
 )
 def test_cross_validator(cv):
     est = CVEstimator(cv=cv).fit(None, None)
-    loaded = loads(dumps(est), trusted=True)
+    dumped = dumps(est)
+    untrusted_types = get_untrusted_types(data=dumped)
+    loaded = loads(dumped, trusted=untrusted_types)
     X, y = make_classification(
         n_samples=N_SAMPLES, n_features=N_FEATURES, random_state=0
     )
@@ -500,7 +504,9 @@ def test_numpy_object_dtype_2d_array(transpose):
     if transpose:
         est.obj_array_ = est.obj_array_.T
 
-    loaded = loads(dumps(est), trusted=True)
+    dumped = dumps(est)
+    untrusted_types = get_untrusted_types(data=dumped)
+    loaded = loads(dumped, trusted=untrusted_types)
     assert_params_equal(est.__dict__, loaded.__dict__)
 
 
@@ -615,7 +621,8 @@ def test_identical_numpy_arrays_not_duplicated():
     X = np.random.random((10, 5))
     estimator = EstimatorIdenticalArrays().fit(X)
     dumped = dumps(estimator)
-    loaded = loads(dumped, trusted=True)
+    untrusted_types = get_untrusted_types(data=dumped)
+    loaded = loads(dumped, trusted=untrusted_types)
     assert_params_equal(estimator.__dict__, loaded.__dict__)
 
     # check number of numpy arrays stored on disk
@@ -664,7 +671,7 @@ def test_get_tree_unknown_type_error_msg():
     state["__loader__"] = "this_get_tree_does_not_exist"
     msg = "Can't find loader this_get_tree_does_not_exist for type builtins.tuple."
     with pytest.raises(TypeError, match=msg):
-        get_tree(state, LoadContext(None, -1))
+        get_tree(state, LoadContext(None, -1), trusted=False)
 
 
 class _BoundMethodHolder:
@@ -719,7 +726,9 @@ class TestPersistingBoundMethods:
         bound_function = obj.bound_method
         transformer = FunctionTransformer(func=bound_function)
 
-        loaded_transformer = loads(dumps(transformer), trusted=True)
+        dumped = dumps(transformer)
+        untrusted_types = get_untrusted_types(data=dumped)
+        loaded_transformer = loads(dumped, trusted=untrusted_types)
         loaded_obj = loaded_transformer.func.__self__
 
         self.assert_transformer_persisted_correctly(loaded_transformer, transformer)
@@ -736,7 +745,9 @@ class TestPersistingBoundMethods:
 
         transformer = FunctionTransformer(func=bound_function)
 
-        loaded_transformer = loads(dumps(transformer), trusted=True)
+        dumped = dumps(transformer)
+        untrusted_types = get_untrusted_types(data=dumped)
+        loaded_transformer = loads(dumped, trusted=untrusted_types)
         loaded_obj = loaded_transformer.func.__self__
 
         self.assert_transformer_persisted_correctly(loaded_transformer, transformer)
@@ -749,19 +760,23 @@ class TestPersistingBoundMethods:
             func=obj.bound_method, inverse_func=obj.other_bound_method
         )
 
-        loaded_transformer = loads(dumps(transformer), trusted=True)
+        dumped = dumps(transformer)
+        untrusted_types = get_untrusted_types(data=dumped)
+        loaded_transformer = loads(dumped, trusted=untrusted_types)
 
         # check that both func and inverse_func are from the same object instance
         loaded_0 = loaded_transformer.func.__self__
         loaded_1 = loaded_transformer.inverse_func.__self__
         assert loaded_0 is loaded_1
 
-    @pytest.mark.xfail(reason="Failing due to circular self reference")
+    @pytest.mark.xfail(reason="Failing due to circular self reference", strict=True)
     def test_scipy_stats(self, tmp_path):
         from scipy import stats
 
         estimator = FunctionTransformer(func=stats.zipf)
-        loads(dumps(estimator), trusted=True)
+        dumped = dumps(estimator)
+        untrusted_types = get_untrusted_types(data=dumped)
+        loads(dumped, trusted=untrusted_types)
 
 
 class CustomEstimator(BaseEstimator):
@@ -862,7 +877,9 @@ def test_dump_and_load_with_file_wrapper(tmp_path):
 )
 def test_when_given_object_referenced_twice_loads_as_one_object(obj):
     an_object = {"obj_1": obj, "obj_2": obj}
-    persisted_object = loads(dumps(an_object), trusted=True)
+    dumped = dumps(an_object)
+    untrusted_types = get_untrusted_types(data=dumped)
+    persisted_object = loads(dumped, trusted=untrusted_types)
 
     assert persisted_object["obj_1"] is persisted_object["obj_2"]
 
@@ -876,7 +893,9 @@ class EstimatorWithBytes(BaseEstimator):
 
 def test_estimator_with_bytes():
     est = EstimatorWithBytes().fit(None, None)
-    loaded = loads(dumps(est), trusted=True)
+    dumped = dumps(est)
+    untrusted_types = get_untrusted_types(data=dumped)
+    loaded = loads(dumped, trusted=untrusted_types)
     assert_params_equal(est.__dict__, loaded.__dict__)
 
 
@@ -934,13 +953,17 @@ def test_persist_operator(op):
     _, func = op
     # unfitted
     est = FunctionTransformer(func)
-    loaded = loads(dumps(est), trusted=True)
+    dumped = dumps(est)
+    untrusted_types = get_untrusted_types(data=dumped)
+    loaded = loads(dumped, trusted=untrusted_types)
     assert_params_equal(est.__dict__, loaded.__dict__)
 
     # fitted
     X, y = get_input(est)
     est.fit(X, y)
-    loaded = loads(dumps(est), trusted=True)
+    dumped = dumps(est)
+    untrusted_types = get_untrusted_types(data=dumped)
+    loaded = loads(dumped, trusted=untrusted_types)
     assert_params_equal(est.__dict__, loaded.__dict__)
 
     # Technically, we don't need to call transform. However, if this is skipped,
@@ -973,7 +996,8 @@ def test_persist_function(func):
     estimator.fit(X, y)
 
     dumped = dumps(estimator)
-    loaded = loads(dumped, trusted=True)
+    untrusted_types = get_untrusted_types(data=dumped)
+    loaded = loads(dumped, trusted=untrusted_types)
 
     # check that loaded estimator is identical
     assert_params_equal(estimator.__dict__, loaded.__dict__)

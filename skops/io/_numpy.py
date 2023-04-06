@@ -67,10 +67,10 @@ class NdArrayNode(Node):
             }
         elif self.type == "json":
             self.children = {
-                "content": [  # type: ignore
-                    get_tree(o, load_context) for o in state["content"]  # type: ignore
+                "content": [
+                    get_tree(o, load_context, trusted=trusted) for o in state["content"]
                 ],
-                "shape": get_tree(state["shape"], load_context),
+                "shape": get_tree(state["shape"], load_context, trusted=trusted),
             }
         else:
             raise ValueError(f"Unknown type {self.type}.")
@@ -126,8 +126,8 @@ class MaskedArrayNode(Node):
         super().__init__(state, load_context, trusted)
         self.trusted = self._get_trusted(trusted, [np.ma.MaskedArray])
         self.children = {
-            "data": get_tree(state["content"]["data"], load_context),
-            "mask": get_tree(state["content"]["mask"], load_context),
+            "data": get_tree(state["content"]["data"], load_context, trusted=trusted),
+            "mask": get_tree(state["content"]["mask"], load_context, trusted=trusted),
         }
 
     def _construct(self):
@@ -155,7 +155,10 @@ class RandomStateNode(Node):
         trusted: bool | Sequence[str] = False,
     ) -> None:
         super().__init__(state, load_context, trusted)
-        self.children = {"content": get_tree(state["content"], load_context)}
+        # TODO
+        self.children = {
+            "content": get_tree(state["content"], load_context, trusted=trusted)
+        }
         self.trusted = self._get_trusted(trusted, [np.random.RandomState])
 
     def _construct(self):
@@ -185,7 +188,7 @@ class RandomGeneratorNode(Node):
         super().__init__(state, load_context, trusted)
         self.children = {
             "bit_generator_state": get_tree(
-                state["content"]["bit_generator"], load_context
+                state["content"]["bit_generator"], load_context, trusted=trusted
             )
         }
         self.trusted = self._get_trusted(trusted, [np.random.Generator])
@@ -224,7 +227,9 @@ class DTypeNode(Node):
         trusted: bool | Sequence[str] = False,
     ) -> None:
         super().__init__(state, load_context, trusted)
-        self.children = {"content": get_tree(state["content"], load_context)}
+        self.children = {
+            "content": get_tree(state["content"], load_context, trusted=trusted)
+        }
         # TODO: what should we trust?
         self.trusted = self._get_trusted(trusted, [])
 
