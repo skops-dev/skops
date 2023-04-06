@@ -2,14 +2,16 @@ from __future__ import annotations
 
 import io
 from contextlib import contextmanager
-from typing import Any, Generator, Literal, Sequence, Type, Union
+from typing import Any, Dict, Generator, List, Literal, Optional, Sequence, Type, Union
 
 from ._protocol import PROTOCOL
-from ._trusted_types import PRIMITIVE_TYPE_NAMES
 from ._utils import LoadContext, get_module, get_type_paths
 from .exceptions import UntrustedTypesFoundException
 
 NODE_TYPE_MAPPING: dict[tuple[str, int], Type[Node]] = {}
+VALID_NODE_CHILD_TYPES = Optional[
+    Union["Node", List["Node"], Dict[str, "Node"], Type, str, io.BytesIO]
+]
 
 
 def check_type(
@@ -159,7 +161,7 @@ class Node:
         # 3. set self.children, where children are states of child nodes; do not
         #    construct the children objects yet
         self.trusted = self._get_trusted(trusted, [])
-        self.children: dict[str, Any] = {}
+        self.children: dict[str, VALID_NODE_CHILD_TYPES] = {}
 
     def construct(self):
         """Construct the object.
@@ -262,15 +264,11 @@ class Node:
                     if not check_type(get_module(child), child.__name__, self.trusted):
                         # if the child is a type, we check its safety
                         res.add(get_module(child) + "." + child.__name__)
-                elif isinstance(child, io.BytesIO):
+                elif isinstance(child, (io.BytesIO, str)):
                     # We trust BytesIO objects, which are read by other
-                    # libraries such as numpy, scipy.
-                    continue
-                elif check_type(
-                    get_module(child), child.__class__.__name__, PRIMITIVE_TYPE_NAMES
-                ):
-                    # if the child is a primitive type, we don't need to check its
-                    # safety.
+                    # libraries such as numpy, scipy. We trust str but have to
+                    # be careful that anything with str is dealt with
+                    # appropriately.
                     continue
                 else:
                     raise ValueError(

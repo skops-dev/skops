@@ -34,6 +34,6 @@ omit = [
 ]
 
 [tool.mypy]
-exclude = "(\\w+/)*test_\\w+\\.py$"
+exclude = "(\\w+/)*test_\\w+\\.py$|old"
 ignore_missing_imports = true
 no_implicit_optional = true
