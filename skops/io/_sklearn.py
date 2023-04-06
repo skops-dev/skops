@@ -102,8 +102,8 @@ class ReduceNode(Node):
         super().__init__(state, load_context, trusted)
         reduce = state["__reduce__"]
         self.children = {
-            "attrs": get_tree(state["content"], load_context),
-            "args": get_tree(reduce["args"], load_context),
+            "attrs": get_tree(state["content"], load_context, trusted=trusted),
+            "args": get_tree(reduce["args"], load_context, trusted=trusted),
             "constructor": constructor,
         }
 
@@ -210,9 +210,11 @@ class _DictWithDeprecatedKeysNode(Node):
             get_module(_DictWithDeprecatedKeysNode) + "._DictWithDeprecatedKeys"
         ]
         self.children = {
-            "main": get_tree(state["content"]["main"], load_context),
+            "main": get_tree(state["content"]["main"], load_context, trusted=trusted),
             "_deprecated_key_to_new_key": get_tree(
-                state["content"]["_deprecated_key_to_new_key"], load_context
+                state["content"]["_deprecated_key_to_new_key"],
+                load_context,
+                trusted=trusted,
             ),
         }
 

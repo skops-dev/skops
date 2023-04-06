@@ -115,6 +115,19 @@ class TestVisualizeTree:
         assert any("FunctionTransformer" in node.val for node in nodes_unsafe)
 
     @pytest.mark.parametrize(
+        "trusted", [True, ["numpy.int64", "test_visualize.unsafe_function"]]
+    )
+    def test_all_nodes_trusted(self, pipeline, trusted, capsys):
+        # The pipeline contains untrusted type(s), but if we pass trusted=True,
+        # it is not considered untrusted anymore
+        # TODO: remove numpy.int64 from trusted once it's trusted by default
+        file = sio.dumps(pipeline)
+        sio.visualize(file, show="untrusted", trusted=trusted)
+        expected = "root: sklearn.pipeline.Pipeline"
+        stdout, _ = capsys.readouterr()
+        assert stdout.strip() == expected
+
+    @pytest.mark.parametrize(
         "kwargs",
         [
             {},

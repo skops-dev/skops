@@ -671,7 +671,7 @@ def test_get_tree_unknown_type_error_msg():
     state["__loader__"] = "this_get_tree_does_not_exist"
     msg = "Can't find loader this_get_tree_does_not_exist for type builtins.tuple."
     with pytest.raises(TypeError, match=msg):
-        get_tree(state, LoadContext(None, -1))
+        get_tree(state, LoadContext(None, -1), trusted=False)
 
 
 class _BoundMethodHolder:
