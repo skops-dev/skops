@@ -1301,7 +1301,7 @@ class Card:
             yield aRepr.repr(f"metadata.{key}={val},").strip('"').strip("'")
 
     def _generate_content(
-        self, data: dict[str, Section], depth: int = 1
+        self, data: dict[str, Section], depth: int = 1, parent_path=None, plot_path=None
     ) -> Iterator[str]:
         """Yield title and (formatted) contents.
 
@@ -1319,8 +1319,20 @@ class Card:
 
             yield section.format()
 
+            if (
+                parent_path is not None
+                and plot_path is not None
+                and isinstance(section, PlotSection)
+            ):
+                shutil.copy(parent_path.parent / section.path, plot_path / section.path)
+
             if section.subsections:
-                yield from self._generate_content(section.subsections, depth=depth + 1)
+                yield from self._generate_content(
+                    section.subsections,
+                    depth=depth + 1,
+                    parent_path=parent_path,
+                    plot_path=plot_path,
+                )
 
     def _iterate_content(
         self, data: dict[str, Section], parent_section: str = ""
@@ -1388,25 +1400,19 @@ class Card:
         complete_repr += ")"
         return complete_repr
 
-    def _generate_card(self) -> Iterator[str]:
+    def _generate_card(self, parent_path=None, plot_path=None) -> Iterator[str]:
         """Yield sections of the model card, including the metadata."""
         if self.metadata.to_dict():
             yield f"---\n{self.metadata.to_yaml()}\n---"
 
-        for line in self._generate_content(self._data):
+        for line in self._generate_content(
+            self._data, parent_path=parent_path, plot_path=plot_path
+        ):
             if line:
                 yield "\n" + line
 
         # add an empty line add the end
         yield ""
-
-    def _copy_plots(self, data, parent_path: str | Path, plot_path: str | Path) -> None:
-        """Copy the plots to the specified path."""
-        for section in data.values():
-            self._copy_plots(section.subsections, plot_path, parent_path)
-
-            if hasattr(section, "path"):
-                shutil.copy(parent_path / section.path, plot_path / section.path)
 
     def save(self, path: str | Path, plot_path=None) -> None:
         """Save the model card.
@@ -1428,12 +1434,7 @@ class Card:
         <https://huggingface.co/docs/hub/models-cards#model-card-metadata>`__.
         """
         with open(path, "w", encoding="utf-8") as f:
-            f.write("\n".join(self._generate_card()))
-
-        if plot_path is not None:
-            if not isinstance(path, Path):
-                path = Path(path)
-            self._copy_plots(self._data, path.parent, plot_path)
+            f.write("\n".join(self._generate_card(path, plot_path)))
 
     def render(self) -> str:
         """Render the final model card as a string.
