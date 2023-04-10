@@ -1,6 +1,7 @@
 import argparse
 
 import skops.cli._convert
+import skops.cli._update
 
 
 def main_cli(command_line_args=None):
@@ -31,6 +32,10 @@ def main_cli(command_line_args=None):
         "convert": {
             "method": skops.cli._convert.main,
             "format_parser": skops.cli._convert.format_parser,
+        },
+        "update": {
+            "method": skops.cli._update.main,
+            "format_parser": skops.cli._update.format_parser,
         },
     }
 
