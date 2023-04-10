@@ -204,6 +204,7 @@ class Section:
     content: str
     subsections: dict[str, Section] = field(default_factory=dict)
     visible: bool = True
+    _folded: bool = False
 
     def select(self, key: str) -> Section:
         """Return a subsection or subsubsection of this section
@@ -239,8 +240,11 @@ class Section:
             section = section.subsections[section_name]
         return section
 
-    def format(self) -> str:
+    def _format(self) -> str:
         return self.content
+
+    def format(self) -> str:
+        return wrap_as_details(self._format(), folded=self.folded)
 
     def __repr__(self) -> str:
         """Generates the ``repr`` of this section.
@@ -249,6 +253,32 @@ class Section:
         Card's repr.
         """
         return self.content
+
+    @property
+    def folded(self) -> bool:
+        """Return the folded state of this section.
+
+        Returns
+        -------
+        folded : bool
+            Whether this section is folded or not.
+
+        """
+        return self._folded
+
+    @folded.setter
+    def folded(self, folded: bool) -> None:
+        """Set the folded state of this section.
+
+        Parameters
+        ----------
+        folded : bool
+            Whether to fold this section or not.
+
+        """
+        self._folded = folded
+        for section in self.subsections.values():
+            section.folded = folded
 
 
 @dataclass

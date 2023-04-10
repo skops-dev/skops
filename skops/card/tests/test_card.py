@@ -1887,3 +1887,8 @@ class TestCardTableOfContents:
         ]
 
         assert toc == "\n".join(exptected_toc)
+
+
+# TODO: Add tests for the following classes
+class TestFoldedSection:
+    pass
