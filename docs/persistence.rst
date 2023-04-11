@@ -82,7 +82,7 @@ using :func:`skops.io.get_untrusted_types`:
     from skops.io import get_untrusted_types
     unknown_types = get_untrusted_types(file="my-model.skops")
     print(unknown_types)
-    ['numpy.float64', 'numpy.int64', 'sklearn.metrics._scorer._passthrough_scorer',
+    ['sklearn.metrics._scorer._passthrough_scorer',
     'xgboost.core.Booster', 'xgboost.sklearn.XGBClassifier']
 
 Note that everything in the above list is safe to load. We already have many
@@ -108,7 +108,8 @@ At the moment, ``skops`` cannot persist arbitrary Python code. This means if
 you have custom functions (say, a custom function to be used with
 :class:`sklearn.preprocessing.FunctionTransformer`), it will not work. However,
 most ``numpy`` and ``scipy`` functions should work. Therefore, you can save
-objects having references to functions such as ``numpy.sqrt``.
+objects having references to functions or universal functions (ufuncs)
+such as ``numpy.sqrt``.
 
 Command Line Interface
 ######################

@@ -4,6 +4,7 @@ import importlib
 import sys
 from dataclasses import dataclass, field
 from functools import singledispatch
+from types import ModuleType
 from typing import Any, Type
 from zipfile import ZipFile
 
@@ -200,3 +201,36 @@ def get_type_paths(types: Any) -> list[str]:
         types = [types]
 
     return [get_type_name(t) if not isinstance(t, str) else t for t in types]
+
+
+def get_public_type_names(module: ModuleType, _type: Type) -> list[str]:
+    """
+    Helper function that gets the type names of all
+    public objects of the given ``_type`` from the given ``module``,
+    which start with the root module name.
+
+    Public objects are those that can be read via ``dir(...)``.
+
+    Parameters
+    ----------
+    module: ModuleType
+        Module under which the public objects are defined.
+    _type: Type
+        The type of the objects.
+
+    Returns
+    ----------
+    type_names_list: list of str
+        The sorted list of type names, all as strings,
+         e.g. ``["numpy.core._multiarray_umath.absolute"]``.
+    """
+    module_name, _, _ = module.__name__.rpartition(".")
+
+    return sorted(
+        {
+            type_name
+            for attr in dir(module)
+            if (isinstance(obj := getattr(module, attr), _type))
+            and ((type_name := get_type_name(obj)).startswith(module_name))
+        }
+    )

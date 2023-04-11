@@ -53,6 +53,8 @@ def ndarray_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
 
 
 class NdArrayNode(Node):
+    # TODO: NdArrayNode and DtypeNode names lead to confusion, see PR-336
+
     def __init__(
         self,
         state: dict[str, Any],

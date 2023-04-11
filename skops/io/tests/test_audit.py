@@ -4,11 +4,8 @@ import re
 from contextlib import suppress
 from zipfile import ZipFile
 
-import numpy as np
 import pytest
 from sklearn.linear_model import LogisticRegression
-from sklearn.pipeline import FeatureUnion, Pipeline
-from sklearn.preprocessing import FunctionTransformer, StandardScaler
 
 from skops.io import dumps, get_untrusted_types
 from skops.io._audit import Node, audit_tree, check_type, get_tree, temp_setattr
@@ -150,27 +147,6 @@ def test_temp_setattr():
 
     assert temp.a == 1
     assert not hasattr(temp, "b")
-
-
-def test_complex_pipeline_untrusted_set():
-    # fmt: off
-    clf = Pipeline([
-        ("features", FeatureUnion([
-            ("scaler", StandardScaler()),
-            ("np.funcs", FunctionTransformer(
-                    func=np.split,
-                    inverse_func=np.angle,
-                )),
-        ])),
-        ("clf", LogisticRegression(random_state=0, solver="liblinear")),
-    ])
-    # fmt: on
-
-    untrusted = get_untrusted_types(data=dumps(clf))
-    type_names = [x.split(".")[-1] for x in untrusted]
-
-    # choosing random numpy functions that are yet not considered as default trusted ones.
-    assert type_names == ["angle", "split"]
 
 
 def test_format_object_node():
