@@ -61,9 +61,9 @@ class DictNode(Node):
         super().__init__(state, load_context, trusted)
         self.trusted = self._get_trusted(trusted, [dict])
         self.children = {
-            "key_types": get_tree(state["key_types"], load_context),
+            "key_types": get_tree(state["key_types"], load_context, trusted=trusted),
             "content": {
-                key: get_tree(value, load_context)
+                key: get_tree(value, load_context, trusted=trusted)
                 for key, value in state["content"].items()
             },
         }
@@ -98,7 +98,10 @@ class ListNode(Node):
         super().__init__(state, load_context, trusted)
         self.trusted = self._get_trusted(trusted, [list])
         self.children = {
-            "content": [get_tree(value, load_context) for value in state["content"]]
+            "content": [
+                get_tree(value, load_context, trusted=trusted)
+                for value in state["content"]
+            ]
         }
 
     def _construct(self):
@@ -127,7 +130,10 @@ class SetNode(Node):
         super().__init__(state, load_context, trusted)
         self.trusted = self._get_trusted(trusted, [set])
         self.children = {
-            "content": [get_tree(value, load_context) for value in state["content"]]
+            "content": [
+                get_tree(value, load_context, trusted=trusted)
+                for value in state["content"]
+            ]
         }
 
     def _construct(self):
@@ -156,7 +162,10 @@ class TupleNode(Node):
         super().__init__(state, load_context, trusted)
         self.trusted = self._get_trusted(trusted, [tuple])
         self.children = {
-            "content": [get_tree(value, load_context) for value in state["content"]]
+            "content": [
+                get_tree(value, load_context, trusted=trusted)
+                for value in state["content"]
+            ]
         }
 
     def _construct(self):
@@ -245,10 +254,12 @@ class PartialNode(Node):
         # TODO: should we trust anything?
         self.trusted = self._get_trusted(trusted, [])
         self.children = {
-            "func": get_tree(state["content"]["func"], load_context),
-            "args": get_tree(state["content"]["args"], load_context),
-            "kwds": get_tree(state["content"]["kwds"], load_context),
-            "namespace": get_tree(state["content"]["namespace"], load_context),
+            "func": get_tree(state["content"]["func"], load_context, trusted=trusted),
+            "args": get_tree(state["content"]["args"], load_context, trusted=trusted),
+            "kwds": get_tree(state["content"]["kwds"], load_context, trusted=trusted),
+            "namespace": get_tree(
+                state["content"]["namespace"], load_context, trusted=trusted
+            ),
         }
 
     def _construct(self):
@@ -381,7 +392,7 @@ class ObjectNode(Node):
 
         content = state.get("content")
         if content is not None:
-            attrs = get_tree(content, load_context)
+            attrs = get_tree(content, load_context, trusted=trusted)
         else:
             attrs = None
 
@@ -438,7 +449,7 @@ class MethodNode(Node):
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.children = {
-            "obj": get_tree(state["content"]["obj"], load_context),
+            "obj": get_tree(state["content"]["obj"], load_context, trusted=trusted),
             "func": state["content"]["func"],
         }
         # TODO: what do we trust?
@@ -464,6 +475,7 @@ class JsonNode(Node):
         super().__init__(state, load_context, trusted)
         self.content = state["content"]
         self.children = {}
+        self.trusted = self._get_trusted(trusted, PRIMITIVE_TYPE_NAMES)
 
     def is_safe(self) -> bool:
         # JsonNode is always considered safe.
@@ -558,7 +570,7 @@ class OperatorFuncNode(Node):
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.trusted = self._get_trusted(trusted, [])
-        self.children["attrs"] = get_tree(state["attrs"], load_context)
+        self.children["attrs"] = get_tree(state["attrs"], load_context, trusted=trusted)
 
     def _construct(self):
         op = getattr(operator, self.class_name)

@@ -4,10 +4,10 @@ import io
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Iterator, Literal
+from typing import Any, Callable, Iterator, Literal, Sequence
 from zipfile import ZipFile
 
-from ._audit import Node, get_tree
+from ._audit import VALID_NODE_CHILD_TYPES, Node, get_tree
 from ._general import FunctionNode, JsonNode, ListNode
 from ._numpy import NdArrayNode
 from ._scipy import SparseMatrixNode
@@ -168,7 +168,7 @@ def pretty_print_tree(
 
 
 def walk_tree(
-    node: Node | dict[str, Node] | list[Node],
+    node: VALID_NODE_CHILD_TYPES | dict[str, VALID_NODE_CHILD_TYPES],
     node_name: str = "root",
     level: int = 0,
     is_last: bool = False,
@@ -281,7 +281,9 @@ def walk_tree(
 
 def visualize(
     file: Path | str | bytes,
+    *,
     show: Literal["all", "untrusted", "trusted"] = "all",
+    trusted: bool | Sequence[str] = False,
     sink: Callable[..., None] = pretty_print_tree,
     **kwargs: Any,
 ) -> None:
@@ -307,8 +309,13 @@ def visualize(
     show: "all" or "untrusted" or "trusted"
         Whether to print all nodes, only untrusted nodes, or only trusted nodes.
 
-    sink: function (default=:func:`~pretty_print_tree`)
+    trusted: bool, or list of str, default=False
+        If ``True``, all nodes will be treated as trusted. If ``False``, only
+        default types are trusted. If a list of strings, where those strongs
+        describe the trusted types, these types are trusted on top of the
+        default trusted types.
 
+    sink: function (default=:func:`~pretty_print_tree`)
         This function should take at least two arguments, an iterator of
         :class:`~NodeInfo` instances and an indicator of what to show. The
         ``NodeInfo`` contains the information about the node, namely:
@@ -348,7 +355,7 @@ def visualize(
     with zf as zip_file:
         schema = json.loads(zip_file.read("schema.json"))
         load_context = LoadContext(src=zip_file, protocol=schema["protocol"])
-        tree = get_tree(schema, load_context=load_context)
+        tree = get_tree(schema, load_context=load_context, trusted=trusted)
 
     nodes = walk_tree(tree)
     # TODO: it would be nice to print html representation if inside a notebook

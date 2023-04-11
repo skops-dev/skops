@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Sequence, Type
+from typing import Any, Sequence, Type
 
 from sklearn.cluster import Birch
 
@@ -96,14 +96,14 @@ class ReduceNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        constructor: Type[Any] | Callable[..., Any],
+        constructor: Type[Any],
         trusted: bool | Sequence[str] = False,
     ) -> None:
         super().__init__(state, load_context, trusted)
         reduce = state["__reduce__"]
         self.children = {
-            "attrs": get_tree(state["content"], load_context),
-            "args": get_tree(reduce["args"], load_context),
+            "attrs": get_tree(state["content"], load_context, trusted=trusted),
+            "args": get_tree(reduce["args"], load_context, trusted=trusted),
             "constructor": constructor,
         }
 
@@ -210,9 +210,11 @@ class _DictWithDeprecatedKeysNode(Node):
             get_module(_DictWithDeprecatedKeysNode) + "._DictWithDeprecatedKeys"
         ]
         self.children = {
-            "main": get_tree(state["content"]["main"], load_context),
+            "main": get_tree(state["content"]["main"], load_context, trusted=trusted),
             "_deprecated_key_to_new_key": get_tree(
-                state["content"]["_deprecated_key_to_new_key"], load_context
+                state["content"]["_deprecated_key_to_new_key"],
+                load_context,
+                trusted=trusted,
             ),
         }
 
