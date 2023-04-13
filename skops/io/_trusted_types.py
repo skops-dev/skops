@@ -14,9 +14,9 @@ SKLEARN_ESTIMATOR_TYPE_NAMES = [
     if get_type_name(estimator_class).startswith("sklearn.")
 ]
 
-SCIPY_UFUNC_TYPE_NAMES = get_public_type_names(module=scipy.special, _type=np.ufunc)
+SCIPY_UFUNC_TYPE_NAMES = get_public_type_names(module=scipy.special, oftype=np.ufunc)
 
-NUMPY_UFUNC_TYPE_NAMES = get_public_type_names(module=np, _type=np.ufunc)
+NUMPY_UFUNC_TYPE_NAMES = get_public_type_names(module=np, oftype=np.ufunc)
 
 NUMPY_DTYPE_TYPE_NAMES = sorted(
     {
