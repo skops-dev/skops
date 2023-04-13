@@ -230,7 +230,7 @@ def get_public_type_names(module: ModuleType, oftype: Type) -> list[str]:
         {
             type_name
             for attr in dir(module)
-            if (issubclass((obj := getattr(module, attr)).__class__, oftype))
-            and ((type_name := get_type_name(obj)).startswith(module_name))
+            if issubclass((obj := getattr(module, attr)).__class__, oftype)
+            and (type_name := get_type_name(obj)).startswith(module_name)
         }
     )

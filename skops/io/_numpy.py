@@ -53,7 +53,9 @@ def ndarray_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
 
 
 class NdArrayNode(Node):
-    # TODO: NdArrayNode and DtypeNode names lead to confusion, see PR-336
+    # TODO: NdArrayNode is not only responsible for np.arrays
+    #  but also for np.generics, thus the confusion with DTypeNode.
+    #  See PR-336
 
     def __init__(
         self,
