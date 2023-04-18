@@ -65,14 +65,16 @@ def format_parser(
 
 def main(
     parsed_args: argparse.Namespace,
+    logger: logging.Logger = logging.getLogger(),
 ) -> None:
     output_file = Path(parsed_args.output_file)
     input_file = Path(parsed_args.input)
 
-    logging.basicConfig(
-        format="%(levelname)-8s: %(message)s", level=get_log_level(parsed_args.loglevel)
-    )
+    logging.basicConfig(format="%(levelname)-8s: %(message)s")
+    logger.setLevel(level=get_log_level(parsed_args.loglevel))
+
     _update_file(
         input_file=input_file,
         output_file=output_file,
+        logger=logger,
     )

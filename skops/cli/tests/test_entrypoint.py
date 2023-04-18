@@ -39,3 +39,23 @@ class TestEntrypoint:
         )
 
         assert caplog.at_level(logging.WARNING)
+
+    @mock.patch("skops.cli._update._update_file")
+    def test_update_works_as_expected(
+        self,
+        update_file_mock: mock.MagicMock,
+    ):
+        """
+        Intended as a unit test to make sure,
+        given 'update' as the first argument,
+        the parser is configured correctly
+        """
+
+        args = ["update", "abc.skops", "-o", "abc-new.skops"]
+
+        main_cli(args)
+        update_file_mock.assert_called_once_with(
+            input_file=pathlib.Path("abc.skops"),
+            output_file=pathlib.Path("abc-new.skops"),
+            logger=mock.ANY,
+        )
