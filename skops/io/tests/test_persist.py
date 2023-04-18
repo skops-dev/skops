@@ -8,7 +8,7 @@ import warnings
 from collections import Counter
 from functools import partial, wraps
 from pathlib import Path
-from zipfile import ZipFile
+from zipfile import ZIP_DEFLATED, ZipFile
 
 import joblib
 import numpy as np
@@ -20,6 +20,7 @@ from sklearn.datasets import load_sample_images, make_classification, make_regre
 from sklearn.decomposition import SparseCoder
 from sklearn.exceptions import SkipTestWarning
 from sklearn.experimental import enable_halving_search_cv  # noqa
+from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import (
     GridSearchCV,
@@ -1002,3 +1003,35 @@ def test_persist_function(func):
     # check that loaded estimator is identical
     assert_params_equal(estimator.__dict__, loaded.__dict__)
     assert_method_outputs_equal(estimator, loaded, X)
+
+
+def test_compression_level():
+    # Test that setting the compression to zlib and specifying a
+    # compressionlevel reduces the dumped size.
+    text = """
+    Stop words are words like “and”, “the”, “him”, which are presumed to be
+    uninformative in representing the content of a text, and which may be
+    removed to avoid them being construed as signal for prediction. Sometimes,
+    however, similar words are useful for prediction, such as in classifying
+    writing style or personality.
+
+    There are several known issues in our provided ‘english’ stop word list. It
+    does not aim to be a general, ‘one-size-fits-all’ solution as some tasks
+    may require a more custom solution. See [NQY18] for more details.
+
+    Please take care in choosing a stop word list. Popular stop word lists may
+    include words that are highly informative to some tasks, such as computer.
+
+    You should also make sure that the stop word list has had the same
+    preprocessing and tokenization applied as the one used in the vectorizer.
+    The word we’ve is split into we and ve by CountVectorizer’s default
+    tokenizer, so if we’ve is in stop_words, but ve is not, ve will be retained
+    from we’ve in transformed text. Our vectorizers will try to identify and
+    warn about some kinds of inconsistencies.
+    """
+
+    model = TfidfVectorizer().fit([text])
+    dumped_raw = dumps(model)
+    dumped_compressed = dumps(model, compression=ZIP_DEFLATED, compresslevel=9)
+    # This reduces the size substantially: 63465 -> 3917
+    assert len(dumped_raw) > len(dumped_compressed)
