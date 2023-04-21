@@ -11,12 +11,13 @@ user really cares about file size, they will compress the file.
 
 from __future__ import annotations
 
+import io
 import os
 import pickle
 import warnings
 from tempfile import mkstemp
 from typing import Any
-from zipfile import ZIP_DEFLATED
+from zipfile import ZIP_DEFLATED, ZipFile
 
 import pandas as pd
 from sklearn.utils._tags import _safe_tags
@@ -70,10 +71,15 @@ def run_check(estimator) -> tuple[float, float]:
 
     def run_pickle():
         fname = name + ".pickle"
-        with open(fname, "wb") as f:
-            pickle.dump(estimator, f)
+        buffer = io.BytesIO()
+        pickle.dump(estimator, buffer)
+        with ZipFile(
+            fname + ".zip", mode="w", compression=ZIP_DEFLATED, compresslevel=9
+        ) as zipf:
+            zipf.writestr(fname, buffer.getvalue())
+
         # return size in kb
-        return os.stat(fname).st_size / 1024
+        return os.stat(fname + ".zip").st_size / 1024
 
     def run_skops():
         fname = name + ".skops"
