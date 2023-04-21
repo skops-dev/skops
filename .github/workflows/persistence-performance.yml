@@ -1,4 +1,4 @@
-name: Test performance of skops persistence
+name: Test performance and file size of skops persistence
 
 on:
   schedule:
@@ -26,3 +26,5 @@ jobs:
         pip list
     - name: Run persistence performance checks
       run: python scripts/check_persistence_performance.py
+    - name: Run file size checks
+      run: python scripts/check_file_size.py
