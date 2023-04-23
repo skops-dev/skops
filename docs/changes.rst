@@ -12,7 +12,9 @@ skops Changelog
 
 v0.7
 ----
-
+- `compression` and `compresslevel` from :class:`~zipfile.ZipFile` are now
+  exposed to the user via :func:`.io.dumps` and :func:`.io.dump`. :pr:`345` by
+  `Adrin Jalali`_.
 
 v0.6
 ----
