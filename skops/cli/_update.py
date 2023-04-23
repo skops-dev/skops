@@ -42,7 +42,7 @@ def format_parser(
         parser = argparse.ArgumentParser()
 
     parser_subgroup = parser.add_argument_group("update")
-    parser_subgroup.add_argument("input", help="Path to an input file to update. ")
+    parser_subgroup.add_argument("input", help="Path to an input file to update.")
 
     parser_subgroup.add_argument(
         "-o",
