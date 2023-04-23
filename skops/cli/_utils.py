@@ -1,4 +1,8 @@
+import json
 import logging
+import pathlib
+import zipfile
+from typing import Any, Union
 
 
 def get_log_level(level: int = 0) -> int:
@@ -13,3 +17,9 @@ def get_log_level(level: int = 0) -> int:
         level = 0
 
     return all_levels[level]
+
+
+def load_schema(skops_file_path: Union[str, pathlib.Path]) -> dict[str, Any]:
+    with zipfile.ZipFile(skops_file_path, "r") as zip_file:
+        schema = json.loads(zip_file.read("schema.json"))
+    return schema

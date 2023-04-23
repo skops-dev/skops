@@ -5,8 +5,9 @@ import logging
 from pathlib import Path
 from typing import Optional, Union
 
-from skops.cli._utils import get_log_level
+from skops.cli._utils import get_log_level, load_schema
 from skops.io import dump, load
+from skops.io._protocol import PROTOCOL
 
 
 def _update_file(
@@ -29,8 +30,13 @@ def _update_file(
 
     """
     input_model = load(input_file, trusted=True)
-    dump(input_model, output_file)
-    logger.debug(f"Updated skops file written to {output_file}")
+    input_file_schema = load_schema(input_file)
+
+    if input_file_schema["protocol"] != PROTOCOL:
+        dump(input_model, output_file)
+        logger.info(f"Updated skops file written to {output_file}")
+
+    logger.info(f"Input file is already up to date to the current protocol: {PROTOCOL}")
 
 
 def format_parser(

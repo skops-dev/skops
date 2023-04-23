@@ -1,17 +1,13 @@
 import logging
 import pathlib
+from functools import partial
 from unittest import mock
 
 import numpy as np
 import pytest
 
 from skops.cli import _update
-from skops.io import dump, load
-
-
-class MockUnsafeType:
-    def __init__(self):
-        pass
+from skops.io import _persist, dump, load
 
 
 class TestUpdate:
@@ -31,13 +27,24 @@ class TestUpdate:
 
     @pytest.fixture
     def dump_file(self, skops_path: pathlib.Path, safe_obj: np.ndarray):
+        """Dump an object using the current protocol version."""
+        dump(safe_obj, skops_path)
+
+    @pytest.fixture
+    @mock.patch(
+        "skops.io._persist.SaveContext", partial(_persist.SaveContext, protocol=0)
+    )
+    def dump_old_file(self, skops_path: pathlib.Path, safe_obj: np.ndarray):
+        """Dump an object using an old protocol version so that the file needs
+        updating.
+        """
         dump(safe_obj, skops_path)
 
     def test_base_case_works_as_expected(
         self,
         skops_path: pathlib.Path,
         new_skops_path: pathlib.Path,
-        dump_file,
+        dump_old_file,
         safe_obj,
     ):
         mock_logger = mock.MagicMock()
@@ -45,11 +52,26 @@ class TestUpdate:
             input_file=skops_path, output_file=new_skops_path, logger=mock_logger
         )
         updated_obj = load(new_skops_path)
+
         assert np.array_equal(updated_obj, safe_obj)
 
         # Check no warnings or errors raised
         mock_logger.warning.assert_not_called()
         mock_logger.error.assert_not_called()
+
+    def test_no_update(
+        self,
+        skops_path: pathlib.Path,
+        new_skops_path: pathlib.Path,
+        dump_file,
+    ):
+        mock_logger = mock.MagicMock()
+        _update._update_file(
+            input_file=skops_path, output_file=new_skops_path, logger=mock_logger
+        )
+
+        with pytest.raises(FileNotFoundError):
+            load(new_skops_path)
 
 
 class TestMain:
