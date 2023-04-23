@@ -46,9 +46,8 @@ class TestEntrypoint:
         update_file_mock: mock.MagicMock,
     ):
         """
-        Intended as a unit test to make sure,
-        given 'update' as the first argument,
-        the parser is configured correctly
+        To make sure the parser is configured correctly, when 'update'
+        is the first argument.
         """
 
         args = ["update", "abc.skops", "-o", "abc-new.skops"]
