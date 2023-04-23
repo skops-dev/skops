@@ -30,7 +30,7 @@ def _update_file(
     """
     input_model = load(input_file, trusted=True)
     dump(input_model, output_file)
-    logger.debug(f"Updated skops file written in {output_file}")
+    logger.debug(f"Updated skops file written to {output_file}")
 
 
 def format_parser(
