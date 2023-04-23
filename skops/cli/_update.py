@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import argparse
+import json
 import logging
+import zipfile
 from pathlib import Path
 from typing import Optional, Union
 
-from skops.cli._utils import get_log_level, load_schema
+from skops.cli._utils import get_log_level
 from skops.io import dump, load
 from skops.io._protocol import PROTOCOL
 
@@ -30,7 +32,8 @@ def _update_file(
 
     """
     input_model = load(input_file, trusted=True)
-    input_file_schema = load_schema(input_file)
+    with zipfile.ZipFile(input_file, "r") as zip_file:
+        input_file_schema = json.loads(zip_file.read("schema.json"))
 
     if input_file_schema["protocol"] != PROTOCOL:
         dump(input_model, output_file)
