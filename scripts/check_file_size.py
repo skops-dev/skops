@@ -1,11 +1,11 @@
 """Check that the file size of skops files is not too large.
 
 Load each (fitted) estimator and persist it with pickle and with skops. Measure
-the file size of the resulting files. Report the results but in contrast to the
-runtime check, don't raise any errors if the file size differences is too big.
+the file size of the resulting files. Report the results and raise an error if
+any file is larger than MAX_ALLOWED_SIZE.
 
-For skops, zip compression is applied. This is because we can assume that if a
-user really cares about file size, they will compress the file.
+Zip compression is applied. This is because we can assume that if a user really
+cares about file size, they will compress the file.
 
 """
 
@@ -31,6 +31,7 @@ from skops.io.tests.test_persist import (
 )
 
 TOPK = 10  # number of largest estimators reported
+MAX_ALLOWED_SIZE = 1024  # maximum allowed file size in kb
 
 
 def check_file_size() -> None:
@@ -112,6 +113,15 @@ def format_result(results: dict[str, list[Any]], topk: int) -> None:
     print(f"{topk} largest relative differences:")
     dfs = df.sort_values(["rel_diff"], ascending=False).reset_index(drop=True)
     print(dfs[["name", "pickle (kb)", "skops (kb)", "rel_diff"]].head(10))
+
+    df_large = df[df["skops (kb)"] > MAX_ALLOWED_SIZE]
+    if df_large.empty:
+        print("No file was found to be unacceptably large.")
+        return
+
+    print(f"Found {len(df_large)} skops file(s) larger than {MAX_ALLOWED_SIZE} kb:")
+    print(", ".join(df_large["name"].tolist()))
+    raise RuntimeError("Found unacceptably large skops files.")
 
 
 if __name__ == "__main__":
