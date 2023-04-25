@@ -532,14 +532,8 @@ class BytesNode(Node):
         return content
 
     def format(self):
-        try:
-            content = self.children["content"].getvalue()
-            byte_repr = arepr.repr(content)
-        except Exception:
-            byte_repr = "b'...'"
-        finally:
-            # ensure that no matter what happens, the file pointer is reset
-            self.children["content"].seek(0)
+        content = self.children["content"].getvalue()
+        byte_repr = arepr.repr(content)
         return byte_repr
 
 
