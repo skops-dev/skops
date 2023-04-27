@@ -2,12 +2,22 @@
 
 Packages that are not builtins, standard lib, numpy, scipy, or scikit-learn.
 
+Testing:
+
+- persistence of unfitted models
+- persistence of fitted models
+- visualization of dumped models
+
+with a range of hyperparameters.
+
 """
+
+from unittest.mock import Mock, patch
 
 import pytest
 from sklearn.datasets import make_classification, make_regression
 
-from skops.io import dumps, loads
+from skops.io import dumps, loads, visualize
 from skops.io.tests._utils import assert_method_outputs_equal, assert_params_equal
 
 # Default settings for generated data
@@ -50,6 +60,14 @@ class TestLightGBM:
     """Tests for LGBMClassifier, LGBMRegressor, LGBMRanker"""
 
     @pytest.fixture(autouse=True)
+    def capture_stdout(self):
+        # Mock print and rich.print so that running these tests with pytest -s
+        # does not spam stdout. Other, more common methods of suppressing
+        # printing to stdout don't seem to work, perhaps because of pytest.
+        with patch("builtins.print", Mock()), patch("rich.print", Mock()):
+            yield
+
+    @pytest.fixture(autouse=True)
     def lgbm(self):
         lgbm = pytest.importorskip("lightgbm")
         return lgbm
@@ -83,8 +101,11 @@ class TestLightGBM:
 
         X, y = clf_data
         estimator.fit(X, y)
-        loaded = loads(dumps(estimator), trusted=trusted)
+        dumped = dumps(estimator)
+        loaded = loads(dumped, trusted=trusted)
         assert_method_outputs_equal(estimator, loaded, X)
+
+        visualize(dumped, trusted=trusted)
 
     @pytest.mark.parametrize("boosting_type", boosting_types)
     def test_regressor(self, lgbm, regr_data, trusted, boosting_type):
@@ -99,8 +120,11 @@ class TestLightGBM:
 
         X, y = regr_data
         estimator.fit(X, y)
-        loaded = loads(dumps(estimator), trusted=trusted)
+        dumped = dumps(estimator)
+        loaded = loads(dumped, trusted=trusted)
         assert_method_outputs_equal(estimator, loaded, X)
+
+        visualize(dumped, trusted=trusted)
 
     @pytest.mark.parametrize("boosting_type", boosting_types)
     def test_ranker(self, lgbm, rank_data, trusted, boosting_type):
@@ -115,8 +139,11 @@ class TestLightGBM:
 
         X, y, group = rank_data
         estimator.fit(X, y, group=group)
-        loaded = loads(dumps(estimator), trusted=trusted)
+        dumped = dumps(estimator)
+        loaded = loads(dumped, trusted=trusted)
         assert_method_outputs_equal(estimator, loaded, X)
+
+        visualize(dumped, trusted=trusted)
 
 
 class TestXGBoost:
@@ -135,6 +162,14 @@ class TestXGBoost:
     avoid testing these cases. See https://github.com/dmlc/xgboost/issues/8596
 
     """
+
+    @pytest.fixture(autouse=True)
+    def capture_stdout(self):
+        # Mock print and rich.print so that running these tests with pytest -s
+        # does not spam stdout. Other, more common methods of suppressing
+        # printing to stdout don't seem to work, perhaps because of pytest.
+        with patch("builtins.print", Mock()), patch("rich.print", Mock()):
+            yield
 
     @pytest.fixture(autouse=True)
     def xgboost(self):
@@ -170,8 +205,11 @@ class TestXGBoost:
 
         X, y = clf_data
         estimator.fit(X, y)
-        loaded = loads(dumps(estimator), trusted=trusted)
+        dumped = dumps(estimator)
+        loaded = loads(dumped, trusted=trusted)
         assert_method_outputs_equal(estimator, loaded, X)
+
+        visualize(dumped, trusted=trusted)
 
     @pytest.mark.parametrize("booster", boosters)
     @pytest.mark.parametrize("tree_method", tree_methods)
@@ -186,8 +224,11 @@ class TestXGBoost:
 
         X, y = regr_data
         estimator.fit(X, y)
-        loaded = loads(dumps(estimator), trusted=trusted)
+        dumped = dumps(estimator)
+        loaded = loads(dumped, trusted=trusted)
         assert_method_outputs_equal(estimator, loaded, X)
+
+        visualize(dumped, trusted=trusted)
 
     @pytest.mark.parametrize("booster", boosters)
     @pytest.mark.parametrize("tree_method", tree_methods)
@@ -202,8 +243,11 @@ class TestXGBoost:
 
         X, y = clf_data
         estimator.fit(X, y)
-        loaded = loads(dumps(estimator), trusted=trusted)
+        dumped = dumps(estimator)
+        loaded = loads(dumped, trusted=trusted)
         assert_method_outputs_equal(estimator, loaded, X)
+
+        visualize(dumped, trusted=trusted)
 
     @pytest.mark.parametrize("booster", boosters)
     @pytest.mark.parametrize("tree_method", tree_methods)
@@ -218,8 +262,11 @@ class TestXGBoost:
 
         X, y = regr_data
         estimator.fit(X, y)
-        loaded = loads(dumps(estimator), trusted=trusted)
+        dumped = dumps(estimator)
+        loaded = loads(dumped, trusted=trusted)
         assert_method_outputs_equal(estimator, loaded, X)
+
+        visualize(dumped, trusted=trusted)
 
     @pytest.mark.parametrize("booster", boosters)
     @pytest.mark.parametrize("tree_method", tree_methods)
@@ -234,12 +281,23 @@ class TestXGBoost:
 
         X, y, group = rank_data
         estimator.fit(X, y, group=group)
-        loaded = loads(dumps(estimator), trusted=trusted)
+        dumped = dumps(estimator)
+        loaded = loads(dumped, trusted=trusted)
         assert_method_outputs_equal(estimator, loaded, X)
+
+        visualize(dumped, trusted=trusted)
 
 
 class TestCatboost:
     """Tests for CatBoostClassifier, CatBoostRegressor, and CatBoostRanker"""
+
+    @pytest.fixture(autouse=True)
+    def capture_stdout(self):
+        # Mock print and rich.print so that running these tests with pytest -s
+        # does not spam stdout. Other, more common methods of suppressing
+        # printing to stdout don't seem to work, perhaps because of pytest.
+        with patch("builtins.print", Mock()), patch("rich.print", Mock()):
+            yield
 
     # CatBoost data is a little different so that it works as categorical data
     @pytest.fixture(scope="module")
@@ -290,8 +348,11 @@ class TestCatboost:
 
         X, y = cb_clf_data
         estimator.fit(X, y, cat_features=[0, 1])
-        loaded = loads(dumps(estimator), trusted=trusted)
+        dumped = dumps(estimator)
+        loaded = loads(dumped, trusted=trusted)
         assert_method_outputs_equal(estimator, loaded, X)
+
+        visualize(dumped, trusted=trusted)
 
     @pytest.mark.parametrize("boosting_type", boosting_types)
     def test_regressor(self, catboost, cb_regr_data, trusted, boosting_type):
@@ -303,8 +364,11 @@ class TestCatboost:
 
         X, y = cb_regr_data
         estimator.fit(X, y, cat_features=[0, 1])
-        loaded = loads(dumps(estimator), trusted=trusted)
+        dumped = dumps(estimator)
+        loaded = loads(dumped, trusted=trusted)
         assert_method_outputs_equal(estimator, loaded, X)
+
+        visualize(dumped, trusted=trusted)
 
     @pytest.mark.parametrize("boosting_type", boosting_types)
     def test_ranker(self, catboost, cb_rank_data, trusted, boosting_type):
@@ -316,5 +380,8 @@ class TestCatboost:
 
         X, y, group_id = cb_rank_data
         estimator.fit(X, y, cat_features=[0, 1], group_id=group_id)
-        loaded = loads(dumps(estimator), trusted=trusted)
+        dumped = dumps(estimator)
+        loaded = loads(dumped, trusted=trusted)
         assert_method_outputs_equal(estimator, loaded, X)
+
+        visualize(dumped, trusted=trusted)

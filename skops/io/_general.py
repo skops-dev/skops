@@ -5,6 +5,7 @@ import json
 import operator
 import uuid
 from functools import partial
+from reprlib import Repr
 from types import FunctionType, MethodType
 from typing import Any, Sequence
 
@@ -26,6 +27,9 @@ from ._utils import (
     gettype,
 )
 from .exceptions import UnsupportedTypeException
+
+arepr = Repr()
+arepr.maxstring = 24
 
 
 def dict_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
@@ -527,6 +531,11 @@ class BytesNode(Node):
         content = self.children["content"].getvalue()
         return content
 
+    def format(self):
+        content = self.children["content"].getvalue()
+        byte_repr = arepr.repr(content)
+        return byte_repr
+
 
 class BytearrayNode(BytesNode):
     def __init__(
@@ -542,6 +551,9 @@ class BytearrayNode(BytesNode):
         content_bytes = super()._construct()
         content_bytearray = bytearray(list(content_bytes))
         return content_bytearray
+
+    def format(self):
+        return f"bytearray({super().format()})"
 
 
 def operator_func_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:

@@ -1,0 +1,46 @@
+name: Deploy-Space-Creator
+
+on:
+  - push
+  - pull_request
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy-space-creator:
+    runs-on: "ubuntu-latest"
+    if: "github.repository == 'skops-dev/skops'"
+    # Timeout: https://stackoverflow.com/a/59076067/4521646
+    timeout-minutes: 5
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.10"
+
+    - name: Install dependencies
+      run: |
+        pip install -e .[docs,tests]
+        python --version
+        pip --version
+        pip list
+      shell: bash
+
+    - name: Create test skops space creator app
+      # by default, deploy to skops CI
+      if: github.ref != 'refs/heads/main'
+      run: |
+        python spaces/deploy-skops-model-card-creator.py
+
+    - name: Create main skops space creator app
+      # if HF_HUB_TOKEN_SKLEARN, use that instead of skops CI orga
+      if: github.ref == 'refs/heads/main'
+      env:
+        HF_HUB_TOKEN_SKLEARN: ${{ secrets.HF_HUB_TOKEN_SKLEARN }}
+      run: |
+        python spaces/deploy-skops-model-card-creator.py

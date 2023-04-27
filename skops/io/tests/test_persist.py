@@ -8,7 +8,7 @@ import warnings
 from collections import Counter
 from functools import partial, wraps
 from pathlib import Path
-from zipfile import ZipFile
+from zipfile import ZIP_DEFLATED, ZipFile
 
 import joblib
 import numpy as np
@@ -20,6 +20,7 @@ from sklearn.datasets import load_sample_images, make_classification, make_regre
 from sklearn.decomposition import SparseCoder
 from sklearn.exceptions import SkipTestWarning
 from sklearn.experimental import enable_halving_search_cv  # noqa
+from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import (
     GridSearchCV,
@@ -1002,3 +1003,13 @@ def test_persist_function(func):
     # check that loaded estimator is identical
     assert_params_equal(estimator.__dict__, loaded.__dict__)
     assert_method_outputs_equal(estimator, loaded, X)
+
+
+def test_compression_level():
+    # Test that setting the compression to zlib and specifying a
+    # compressionlevel reduces the dumped size.
+    model = TfidfVectorizer().fit([np.__doc__])
+    dumped_raw = dumps(model)
+    dumped_compressed = dumps(model, compression=ZIP_DEFLATED, compresslevel=9)
+    # This reduces the size substantially
+    assert len(dumped_raw) > 5 * len(dumped_compressed)
