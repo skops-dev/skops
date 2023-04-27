@@ -54,6 +54,11 @@ def rank_data(clf_data):
     return X, y, group
 
 
+def _null(*args, **kwargs):
+    # used to prevent printing anything to stdout when calling visualize
+    return
+
+
 class TestLightGBM:
     """Tests for LGBMClassifier, LGBMRegressor, LGBMRanker"""
 
@@ -95,7 +100,7 @@ class TestLightGBM:
         loaded = loads(dumped, trusted=trusted)
         assert_method_outputs_equal(estimator, loaded, X)
 
-        visualize(dumped, trusted=trusted)
+        visualize(dumped, trusted=trusted, sink=_null)
 
     @pytest.mark.parametrize("boosting_type", boosting_types)
     def test_regressor(self, lgbm, regr_data, trusted, boosting_type):
@@ -114,7 +119,7 @@ class TestLightGBM:
         loaded = loads(dumped, trusted=trusted)
         assert_method_outputs_equal(estimator, loaded, X)
 
-        visualize(dumped, trusted=trusted)
+        visualize(dumped, trusted=trusted, sink=_null)
 
     @pytest.mark.parametrize("boosting_type", boosting_types)
     def test_ranker(self, lgbm, rank_data, trusted, boosting_type):
@@ -133,7 +138,7 @@ class TestLightGBM:
         loaded = loads(dumped, trusted=trusted)
         assert_method_outputs_equal(estimator, loaded, X)
 
-        visualize(dumped, trusted=trusted)
+        visualize(dumped, trusted=trusted, sink=_null)
 
 
 class TestXGBoost:
@@ -191,7 +196,7 @@ class TestXGBoost:
         loaded = loads(dumped, trusted=trusted)
         assert_method_outputs_equal(estimator, loaded, X)
 
-        visualize(dumped, trusted=trusted)
+        visualize(dumped, trusted=trusted, sink=_null)
 
     @pytest.mark.parametrize("booster", boosters)
     @pytest.mark.parametrize("tree_method", tree_methods)
@@ -210,7 +215,7 @@ class TestXGBoost:
         loaded = loads(dumped, trusted=trusted)
         assert_method_outputs_equal(estimator, loaded, X)
 
-        visualize(dumped, trusted=trusted)
+        visualize(dumped, trusted=trusted, sink=_null)
 
     @pytest.mark.parametrize("booster", boosters)
     @pytest.mark.parametrize("tree_method", tree_methods)
@@ -229,7 +234,7 @@ class TestXGBoost:
         loaded = loads(dumped, trusted=trusted)
         assert_method_outputs_equal(estimator, loaded, X)
 
-        visualize(dumped, trusted=trusted)
+        visualize(dumped, trusted=trusted, sink=_null)
 
     @pytest.mark.parametrize("booster", boosters)
     @pytest.mark.parametrize("tree_method", tree_methods)
@@ -248,7 +253,7 @@ class TestXGBoost:
         loaded = loads(dumped, trusted=trusted)
         assert_method_outputs_equal(estimator, loaded, X)
 
-        visualize(dumped, trusted=trusted)
+        visualize(dumped, trusted=trusted, sink=_null)
 
     @pytest.mark.parametrize("booster", boosters)
     @pytest.mark.parametrize("tree_method", tree_methods)
@@ -267,7 +272,7 @@ class TestXGBoost:
         loaded = loads(dumped, trusted=trusted)
         assert_method_outputs_equal(estimator, loaded, X)
 
-        visualize(dumped, trusted=trusted)
+        visualize(dumped, trusted=trusted, sink=_null)
 
 
 class TestCatboost:
@@ -326,7 +331,7 @@ class TestCatboost:
         loaded = loads(dumped, trusted=trusted)
         assert_method_outputs_equal(estimator, loaded, X)
 
-        visualize(dumped, trusted=trusted)
+        visualize(dumped, trusted=trusted, sink=_null)
 
     @pytest.mark.parametrize("boosting_type", boosting_types)
     def test_regressor(self, catboost, cb_regr_data, trusted, boosting_type):
@@ -342,7 +347,7 @@ class TestCatboost:
         loaded = loads(dumped, trusted=trusted)
         assert_method_outputs_equal(estimator, loaded, X)
 
-        visualize(dumped, trusted=trusted)
+        visualize(dumped, trusted=trusted, sink=_null)
 
     @pytest.mark.parametrize("boosting_type", boosting_types)
     def test_ranker(self, catboost, cb_rank_data, trusted, boosting_type):
@@ -358,4 +363,4 @@ class TestCatboost:
         loaded = loads(dumped, trusted=trusted)
         assert_method_outputs_equal(estimator, loaded, X)
 
-        visualize(dumped, trusted=trusted)
+        visualize(dumped, trusted=trusted, sink=_null)
