@@ -8,10 +8,20 @@ from typing import Any, Callable, Iterator, Literal, Sequence
 from zipfile import ZipFile
 
 from ._audit import VALID_NODE_CHILD_TYPES, Node, get_tree
-from ._general import FunctionNode, JsonNode, ListNode
+from ._general import BytearrayNode, BytesNode, FunctionNode, JsonNode, ListNode
 from ._numpy import NdArrayNode
 from ._scipy import SparseMatrixNode
 from ._utils import LoadContext
+
+# The children of these types are not visualized
+SKIPPED_TYPES = (
+    BytearrayNode,
+    BytesNode,
+    FunctionNode,
+    JsonNode,
+    NdArrayNode,
+    SparseMatrixNode,
+)
 
 
 @dataclass
@@ -269,7 +279,7 @@ def walk_tree(
     # TODO: For better security, we should check the schema if we return early,
     # otherwise something nefarious could be hidden inside (however, if there
     # is, the node should be marked as unsafe)
-    if isinstance(node, (NdArrayNode, SparseMatrixNode, FunctionNode, JsonNode)):
+    if isinstance(node, SKIPPED_TYPES):
         return
 
     yield from walk_tree(

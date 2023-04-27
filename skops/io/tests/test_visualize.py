@@ -269,3 +269,23 @@ class TestVisualizeTree:
         ]
         stdout, _ = capsys.readouterr()
         assert stdout.strip() == "\n".join(expected)
+
+    def test_long_bytes(self, capsys):
+        obj = {
+            "short_byte": b"abc",
+            "long_byte": b"010203040506070809101112131415",
+            "short_bytearray": bytearray(b"abc"),
+            "long_bytearray": bytearray(b"010203040506070809101112131415"),
+        }
+        dumped = sio.dumps(obj)
+        sio.visualize(dumped)
+
+        expected = [
+            "root: builtins.dict",
+            "├── short_byte: b'abc'",
+            "├── long_byte: b'01020304050...9101112131415'",
+            "├── short_bytearray: bytearray(b'abc')",
+            "└── long_bytearray: bytearray(b'01020304050...9101112131415')",
+        ]
+        stdout, _ = capsys.readouterr()
+        assert stdout.strip() == "\n".join(expected)
