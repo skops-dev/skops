@@ -27,4 +27,5 @@ repos:
     hooks:
     -   id: mypy
         args: [--config-file=pyproject.toml]
+        exclude: "spaces/"
         additional_dependencies: [types-requests>=2.28.5]
