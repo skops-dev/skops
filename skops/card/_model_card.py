@@ -1304,7 +1304,7 @@ class Card:
         self,
         data: dict[str, Section],
         depth: int = 1,
-        path: str | Path = "",
+        destination_path: str | Path = "",
         copy_files: bool = False,
     ) -> Iterator[str]:
         """Yield title and (formatted) contents.
@@ -1324,17 +1324,17 @@ class Card:
             yield section.format()
 
             if (
-                path is not None
+                destination_path is not None
                 and copy_files is not False
                 and isinstance(section, PlotSection)
             ):
-                shutil.copy(Path(path) / section.path, section.path)
+                shutil.copy(section.path, Path(destination_path))
 
             if section.subsections:
                 yield from self._generate_content(
                     section.subsections,
                     depth=depth + 1,
-                    path=path,
+                    destination_path=destination_path,
                     copy_files=copy_files,
                 )
 
@@ -1405,14 +1405,14 @@ class Card:
         return complete_repr
 
     def _generate_card(
-        self, path: str | Path = "", copy_files: bool = False
+        self, destination_path: str | Path = "", copy_files: bool = False
     ) -> Iterator[str]:
         """Yield sections of the model card, including the metadata."""
         if self.metadata.to_dict():
             yield f"---\n{self.metadata.to_yaml()}\n---"
 
         for line in self._generate_content(
-            self._data, path=path, copy_files=copy_files
+            self._data, destination_path=destination_path, copy_files=copy_files
         ):
             if line:
                 yield "\n" + line
