@@ -12,6 +12,8 @@ with a range of hyperparameters.
 
 """
 
+from unittest.mock import Mock, patch
+
 import pytest
 from sklearn.datasets import make_classification, make_regression
 
@@ -54,13 +56,16 @@ def rank_data(clf_data):
     return X, y, group
 
 
-def _null(*args, **kwargs):
-    # used to prevent printing anything to stdout when calling visualize
-    return
-
-
 class TestLightGBM:
     """Tests for LGBMClassifier, LGBMRegressor, LGBMRanker"""
+
+    @pytest.fixture(autouse=True)
+    def capture_stdout(self):
+        # Mock print and rich.print so that running these tests with pytest -s
+        # does not spam stdout. Other, more common methods of suppressing
+        # printing to stdout don't seem to work, perhaps because of pytest.
+        with patch("builtins.print", Mock()), patch("rich.print", Mock()):
+            yield
 
     @pytest.fixture(autouse=True)
     def lgbm(self):
@@ -100,7 +105,7 @@ class TestLightGBM:
         loaded = loads(dumped, trusted=trusted)
         assert_method_outputs_equal(estimator, loaded, X)
 
-        visualize(dumped, trusted=trusted, sink=_null)
+        visualize(dumped, trusted=trusted)
 
     @pytest.mark.parametrize("boosting_type", boosting_types)
     def test_regressor(self, lgbm, regr_data, trusted, boosting_type):
@@ -119,7 +124,7 @@ class TestLightGBM:
         loaded = loads(dumped, trusted=trusted)
         assert_method_outputs_equal(estimator, loaded, X)
 
-        visualize(dumped, trusted=trusted, sink=_null)
+        visualize(dumped, trusted=trusted)
 
     @pytest.mark.parametrize("boosting_type", boosting_types)
     def test_ranker(self, lgbm, rank_data, trusted, boosting_type):
@@ -138,7 +143,7 @@ class TestLightGBM:
         loaded = loads(dumped, trusted=trusted)
         assert_method_outputs_equal(estimator, loaded, X)
 
-        visualize(dumped, trusted=trusted, sink=_null)
+        visualize(dumped, trusted=trusted)
 
 
 class TestXGBoost:
@@ -157,6 +162,14 @@ class TestXGBoost:
     avoid testing these cases. See https://github.com/dmlc/xgboost/issues/8596
 
     """
+
+    @pytest.fixture(autouse=True)
+    def capture_stdout(self):
+        # Mock print and rich.print so that running these tests with pytest -s
+        # does not spam stdout. Other, more common methods of suppressing
+        # printing to stdout don't seem to work, perhaps because of pytest.
+        with patch("builtins.print", Mock()), patch("rich.print", Mock()):
+            yield
 
     @pytest.fixture(autouse=True)
     def xgboost(self):
@@ -196,7 +209,7 @@ class TestXGBoost:
         loaded = loads(dumped, trusted=trusted)
         assert_method_outputs_equal(estimator, loaded, X)
 
-        visualize(dumped, trusted=trusted, sink=_null)
+        visualize(dumped, trusted=trusted)
 
     @pytest.mark.parametrize("booster", boosters)
     @pytest.mark.parametrize("tree_method", tree_methods)
@@ -215,7 +228,7 @@ class TestXGBoost:
         loaded = loads(dumped, trusted=trusted)
         assert_method_outputs_equal(estimator, loaded, X)
 
-        visualize(dumped, trusted=trusted, sink=_null)
+        visualize(dumped, trusted=trusted)
 
     @pytest.mark.parametrize("booster", boosters)
     @pytest.mark.parametrize("tree_method", tree_methods)
@@ -234,7 +247,7 @@ class TestXGBoost:
         loaded = loads(dumped, trusted=trusted)
         assert_method_outputs_equal(estimator, loaded, X)
 
-        visualize(dumped, trusted=trusted, sink=_null)
+        visualize(dumped, trusted=trusted)
 
     @pytest.mark.parametrize("booster", boosters)
     @pytest.mark.parametrize("tree_method", tree_methods)
@@ -253,7 +266,7 @@ class TestXGBoost:
         loaded = loads(dumped, trusted=trusted)
         assert_method_outputs_equal(estimator, loaded, X)
 
-        visualize(dumped, trusted=trusted, sink=_null)
+        visualize(dumped, trusted=trusted)
 
     @pytest.mark.parametrize("booster", boosters)
     @pytest.mark.parametrize("tree_method", tree_methods)
@@ -272,11 +285,19 @@ class TestXGBoost:
         loaded = loads(dumped, trusted=trusted)
         assert_method_outputs_equal(estimator, loaded, X)
 
-        visualize(dumped, trusted=trusted, sink=_null)
+        visualize(dumped, trusted=trusted)
 
 
 class TestCatboost:
     """Tests for CatBoostClassifier, CatBoostRegressor, and CatBoostRanker"""
+
+    @pytest.fixture(autouse=True)
+    def capture_stdout(self):
+        # Mock print and rich.print so that running these tests with pytest -s
+        # does not spam stdout. Other, more common methods of suppressing
+        # printing to stdout don't seem to work, perhaps because of pytest.
+        with patch("builtins.print", Mock()), patch("rich.print", Mock()):
+            yield
 
     # CatBoost data is a little different so that it works as categorical data
     @pytest.fixture(scope="module")
@@ -331,7 +352,7 @@ class TestCatboost:
         loaded = loads(dumped, trusted=trusted)
         assert_method_outputs_equal(estimator, loaded, X)
 
-        visualize(dumped, trusted=trusted, sink=_null)
+        visualize(dumped, trusted=trusted)
 
     @pytest.mark.parametrize("boosting_type", boosting_types)
     def test_regressor(self, catboost, cb_regr_data, trusted, boosting_type):
@@ -347,7 +368,7 @@ class TestCatboost:
         loaded = loads(dumped, trusted=trusted)
         assert_method_outputs_equal(estimator, loaded, X)
 
-        visualize(dumped, trusted=trusted, sink=_null)
+        visualize(dumped, trusted=trusted)
 
     @pytest.mark.parametrize("boosting_type", boosting_types)
     def test_ranker(self, catboost, cb_rank_data, trusted, boosting_type):
@@ -363,4 +384,4 @@ class TestCatboost:
         loaded = loads(dumped, trusted=trusted)
         assert_method_outputs_equal(estimator, loaded, X)
 
-        visualize(dumped, trusted=trusted, sink=_null)
+        visualize(dumped, trusted=trusted)
