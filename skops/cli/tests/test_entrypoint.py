@@ -56,5 +56,6 @@ class TestEntrypoint:
         update_file_mock.assert_called_once_with(
             input_file=pathlib.Path("abc.skops"),
             output_file=pathlib.Path("abc-new.skops"),
+            inplace=False,
             logger=mock.ANY,
         )
