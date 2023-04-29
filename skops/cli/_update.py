@@ -5,7 +5,6 @@ import json
 import logging
 import zipfile
 from pathlib import Path
-from typing import Optional, Union
 
 from skops.cli._utils import get_log_level
 from skops.io import dump, load
@@ -13,8 +12,9 @@ from skops.io._protocol import PROTOCOL
 
 
 def _update_file(
-    input_file: Union[str, Path],
-    output_file: Union[str, Path],
+    input_file: str | Path,
+    output_file: str | Path | None = None,
+    inplace: bool = False,
     logger: logging.Logger = logging.getLogger(),
 ) -> None:
     """Function that is called by ``skops update`` entrypoint.
@@ -24,20 +24,42 @@ def _update_file(
 
     Parameters
     ----------
-    input_file : Union[str, Path]
+    input_file : str, or Path
         Path of input skops model to load.
 
-    output_file : Union[str, Path]
+    output_file : str, or Path, default=None
         Path to save the updated skops model to.
 
+    inplace : bool, default=False
+        Whether to update and overwrite the input file in place.
+
+    logger : logging.Logger, default=logging.getLogger()
+        Logger to use for logging.
     """
+    if inplace:
+        if output_file is None:
+            output_file = input_file
+        else:
+            raise ValueError(
+                "Cannot specify both an output file path and the inplace flag. Please"
+                " choose whether you want to create a new file or overwrite the input"
+                " file."
+            )
+
     input_model = load(input_file, trusted=True)
     with zipfile.ZipFile(input_file, "r") as zip_file:
         input_file_schema = json.loads(zip_file.read("schema.json"))
 
     if input_file_schema["protocol"] != PROTOCOL:
-        dump(input_model, output_file)
-        logger.info(f"Updated skops file written to {output_file}")
+        if output_file is not None:
+            dump(input_model, output_file)
+            logger.info(f"Updated skops file written to {output_file}")
+        else:
+            logger.info(
+                f"File can be updated to the current protocol: {PROTOCOL}. Please"
+                " specify an output file path or use the inplace flag to create the"
+                " updated Skops file."
+            )
     else:
         logger.info(
             "File was not updated because already up to date with the current protocol:"
@@ -46,7 +68,7 @@ def _update_file(
 
 
 def format_parser(
-    parser: Optional[argparse.ArgumentParser] = None,
+    parser: argparse.ArgumentParser | None = None,
 ) -> argparse.ArgumentParser:
     """Adds arguments and help to parent CLI parser for the `update` method."""
 
@@ -60,6 +82,12 @@ def format_parser(
         "-o",
         "--output-file",
         help="Specify the output file name for the updated skops file.",
+        default=None,
+    )
+    parser_subgroup.add_argument(
+        "--inplace",
+        help="Update and overwrite the input file in place.",
+        action="store_true",
     )
     parser_subgroup.add_argument(
         "-v",
@@ -79,8 +107,9 @@ def main(
     parsed_args: argparse.Namespace,
     logger: logging.Logger = logging.getLogger(),
 ) -> None:
-    output_file = Path(parsed_args.output_file)
+    output_file = Path(parsed_args.output_file) if parsed_args.output_file else None
     input_file = Path(parsed_args.input)
+    inplace = parsed_args.inplace
 
     logging.basicConfig(format="%(levelname)-8s: %(message)s")
     logger.setLevel(level=get_log_level(parsed_args.loglevel))
@@ -88,5 +117,6 @@ def main(
     _update_file(
         input_file=input_file,
         output_file=output_file,
+        inplace=inplace,
         logger=logger,
     )

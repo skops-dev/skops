@@ -40,24 +40,54 @@ class TestUpdate:
         """
         dump(safe_obj, skops_path)
 
+    @pytest.mark.parametrize("inplace", [True, False])
     def test_base_case_works_as_expected(
         self,
         skops_path: pathlib.Path,
         new_skops_path: pathlib.Path,
+        inplace: bool,
         dump_old_file,
         safe_obj,
     ):
         mock_logger = mock.MagicMock()
+        expected_output_file = new_skops_path if not inplace else skops_path
+
         _update._update_file(
-            input_file=skops_path, output_file=new_skops_path, logger=mock_logger
+            input_file=skops_path,
+            output_file=new_skops_path if not inplace else None,
+            inplace=inplace,
+            logger=mock_logger,
         )
-        updated_obj = load(new_skops_path)
+        updated_obj = load(expected_output_file)
 
         assert np.array_equal(updated_obj, safe_obj)
 
         # Check logging messages
         mock_logger.info.assert_called_once_with(
-            f"Updated skops file written to {new_skops_path}"
+            f"Updated skops file written to {expected_output_file}"
+        )
+        mock_logger.warning.assert_not_called()
+        mock_logger.error.assert_not_called()
+        mock_logger.debug.assert_not_called()
+
+    @mock.patch("skops.cli._update.dump")
+    def test_only_diff(
+        self, mock_dump: mock.MagicMock, skops_path: pathlib.Path, dump_old_file
+    ):
+        mock_logger = mock.MagicMock()
+        _update._update_file(
+            input_file=skops_path,
+            output_file=None,
+            inplace=False,
+            logger=mock_logger,
+        )
+        mock_dump.assert_not_called()
+
+        # Check logging messages
+        mock_logger.info.assert_called_once_with(
+            f"File can be updated to the current protocol: {_protocol.PROTOCOL}. Please"
+            " specify an output file path or use the inplace flag to create the"
+            " updated Skops file."
         )
         mock_logger.warning.assert_not_called()
         mock_logger.error.assert_not_called()
@@ -71,7 +101,10 @@ class TestUpdate:
     ):
         mock_logger = mock.MagicMock()
         _update._update_file(
-            input_file=skops_path, output_file=new_skops_path, logger=mock_logger
+            input_file=skops_path,
+            output_file=new_skops_path,
+            inplace=False,
+            logger=mock_logger,
         )
         mock_logger.info.assert_called_once_with(
             "File was not updated because already up to date with the current protocol:"
@@ -79,26 +112,53 @@ class TestUpdate:
         )
         assert not new_skops_path.exists()
 
+    def test_raises_valueerror(
+        self, skops_path: pathlib.Path, new_skops_path: pathlib.Path, dump_file
+    ):
+        with pytest.raises(ValueError):
+            _update._update_file(
+                input_file=skops_path, output_file=new_skops_path, inplace=True
+            )
+
 
 class TestMain:
     @pytest.fixture
     def tmp_logger(self) -> logging.Logger:
         return logging.getLogger()
 
+    @pytest.mark.parametrize("output_flag", ["-o", "--output"])
     @mock.patch("skops.cli._update._update_file")
-    def test_base_works_as_expected(
-        self, mock_update: mock.MagicMock, tmp_logger: logging.Logger
+    def test_output_argument(
+        self, mock_update: mock.MagicMock, output_flag: str, tmp_logger: logging.Logger
     ):
         input_path = "abc.skops"
         output_path = "abc-new.skops"
         namespace, _ = _update.format_parser().parse_known_args(
-            [input_path, "-o", output_path]
+            [input_path, output_flag, output_path]
         )
 
         _update.main(namespace, tmp_logger)
         mock_update.assert_called_once_with(
             input_file=pathlib.Path(input_path),
             output_file=pathlib.Path(output_path),
+            inplace=False,
+            logger=tmp_logger,
+        )
+
+    @mock.patch("skops.cli._update._update_file")
+    def test_inplace_argument(
+        self, mock_update: mock.MagicMock, tmp_logger: logging.Logger
+    ):
+        input_path = "abc.skops"
+        namespace, _ = _update.format_parser().parse_known_args(
+            [input_path, "--inplace"]
+        )
+
+        _update.main(namespace, tmp_logger)
+        mock_update.assert_called_once_with(
+            input_file=pathlib.Path(input_path),
+            output_file=None,
+            inplace=True,
             logger=tmp_logger,
         )
 
@@ -131,6 +191,7 @@ class TestMain:
         mock_update.assert_called_once_with(
             input_file=pathlib.Path(input_path),
             output_file=pathlib.Path(output_path),
+            inplace=False,
             logger=tmp_logger,
         )
         assert tmp_logger.getEffectiveLevel() == expected_level
