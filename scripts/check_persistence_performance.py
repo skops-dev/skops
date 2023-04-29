@@ -75,7 +75,10 @@ def run_check(estimator, number: int) -> tuple[float, float]:
         pickle.loads(pickle.dumps(estimator))
 
     def run_skops():
-        sio.loads(sio.dumps(estimator), trusted=True)
+        # measure time including the check of untrusted types
+        dumped = sio.dumps(estimator)
+        trusted = sio.get_untrusted_types(data=dumped)
+        sio.loads(dumped, trusted=trusted)
 
     time_pickle = timeit.timeit(run_pickle, number=number) / number
     time_skops = timeit.timeit(run_skops, number=number) / number
