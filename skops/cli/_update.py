@@ -38,8 +38,11 @@ def _update_file(
     if input_file_schema["protocol"] != PROTOCOL:
         dump(input_model, output_file)
         logger.info(f"Updated skops file written to {output_file}")
-
-    logger.info(f"Input file is already up to date to the current protocol: {PROTOCOL}")
+    else:
+        logger.info(
+            "File was not updated because already up to date with the current protocol:"
+            f" {PROTOCOL}"
+        )
 
 
 def format_parser(
