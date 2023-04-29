@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 from skops.cli import _update
-from skops.io import _persist, dump, load
+from skops.io import _persist, _protocol, dump, load
 
 
 class TestUpdate:
@@ -73,9 +73,11 @@ class TestUpdate:
         _update._update_file(
             input_file=skops_path, output_file=new_skops_path, logger=mock_logger
         )
-
-        with pytest.raises(FileNotFoundError):
-            load(new_skops_path)
+        mock_logger.info.assert_called_once_with(
+            "File was not updated because already up to date with the current protocol:"
+            f" {_protocol.PROTOCOL}"
+        )
+        assert not new_skops_path.exists()
 
 
 class TestMain:
