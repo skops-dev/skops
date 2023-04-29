@@ -55,9 +55,13 @@ class TestUpdate:
 
         assert np.array_equal(updated_obj, safe_obj)
 
-        # Check no warnings or errors raised
+        # Check logging messages
+        mock_logger.info.assert_called_once_with(
+            f"Updated skops file written to {new_skops_path}"
+        )
         mock_logger.warning.assert_not_called()
         mock_logger.error.assert_not_called()
+        mock_logger.debug.assert_not_called()
 
     def test_no_update(
         self,
