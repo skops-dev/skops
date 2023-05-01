@@ -443,7 +443,7 @@ def init(
                 with open(model, "rb") as f:
                     model = pikle_load(f)
             elif extension == ".skops":
-                model = io.load(model)
+                model = io.load(model, trusted=True)
         model_card = card.Card(model, metadata=card.metadata_from_config(dst))
         model_card.save(dst / "README.md")
     except Exception:
