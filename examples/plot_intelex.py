@@ -151,7 +151,7 @@ token = os.environ["HF_HUB_TOKEN"]
 
 with NamedTemporaryFile(mode="bw", prefix="stock-", suffix=".pkl") as fp:
     pickle.dump(clf, file=fp)
-
+    fp.seek(0)
     stock_repo = mkdtemp(prefix="stock-")
     hub_utils.init(
         model=fp.name,
@@ -164,7 +164,7 @@ with NamedTemporaryFile(mode="bw", prefix="stock-", suffix=".pkl") as fp:
 
 with NamedTemporaryFile(mode="bw", prefix="opt-", suffix=".pkl") as fp:
     pickle.dump(clf_opt, file=fp)
-
+    fp.seek(0)
     opt_repo = mkdtemp(prefix="opt-")
     hub_utils.init(
         model=fp.name,
