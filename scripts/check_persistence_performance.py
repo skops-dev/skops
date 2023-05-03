@@ -53,9 +53,10 @@ def check_persist_performance() -> None:
                     estimator.fit(X)
 
         name = _get_check_estimator_ids(estimator)
+        cls_name, _, _ = name.partition("(")
         time_pickle, time_skops = run_check(estimator, number=NUM_REPS)
 
-        results["name"].append(name)
+        results["name"].append(cls_name)
         results["pickle (s)"].append(time_pickle)
         results["skops (s)"].append(time_skops)
 
@@ -74,7 +75,10 @@ def run_check(estimator, number: int) -> tuple[float, float]:
         pickle.loads(pickle.dumps(estimator))
 
     def run_skops():
-        sio.loads(sio.dumps(estimator), trusted=True)
+        # measure time including the check of untrusted types
+        dumped = sio.dumps(estimator)
+        trusted = sio.get_untrusted_types(data=dumped)
+        sio.loads(dumped, trusted=trusted)
 
     time_pickle = timeit.timeit(run_pickle, number=number) / number
     time_skops = timeit.timeit(run_skops, number=number) / number
@@ -98,7 +102,7 @@ def format_result(results: dict[str, list[Any]], topk: int) -> None:
 
     df = df.sort_values(["abs_diff"], ascending=False).reset_index(drop=True)
     print(f"{topk} largest differences:")
-    print(df.head(10))
+    print(df[["name", "pickle (s)", "skops (s)", "abs_diff", "rel_diff"]].head(10))
 
     df_slow = df.query("too_slow")
     if df_slow.empty:

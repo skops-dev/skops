@@ -1,4 +1,4 @@
-name: HF integration tests
+name: Test performance and file size of skops persistence
 
 on:
   schedule:
@@ -17,6 +17,8 @@ jobs:
     - uses: actions/checkout@v3
     - name: Set up Python
       uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
     - name: Install requirements
       run: |
         pip install .[tests]
@@ -24,3 +26,5 @@ jobs:
         pip list
     - name: Run persistence performance checks
       run: python scripts/check_persistence_performance.py
+    - name: Run file size checks
+      run: python scripts/check_file_size.py

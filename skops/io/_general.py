@@ -5,12 +5,14 @@ import json
 import operator
 import uuid
 from functools import partial
+from reprlib import Repr
 from types import FunctionType, MethodType
 from typing import Any, Sequence
 
 import numpy as np
 
 from ._audit import Node, get_tree
+from ._protocol import PROTOCOL
 from ._trusted_types import (
     PRIMITIVE_TYPE_NAMES,
     SCIPY_UFUNC_TYPE_NAMES,
@@ -25,6 +27,9 @@ from ._utils import (
     gettype,
 )
 from .exceptions import UnsupportedTypeException
+
+arepr = Repr()
+arepr.maxstring = 24
 
 
 def dict_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
@@ -58,9 +63,9 @@ class DictNode(Node):
         super().__init__(state, load_context, trusted)
         self.trusted = self._get_trusted(trusted, [dict])
         self.children = {
-            "key_types": get_tree(state["key_types"], load_context),
+            "key_types": get_tree(state["key_types"], load_context, trusted=trusted),
             "content": {
-                key: get_tree(value, load_context)
+                key: get_tree(value, load_context, trusted=trusted)
                 for key, value in state["content"].items()
             },
         }
@@ -95,7 +100,10 @@ class ListNode(Node):
         super().__init__(state, load_context, trusted)
         self.trusted = self._get_trusted(trusted, [list])
         self.children = {
-            "content": [get_tree(value, load_context) for value in state["content"]]
+            "content": [
+                get_tree(value, load_context, trusted=trusted)
+                for value in state["content"]
+            ]
         }
 
     def _construct(self):
@@ -124,7 +132,10 @@ class SetNode(Node):
         super().__init__(state, load_context, trusted)
         self.trusted = self._get_trusted(trusted, [set])
         self.children = {
-            "content": [get_tree(value, load_context) for value in state["content"]]
+            "content": [
+                get_tree(value, load_context, trusted=trusted)
+                for value in state["content"]
+            ]
         }
 
     def _construct(self):
@@ -153,7 +164,10 @@ class TupleNode(Node):
         super().__init__(state, load_context, trusted)
         self.trusted = self._get_trusted(trusted, [tuple])
         self.children = {
-            "content": [get_tree(value, load_context) for value in state["content"]]
+            "content": [
+                get_tree(value, load_context, trusted=trusted)
+                for value in state["content"]
+            ]
         }
 
     def _construct(self):
@@ -180,13 +194,9 @@ class TupleNode(Node):
 
 def function_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     res = {
-        "__class__": obj.__class__.__name__,
+        "__class__": obj.__name__,
         "__module__": get_module(obj),
         "__loader__": "FunctionNode",
-        "content": {
-            "module_path": get_module(obj),
-            "function": obj.__name__,
-        },
     }
     return res
 
@@ -201,26 +211,20 @@ class FunctionNode(Node):
         super().__init__(state, load_context, trusted)
         # TODO: what do we trust?
         self.trusted = self._get_trusted(trusted, default=SCIPY_UFUNC_TYPE_NAMES)
-        self.children = {"content": state["content"]}
+        self.children = {}
 
     def _construct(self):
-        return _import_obj(
-            self.children["content"]["module_path"],
-            self.children["content"]["function"],
-        )
+        return gettype(self.module_name, self.class_name)
 
     def _get_function_name(self) -> str:
-        return (
-            self.children["content"]["module_path"]
-            + "."
-            + self.children["content"]["function"]
-        )
+        return f"{self.module_name}.{self.class_name}"
 
     def get_unsafe_set(self) -> set[str]:
-        if (self.trusted is True) or (self._get_function_name() in self.trusted):
+        fn_name = self._get_function_name()
+        if (self.trusted is True) or (fn_name in self.trusted):
             return set()
 
-        return {self._get_function_name()}
+        return {fn_name}
 
 
 def partial_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
@@ -250,10 +254,12 @@ class PartialNode(Node):
         # TODO: should we trust anything?
         self.trusted = self._get_trusted(trusted, [])
         self.children = {
-            "func": get_tree(state["content"]["func"], load_context),
-            "args": get_tree(state["content"]["args"], load_context),
-            "kwds": get_tree(state["content"]["kwds"], load_context),
-            "namespace": get_tree(state["content"]["namespace"], load_context),
+            "func": get_tree(state["content"]["func"], load_context, trusted=trusted),
+            "args": get_tree(state["content"]["args"], load_context, trusted=trusted),
+            "kwds": get_tree(state["content"]["kwds"], load_context, trusted=trusted),
+            "namespace": get_tree(
+                state["content"]["namespace"], load_context, trusted=trusted
+            ),
         }
 
     def _construct(self):
@@ -384,7 +390,7 @@ class ObjectNode(Node):
 
         content = state.get("content")
         if content is not None:
-            attrs = get_tree(content, load_context)
+            attrs = get_tree(content, load_context, trusted=trusted)
         else:
             attrs = None
 
@@ -441,7 +447,7 @@ class MethodNode(Node):
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.children = {
-            "obj": get_tree(state["content"]["obj"], load_context),
+            "obj": get_tree(state["content"]["obj"], load_context, trusted=trusted),
             "func": state["content"]["func"],
         }
         # TODO: what do we trust?
@@ -467,6 +473,7 @@ class JsonNode(Node):
         super().__init__(state, load_context, trusted)
         self.content = state["content"]
         self.children = {}
+        self.trusted = self._get_trusted(trusted, PRIMITIVE_TYPE_NAMES)
 
     def is_safe(self) -> bool:
         # JsonNode is always considered safe.
@@ -481,6 +488,14 @@ class JsonNode(Node):
 
     def _construct(self):
         return json.loads(self.content)
+
+    def format(self) -> str:
+        """Representation of the node's content.
+
+        Since no module is used, just show the content.
+
+        """
+        return f"json-type({self.content})"
 
 
 def bytes_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
@@ -516,6 +531,11 @@ class BytesNode(Node):
         content = self.children["content"].getvalue()
         return content
 
+    def format(self):
+        content = self.children["content"].getvalue()
+        byte_repr = arepr.repr(content)
+        return byte_repr
+
 
 class BytearrayNode(BytesNode):
     def __init__(
@@ -531,6 +551,9 @@ class BytearrayNode(BytesNode):
         content_bytes = super()._construct()
         content_bytearray = bytearray(list(content_bytes))
         return content_bytearray
+
+    def format(self):
+        return f"bytearray({super().format()})"
 
 
 def operator_func_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
@@ -553,7 +576,7 @@ class OperatorFuncNode(Node):
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.trusted = self._get_trusted(trusted, [])
-        self.children["attrs"] = get_tree(state["attrs"], load_context)
+        self.children["attrs"] = get_tree(state["attrs"], load_context, trusted=trusted)
 
     def _construct(self):
         op = getattr(operator, self.class_name)
@@ -586,18 +609,18 @@ GET_STATE_DISPATCH_FUNCTIONS = [
 ]
 
 NODE_TYPE_MAPPING = {
-    "DictNode": DictNode,
-    "ListNode": ListNode,
-    "SetNode": SetNode,
-    "TupleNode": TupleNode,
-    "BytesNode": BytesNode,
-    "BytearrayNode": BytearrayNode,
-    "SliceNode": SliceNode,
-    "FunctionNode": FunctionNode,
-    "MethodNode": MethodNode,
-    "PartialNode": PartialNode,
-    "TypeNode": TypeNode,
-    "ObjectNode": ObjectNode,
-    "JsonNode": JsonNode,
-    "OperatorFuncNode": OperatorFuncNode,
+    ("DictNode", PROTOCOL): DictNode,
+    ("ListNode", PROTOCOL): ListNode,
+    ("SetNode", PROTOCOL): SetNode,
+    ("TupleNode", PROTOCOL): TupleNode,
+    ("BytesNode", PROTOCOL): BytesNode,
+    ("BytearrayNode", PROTOCOL): BytearrayNode,
+    ("SliceNode", PROTOCOL): SliceNode,
+    ("FunctionNode", PROTOCOL): FunctionNode,
+    ("MethodNode", PROTOCOL): MethodNode,
+    ("PartialNode", PROTOCOL): PartialNode,
+    ("TypeNode", PROTOCOL): TypeNode,
+    ("ObjectNode", PROTOCOL): ObjectNode,
+    ("JsonNode", PROTOCOL): JsonNode,
+    ("OperatorFuncNode", PROTOCOL): OperatorFuncNode,
 }

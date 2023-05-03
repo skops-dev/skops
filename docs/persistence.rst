@@ -110,6 +110,22 @@ you have custom functions (say, a custom function to be used with
 most ``numpy`` and ``scipy`` functions should work. Therefore, you can save
 objects having references to functions such as ``numpy.sqrt``.
 
+Compression
+~~~~~~~~~~~
+
+If file size is an issue, you can compress the file by setting the
+``compression`` and ``compresslevel`` arguments to :func:`skops.io.dump` and
+:func:`skops.io.dumps`. For example, to compress the file using ``zlib`` with
+level 9:
+
+.. code:: python
+
+    from zipfile import ZIP_DEFLATED
+    dump(clf, "my-model.skops", compression=ZIP_DEFLATED, compresslevel=9)
+
+Check the documentation of these two arguments under :class:`zipfile.ZipFile`
+for more details.
+
 Command Line Interface
 ######################
 
@@ -134,6 +150,64 @@ For example, to convert all ``.pkl`` flies in the current directory:
 Further help for the different supported options can be found by calling
 ``skops convert --help`` in a terminal.
 
+Visualization
+#############
+
+Skops files can be visualized using :func:`skops.io.visualize`. If you have
+a skops file called ``my-model.skops``, you can visualize it like this:
+
+.. code:: python
+
+    import skops.io as sio
+    sio.visualize("my-model.skops")
+
+The output could look like this:
+
+.. code::
+
+    root: sklearn.preprocessing._data.MinMaxScaler
+    └── attrs: builtins.dict
+        ├── feature_range: builtins.tuple
+        │   ├── content: json-type(-555)
+        │   └── content: json-type(123)
+        ├── copy: unsafe_lib.UnsafeType [UNSAFE]
+        ├── clip: json-type(false)
+        └── _sklearn_version: json-type("1.2.0")
+
+``unsafe_lib.UnsafeType`` was recognized as untrusted and marked.
+
+It's also possible to visualize the object dumped as bytes:
+
+    import skops.io as sio
+    my_model = ...
+    sio.visualize(sio.dumps(my_model))
+
+There are various options to customize the output. By default, the security of
+nodes is color coded if `rich <https://github.com/Textualize/rich>`_ is
+installed, otherwise they all have the same color. To install ``rich``, run:
+
+.. code::
+
+    python -m pip install rich
+
+or, when installing skops, install it like this:
+
+    python -m pip install skops[rich]
+
+To disable colors, even if ``rich`` is installed, pass ``use_colors=False`` to
+:func:`skops.io.visualize`.
+
+It's also possible to change what colors are being used, e.g. by passing
+``visualize(..., color_safe="cyan")`` to change the color for trusted nodes from
+green to cyan. The ``rich`` docs list the `supported standard colors
+<https://rich.readthedocs.io/en/stable/appendix/colors.html>`_.
+
+Note that the visualization feature is intended to help understand the structure
+of the object, e.g. what attributes are identified as untrusted. It is not a
+replacement for a proper security check. In particular, just because an object's
+visualization looks innocent does *not* mean you can just call `sio.load(<file>,
+trusted=True)` on this object -- only pass the types you really trust to the
+``trusted`` argument.
 
 Supported libraries
 -------------------
@@ -160,8 +234,33 @@ Therefore, you should only load a skops file containing a model of any of those
 libraries if you trust them to be secure. It's not a perfect solution, but it's
 still better than trusting pickle files, which anyone can tamper with easily.
 
+Backwards compatibility
+-----------------------
+
+Compatibility across skops versions
+###################################
+
+The skops persistence format is in flux, as we steadily work on improving it,
+making it more secure and supporting more types. When we make a change that is
+incompatible with existing skops files, the protocol will be bumped to the next
+higher number (the protocol can be checked in the schema of the skops file). At
+the same time, we will ensure that existing skops files with lower protocol
+versions still load as always, even if they contained a bug (in which case we
+will warn about it). Therefore, it is generally safe to assume that your skops
+files will keep on working with future versions of skops.
+
+You may want to periodically load and dump old skops files using newer versions
+of skops to benefit from the updates to the protocol.
+
+One caveat to the backwards compatibility promise is that the skops files have
+to be created based on a release version of skops. If you create skops files
+using a skops version installed from, say, the ``main`` git branch, it is
+possible to end up in an inconsistent state. Therefore, don't use any
+non-release version of skops for creating skops files intended to be loaded with
+future skops versions.
+
 Compatibility across sklearn versions
--------------------------------------
+#####################################
 
 Using skops to load a model saved in one sklearn version and loading it with
 another sklearn version is not recommended, because the behavior of the model

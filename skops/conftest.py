@@ -43,3 +43,16 @@ def matplotlib_not_installed():
         yield
 
     import matplotlib  # noqa
+
+
+@pytest.fixture
+def rich_not_installed():
+    orig_import = builtins.__import__
+
+    def mock_import(name, *args, **kwargs):
+        if name == "rich":
+            raise ImportError
+        return orig_import(name, *args, **kwargs)
+
+    with patch("builtins.__import__", side_effect=mock_import):
+        yield
