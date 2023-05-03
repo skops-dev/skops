@@ -1904,7 +1904,7 @@ class TestCardSaveWithPlots:
             plt.savefig(fig_2_path)
             model_card = model_card.add_plot(fig2=fig_2_path)
 
-        model_card.save(Path(destination_path) / "README.md", copy_files=True)
+            model_card.save(Path(destination_path) / "README.md", copy_files=True)
 
         assert (Path(destination_path) / "README.md").exists()
         assert (Path(destination_path) / "fig1.png").exists()
