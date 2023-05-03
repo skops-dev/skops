@@ -158,7 +158,7 @@ importances = permutation_importance(model, X_test, y_test, n_repeats=10)
 model_card.add_permutation_importances(
     importances,
     X_test.columns,
-    plot_file=Path(local_repo) / "importance.png",
+    plot_file=local_repo + "/importance.png",
     plot_name="Permutation Importance",
 )
 
