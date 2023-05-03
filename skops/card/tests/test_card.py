@@ -1889,6 +1889,28 @@ class TestCardTableOfContents:
         assert toc == "\n".join(exptected_toc)
 
 
-# TODO: Add tests for the following classes
 class TestFoldedSection:
-    pass
+    def test_folded_section(self, model_card):
+        model_card.add(foo="Foo")
+        model_card.add(**{"foo/bar": "Foo/Bar"})
+        model_card.add(**{"foo/baz": "Foo/Baz"})
+        foo_baz = model_card.select("foo/baz")
+        foo_baz.set_folded(True)
+        foo = model_card.select("foo")
+        foo_bar = model_card.select("foo/bar")
+
+        assert foo._folded is False
+        assert foo_bar._folded is False
+        assert foo_baz._folded is True
+
+        model_card.select("foo").set_folded(True)
+
+        assert foo._folded is True
+        assert foo_bar._folded is True
+        assert foo_baz._folded is True
+
+        model_card.select("foo").set_folded(False)
+
+        assert foo._folded is False
+        assert foo_bar._folded is False
+        assert foo_baz._folded is False

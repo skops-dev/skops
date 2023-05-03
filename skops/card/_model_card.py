@@ -244,7 +244,7 @@ class Section:
         return self.content
 
     def format(self) -> str:
-        return wrap_as_details(self._format(), folded=self.folded)
+        return wrap_as_details(self._format(), folded=self._folded)
 
     def __repr__(self) -> str:
         """Generates the ``repr`` of this section.
@@ -254,31 +254,17 @@ class Section:
         """
         return self.content
 
-    @property
-    def folded(self) -> bool:
-        """Return the folded state of this section.
-
-        Returns
-        -------
-        folded : bool
-            Whether this section is folded or not.
-
-        """
-        return self._folded
-
-    @folded.setter
-    def folded(self, folded: bool) -> None:
-        """Set the folded state of this section.
+    def set_folded(self, folded: bool) -> None:
+        """Set the folded state of this section and children sections.
 
         Parameters
         ----------
         folded : bool
-            Whether to fold this section or not.
-
+            Whether this section should be folded or not.
         """
         self._folded = folded
         for section in self.subsections.values():
-            section.folded = folded
+            section.set_folded(folded)
 
 
 @dataclass
