@@ -4,6 +4,7 @@ import re
 import tempfile
 import textwrap
 from pathlib import Path
+from unittest import mock
 
 import numpy as np
 import pytest
@@ -147,18 +148,23 @@ def test_save_model_card(destination_path, model_card):
 def test_model_caching(
     skops_model_card_metadata_from_config, iris_skops_file, destination_path
 ):
+    # _load_model get called
     card = Card(iris_skops_file, metadata=metadata_from_config(destination_path))
-    assert str(card._model_hash) == card.__dict__["_model_hash"]
-    iris_model_hash = card._model_hash
-    # update card with new model
-    new_model = LogisticRegression()
-    _, save_file = save_model_to_file(new_model, ".skops")
-    del card.model
-    card.model = save_file
-    card.get_model()  # model gets cached
-    assert str(card._model_hash) == card.__dict__["_model_hash"]
-    logistic_reg_hash = card._model_hash
-    assert iris_model_hash != logistic_reg_hash
+    with mock.patch("skops.card._model_card._load_model") as mock_load_model:
+        model1 = card.get_model()
+        model2 = card.get_model()
+        assert model1 is model2
+        # model is cached, hence _load_model is not called
+        mock_load_model.assert_not_called()
+        # update card with new model
+        new_model = LogisticRegression()
+        _, save_file = save_model_to_file(new_model, ".skops")
+        del card.model
+        card.model = save_file
+        model3 = card.get_model()  # model gets cached
+        model4 = card.get_model()
+        assert model3 is model4
+        assert mock_load_model.call_count == 1
 
 
 CUSTOM_TEMPLATES = [None, {}, {"A Title", "Another Title", "A Title/A Section"}]  # type: ignore
