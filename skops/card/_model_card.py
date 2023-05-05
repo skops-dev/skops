@@ -1304,8 +1304,7 @@ class Card:
         self,
         data: dict[str, Section],
         depth: int = 1,
-        destination_path: str | Path = "",
-        copy_files: bool = False,
+        destination_path: str | Path | None = None,
     ) -> Iterator[str]:
         """Yield title and (formatted) contents.
 
@@ -1323,11 +1322,7 @@ class Card:
 
             yield section.format()
 
-            if (
-                destination_path is not None
-                and copy_files is not False
-                and isinstance(section, PlotSection)
-            ):
+            if destination_path is not None and isinstance(section, PlotSection):
                 shutil.copy(section.path, Path(destination_path))
 
             if section.subsections:
@@ -1335,7 +1330,6 @@ class Card:
                     section.subsections,
                     depth=depth + 1,
                     destination_path=destination_path,
-                    copy_files=copy_files,
                 )
 
     def _iterate_content(
@@ -1405,14 +1399,14 @@ class Card:
         return complete_repr
 
     def _generate_card(
-        self, destination_path: str | Path = "", copy_files: bool = False
+        self, destination_path: str | Path | None = None
     ) -> Iterator[str]:
         """Yield sections of the model card, including the metadata."""
         if self.metadata.to_dict():
             yield f"---\n{self.metadata.to_yaml()}\n---"
 
         for line in self._generate_content(
-            self._data, destination_path=destination_path, copy_files=copy_files
+            self._data, destination_path=destination_path
         ):
             if line:
                 yield "\n" + line
@@ -1442,7 +1436,7 @@ class Card:
         with open(path, "w", encoding="utf-8") as f:
             if not isinstance(path, Path):
                 path = Path(path)
-            f.write("\n".join(self._generate_card(path.parent, copy_files)))
+            f.write("\n".join(self._generate_card(path.parent if copy_files else None)))
 
     def render(self) -> str:
         """Render the final model card as a string.
