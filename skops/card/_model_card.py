@@ -557,8 +557,10 @@ class Card:
 
     def get_model(self) -> Any:
         """Returns sklearn estimator object.
+
         If the ``model`` is already loaded, return it as is. If the ``model``
         attribute is a ``Path``/``str``, load the model and return it.
+
         Returns
         -------
         model : BaseEstimator
