@@ -565,6 +565,7 @@ class Card:
         -------
         model : BaseEstimator
             The model instance.
+
         """
         if isinstance(self.model, (str, Path)) and hasattr(self, "_model"):
             hash_obj = sha256()
