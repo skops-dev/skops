@@ -26,7 +26,7 @@ from skops.card._model_card import (
     TableSection,
     _load_model,
 )
-from skops.io import dump
+from skops.io import dump, load
 from skops.utils.importutils import import_or_raise
 
 
@@ -149,23 +149,29 @@ def test_save_model_card(destination_path, model_card):
 def test_model_caching(
     skops_model_card_metadata_from_config, iris_skops_file, destination_path
 ):
-    # _load_model get called
+    """Tests that the model card caches the model to avoid loading it multiple times"""
+
+    new_model = LogisticRegression(random_state=4321)
+    # mock _load_model, it still loads the model but we can track call count
+    mock_load_model = mock.Mock(side_effect=load)
     card = Card(iris_skops_file, metadata=metadata_from_config(destination_path))
-    with mock.patch("skops.card._model_card._load_model") as mock_load_model:
+    with mock.patch("skops.card._model_card._load_model", mock_load_model):
         model1 = card.get_model()
         model2 = card.get_model()
         assert model1 is model2
         # model is cached, hence _load_model is not called
         mock_load_model.assert_not_called()
-        # update card with new model
-        new_model = LogisticRegression()
-        _, save_file = save_model_to_file(new_model, ".skops")
-        del card.model
-        card.model = save_file
-        model3 = card.get_model()  # model gets cached
-        model4 = card.get_model()
-        assert model3 is model4
+
+        # override model with new model
+        dump(new_model, card.model)
+
+        model3 = card.get_model()
         assert mock_load_model.call_count == 1
+        assert model3.random_state == 4321
+        model4 = card.get_model()
+
+        assert model3 is model4
+        assert mock_load_model.call_count == 1  # cached call
 
 
 CUSTOM_TEMPLATES = [None, {}, {"A Title", "Another Title", "A Title/A Section"}]  # type: ignore
