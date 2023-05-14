@@ -111,6 +111,22 @@ most ``numpy`` and ``scipy`` functions should work. Therefore, you can save
 objects having references to functions or universal functions (ufuncs)
 such as ``numpy.sqrt``.
 
+Compression
+~~~~~~~~~~~
+
+If file size is an issue, you can compress the file by setting the
+``compression`` and ``compresslevel`` arguments to :func:`skops.io.dump` and
+:func:`skops.io.dumps`. For example, to compress the file using ``zlib`` with
+level 9:
+
+.. code:: python
+
+    from zipfile import ZIP_DEFLATED
+    dump(clf, "my-model.skops", compression=ZIP_DEFLATED, compresslevel=9)
+
+Check the documentation of these two arguments under :class:`zipfile.ZipFile`
+for more details.
+
 Command Line Interface
 ######################
 
