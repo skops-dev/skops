@@ -81,8 +81,6 @@ class TestLightGBM:
             "lightgbm.sklearn.LGBMClassifier",
             "lightgbm.sklearn.LGBMRegressor",
             "lightgbm.sklearn.LGBMRanker",
-            "numpy.int32",
-            "numpy.int64",
             "sklearn.preprocessing._label.LabelEncoder",
         ]
 
@@ -329,8 +327,6 @@ class TestCatboost:
         # TODO: adjust once more types are trusted by default
         return [
             "builtins.bytes",
-            "numpy.float32",
-            "numpy.float64",
             "catboost.core.CatBoostClassifier",
             "catboost.core.CatBoostRegressor",
             "catboost.core.CatBoostRanker",
