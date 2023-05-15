@@ -206,7 +206,7 @@ def get_type_paths(types: Any) -> list[str]:
 def get_public_type_names(module: ModuleType, oftype: Type) -> list[str]:
     """
     Helper function that gets the type names of all
-    public objects of the given ``_type`` from the given ``module``,
+    public objects of the given ``oftype`` from the given ``module``,
     which start with the root module name.
 
     Public objects are those that can be read via ``dir(...)``.
