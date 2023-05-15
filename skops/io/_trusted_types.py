@@ -2,7 +2,7 @@ import numpy as np
 import scipy
 from sklearn.utils import all_estimators
 
-from ._utils import get_type_name
+from ._utils import get_public_type_names, get_type_name
 
 PRIMITIVES_TYPES = [int, float, str, bool]
 
@@ -14,13 +14,15 @@ SKLEARN_ESTIMATOR_TYPE_NAMES = [
     if get_type_name(estimator_class).startswith("sklearn.")
 ]
 
-SCIPY_UFUNC_TYPE_NAMES = sorted(
-    set(
-        [
-            get_type_name(getattr(scipy.special, attr))
-            for attr in dir(scipy.special)
-            if isinstance(getattr(scipy.special, attr), np.ufunc)
-            and get_type_name(getattr(scipy.special, attr)).startswith("scipy")
-        ]
-    )
+SCIPY_UFUNC_TYPE_NAMES = get_public_type_names(module=scipy.special, oftype=np.ufunc)
+
+NUMPY_UFUNC_TYPE_NAMES = get_public_type_names(module=np, oftype=np.ufunc)
+
+NUMPY_DTYPE_TYPE_NAMES = sorted(
+    {
+        type_name
+        for dtypes in np.sctypes.values()
+        for dtype in dtypes  # type: ignore
+        if (type_name := get_type_name(dtype)).startswith("numpy")
+    }
 )

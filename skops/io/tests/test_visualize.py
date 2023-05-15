@@ -101,12 +101,8 @@ class TestVisualizeTree:
         nodes_self_unsafe = [node for node in nodes if not node.is_self_safe]
         nodes_unsafe = [node for node in nodes if not node.is_safe]
 
-        # there are currently 2 unsafe nodes, a numpy int and the custom
-        # functions. The former might be considered safe in the future, in which
-        # case this test needs to be changed.
-        assert len(nodes_self_unsafe) == 2
-        assert nodes_self_unsafe[0].val == "numpy.int64"
-        assert nodes_self_unsafe[1].val == "test_visualize.unsafe_function"
+        assert len(nodes_self_unsafe) == 1
+        assert nodes_self_unsafe[0].val == "test_visualize.unsafe_function"
 
         # it's not easy to test the number of indirectly unsafe nodes, because
         # it will depend on the nesting structure; we can only be sure that it's
@@ -114,13 +110,10 @@ class TestVisualizeTree:
         assert len(nodes_unsafe) > 2
         assert any("FunctionTransformer" in node.val for node in nodes_unsafe)
 
-    @pytest.mark.parametrize(
-        "trusted", [True, ["numpy.int64", "test_visualize.unsafe_function"]]
-    )
+    @pytest.mark.parametrize("trusted", [True, ["test_visualize.unsafe_function"]])
     def test_all_nodes_trusted(self, pipeline, trusted, capsys):
         # The pipeline contains untrusted type(s), but if we pass trusted=True,
         # it is not considered untrusted anymore
-        # TODO: remove numpy.int64 from trusted once it's trusted by default
         file = sio.dumps(pipeline)
         sio.visualize(file, show="untrusted", trusted=trusted)
         expected = "root: sklearn.pipeline.Pipeline"
