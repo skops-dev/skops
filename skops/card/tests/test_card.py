@@ -1921,25 +1921,24 @@ class TestCardTableOfContents:
 class TestFoldedSection:
     def test_folded_section(self, model_card):
         model_card.add(foo="Foo")
-        model_card.add(**{"foo/bar": "Foo/Bar"})
-        model_card.add(**{"foo/baz": "Foo/Baz"})
-        foo_baz = model_card.select("foo/baz")
-        foo_baz.set_folded(True)
-        foo = model_card.select("foo")
-        foo_bar = model_card.select("foo/bar")
+        model_card.add(**{"foo/bar": "Foo/Bar", "foo/baz": "Foo/Baz"})
+        model_card.select("foo/baz").folded = True
 
-        assert foo._folded is False
-        assert foo_bar._folded is False
-        assert foo_baz._folded is True
+        output = model_card.render()
+        assert "Foo" in output
+        assert "Foo/Bar" in output
+        assert "Foo/Baz" not in output
 
-        model_card.select("foo").set_folded(True)
+        model_card.select("foo").folded = True
 
-        assert foo._folded is True
-        assert foo_bar._folded is True
-        assert foo_baz._folded is True
+        output = model_card.render()
+        assert "Foo" in output
+        assert "Foo/Bar" in output
+        assert "Foo/Baz" in output
 
-        model_card.select("foo").set_folded(False)
+        model_card.select("foo").folded = False
 
-        assert foo._folded is False
-        assert foo_bar._folded is False
-        assert foo_baz._folded is False
+        output = model_card.render()
+        assert "Foo" not in output
+        assert "Foo/Bar" not in output
+        assert "Foo/Baz" not in output
