@@ -7,6 +7,8 @@ import textwrap
 import zipfile
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from functools import cached_property
+from hashlib import sha256
 from pathlib import Path
 from reprlib import Repr
 from typing import Any, Iterator, Literal, Sequence, Union
@@ -519,6 +521,7 @@ class Card:
 
         self._data: dict[str, Section] = {}
         self._metrics: dict[str, str | float | int] = {}
+        self._model_hash = ""
 
         self._populate_template(model_diagram=model_diagram)
 
@@ -580,9 +583,24 @@ class Card:
             The model instance.
 
         """
+        if isinstance(self.model, (str, Path)) and hasattr(self, "_model"):
+            hash_obj = sha256()
+            buf_size = 2**20  # load in chunks to save memory
+            with open(self.model, "rb") as f:
+                for chunk in iter(lambda: f.read(buf_size), b""):
+                    hash_obj.update(chunk)
+            model_hash = hash_obj.hexdigest()
+
+            # if hash changed, invalidate cache by deleting attribute
+            if model_hash != self._model_hash:
+                del self._model
+                self._model_hash = model_hash
+
+        return self._model
+
+    @cached_property
+    def _model(self):
         model = _load_model(self.model, self.trusted)
-        # Ideally, we would only call the method below if we *know* that the
-        # model has changed, but at the moment we have no way of knowing that
         return model
 
     def add(self, **kwargs: str) -> Self:

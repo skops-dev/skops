@@ -14,6 +14,8 @@ import numpy as np
 from ._audit import Node, get_tree
 from ._protocol import PROTOCOL
 from ._trusted_types import (
+    NUMPY_DTYPE_TYPE_NAMES,
+    NUMPY_UFUNC_TYPE_NAMES,
     PRIMITIVE_TYPE_NAMES,
     SCIPY_UFUNC_TYPE_NAMES,
     SKLEARN_ESTIMATOR_TYPE_NAMES,
@@ -210,7 +212,9 @@ class FunctionNode(Node):
     ) -> None:
         super().__init__(state, load_context, trusted)
         # TODO: what do we trust?
-        self.trusted = self._get_trusted(trusted, default=SCIPY_UFUNC_TYPE_NAMES)
+        self.trusted = self._get_trusted(
+            trusted, default=SCIPY_UFUNC_TYPE_NAMES + NUMPY_UFUNC_TYPE_NAMES
+        )
         self.children = {}
 
     def _construct(self):
@@ -293,7 +297,9 @@ class TypeNode(Node):
     ) -> None:
         super().__init__(state, load_context, trusted)
         # TODO: what do we trust?
-        self.trusted = self._get_trusted(trusted, PRIMITIVE_TYPE_NAMES)
+        self.trusted = self._get_trusted(
+            trusted, PRIMITIVE_TYPE_NAMES + NUMPY_DTYPE_TYPE_NAMES
+        )
         # We use a bare Node type here since a Node only checks the type in the
         # dict using __class__ and __module__ keys.
         self.children = {}
