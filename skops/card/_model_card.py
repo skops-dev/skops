@@ -1322,7 +1322,7 @@ class Card:
         self,
         data: dict[str, Section],
         depth: int = 1,
-        destination_path: str | Path | None = None,
+        destination_path: Path | None = None,
     ) -> Iterator[str]:
         """Yield title and (formatted) contents.
 
@@ -1341,7 +1341,7 @@ class Card:
             yield section.format()
 
             if destination_path is not None and isinstance(section, PlotSection):
-                shutil.copy(section.path, Path(destination_path))
+                shutil.copy(section.path, destination_path)
 
             if section.subsections:
                 yield from self._generate_content(
@@ -1416,9 +1416,7 @@ class Card:
         complete_repr += ")"
         return complete_repr
 
-    def _generate_card(
-        self, destination_path: str | Path | None = None
-    ) -> Iterator[str]:
+    def _generate_card(self, destination_path: Path | None = None) -> Iterator[str]:
         """Yield sections of the model card, including the metadata."""
         if self.metadata.to_dict():
             yield f"---\n{self.metadata.to_yaml()}\n---"
@@ -1440,11 +1438,13 @@ class Card:
 
         Parameters
         ----------
-        path: str, or Path
+        path: Path
             Filepath to save your card.
 
         plot_path: str
-            Filepath to save the plots.
+            Filepath to save the plots. Use this when saving the model card before creating the
+            repository. Without this path the README will have an absolute path to the plot that
+            won't exist in the repository.
 
         Notes
         -----
@@ -1454,7 +1454,8 @@ class Card:
         with open(path, "w", encoding="utf-8") as f:
             if not isinstance(path, Path):
                 path = Path(path)
-            f.write("\n".join(self._generate_card(path.parent if copy_files else None)))
+            destination_path = path.parent if copy_files else None
+            f.write("\n".join(self._generate_card(destination_path=destination_path)))
 
     def render(self) -> str:
         """Render the final model card as a string.
