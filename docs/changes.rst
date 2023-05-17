@@ -19,6 +19,8 @@ v0.7
   `Adrin Jalali`_.
 - Fix: :func:`skops.io.visualize` is now capable of showing bytes. :pr:`352` by
   `Benjamin Bossan`_.
+- All public ``numpy`` ufuncs (Universal Functions) and dtypes are trusted by default
+  by :func:`.io.load`. :pr:`336` by :user:`Omar Arab Oghli <omar-araboghli>`.
 
 v0.6
 ----
