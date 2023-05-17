@@ -1916,3 +1916,25 @@ class TestCardTableOfContents:
         ]
 
         assert toc == "\n".join(exptected_toc)
+
+
+class TestCardSaveWithPlots:
+    def test_copy_plots(self, destination_path, model_card):
+        import matplotlib.pyplot as plt
+
+        with tempfile.TemporaryDirectory(prefix="skops-test-plots") as plot_path:
+            plt.plot([4, 5, 6, 7])
+            fig_1_path = Path(plot_path) / "fig1.png"
+            plt.savefig(fig_1_path)
+            model_card = model_card.add_plot(fig1=fig_1_path)
+
+            plt.plot([7, 6, 5, 4])
+            fig_2_path = "fig2.png"
+            plt.savefig(fig_2_path)
+            model_card = model_card.add_plot(fig2=fig_2_path)
+
+            model_card.save(Path(destination_path) / "README.md", copy_files=True)
+
+        assert (Path(destination_path) / "README.md").exists()
+        assert (Path(destination_path) / "fig1.png").exists()
+        assert (Path(destination_path) / "fig2.png").exists()
