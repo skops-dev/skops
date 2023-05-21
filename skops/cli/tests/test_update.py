@@ -112,7 +112,7 @@ class TestUpdate:
         )
         assert not new_skops_path.exists()
 
-    def test_raises_valueerror(
+    def test_error_with_output_file_and_inplace(
         self, skops_path: pathlib.Path, new_skops_path: pathlib.Path, dump_file
     ):
         with pytest.raises(ValueError):
