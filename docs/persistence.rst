@@ -135,7 +135,7 @@ Skops has a command line interface to:
 - update ``Skops`` files to the latest version.
 
 ``skops convert``
------------------
+~~~~~~~~~~~~~~~~~
 
 To convert a file from the command line, use the ``skops convert`` entrypoint.
 
@@ -156,7 +156,7 @@ Further help for the different supported options can be found by calling
 ``skops convert --help`` in a terminal.
 
 ``skops update``
-----------------
+~~~~~~~~~~~~~~~~
 
 To update a ``Skops`` file from the command line, use the ``skops update`` command.
 
