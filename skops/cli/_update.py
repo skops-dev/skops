@@ -19,8 +19,8 @@ def _update_file(
 ) -> None:
     """Function that is called by ``skops update`` entrypoint.
 
-    Loads a skops model from the input path, converts to the current skops format, and
-    saves to output file.
+    Loads a skops model from the input path, updates it to the current skops format, and
+    saves to an output file. It will overwrite the input file if `inplace` is True.
 
     Parameters
     ----------
