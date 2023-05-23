@@ -57,6 +57,13 @@ def _update_file(
         )
         return None
 
+    if input_file_schema["protocol"] > PROTOCOL:
+        logger.info(
+            "File cannot be updated because its protocol is more recent than the "
+            f"current protocol: {PROTOCOL}"
+        )
+        return None
+
     if output_file is None:
         logger.info(
             f"File can be updated to the current protocol: {PROTOCOL}. Please"

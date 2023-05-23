@@ -40,6 +40,17 @@ class TestUpdate:
         """
         dump(safe_obj, skops_path)
 
+    @pytest.fixture
+    @mock.patch(
+        "skops.io._persist.SaveContext",
+        partial(_persist.SaveContext, protocol=_protocol.PROTOCOL + 1),
+    )
+    def dump_new_file(self, skops_path: pathlib.Path, safe_obj: np.ndarray):
+        """Dump an object using an new protocol version so that the file cannot be
+        updated.
+        """
+        dump(safe_obj, skops_path)
+
     @pytest.mark.parametrize("inplace", [True, False])
     def test_base_case_works_as_expected(
         self,
@@ -93,7 +104,7 @@ class TestUpdate:
         mock_logger.error.assert_not_called()
         mock_logger.debug.assert_not_called()
 
-    def test_no_update(
+    def test_no_update_same_protocol(
         self,
         skops_path: pathlib.Path,
         new_skops_path: pathlib.Path,
@@ -109,6 +120,25 @@ class TestUpdate:
         mock_logger.info.assert_called_once_with(
             "File was not updated because already up to date with the current protocol:"
             f" {_protocol.PROTOCOL}"
+        )
+        assert not new_skops_path.exists()
+
+    def test_no_update_newer_protocol(
+        self,
+        skops_path: pathlib.Path,
+        new_skops_path: pathlib.Path,
+        dump_new_file,
+    ):
+        mock_logger = mock.MagicMock()
+        _update._update_file(
+            input_file=skops_path,
+            output_file=new_skops_path,
+            inplace=False,
+            logger=mock_logger,
+        )
+        mock_logger.info.assert_called_once_with(
+            "File cannot be updated because its protocol is more recent than the "
+            f"current protocol: {_protocol.PROTOCOL}"
         )
         assert not new_skops_path.exists()
 
