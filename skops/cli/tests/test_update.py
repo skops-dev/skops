@@ -86,7 +86,7 @@ class TestUpdate:
         # Check logging messages
         mock_logger.info.assert_called_once_with(
             f"File can be updated to the current protocol: {_protocol.PROTOCOL}. Please"
-            " specify an output file path or use the inplace flag to create the"
+            " specify an output file path or use the `inplace` flag to create the"
             " updated Skops file."
         )
         mock_logger.warning.assert_not_called()

@@ -50,21 +50,23 @@ def _update_file(
     with zipfile.ZipFile(input_file, "r") as zip_file:
         input_file_schema = json.loads(zip_file.read("schema.json"))
 
-    if input_file_schema["protocol"] != PROTOCOL:
-        if output_file is not None:
-            dump(input_model, output_file)
-            logger.info(f"Updated skops file written to {output_file}")
-        else:
-            logger.info(
-                f"File can be updated to the current protocol: {PROTOCOL}. Please"
-                " specify an output file path or use the inplace flag to create the"
-                " updated Skops file."
-            )
-    else:
+    if input_file_schema["protocol"] == PROTOCOL:
         logger.info(
             "File was not updated because already up to date with the current protocol:"
             f" {PROTOCOL}"
         )
+        return None
+
+    if output_file is None:
+        logger.info(
+            f"File can be updated to the current protocol: {PROTOCOL}. Please"
+            " specify an output file path or use the `inplace` flag to create the"
+            " updated Skops file."
+        )
+        return None
+
+    dump(input_model, output_file)
+    logger.info(f"Updated skops file written to {output_file}")
 
 
 def format_parser(
