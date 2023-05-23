@@ -159,6 +159,7 @@ Further help for the different supported options can be found by calling
 ~~~~~~~~~~~~~~~~
 
 To update a ``Skops`` file from the command line, use the ``skops update`` command.
+Skops will check the protocol version of the file to determine if it needs to be updated to the current version.
 
 The below command is an example on how to create an updated version of a file
 ``my_model.skops`` and save it as ``my_model-updated.skops``:
