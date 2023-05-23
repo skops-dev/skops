@@ -28,6 +28,10 @@ jobs:
             sklearn_version: "1.2"
           - python: "3.11"
             sklearn_version: "nightly"
+        exclude:
+          # https://github.com/catboost/catboost/issues/2371
+          - os: "macos-latest"
+            python: "3.8"
 
 
     # Timeout: https://stackoverflow.com/a/59076067/4521646

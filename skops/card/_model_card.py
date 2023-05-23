@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 import sys
 import textwrap
 import zipfile
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from functools import cached_property
+from hashlib import sha256
 from pathlib import Path
 from reprlib import Repr
 from typing import Any, Iterator, Literal, Sequence, Union
@@ -503,6 +506,7 @@ class Card:
 
         self._data: dict[str, Section] = {}
         self._metrics: dict[str, str | float | int] = {}
+        self._model_hash = ""
 
         self._populate_template(model_diagram=model_diagram)
 
@@ -564,9 +568,24 @@ class Card:
             The model instance.
 
         """
+        if isinstance(self.model, (str, Path)) and hasattr(self, "_model"):
+            hash_obj = sha256()
+            buf_size = 2**20  # load in chunks to save memory
+            with open(self.model, "rb") as f:
+                for chunk in iter(lambda: f.read(buf_size), b""):
+                    hash_obj.update(chunk)
+            model_hash = hash_obj.hexdigest()
+
+            # if hash changed, invalidate cache by deleting attribute
+            if model_hash != self._model_hash:
+                del self._model
+                self._model_hash = model_hash
+
+        return self._model
+
+    @cached_property
+    def _model(self):
         model = _load_model(self.model, self.trusted)
-        # Ideally, we would only call the method below if we *know* that the
-        # model has changed, but at the moment we have no way of knowing that
         return model
 
     def add(self, **kwargs: str) -> Self:
@@ -1300,7 +1319,10 @@ class Card:
             yield aRepr.repr(f"metadata.{key}={val},").strip('"').strip("'")
 
     def _generate_content(
-        self, data: dict[str, Section], depth: int = 1
+        self,
+        data: dict[str, Section],
+        depth: int = 1,
+        destination_path: Path | None = None,
     ) -> Iterator[str]:
         """Yield title and (formatted) contents.
 
@@ -1318,8 +1340,15 @@ class Card:
 
             yield section.format()
 
+            if destination_path is not None and isinstance(section, PlotSection):
+                shutil.copy(section.path, destination_path)
+
             if section.subsections:
-                yield from self._generate_content(section.subsections, depth=depth + 1)
+                yield from self._generate_content(
+                    section.subsections,
+                    depth=depth + 1,
+                    destination_path=destination_path,
+                )
 
     def _iterate_content(
         self, data: dict[str, Section], parent_section: str = ""
@@ -1387,19 +1416,21 @@ class Card:
         complete_repr += ")"
         return complete_repr
 
-    def _generate_card(self) -> Iterator[str]:
+    def _generate_card(self, destination_path: Path | None = None) -> Iterator[str]:
         """Yield sections of the model card, including the metadata."""
         if self.metadata.to_dict():
             yield f"---\n{self.metadata.to_yaml()}\n---"
 
-        for line in self._generate_content(self._data):
+        for line in self._generate_content(
+            self._data, destination_path=destination_path
+        ):
             if line:
                 yield "\n" + line
 
         # add an empty line add the end
         yield ""
 
-    def save(self, path: str | Path) -> None:
+    def save(self, path: str | Path, copy_files: bool = False) -> None:
         """Save the model card.
 
         This method renders the model card in markdown format and then saves it
@@ -1407,8 +1438,13 @@ class Card:
 
         Parameters
         ----------
-        path: str, or Path
+        path: Path
             Filepath to save your card.
+
+        plot_path: str
+            Filepath to save the plots. Use this when saving the model card before creating the
+            repository. Without this path the README will have an absolute path to the plot that
+            won't exist in the repository.
 
         Notes
         -----
@@ -1416,7 +1452,10 @@ class Card:
         <https://huggingface.co/docs/hub/models-cards#model-card-metadata>`__.
         """
         with open(path, "w", encoding="utf-8") as f:
-            f.write("\n".join(self._generate_card()))
+            if not isinstance(path, Path):
+                path = Path(path)
+            destination_path = path.parent if copy_files else None
+            f.write("\n".join(self._generate_card(destination_path=destination_path)))
 
     def render(self) -> str:
         """Render the final model card as a string.

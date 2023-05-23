@@ -4,6 +4,7 @@ import re
 import tempfile
 import textwrap
 from pathlib import Path
+from unittest import mock
 
 import numpy as np
 import pytest
@@ -25,7 +26,7 @@ from skops.card._model_card import (
     TableSection,
     _load_model,
 )
-from skops.io import dump
+from skops.io import dump, load
 from skops.utils.importutils import import_or_raise
 
 
@@ -143,6 +144,34 @@ def destination_path():
 def test_save_model_card(destination_path, model_card):
     model_card.save(Path(destination_path) / "README.md")
     assert (Path(destination_path) / "README.md").exists()
+
+
+def test_model_caching(
+    skops_model_card_metadata_from_config, iris_skops_file, destination_path
+):
+    """Tests that the model card caches the model to avoid loading it multiple times"""
+
+    new_model = LogisticRegression(random_state=4321)
+    # mock _load_model, it still loads the model but we can track call count
+    mock_load_model = mock.Mock(side_effect=load)
+    card = Card(iris_skops_file, metadata=metadata_from_config(destination_path))
+    with mock.patch("skops.card._model_card._load_model", mock_load_model):
+        model1 = card.get_model()
+        model2 = card.get_model()
+        assert model1 is model2
+        # model is cached, hence _load_model is not called
+        mock_load_model.assert_not_called()
+
+        # override model with new model
+        dump(new_model, card.model)
+
+        model3 = card.get_model()
+        assert mock_load_model.call_count == 1
+        assert model3.random_state == 4321
+        model4 = card.get_model()
+
+        assert model3 is model4
+        assert mock_load_model.call_count == 1  # cached call
 
 
 CUSTOM_TEMPLATES = [None, {}, {"A Title", "Another Title", "A Title/A Section"}]  # type: ignore
@@ -1887,3 +1916,25 @@ class TestCardTableOfContents:
         ]
 
         assert toc == "\n".join(exptected_toc)
+
+
+class TestCardSaveWithPlots:
+    def test_copy_plots(self, destination_path, model_card):
+        import matplotlib.pyplot as plt
+
+        with tempfile.TemporaryDirectory(prefix="skops-test-plots") as plot_path:
+            plt.plot([4, 5, 6, 7])
+            fig_1_path = Path(plot_path) / "fig1.png"
+            plt.savefig(fig_1_path)
+            model_card = model_card.add_plot(fig1=fig_1_path)
+
+            plt.plot([7, 6, 5, 4])
+            fig_2_path = "fig2.png"
+            plt.savefig(fig_2_path)
+            model_card = model_card.add_plot(fig2=fig_2_path)
+
+            model_card.save(Path(destination_path) / "README.md", copy_files=True)
+
+        assert (Path(destination_path) / "README.md").exists()
+        assert (Path(destination_path) / "fig1.png").exists()
+        assert (Path(destination_path) / "fig2.png").exists()
