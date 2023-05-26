@@ -95,12 +95,12 @@ class TestUpdate:
         mock_dump.assert_not_called()
 
         # Check logging messages
-        mock_logger.info.assert_called_once_with(
+        mock_logger.warning.assert_called_once_with(
             f"File can be updated to the current protocol: {_protocol.PROTOCOL}. Please"
             " specify an output file path or use the `inplace` flag to create the"
             " updated Skops file."
         )
-        mock_logger.warning.assert_not_called()
+        mock_logger.info.assert_not_called()
         mock_logger.error.assert_not_called()
         mock_logger.debug.assert_not_called()
 
@@ -117,7 +117,7 @@ class TestUpdate:
             inplace=False,
             logger=mock_logger,
         )
-        mock_logger.info.assert_called_once_with(
+        mock_logger.warning.assert_called_once_with(
             "File was not updated because already up to date with the current protocol:"
             f" {_protocol.PROTOCOL}"
         )
@@ -136,7 +136,7 @@ class TestUpdate:
             inplace=False,
             logger=mock_logger,
         )
-        mock_logger.info.assert_called_once_with(
+        mock_logger.warning.assert_called_once_with(
             "File cannot be updated because its protocol is more recent than the "
             f"current protocol: {_protocol.PROTOCOL}"
         )

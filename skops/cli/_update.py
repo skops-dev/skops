@@ -51,21 +51,21 @@ def _update_file(
         input_file_schema = json.loads(zip_file.read("schema.json"))
 
     if input_file_schema["protocol"] == PROTOCOL:
-        logger.info(
+        logger.warning(
             "File was not updated because already up to date with the current protocol:"
             f" {PROTOCOL}"
         )
         return None
 
     if input_file_schema["protocol"] > PROTOCOL:
-        logger.info(
+        logger.warning(
             "File cannot be updated because its protocol is more recent than the "
             f"current protocol: {PROTOCOL}"
         )
         return None
 
     if output_file is None:
-        logger.info(
+        logger.warning(
             f"File can be updated to the current protocol: {PROTOCOL}. Please"
             " specify an output file path or use the `inplace` flag to create the"
             " updated Skops file."
