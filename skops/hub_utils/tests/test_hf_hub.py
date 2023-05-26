@@ -86,7 +86,7 @@ def classifier(repo_path, config_json):
     path = repo_path / model_file
 
     try:
-        if file_format == "pickle":
+        if file_format == "pickle" or file_format == "joblib":
             with open(path, "wb") as f:
                 pickle.dump(clf, f)
         elif file_format == "skops":
@@ -117,10 +117,16 @@ CONFIG = {
             "model": {"file": "model.skops"},
         }
     },
+    "joblib": {
+        "sklearn": {
+            "environment": ['scikit-learn="1.1.1"'],
+            "model": {"file": "model.joblib"},
+        }
+    },
 }
 
 
-@pytest.fixture(scope="session", params=["skops", "pickle", "auto"])
+@pytest.fixture(scope="session", params=["skops", "pickle", "auto", "joblib"])
 def config_json(repo_path, request):
     path = repo_path / "config.json"
     try:
@@ -314,15 +320,32 @@ def test_init(classifier, config_json):
         )
 
 
-def test_override_init_modelcard(classifier, config_json):
+@pytest.fixture(
+    params=[pytest.param("classifier", marks=pytest.mark.usefixtures), get_classifier()]
+)
+def classifiers(request):
+    # Returns a model object or a path to a model with all
+    # model formats combinations from CONFIG dict
+    try:
+        yield request.getfixturevalue(request.param)
+    except Exception:  # get_classifier() is not a fixuture, exception raised
+        yield request.param
+
+
+def test_override_init_modelcard(classifiers, config_json):
     # create a temp directory and delete it, we just need a unique name.
     dir_path = tempfile.mkdtemp()
     shutil.rmtree(dir_path)
 
     version = metadata.version("scikit-learn")
     _, model_format = config_json
+    # joblib type falls unders auto format, explicityly set to auto
+    # because we can't repeat key "auto" in CONFIG dict
+    if model_format == "joblib":
+        model_format = "auto"
+
     init(
-        model=classifier,
+        model=classifiers,
         requirements=[f'scikit-learn="{version}"'],
         dst=dir_path,
         task="tabular-classification",
