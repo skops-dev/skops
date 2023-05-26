@@ -63,7 +63,7 @@ print(y_pred)
 # Initialize a repository to save our files in
 # ============================================
 # We will now initialize a repository and save our model
-_, pkl_name = mkstemp(prefix="skops-", suffix=".pkl")
+_, pkl_name = mkstemp(prefix="skops-", suffix=".skops")
 
 with open(pkl_name, mode="bw") as f:
     sio.dump(model, file=f)
