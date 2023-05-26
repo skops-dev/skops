@@ -9,21 +9,45 @@ skops Changelog
     :depth: 1
     :local:
 
+
+v0.7
+----
+- Add ability to copy plots on :meth:`.Card.save` so that they can be
+  referenced in the model card. :pr:`330` by :user:`Thomas Lazarus <lazarust>`.
+- `compression` and `compresslevel` from :class:`~zipfile.ZipFile` are now
+  exposed to the user via :func:`.io.dumps` and :func:`.io.dump`. :pr:`345` by
+  `Adrin Jalali`_.
+- Fix: :func:`skops.io.visualize` is now capable of showing bytes. :pr:`352` by
+  `Benjamin Bossan`_.
+- All public ``numpy`` ufuncs (Universal Functions) and dtypes are trusted by default
+  by :func:`.io.load`. :pr:`336` by :user:`Omar Arab Oghli <omar-araboghli>`.
+
 v0.6
 ----
-- Added tabular regression example. :pr:`254` by :user:`Thomas Lazarus <lazarust>`.
+- Add tabular regression example. :pr:`254` by :user:`Thomas Lazarus <lazarust>`.
 - All public ``scipy.special`` ufuncs (Universal Functions) are trusted by default
   by :func:`.io.load`. :pr:`295` by :user:`Omar Arab Oghli <omar-araboghli>`.
 - Add a new function :func:`skops.card.Card.add_metric_frame` to help users
   add metrics to their model cards. :pr:`298` by :user:`Thomas Lazarus <lazarust>`
+- Add :func:`.Card.create_toc` to create a table of contents for the model card in
+  markdown format. :pr:`305` by :user:`Thomas Lazarus <lazarust>`.
 - Add example of using model card without the skops template. :pr:`291` by
   `Benjamin Bossan`_.
 - Fix: skops persistence now also works with many functions from the
   :mod:`operator` module. :pr:`287` by `Benjamin Bossan`_.
+- ``add_*`` methods on :class:`.Card` now have default section names (but
+  ``None`` is no longer valid) and no longer add descriptions by default.
+  :pr:`321` by `Benjamin Bossan`_.
+- Add possibility to visualize a skops object and show untrusted types by using
+  :func:`skops.io.visualize`. For colored output, install `rich`: `pip install
+  rich`. :pr:`317` by `Benjamin Bossan`_.
+- Fix issue with persisting :class:`numpy.random.Generator` using the skops
+  format (the object could be loaded correctly but security could not be
+  checked). :pr:`331` by `Benjamin Bossan`_.
 
 v0.5
 ----
-- Added CLI entrypoint support (:func:`.cli.entrypoint.main_cli`)
+- Add CLI entrypoint support (:func:`.cli.entrypoint.main_cli`)
   and a command line function to convert Pickle files
   to Skops files (:func:`.cli._convert.main`). :pr:`249` by `Erin Aho`_
 - Support more array-like data types for tabular data and list-like data types

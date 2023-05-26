@@ -8,7 +8,7 @@ import warnings
 from collections import Counter
 from functools import partial, wraps
 from pathlib import Path
-from zipfile import ZipFile
+from zipfile import ZIP_DEFLATED, ZipFile
 
 import joblib
 import numpy as np
@@ -20,6 +20,7 @@ from sklearn.datasets import load_sample_images, make_classification, make_regre
 from sklearn.decomposition import SparseCoder
 from sklearn.exceptions import SkipTestWarning
 from sklearn.experimental import enable_halving_search_cv  # noqa
+from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import (
     GridSearchCV,
@@ -53,7 +54,13 @@ import skops
 from skops.io import dump, dumps, get_untrusted_types, load, loads
 from skops.io._audit import NODE_TYPE_MAPPING, get_tree
 from skops.io._sklearn import UNSUPPORTED_TYPES
-from skops.io._trusted_types import SCIPY_UFUNC_TYPE_NAMES, SKLEARN_ESTIMATOR_TYPE_NAMES
+from skops.io._trusted_types import (
+    NUMPY_DTYPE_TYPE_NAMES,
+    NUMPY_UFUNC_TYPE_NAMES,
+    PRIMITIVE_TYPE_NAMES,
+    SCIPY_UFUNC_TYPE_NAMES,
+    SKLEARN_ESTIMATOR_TYPE_NAMES,
+)
 from skops.io._utils import LoadContext, SaveContext, _get_state, get_state, gettype
 from skops.io.exceptions import UnsupportedTypeException, UntrustedTypesFoundException
 from skops.io.tests._utils import assert_method_outputs_equal, assert_params_equal
@@ -224,9 +231,15 @@ def _tested_estimators(type_filter=None):
 
 
 def _tested_ufuncs():
-    for full_name in SCIPY_UFUNC_TYPE_NAMES:
+    for full_name in SCIPY_UFUNC_TYPE_NAMES + NUMPY_UFUNC_TYPE_NAMES:
         module_name, _, ufunc_name = full_name.rpartition(".")
         yield gettype(module_name=module_name, cls_or_func=ufunc_name)
+
+
+def _tested_types():
+    for full_name in PRIMITIVE_TYPE_NAMES + NUMPY_DTYPE_TYPE_NAMES:
+        module_name, _, type_name = full_name.rpartition(".")
+        yield gettype(module_name=module_name, cls_or_func=type_name)
 
 
 def _unsupported_estimators(type_filter=None):
@@ -263,7 +276,9 @@ def _unsupported_estimators(type_filter=None):
 )
 def test_can_persist_non_fitted(estimator):
     """Check that non-fitted estimators can be persisted."""
-    loaded = loads(dumps(estimator), trusted=True)
+    dumped = dumps(estimator)
+    untrusted_types = get_untrusted_types(data=dumped)
+    loaded = loads(dumped, trusted=untrusted_types)
     assert_params_equal(estimator.get_params(), loaded.get_params())
 
 
@@ -306,7 +321,9 @@ def get_input(estimator):
         return [(1, 2), (3,)], None
 
     if "categorical" in tags["X_types"]:
-        return [["Male", 1], ["Female", 3], ["Female", 2]], None
+        X = [["Male", 1], ["Female", 3], ["Female", 2]]
+        y = y[: len(X)] if tags["requires_y"] else None
+        return X, y
 
     if "dict" in tags["X_types"]:
         return [{"foo": 1, "bar": 2}, {"foo": 3, "baz": 1}], None
@@ -354,15 +371,27 @@ def test_can_persist_fitted(estimator):
 
     assert not any(type_ in SKLEARN_ESTIMATOR_TYPE_NAMES for type_ in untrusted_types)
     assert not any(type_ in SCIPY_UFUNC_TYPE_NAMES for type_ in untrusted_types)
+    assert not any(type_ in NUMPY_UFUNC_TYPE_NAMES for type_ in untrusted_types)
+    assert not any(type_ in NUMPY_DTYPE_TYPE_NAMES for type_ in untrusted_types)
     assert_method_outputs_equal(estimator, loaded, X)
 
 
-@pytest.mark.parametrize("ufunc", _tested_ufuncs(), ids=SCIPY_UFUNC_TYPE_NAMES)
+@pytest.mark.parametrize(
+    "ufunc", _tested_ufuncs(), ids=SCIPY_UFUNC_TYPE_NAMES + NUMPY_UFUNC_TYPE_NAMES
+)
 def test_can_trust_ufuncs(ufunc):
     dumped = dumps(ufunc)
     untrusted_types = get_untrusted_types(data=dumped)
     assert len(untrusted_types) == 0
-    # TODO: extend with numpy ufuncs
+
+
+@pytest.mark.parametrize(
+    "type_", _tested_types(), ids=PRIMITIVE_TYPE_NAMES + NUMPY_DTYPE_TYPE_NAMES
+)
+def test_can_trust_types(type_):
+    dumped = dumps(type_)
+    untrusted_types = get_untrusted_types(data=dumped)
+    assert len(untrusted_types) == 0
 
 
 @pytest.mark.parametrize(
@@ -419,7 +448,14 @@ def test_random_state(random_state):
     est = RandomStateEstimator(random_state=random_state).fit(None, None)
     est.random_state_.random(123)  # move RNG forwards
 
-    loaded = loads(dumps(est), trusted=True)
+    dumped = dumps(est)
+    untrusted_types = get_untrusted_types(data=dumped)
+    loaded = loads(dumped, trusted=untrusted_types)
+
+    if hasattr(est, "__dict__"):
+        # what to do if object has no __dict__, like Generator?
+        assert_params_equal(est.__dict__, loaded.__dict__)
+
     rand_floats_expected = est.random_state_.random(100)
     rand_floats_loaded = loaded.random_state_.random(100)
     np.testing.assert_equal(rand_floats_loaded, rand_floats_expected)
@@ -449,7 +485,9 @@ class CVEstimator(BaseEstimator):
 )
 def test_cross_validator(cv):
     est = CVEstimator(cv=cv).fit(None, None)
-    loaded = loads(dumps(est), trusted=True)
+    dumped = dumps(est)
+    untrusted_types = get_untrusted_types(data=dumped)
+    loaded = loads(dumped, trusted=untrusted_types)
     X, y = make_classification(
         n_samples=N_SAMPLES, n_features=N_FEATURES, random_state=0
     )
@@ -491,7 +529,9 @@ def test_numpy_object_dtype_2d_array(transpose):
     if transpose:
         est.obj_array_ = est.obj_array_.T
 
-    loaded = loads(dumps(est), trusted=True)
+    dumped = dumps(est)
+    untrusted_types = get_untrusted_types(data=dumped)
+    loaded = loads(dumped, trusted=untrusted_types)
     assert_params_equal(est.__dict__, loaded.__dict__)
 
 
@@ -521,7 +561,7 @@ def test_metainfo():
     schema = json.loads(ZipFile(io.BytesIO(dumped)).read("schema.json"))
 
     # check some schema metainfo
-    assert schema["protocol"] == skops.io._utils.DEFAULT_PROTOCOL
+    assert schema["protocol"] == skops.io._protocol.PROTOCOL
     assert schema["_skops_version"] == skops.__version__
 
     # additionally, check following metainfo: class, module, and version
@@ -606,7 +646,8 @@ def test_identical_numpy_arrays_not_duplicated():
     X = np.random.random((10, 5))
     estimator = EstimatorIdenticalArrays().fit(X)
     dumped = dumps(estimator)
-    loaded = loads(dumped, trusted=True)
+    untrusted_types = get_untrusted_types(data=dumped)
+    loaded = loads(dumped, trusted=untrusted_types)
     assert_params_equal(estimator.__dict__, loaded.__dict__)
 
     # check number of numpy arrays stored on disk
@@ -655,7 +696,7 @@ def test_get_tree_unknown_type_error_msg():
     state["__loader__"] = "this_get_tree_does_not_exist"
     msg = "Can't find loader this_get_tree_does_not_exist for type builtins.tuple."
     with pytest.raises(TypeError, match=msg):
-        get_tree(state, LoadContext(None))
+        get_tree(state, LoadContext(None, -1), trusted=False)
 
 
 class _BoundMethodHolder:
@@ -710,7 +751,9 @@ class TestPersistingBoundMethods:
         bound_function = obj.bound_method
         transformer = FunctionTransformer(func=bound_function)
 
-        loaded_transformer = loads(dumps(transformer), trusted=True)
+        dumped = dumps(transformer)
+        untrusted_types = get_untrusted_types(data=dumped)
+        loaded_transformer = loads(dumped, trusted=untrusted_types)
         loaded_obj = loaded_transformer.func.__self__
 
         self.assert_transformer_persisted_correctly(loaded_transformer, transformer)
@@ -727,7 +770,9 @@ class TestPersistingBoundMethods:
 
         transformer = FunctionTransformer(func=bound_function)
 
-        loaded_transformer = loads(dumps(transformer), trusted=True)
+        dumped = dumps(transformer)
+        untrusted_types = get_untrusted_types(data=dumped)
+        loaded_transformer = loads(dumped, trusted=untrusted_types)
         loaded_obj = loaded_transformer.func.__self__
 
         self.assert_transformer_persisted_correctly(loaded_transformer, transformer)
@@ -740,19 +785,23 @@ class TestPersistingBoundMethods:
             func=obj.bound_method, inverse_func=obj.other_bound_method
         )
 
-        loaded_transformer = loads(dumps(transformer), trusted=True)
+        dumped = dumps(transformer)
+        untrusted_types = get_untrusted_types(data=dumped)
+        loaded_transformer = loads(dumped, trusted=untrusted_types)
 
         # check that both func and inverse_func are from the same object instance
         loaded_0 = loaded_transformer.func.__self__
         loaded_1 = loaded_transformer.inverse_func.__self__
         assert loaded_0 is loaded_1
 
-    @pytest.mark.xfail(reason="Failing due to circular self reference")
+    @pytest.mark.xfail(reason="Failing due to circular self reference", strict=True)
     def test_scipy_stats(self, tmp_path):
         from scipy import stats
 
         estimator = FunctionTransformer(func=stats.zipf)
-        loads(dumps(estimator), trusted=True)
+        dumped = dumps(estimator)
+        untrusted_types = get_untrusted_types(data=dumped)
+        loads(dumped, trusted=untrusted_types)
 
 
 class CustomEstimator(BaseEstimator):
@@ -853,7 +902,9 @@ def test_dump_and_load_with_file_wrapper(tmp_path):
 )
 def test_when_given_object_referenced_twice_loads_as_one_object(obj):
     an_object = {"obj_1": obj, "obj_2": obj}
-    persisted_object = loads(dumps(an_object), trusted=True)
+    dumped = dumps(an_object)
+    untrusted_types = get_untrusted_types(data=dumped)
+    persisted_object = loads(dumped, trusted=untrusted_types)
 
     assert persisted_object["obj_1"] is persisted_object["obj_2"]
 
@@ -867,7 +918,9 @@ class EstimatorWithBytes(BaseEstimator):
 
 def test_estimator_with_bytes():
     est = EstimatorWithBytes().fit(None, None)
-    loaded = loads(dumps(est), trusted=True)
+    dumped = dumps(est)
+    untrusted_types = get_untrusted_types(data=dumped)
+    loaded = loads(dumped, trusted=untrusted_types)
     assert_params_equal(est.__dict__, loaded.__dict__)
 
 
@@ -925,13 +978,17 @@ def test_persist_operator(op):
     _, func = op
     # unfitted
     est = FunctionTransformer(func)
-    loaded = loads(dumps(est), trusted=True)
+    dumped = dumps(est)
+    untrusted_types = get_untrusted_types(data=dumped)
+    loaded = loads(dumped, trusted=untrusted_types)
     assert_params_equal(est.__dict__, loaded.__dict__)
 
     # fitted
     X, y = get_input(est)
     est.fit(X, y)
-    loaded = loads(dumps(est), trusted=True)
+    dumped = dumps(est)
+    untrusted_types = get_untrusted_types(data=dumped)
+    loaded = loads(dumped, trusted=untrusted_types)
     assert_params_equal(est.__dict__, loaded.__dict__)
 
     # Technically, we don't need to call transform. However, if this is skipped,
@@ -951,3 +1008,32 @@ def test_persist_operator_raises_untrusted(op):
     est = FunctionTransformer(func)
     with pytest.raises(UntrustedTypesFoundException, match=name):
         loads(dumps(est), trusted=False)
+
+
+def dummy_func(X):
+    return X
+
+
+@pytest.mark.parametrize("func", [np.sqrt, len, special.exp10, dummy_func])
+def test_persist_function(func):
+    estimator = FunctionTransformer(func=func)
+    X, y = [0, 1], [2, 3]
+    estimator.fit(X, y)
+
+    dumped = dumps(estimator)
+    untrusted_types = get_untrusted_types(data=dumped)
+    loaded = loads(dumped, trusted=untrusted_types)
+
+    # check that loaded estimator is identical
+    assert_params_equal(estimator.__dict__, loaded.__dict__)
+    assert_method_outputs_equal(estimator, loaded, X)
+
+
+def test_compression_level():
+    # Test that setting the compression to zlib and specifying a
+    # compressionlevel reduces the dumped size.
+    model = TfidfVectorizer().fit([np.__doc__])
+    dumped_raw = dumps(model)
+    dumped_compressed = dumps(model, compression=ZIP_DEFLATED, compresslevel=9)
+    # This reduces the size substantially
+    assert len(dumped_raw) > 5 * len(dumped_compressed)

@@ -6,6 +6,7 @@ from typing import Any, Sequence
 from scipy.sparse import load_npz, save_npz, spmatrix
 
 from ._audit import Node
+from ._protocol import PROTOCOL
 from ._utils import LoadContext, SaveContext, get_module
 
 
@@ -40,9 +41,9 @@ class SparseMatrixNode(Node):
         trusted: bool | Sequence[str] = False,
     ) -> None:
         super().__init__(state, load_context, trusted)
-        type = state["type"]
+        self.type = state["type"]
         self.trusted = self._get_trusted(trusted, [spmatrix])
-        if type != "scipy":
+        if self.type != "scipy":
             raise TypeError(
                 f"Cannot load object of type {self.module_name}.{self.class_name}"
             )
@@ -65,5 +66,5 @@ GET_STATE_DISPATCH_FUNCTIONS = [
 NODE_TYPE_MAPPING = {
     # use 'spmatrix' to check if a matrix is a sparse matrix because that is
     # what scipy.sparse.issparse checks
-    "SparseMatrixNode": SparseMatrixNode,
+    ("SparseMatrixNode", PROTOCOL): SparseMatrixNode,
 }

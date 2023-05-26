@@ -1,6 +1,6 @@
 """
 scikit-learn model cards
---------------------------------------
+------------------------
 
 This guide demonstrates how you can use this package to create a model card on a
 scikit-learn compatible model and save it.

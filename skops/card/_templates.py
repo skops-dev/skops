@@ -35,9 +35,9 @@ this"""
 SKOPS_TEMPLATE = {
     "Model description": CONTENT_PLACEHOLDER,
     "Model description/Intended uses & limitations": CONTENT_PLACEHOLDER,
-    "Model description/Training Procedure": "",
+    "Model description/Training Procedure": CONTENT_PLACEHOLDER,
     "Model description/Training Procedure/Hyperparameters": CONTENT_PLACEHOLDER,
-    "Model description/Training Procedure/Model Plot": "The model plot is below.",
+    "Model description/Training Procedure/Model Plot": CONTENT_PLACEHOLDER,
     "Model description/Evaluation Results": CONTENT_PLACEHOLDER,
     "How to Get Started with the Model": CONTENT_PLACEHOLDER,
     "Model Card Authors": (

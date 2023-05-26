@@ -20,3 +20,8 @@ Examples of interactions with the Hugging Face Hub
     Intel(R) Extension for scikit-learn to speed up inference of classical
     machine learning algorithms and how performance-optimized models work with
     Hugging Face Hub.
+- Long semi-realistic guide using the California Housing dataset:
+    :ref:`sphx_glr_auto_examples_plot_california_housing.py` is an exercise that
+    goes through a semi-realistic data science and machine learning task and
+    develops a practical solution for it. It uses skops for model saving, model
+    card generation, and upload to the Hugging Face Hub.

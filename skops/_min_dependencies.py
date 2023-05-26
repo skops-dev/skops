@@ -6,7 +6,8 @@ PYTEST_MIN_VERSION = "5.0.1"
 # 'build' and 'install' is included to have structured metadata for CI.
 # It will NOT be included in setup's extras_require
 # The values are (version_spec, comma separated tags, condition)
-# tags can be: 'build', 'install', 'docs', 'examples', 'tests', 'benchmark'
+# tags can be: 'build', 'install', 'docs', 'examples', 'tests', 'benchmark',
+# 'rich'
 # example:
 #     "tomli": ("1.1.0", "install", "python_full_version < '3.11.0a7'"),
 dependent_packages = {
@@ -34,13 +35,14 @@ dependent_packages = {
     # TODO: remove condition when catboost supports python 3.11
     "catboost": ("1.0", "tests", "python_version < '3.11'"),
     "fairlearn": ("0.7.0", "docs, tests", None),
+    "rich": ("12", "tests, rich", None),
 }
 
 
 # create inverse mapping for setuptools
 tag_to_packages: dict = {
     extra: []
-    for extra in ["build", "install", "docs", "examples", "tests", "benchmark"]
+    for extra in ["build", "install", "docs", "examples", "tests", "benchmark", "rich"]
 }
 for package, (min_version, extras, condition) in dependent_packages.items():
     for extra in extras.split(", "):

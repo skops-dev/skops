@@ -28,6 +28,10 @@ jobs:
             sklearn_version: "1.2"
           - python: "3.11"
             sklearn_version: "nightly"
+        exclude:
+          # https://github.com/catboost/catboost/issues/2371
+          - os: "macos-latest"
+            python: "3.8"
 
 
     # Timeout: https://stackoverflow.com/a/59076067/4521646
@@ -79,6 +83,7 @@ jobs:
     - name: Tests
       env:
         SUPER_SECRET: ${{ secrets.HF_HUB_TOKEN }}
+        PYTHONIOENCODING: "utf-8"
       run: |
         python -m pytest -s -v --cov-report=xml -m "not inference" skops/
 

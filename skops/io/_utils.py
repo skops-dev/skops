@@ -4,8 +4,11 @@ import importlib
 import sys
 from dataclasses import dataclass, field
 from functools import singledispatch
+from types import ModuleType
 from typing import Any, Type
 from zipfile import ZipFile
+
+from ._protocol import PROTOCOL
 
 
 # The following two functions are copied from cpython's pickle.py file.
@@ -83,10 +86,6 @@ def get_module(obj: Any) -> str:
     return whichmodule(obj, obj.__name__)
 
 
-# For now, there is just one protocol version
-DEFAULT_PROTOCOL = 0
-
-
 @dataclass(frozen=True)
 class SaveContext:
     """Context required for saving the objects
@@ -105,7 +104,7 @@ class SaveContext:
     """
 
     zip_file: ZipFile
-    protocol: int = DEFAULT_PROTOCOL
+    protocol: int = PROTOCOL
     memo: dict[int, Any] = field(default_factory=dict)
 
     def memoize(self, obj: Any) -> int:
@@ -135,6 +134,7 @@ class LoadContext:
     """
 
     src: ZipFile
+    protocol: int
     memo: dict[int, Any] = field(default_factory=dict)
 
     def memoize(self, obj: Any, id: int) -> None:
@@ -201,3 +201,36 @@ def get_type_paths(types: Any) -> list[str]:
         types = [types]
 
     return [get_type_name(t) if not isinstance(t, str) else t for t in types]
+
+
+def get_public_type_names(module: ModuleType, oftype: Type) -> list[str]:
+    """
+    Helper function that gets the type names of all
+    public objects of the given ``oftype`` from the given ``module``,
+    which start with the root module name.
+
+    Public objects are those that can be read via ``dir(...)``.
+
+    Parameters
+    ----------
+    module: ModuleType
+        Module under which the public objects are defined.
+    oftype: Type
+        The type of the objects.
+
+    Returns
+    ----------
+    type_names_list: list of str
+        The sorted list of type names, all as strings,
+         e.g. ``["numpy.core._multiarray_umath.absolute"]``.
+    """
+    module_name, _, _ = module.__name__.rpartition(".")
+
+    return sorted(
+        {
+            type_name
+            for attr in dir(module)
+            if issubclass((obj := getattr(module, attr)).__class__, oftype)
+            and (type_name := get_type_name(obj)).startswith(module_name)
+        }
+    )
