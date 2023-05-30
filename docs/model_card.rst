@@ -115,7 +115,7 @@ refer to :ref:`sphx_glr_auto_examples_plot_model_card.py`.
 
 You can also fold sections after adding them to the model card. This is useful
 if you have a lot of content in a section that you don't want to show by
-default. To fold a section, you can use the :meth:`.Section.folded` property:
+default. To fold a section, you can use the :attr:`.Section.folded` property:
 
 .. code-block:: python
 
