@@ -1953,6 +1953,14 @@ class TestFoldedSection:
         assert foo_bar_details not in output
         assert foo_baz_details in output
 
+        model_card.select("foo/bar").folded = True
+        model_card.select("foo/baz").folded = False
+
+        output = model_card.render()
+        assert foo_details not in output
+        assert foo_bar_details in output
+        assert foo_baz_details not in output
+
 
 class TestCardSaveWithPlots:
     def test_copy_plots(self, destination_path, model_card):

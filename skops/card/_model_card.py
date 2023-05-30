@@ -243,11 +243,8 @@ class Section:
             section = section.subsections[section_name]
         return section
 
-    def _format(self) -> str:
-        return self.content
-
     def format(self) -> str:
-        return wrap_as_details(self._format(), folded=self.folded)
+        return wrap_as_details(self.content, folded=self.folded)
 
     def __repr__(self) -> str:
         """Generates the ``repr`` of this section.
