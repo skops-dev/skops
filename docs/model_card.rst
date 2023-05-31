@@ -121,7 +121,9 @@ default. To fold a section, you can use the :attr:`.Section.folded` property:
 
     section = card.select("Model description/Figures")
     section.folded = True
-    section.format()  # This will now return the section in a folded state
+
+After setting :attr:`.Section.folded` to ``True``, the section will be collapsed by default
+when the model card is rendered.
 
 
 Saving and Loading Model Cards
