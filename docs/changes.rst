@@ -21,6 +21,8 @@ v0.7
   `Benjamin Bossan`_.
 - All public ``numpy`` ufuncs (Universal Functions) and dtypes are trusted by default
   by :func:`.io.load`. :pr:`336` by :user:`Omar Arab Oghli <omar-araboghli>`.
+- Adds the abillity to set the :attr:`.Section.folded` property when using :meth:`.Card.add`.
+  :pr:`361` by :user:`Thomas Lazarus <lazarust>`.
 
 v0.6
 ----
