@@ -621,8 +621,9 @@ class Card:
             Card object.
 
         """
+        folded = kwargs.pop("folded", False)
         for key, val in kwargs.items():
-            self._add_single(key, val)
+            self._add_single(key, val, folded=bool(folded))
         return self
 
     def _select(
@@ -761,7 +762,9 @@ class Card:
         parent_section = self._select(subsection_names, create=False)
         del parent_section[leaf_node_name]
 
-    def _add_single(self, key: str, val: str | Section) -> Section:
+    def _add_single(
+        self, key: str, val: str | Section, folded: bool = False
+    ) -> Section:
         """Add a single section.
 
         If the (sub)section does not exist, it is created. Otherwise, the
@@ -777,6 +780,9 @@ class Card:
             section, leave it as it is. If it's a string, create a
             :class:`skops.card._model_card.Section`.
 
+        folded: bool
+            Whether the (sub)section should be folded or not.
+
         Returns
         -------
         Section instance
@@ -788,7 +794,7 @@ class Card:
 
         if isinstance(val, str):
             # val is a str, create a Section
-            new_section = Section(title=leaf_node_name, content=val)
+            new_section = Section(title=leaf_node_name, content=val, folded=folded)
         else:
             # val is already a section and can be used as is
             new_section = val
