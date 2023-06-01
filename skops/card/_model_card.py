@@ -207,6 +207,7 @@ class Section:
     content: str
     subsections: dict[str, Section] = field(default_factory=dict)
     visible: bool = True
+    folded: bool = False
 
     def select(self, key: str) -> Section:
         """Return a subsection or subsubsection of this section
@@ -243,7 +244,7 @@ class Section:
         return section
 
     def format(self) -> str:
-        return self.content
+        return wrap_as_details(self.content, folded=self.folded)
 
     def __repr__(self) -> str:
         """Generates the ``repr`` of this section.
@@ -1343,7 +1344,7 @@ class Card:
             if destination_path is not None and isinstance(section, PlotSection):
                 shutil.copy(section.path, destination_path)
 
-            if section.subsections:
+            if section.subsections and not section.folded:
                 yield from self._generate_content(
                     section.subsections,
                     depth=depth + 1,

@@ -1918,6 +1918,50 @@ class TestCardTableOfContents:
         assert toc == "\n".join(exptected_toc)
 
 
+class TestFoldedSection:
+    def test_folded_section(self, destination_path, model_card):
+        model_card.add(foo="Foo")
+        model_card.add(**{"foo/bar": "Foo/Bar", "foo/baz": "Foo/Baz"})
+        model_card.select("foo/baz").folded = True
+
+        foo_details = (
+            "<details>\n<summary> Click to expand </summary>\n\nFoo\n\n</details>\n"
+        )
+        foo_bar_details = (
+            "<details>\n<summary> Click to expand </summary>\n\nFoo/Bar\n\n</details>\n"
+        )
+        foo_baz_details = (
+            "<details>\n<summary> Click to expand </summary>\n\nFoo/Baz\n\n</details>\n"
+        )
+
+        output = model_card.render()
+        assert foo_details not in output
+        assert foo_bar_details not in output
+        assert foo_baz_details in output
+
+        model_card.select("foo").folded = True
+
+        output = model_card.render()
+        assert foo_details in output
+        assert foo_bar_details not in output
+        assert foo_baz_details not in output
+
+        model_card.select("foo").folded = False
+
+        output = model_card.render()
+        assert foo_details not in output
+        assert foo_bar_details not in output
+        assert foo_baz_details in output
+
+        model_card.select("foo/bar").folded = True
+        model_card.select("foo/baz").folded = False
+
+        output = model_card.render()
+        assert foo_details not in output
+        assert foo_bar_details in output
+        assert foo_baz_details not in output
+
+
 class TestCardSaveWithPlots:
     def test_copy_plots(self, destination_path, model_card):
         import matplotlib.pyplot as plt
