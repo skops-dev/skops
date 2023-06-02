@@ -425,6 +425,17 @@ def init(
             shutil.copy2(src=model, dst=dst)
 
             model_name = model.name
+
+            _create_config(
+                model_path=model_name,
+                requirements=requirements,
+                dst=dst,
+                task=task,
+                data=data,
+                model_format=model_format,
+                use_intelex=use_intelex,
+            )
+
             # open model file according to its model format
             if model_format in ["pkl", "pickle"]:
                 with open(model, "rb") as f:
@@ -438,6 +449,8 @@ def init(
                         model = pickle_load(f)  # not tested
                 elif extension == ".skops":
                     model = io.load(model, trusted=True)
+            model_card = card.Card(model, metadata=card.metadata_from_config(dst))
+            model_card.save(dst / "README.md")
         elif isinstance(model, BaseEstimator):
             # if it is a model object and its format is set to auto, choose skops by default
             if model_format == "auto":
@@ -446,6 +459,16 @@ def init(
                 model_format = "pickle"
             model_name = Path(dst / f"model.{model_format}")
 
+            _create_config(
+                model_path=model_name,
+                requirements=requirements,
+                dst=dst,
+                task=task,
+                data=data,
+                model_format=model_format,
+                use_intelex=use_intelex,
+            )
+
             # create model file if it doesn't exist to make a valid repository
             if not os.path.isfile(model_name):
                 if model_format == "pickle":
@@ -453,26 +476,17 @@ def init(
                         pickle_dump(model, f)
                 elif model_format == "skops":
                     io.dump(model, model_name)
+
+            # create README if it doesn't exist
+            if not os.path.isfile(dst / "README.md"):
+                model_card = card.Card(model, metadata=card.metadata_from_config(dst))
+                model_card.save(dst / "README.md")
         else:
             raise ValueError(
                 "Cannot determine the input model argument. "
                 "Please indicate a model with the expected type."
             )
 
-        _create_config(
-            model_path=model_name,
-            requirements=requirements,
-            dst=dst,
-            task=task,
-            data=data,
-            model_format=model_format,
-            use_intelex=use_intelex,
-        )
-
-        # create README if it doesn't exist
-        if not os.path.isfile(dst / "README.md"):
-            model_card = card.Card(model, metadata=card.metadata_from_config(dst))
-            model_card.save(dst / "README.md")
     except Exception:
         shutil.rmtree(dst)
         raise
