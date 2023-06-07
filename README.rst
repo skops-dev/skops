@@ -40,16 +40,16 @@ download or load the model.
   `Hugging Face Hub <https://hf.co/models>`__, mainly through
   ``skops.hub_utils.init`` and ``skops.hub_utils.push``. You can see all the
   models uploaded to the hub using this library `here
-  <https://huggingface.co/models?other=skops>`_. Find out more `here
-  <https://skops.readthedocs.io/en/stable/hf_hub.html>`_.
+  <https://huggingface.co/models?other=skops>`__. Find out more `here
+  <https://skops.readthedocs.io/en/stable/hf_hub.html>`__.
 - ``skops.card``: tools to create a model card explaining what the model does
   and how it should be used. The model card can then be stored as the
   ``README.md`` file on the Hugging Face Hub, with pre-populated metadata to
   help Hub understand the model. More information can be found `here
-  <https://skops.readthedocs.io/en/stable/model_card.html>`_.
+  <https://skops.readthedocs.io/en/stable/model_card.html>`__.
 - ``skops.io``: Secure persistence of sklearn estimators and more, without using
   ``pickle``. Visit `the docs
-  <https://skops.readthedocs.io/en/latest/persistence.html>`_ for more
+  <https://skops.readthedocs.io/en/latest/persistence.html>`__ for more
   information.
 
 Please refer to our `documentation <https://skops.readthedocs.io/en/latest/>`_
