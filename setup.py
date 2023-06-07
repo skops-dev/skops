@@ -81,7 +81,7 @@ def setup_package():
             "rich": min_deps.tag_to_packages["rich"],
         },
         include_package_data=True,
-        packages=find_packages() + ["skops.io.old"],
+        packages=find_packages() + ["skops.io.old", "skops.io.tests"],
     )
 
     setup(**package_data, **metadata)
