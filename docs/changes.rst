@@ -9,6 +9,9 @@ skops Changelog
     :depth: 1
     :local:
 
+v0.8
+----
+
 
 v0.7
 ----
