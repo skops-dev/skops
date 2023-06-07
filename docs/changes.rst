@@ -21,6 +21,10 @@ v0.7
   `Benjamin Bossan`_.
 - All public ``numpy`` ufuncs (Universal Functions) and dtypes are trusted by default
   by :func:`.io.load`. :pr:`336` by :user:`Omar Arab Oghli <omar-araboghli>`.
+- Sections in :class:`skops.card.Card` can now be folded once added to the
+  card. :pr:`341` by :user:`Thomas Lazarus <lazarust>`.
+- Model loading in :class:`skops.card.Card` is now cached to avoid loading the
+  model multiple times. :pr:`299` by :user:`Juan Camacho <jucamohedano>`.
 
 v0.6
 ----
