@@ -1,6 +1,7 @@
 name: Test performance and file size of skops persistence
 
 on:
+  pull_request:
   schedule:
     - cron:  '0 9 * * 0'  # every sunday at 9:00 UTC
   workflow_dispatch:
