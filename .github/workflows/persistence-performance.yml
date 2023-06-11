@@ -21,7 +21,7 @@ jobs:
         python-version: "3.10"
     - name: Install requirements
       run: |
-        pip install -e .[tests]
+        pip install .[tests]
         pip --version
         pip list
     - name: Run persistence performance checks
