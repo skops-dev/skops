@@ -29,7 +29,7 @@ v0.7
   card. :pr:`341` by :user:`Thomas Lazarus <lazarust>`.
 - Model loading in :class:`skops.card.Card` is now cached to avoid loading the
   model multiple times. :pr:`299` by :user:`Juan Camacho <jucamohedano>`.
-  
+
 v0.6
 ----
 - Add tabular regression example. :pr:`254` by :user:`Thomas Lazarus <lazarust>`.
