@@ -919,11 +919,18 @@ class TestSelect:
 class TestAdd:
     """Adding sections and subsections"""
 
-    def test_add_new_section(self, model_card):
-        model_card = model_card.add(**{"A new section": "sklearn FTW"})
+    @pytest.mark.parametrize("folded", [True, False])
+    def test_add_new_section(self, model_card, folded):
+        model_card = model_card.add(**{"A new section": "sklearn FTW"}, folded=folded)
         section = model_card.select("A new section")
         assert section.title == "A new section"
         assert section.content == "sklearn FTW"
+
+        output = section.format()
+        if folded:
+            assert "<details>" in output
+        else:
+            assert "<details>" not in output
 
     def test_add_new_subsection(self, model_card):
         model_card = model_card.add(
