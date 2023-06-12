@@ -536,7 +536,7 @@ class Card:
 
         # default template
         if self.template == Templates.skops.value:
-            self.add(**SKOPS_TEMPLATE)
+            self.add(folded=False, **SKOPS_TEMPLATE)
             # for the skops template, automatically add some default sections
             self.add_hyperparams()
             self.add_get_started_code()
@@ -549,7 +549,7 @@ class Card:
 
         # non-default template
         if isinstance(self.template, Mapping):
-            self.add(**self.template)
+            self.add(folded=False, **self.template)
 
         if isinstance(model_diagram, str) and (model_diagram != "auto"):
             self.add_model_plot(section=model_diagram)
@@ -589,7 +589,7 @@ class Card:
         model = _load_model(self.model, self.trusted)
         return model
 
-    def add(self, **kwargs: str) -> Self:
+    def add(self, folded: bool = False, **kwargs: str) -> Self:
         """Add new section(s) to the model card.
 
         Add one or multiple sections to the model card. The section names are
@@ -611,6 +611,9 @@ class Card:
 
         Parameters
         ----------
+        folded : bool
+            Whether to fold the sections by default or not.
+
         **kwargs : dict
             The keys of the dictionary serve as the section title and the values
             as the section content. It's possible to add to existing sections.
@@ -621,9 +624,8 @@ class Card:
             Card object.
 
         """
-        folded = kwargs.pop("folded", False)
         for key, val in kwargs.items():
-            self._add_single(key, val, folded=bool(folded))
+            self._add_single(key, val, folded=folded)
         return self
 
     def _select(
