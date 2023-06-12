@@ -9,6 +9,10 @@ skops Changelog
     :depth: 1
     :local:
 
+v0.8
+----
+- Adds the abillity to set the :attr:`.Section.folded` property when using :meth:`.Card.add`.
+  :pr:`361` by :user:`Thomas Lazarus <lazarust>`.
 
 v0.7
 ----
@@ -25,8 +29,6 @@ v0.7
   card. :pr:`341` by :user:`Thomas Lazarus <lazarust>`.
 - Model loading in :class:`skops.card.Card` is now cached to avoid loading the
   model multiple times. :pr:`299` by :user:`Juan Camacho <jucamohedano>`.
-- Adds the abillity to set the :attr:`.Section.folded` property when using :meth:`.Card.add`.
-  :pr:`361` by :user:`Thomas Lazarus <lazarust>`.
   
 v0.6
 ----
