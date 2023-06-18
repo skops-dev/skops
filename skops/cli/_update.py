@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import zipfile
 from pathlib import Path
 
@@ -72,7 +73,11 @@ def _update_file(
         )
         return None
 
-    dump(input_model, output_file)
+    tmp_output_file = f"{output_file}.tmp"
+    logger.debug(f"Writing updated skops file to temporary path: {tmp_output_file}")
+    dump(input_model, tmp_output_file)
+    logger.debug(f"Moving updated skops file to output path: {output_file}")
+    os.replace(tmp_output_file, output_file)
     logger.info(f"Updated skops file written to {output_file}")
 
 
