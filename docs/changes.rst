@@ -9,6 +9,12 @@ skops Changelog
     :depth: 1
     :local:
 
+v0.8
+----
+- Adds the abillity to set the :attr:`.Section.folded` property when using :meth:`.Card.add`.
+  :pr:`361` by :user:`Thomas Lazarus <lazarust>`.
+- Add the CLI command to update Skops files to the latest Skops persistence format.
+  (:func:`.cli._update.main`). :pr:`333` by :user:`Edoardo Abati <EdAbati>`
 
 v0.7
 ----
@@ -21,8 +27,10 @@ v0.7
   `Benjamin Bossan`_.
 - All public ``numpy`` ufuncs (Universal Functions) and dtypes are trusted by default
   by :func:`.io.load`. :pr:`336` by :user:`Omar Arab Oghli <omar-araboghli>`.
-- Add the CLI command to update Skops files to the latest Skops persistence format.
-  (:func:`.cli._update.main`). :pr:`333` by :user:`Edoardo Abati <EdAbati>`
+- Sections in :class:`skops.card.Card` can now be folded once added to the
+  card. :pr:`341` by :user:`Thomas Lazarus <lazarust>`.
+- Model loading in :class:`skops.card.Card` is now cached to avoid loading the
+  model multiple times. :pr:`299` by :user:`Juan Camacho <jucamohedano>`.
 
 v0.6
 ----
