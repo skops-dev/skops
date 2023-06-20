@@ -1477,6 +1477,14 @@ class Card:
         """
         return "\n".join(self._generate_card())
 
+    def _repr_markdown_(self) -> str:
+        """Render the model card as markdown in a Jupyter Notebook.
+
+        Jupyter understands this method and if it exists, uses it to render the
+        markdown.
+        """
+        return self.render()
+
     def _iterate_key_section_content(
         self,
         data: dict[str, Section],

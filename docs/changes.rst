@@ -13,6 +13,8 @@ v0.8
 ----
 - Adds the abillity to set the :attr:`.Section.folded` property when using :meth:`.Card.add`.
   :pr:`361` by :user:`Thomas Lazarus <lazarust>`.
+- Add HTML representation of the :class:`skops.card.Card` instances in Jupyter
+  notebooks.
 
 v0.7
 ----
