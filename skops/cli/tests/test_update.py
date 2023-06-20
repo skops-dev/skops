@@ -79,9 +79,7 @@ class TestUpdate:
         )
         mock_logger.warning.assert_not_called()
         mock_logger.error.assert_not_called()
-        mock_logger.debug.assert_called_with(
-            f"Moving updated skops file to output path: {expected_output_file}"
-        )
+        mock_logger.debug.assert_not_called()
 
     @mock.patch("skops.cli._update.dump")
     def test_only_diff(
