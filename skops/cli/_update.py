@@ -77,7 +77,7 @@ def _update_file(
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp_output_file = Path(tmp_dir) / f"{output_file}.tmp"
         dump(input_model, tmp_output_file)
-        shutil.move(tmp_output_file, output_file)
+        shutil.move(str(tmp_output_file), str(output_file))
     logger.info(f"Updated skops file written to {output_file}")
 
 
