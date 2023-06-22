@@ -16,7 +16,8 @@ from typing import Any, Iterator, Literal, Sequence, Union
 
 import joblib
 from huggingface_hub import ModelCardData
-from sklearn.utils import available_if, estimator_html_repr
+from sklearn.utils import estimator_html_repr
+from sklearn.utils.metaestimators import available_if
 from tabulate import tabulate  # type: ignore
 
 from skops.card._templates import CONTENT_PLACEHOLDER, SKOPS_TEMPLATE, Templates
