@@ -16,7 +16,7 @@ from typing import Any, Iterator, Literal, Sequence, Union
 
 import joblib
 from huggingface_hub import ModelCardData
-from sklearn.utils import estimator_html_repr
+from sklearn.utils import available_if, estimator_html_repr
 from tabulate import tabulate  # type: ignore
 
 from skops.card._templates import CONTENT_PLACEHOLDER, SKOPS_TEMPLATE, Templates
@@ -1484,6 +1484,27 @@ class Card:
         markdown.
         """
         return self.render()
+
+    def _markdown_installed(self):
+        try:
+            import markdown  # type: ignore[import]  # noqa: F401
+
+            return True
+        except ImportError:
+            return False
+
+    @available_if(_markdown_installed)
+    def _repr_html_(self) -> str:
+        """Render the model card as HTML in a Jupyter Notebook.
+
+        This is only available if the user has `markdown` package installed.
+        This is only used in our documentation build, since sphinx-gallery
+        doesn't support `_repr_markdown_`. In a Jupyter notebook,
+        `_repr_markdown_` is used.
+        """
+        import markdown
+
+        return markdown.markdown(self.render())
 
     def _iterate_key_section_content(
         self,

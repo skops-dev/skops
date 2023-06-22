@@ -36,6 +36,8 @@ dependent_packages = {
     "catboost": ("1.0", "tests", "python_version < '3.11'"),
     "fairlearn": ("0.7.0", "docs, tests", None),
     "rich": ("12", "tests, rich", None),
+    # Required for the documentation build with sphinx-gallery
+    "markdown": ("3.4", "docs", None),
 }
 
 
