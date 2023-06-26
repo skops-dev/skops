@@ -49,6 +49,7 @@ from sklearn.utils.estimator_checks import (
     _enforce_estimator_tags_y,
     _get_check_estimator_ids,
 )
+from sklearn.utils.fixes import parse_version, sp_version
 
 import skops
 from skops.io import dump, dumps, get_untrusted_types, load, loads
@@ -136,7 +137,16 @@ def _tested_estimators(type_filter=None):
                     category=SkipTestWarning,
                     message="Can't instantiate estimator",
                 )
-                estimator = _construct_instance(Estimator)
+                if name == "QuantileRegressor" and sp_version >= parse_version(
+                    "1.11.0"
+                ):
+                    # The solver "interior-point" (the default solver in
+                    # scikit-learn < 1.4.0) is not available scipy >= 1.11.0. The
+                    # default solver will be "highs" from scikit-learn >= 1.4.0.
+                    # https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.QuantileRegressor.html
+                    estimator = _construct_instance(partial(Estimator, solver="highs"))
+                else:
+                    estimator = _construct_instance(Estimator)
                 # with the kind of data we pass, it needs to be 1 for the few
                 # estimators which have this.
                 if "n_components" in estimator.get_params():
