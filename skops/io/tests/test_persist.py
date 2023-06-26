@@ -141,7 +141,7 @@ def _tested_estimators(type_filter=None):
                     "1.11.0"
                 ):
                     # The solver "interior-point" (the default solver in
-                    # scikit-learn < 1.4.0) is not available scipy >= 1.11.0. The
+                    # scikit-learn < 1.4.0) is not available in scipy >= 1.11.0. The
                     # default solver will be "highs" from scikit-learn >= 1.4.0.
                     # https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.QuantileRegressor.html
                     estimator = _construct_instance(partial(Estimator, solver="highs"))
