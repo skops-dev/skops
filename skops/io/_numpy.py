@@ -256,6 +256,17 @@ GET_STATE_DISPATCH_FUNCTIONS = [
     (np.random.RandomState, random_state_get_state),
     (np.random.Generator, random_generator_get_state),
 ]
+
+try:
+    # From numpy=1.25.0 dispatching for `__array_function__` is done via
+    # a C wrapper: https://github.com/numpy/numpy/pull/23020
+    from numpy.core._multiarray_umath import _ArrayFunctionDispatcher
+
+    GET_STATE_DISPATCH_FUNCTIONS.append((_ArrayFunctionDispatcher, function_get_state))
+except ImportError:
+    pass
+
+
 # tuples of type and function that creates the instance of that type
 NODE_TYPE_MAPPING = {
     ("NdArrayNode", PROTOCOL): NdArrayNode,
