@@ -13,6 +13,8 @@ v0.8
 ----
 - Adds the abillity to set the :attr:`.Section.folded` property when using :meth:`.Card.add`.
   :pr:`361` by :user:`Thomas Lazarus <lazarust>`.
+- Add the CLI command to update Skops files to the latest Skops persistence format.
+  (:func:`.cli._update.main`). :pr:`333` by :user:`Edoardo Abati <EdAbati>`
 
 
 v0.7
