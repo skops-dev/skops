@@ -24,10 +24,6 @@ In particular:
   potentially upload the model and the data, and easily generate good
   visualizations about different aspects of the model. This work is started
   in :pr:`307`.
-- There are issues with model cards that make it a bit tricky to work with
-  them, such as linking images. These issues need to be resolved so that
-  new users don't encounter too many hurdles when they first start using
-  the tools.
 
 Persistence
 -----------
