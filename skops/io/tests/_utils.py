@@ -133,10 +133,25 @@ def _assert_vals_equal(val1, val2):
         _assert_generic_objects_equal(val1, val2)
 
 
+def _clean_params(params):
+    # this function deals with cleaning special parameters that for one reason
+    # or another should be removed or modified.
+    params = params.copy()
+
+    # see #375
+    keys_to_remove = ["_has_canonical_format", "_has_sorted_indices"]
+    for key in keys_to_remove:
+        params.pop(key, None)
+
+    return params
+
+
 def assert_params_equal(params1, params2):
     # helper function to compare estimator dictionaries of parameters
     if params1 is None and params2 is None:
         return
+
+    params1, params2 = _clean_params(params1), _clean_params(params2)
     assert len(params1) == len(params2)
     assert set(params1.keys()) == set(params2.keys())
     for key in params1:
