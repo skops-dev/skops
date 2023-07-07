@@ -58,7 +58,7 @@ jobs:
         pip install black=="22.6.0" isort=="5.10.1" mypy=="1.0.0"
         pip uninstall --yes scikit-learn
         if [ ${{ matrix.sklearn_version }} == "nightly" ];
-          then pip install --pre --extra-index https://pypi.anaconda.org/scipy-wheels-nightly/simple scikit-learn;
+          then pip install --pre --extra-index https://pypi.anaconda.org/scientific-python-nightly-wheels/simple scikit-learn;
           else pip install "scikit-learn~=${{ matrix.sklearn_version }}";
         fi
         if [ ${{ matrix.os }} == "ubuntu-latest" ];
