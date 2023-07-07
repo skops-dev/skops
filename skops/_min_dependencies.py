@@ -32,8 +32,7 @@ dependent_packages = {
     # required for persistence tests of external libraries
     "lightgbm": ("3", "tests", None),
     "xgboost": ("1.6", "tests", None),
-    # TODO: remove condition when catboost supports python 3.11
-    "catboost": ("1.0", "tests", "python_version < '3.11'"),
+    "catboost": ("1.0", "tests", None),
     "fairlearn": ("0.7.0", "docs, tests", None),
     "rich": ("12", "tests, rich", None),
 }
