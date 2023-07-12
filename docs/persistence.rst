@@ -130,8 +130,13 @@ for more details.
 Command Line Interface
 ######################
 
-Skops has a command line interface to convert scikit-learn models persisted with
-``Pickle`` to ``Skops`` files.
+Skops has a command line interface to:
+
+- convert scikit-learn models persisted with ``Pickle`` to ``Skops`` files.
+- update ``Skops`` files to the latest version.
+
+``skops convert``
+~~~~~~~~~~~~~~~~~
 
 To convert a file from the command line, use the ``skops convert`` entrypoint.
 
@@ -150,6 +155,22 @@ For example, to convert all ``.pkl`` flies in the current directory:
 
 Further help for the different supported options can be found by calling
 ``skops convert --help`` in a terminal.
+
+``skops update``
+~~~~~~~~~~~~~~~~
+
+To update a ``Skops`` file from the command line, use the ``skops update`` command.
+Skops will check the protocol version of the file to determine if it needs to be updated to the current version.
+
+The below command is an example on how to create an updated version of a file
+``my_model.skops`` and save it as ``my_model-updated.skops``:
+
+.. code-block:: console
+
+    skops update my_model.skops -o my_model-updated.skops
+
+Further help for the different supported options can be found by calling
+``skops update --help`` in a terminal.
 
 Visualization
 #############

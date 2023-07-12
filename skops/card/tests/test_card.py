@@ -919,11 +919,18 @@ class TestSelect:
 class TestAdd:
     """Adding sections and subsections"""
 
-    def test_add_new_section(self, model_card):
-        model_card = model_card.add(**{"A new section": "sklearn FTW"})
+    @pytest.mark.parametrize("folded", [True, False])
+    def test_add_new_section(self, model_card, folded):
+        model_card = model_card.add(**{"A new section": "sklearn FTW"}, folded=folded)
         section = model_card.select("A new section")
         assert section.title == "A new section"
         assert section.content == "sklearn FTW"
+
+        output = section.format()
+        if folded:
+            assert "<details>" in output
+        else:
+            assert "<details>" not in output
 
     def test_add_new_subsection(self, model_card):
         model_card = model_card.add(
@@ -1916,6 +1923,50 @@ class TestCardTableOfContents:
         ]
 
         assert toc == "\n".join(exptected_toc)
+
+
+class TestFoldedSection:
+    def test_folded_section(self, destination_path, model_card):
+        model_card.add(foo="Foo")
+        model_card.add(**{"foo/bar": "Foo/Bar", "foo/baz": "Foo/Baz"})
+        model_card.select("foo/baz").folded = True
+
+        foo_details = (
+            "<details>\n<summary> Click to expand </summary>\n\nFoo\n\n</details>\n"
+        )
+        foo_bar_details = (
+            "<details>\n<summary> Click to expand </summary>\n\nFoo/Bar\n\n</details>\n"
+        )
+        foo_baz_details = (
+            "<details>\n<summary> Click to expand </summary>\n\nFoo/Baz\n\n</details>\n"
+        )
+
+        output = model_card.render()
+        assert foo_details not in output
+        assert foo_bar_details not in output
+        assert foo_baz_details in output
+
+        model_card.select("foo").folded = True
+
+        output = model_card.render()
+        assert foo_details in output
+        assert foo_bar_details not in output
+        assert foo_baz_details not in output
+
+        model_card.select("foo").folded = False
+
+        output = model_card.render()
+        assert foo_details not in output
+        assert foo_bar_details not in output
+        assert foo_baz_details in output
+
+        model_card.select("foo/bar").folded = True
+        model_card.select("foo/baz").folded = False
+
+        output = model_card.render()
+        assert foo_details not in output
+        assert foo_bar_details in output
+        assert foo_baz_details not in output
 
 
 class TestCardSaveWithPlots:

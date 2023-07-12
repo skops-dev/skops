@@ -207,6 +207,7 @@ class Section:
     content: str
     subsections: dict[str, Section] = field(default_factory=dict)
     visible: bool = True
+    folded: bool = False
 
     def select(self, key: str) -> Section:
         """Return a subsection or subsubsection of this section
@@ -243,7 +244,7 @@ class Section:
         return section
 
     def format(self) -> str:
-        return self.content
+        return wrap_as_details(self.content, folded=self.folded)
 
     def __repr__(self) -> str:
         """Generates the ``repr`` of this section.
@@ -535,7 +536,7 @@ class Card:
 
         # default template
         if self.template == Templates.skops.value:
-            self.add(**SKOPS_TEMPLATE)
+            self.add(folded=False, **SKOPS_TEMPLATE)
             # for the skops template, automatically add some default sections
             self.add_hyperparams()
             self.add_get_started_code()
@@ -548,7 +549,7 @@ class Card:
 
         # non-default template
         if isinstance(self.template, Mapping):
-            self.add(**self.template)
+            self.add(folded=False, **self.template)
 
         if isinstance(model_diagram, str) and (model_diagram != "auto"):
             self.add_model_plot(section=model_diagram)
@@ -588,7 +589,7 @@ class Card:
         model = _load_model(self.model, self.trusted)
         return model
 
-    def add(self, **kwargs: str) -> Self:
+    def add(self, folded: bool = False, **kwargs: str) -> Self:
         """Add new section(s) to the model card.
 
         Add one or multiple sections to the model card. The section names are
@@ -610,6 +611,9 @@ class Card:
 
         Parameters
         ----------
+        folded : bool
+            Whether to fold the sections by default or not.
+
         **kwargs : dict
             The keys of the dictionary serve as the section title and the values
             as the section content. It's possible to add to existing sections.
@@ -621,7 +625,7 @@ class Card:
 
         """
         for key, val in kwargs.items():
-            self._add_single(key, val)
+            self._add_single(key, val, folded=folded)
         return self
 
     def _select(
@@ -760,7 +764,9 @@ class Card:
         parent_section = self._select(subsection_names, create=False)
         del parent_section[leaf_node_name]
 
-    def _add_single(self, key: str, val: str | Section) -> Section:
+    def _add_single(
+        self, key: str, val: str | Section, folded: bool = False
+    ) -> Section:
         """Add a single section.
 
         If the (sub)section does not exist, it is created. Otherwise, the
@@ -776,6 +782,9 @@ class Card:
             section, leave it as it is. If it's a string, create a
             :class:`skops.card._model_card.Section`.
 
+        folded: bool
+            Whether the (sub)section should be folded or not.
+
         Returns
         -------
         Section instance
@@ -787,7 +796,7 @@ class Card:
 
         if isinstance(val, str):
             # val is a str, create a Section
-            new_section = Section(title=leaf_node_name, content=val)
+            new_section = Section(title=leaf_node_name, content=val, folded=folded)
         else:
             # val is already a section and can be used as is
             new_section = val
@@ -1343,7 +1352,7 @@ class Card:
             if destination_path is not None and isinstance(section, PlotSection):
                 shutil.copy(section.path, destination_path)
 
-            if section.subsections:
+            if section.subsections and not section.folded:
                 yield from self._generate_content(
                     section.subsections,
                     depth=depth + 1,

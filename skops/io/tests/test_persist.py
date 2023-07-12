@@ -49,6 +49,7 @@ from sklearn.utils.estimator_checks import (
     _enforce_estimator_tags_y,
     _get_check_estimator_ids,
 )
+from sklearn.utils.fixes import parse_version, sp_version
 
 import skops
 from skops.io import dump, dumps, get_untrusted_types, load, loads
@@ -136,7 +137,16 @@ def _tested_estimators(type_filter=None):
                     category=SkipTestWarning,
                     message="Can't instantiate estimator",
                 )
-                estimator = _construct_instance(Estimator)
+                if name == "QuantileRegressor" and sp_version >= parse_version(
+                    "1.11.0"
+                ):
+                    # The solver "interior-point" (the default solver in
+                    # scikit-learn < 1.4.0) is not available in scipy >= 1.11.0. The
+                    # default solver will be "highs" from scikit-learn >= 1.4.0.
+                    # https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.QuantileRegressor.html
+                    estimator = _construct_instance(partial(Estimator, solver="highs"))
+                else:
+                    estimator = _construct_instance(Estimator)
                 # with the kind of data we pass, it needs to be 1 for the few
                 # estimators which have this.
                 if "n_components" in estimator.get_params():
@@ -1037,3 +1047,21 @@ def test_compression_level():
     dumped_compressed = dumps(model, compression=ZIP_DEFLATED, compresslevel=9)
     # This reduces the size substantially
     assert len(dumped_raw) > 5 * len(dumped_compressed)
+
+
+@pytest.mark.parametrize("call_has_canonical_format", [False, True])
+def test_sparse_matrix(call_has_canonical_format):
+    # see https://github.com/skops-dev/skops/pull/375
+
+    # note: this behavior is already implicitly tested by sklearn estimators
+    # that use sparse matrices under the hood (tfidf) but it is better to check
+    # the behavior explicitly
+    x = sparse.csr_matrix((3, 4))
+    if call_has_canonical_format:
+        x.has_canonical_format
+
+    dumped = dumps(x)
+    untrusted_types = get_untrusted_types(data=dumped)
+    y = loads(dumped, trusted=untrusted_types)
+
+    assert_params_equal(x.__dict__, y.__dict__)
