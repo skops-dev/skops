@@ -11,7 +11,6 @@ import os
 import shutil
 from pathlib import Path
 from pickle import dump as pickle_dump
-from pickle import load as pickle_load
 from typing import Any, List, Literal, MutableMapping, Optional, Sequence, Union
 
 import numpy as np
@@ -20,6 +19,7 @@ from sklearn.base import BaseEstimator
 from sklearn.utils import check_array
 
 from skops import card, io
+from skops.card._model_card import _load_model
 
 SUPPORTED_TASKS = [
     "tabular-classification",
@@ -436,19 +436,8 @@ def init(
                 use_intelex=use_intelex,
             )
 
-            # open model file according to its model format
-            if model_format in ["pkl", "pickle"]:
-                with open(model, "rb") as f:
-                    model = pickle_load(f)
-            elif model_format == "skops":
-                model = io.load(model)
-            else:  # model_format is auto
-                extension = Path(model_name).suffix
-                if extension in [".pkl", ".pickle", ".joblib"]:
-                    with open(model, "rb") as f:  # not tested
-                        model = pickle_load(f)  # not tested
-                elif extension == ".skops":
-                    model = io.load(model, trusted=True)
+            # load model from file
+            model = _load_model(model)
             model_card = card.Card(model, metadata=card.metadata_from_config(dst))
             model_card.save(dst / "README.md")
         elif isinstance(model, BaseEstimator):
