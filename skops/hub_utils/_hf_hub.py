@@ -437,7 +437,7 @@ def init(
             )
 
             # load model from file
-            model = _load_model(model)
+            model = _load_model(model, trusted=True)
             model_card = card.Card(model, metadata=card.metadata_from_config(dst))
             model_card.save(dst / "README.md")
         elif isinstance(model, BaseEstimator):
