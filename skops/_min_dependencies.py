@@ -15,6 +15,7 @@ dependent_packages = {
     "scikit-learn-intelex": ("2021.7.1", "docs", None),
     "huggingface_hub": ("0.10.1", "install", None),
     "tabulate": ("0.8.8", "install", None),
+    "quantile-forest": ("1.0.0", "install", None),
     "pytest": (PYTEST_MIN_VERSION, "tests", None),
     "pytest-cov": ("2.9.0", "tests", None),
     "flake8": ("3.8.2", "tests", None),
