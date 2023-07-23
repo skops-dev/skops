@@ -381,3 +381,48 @@ class TestCatboost:
         assert_method_outputs_equal(estimator, loaded, X)
 
         visualize(dumped, trusted=trusted)
+
+
+class TestQuantileForest:
+    """Tests for RandomForestQuantileRegressor and ExtraTreesQuantileRegressor"""
+
+    @pytest.fixture(autouse=True)
+    def capture_stdout(self):
+        # Mock print and rich.print so that running these tests with pytest -s
+        # does not spam stdout. Other, more common methods of suppressing
+        # printing to stdout don't seem to work, perhaps because of pytest.
+        with patch("builtins.print", Mock()), patch("rich.print", Mock()):
+            yield
+
+    @pytest.fixture(autouse=True)
+    def quantile_forest(self):
+        quantile_forest = pytest.importorskip("quantile_forest")
+        return quantile_forest
+
+    @pytest.fixture
+    def trusted(self):
+        # TODO: adjust once more types are trusted by default
+        return [
+            "quantile_forest._quantile_forest.RandomForestQuantileRegressor",
+            "quantile_forest._quantile_forest.ExtraTreesQuantileRegressor",
+            "quantile_forest._quantile_forest_fast.QuantileForest",
+        ]
+
+    def test_quantile_forest(self, quantile_forest, regr_data, trusted):
+        tree_methods = [
+            quantile_forest.RandomForestQuantileRegressor,
+            quantile_forest.ExtraTreesQuantileRegressor,
+        ]
+
+        for tree_method in tree_methods:
+            estimator = tree_method()
+            loaded = loads(dumps(estimator), trusted=trusted)
+            assert_params_equal(estimator.get_params(), loaded.get_params())
+
+            X, y = regr_data
+            estimator.fit(X, y)
+            dumped = dumps(estimator)
+            loaded = loads(dumped, trusted=trusted)
+            assert_method_outputs_equal(estimator, loaded, X)
+
+            visualize(dumped, trusted=trusted)
