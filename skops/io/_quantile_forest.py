@@ -6,7 +6,7 @@ from quantile_forest._quantile_forest_fast import QuantileForest
 
 from ._protocol import PROTOCOL
 from ._sklearn import ReduceNode, reduce_get_state
-from ._utils import LoadContext, SaveContext, get_module
+from ._utils import LoadContext, SaveContext
 
 
 def quantile_forest_get_state(
@@ -31,10 +31,7 @@ class QuantileForestNode(ReduceNode):
             constructor=QuantileForest,
             trusted=trusted,
         )
-        self.trusted = self._get_trusted(
-            trusted,
-            [get_module(QuantileForest) + ".QuantileForest"],
-        )
+        self.trusted = self._get_trusted(trusted, [])
 
 
 # tuples of type and function that gets the state of that type
