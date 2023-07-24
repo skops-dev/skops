@@ -232,9 +232,6 @@ def walk_tree(
             "here: https://github.com/skops-dev/skops/issues"
         )
 
-    if node_name == "constructor":
-        return
-
     if isinstance(node, dict):
         num_nodes = len(node)
         for i, (key, val) in enumerate(node.items(), start=1):
