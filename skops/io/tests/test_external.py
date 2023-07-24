@@ -408,21 +408,22 @@ class TestQuantileForest:
             "quantile_forest._quantile_forest_fast.QuantileForest",
         ]
 
-    def test_quantile_forest(self, quantile_forest, regr_data, trusted):
-        tree_methods = [
-            quantile_forest.RandomForestQuantileRegressor,
-            quantile_forest.ExtraTreesQuantileRegressor,
-        ]
+    tree_methods = [
+        "RandomForestQuantileRegressor",
+        "ExtraTreesQuantileRegressor",
+    ]
 
-        for tree_method in tree_methods:
-            estimator = tree_method()
-            loaded = loads(dumps(estimator), trusted=trusted)
-            assert_params_equal(estimator.get_params(), loaded.get_params())
+    @pytest.mark.parametrize("tree_method", tree_methods)
+    def test_quantile_forest(self, quantile_forest, regr_data, trusted, tree_method):
+        cls = getattr(quantile_forest, tree_method)
+        estimator = cls()
+        loaded = loads(dumps(estimator), trusted=trusted)
+        assert_params_equal(estimator.get_params(), loaded.get_params())
 
-            X, y = regr_data
-            estimator.fit(X, y)
-            dumped = dumps(estimator)
-            loaded = loads(dumped, trusted=trusted)
-            assert_method_outputs_equal(estimator, loaded, X)
+        X, y = regr_data
+        estimator.fit(X, y)
+        dumped = dumps(estimator)
+        loaded = loads(dumped, trusted=trusted)
+        assert_method_outputs_equal(estimator, loaded, X)
 
-            visualize(dumped, trusted=trusted)
+        visualize(dumped, trusted=trusted)
