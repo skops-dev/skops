@@ -4,7 +4,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 import sklearn
-from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.pipeline import FeatureUnion, Pipeline
 from sklearn.preprocessing import (
     FunctionTransformer,
@@ -39,7 +39,7 @@ class TestVisualizeTree:
                     ("scale", MinMaxScaler()),
                 ])),
             ])),
-            ("clf", LogisticRegression(random_state=0, solver="liblinear")),
+            ("clf", RandomForestRegressor(random_state=0)),
         ]).fit([[0, 1], [2, 3], [4, 5]], [0, 1, 2])
         # fmt: on
         return pipeline
