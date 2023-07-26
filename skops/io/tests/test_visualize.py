@@ -4,7 +4,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 import sklearn
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import FeatureUnion, Pipeline
 from sklearn.preprocessing import (
     FunctionTransformer,
@@ -12,6 +12,7 @@ from sklearn.preprocessing import (
     PolynomialFeatures,
     StandardScaler,
 )
+from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 
 import skops.io as sio
 
@@ -39,7 +40,7 @@ class TestVisualizeTree:
                     ("scale", MinMaxScaler()),
                 ])),
             ])),
-            ("clf", RandomForestRegressor(random_state=0)),
+            ("clf", LogisticRegression(random_state=0, solver="lbfgs")),
         ]).fit([[0, 1], [2, 3], [4, 5]], [0, 1, 2])
         # fmt: on
         return pipeline
@@ -279,6 +280,59 @@ class TestVisualizeTree:
             "├── long_byte: b'01020304050...9101112131415'",
             "├── short_bytearray: bytearray(b'abc')",
             "└── long_bytearray: bytearray(b'01020304050...9101112131415')",
+        ]
+        stdout, _ = capsys.readouterr()
+        assert stdout.strip() == "\n".join(expected)
+
+    @pytest.mark.parametrize("cls", [DecisionTreeClassifier, DecisionTreeRegressor])
+    def test_decision_tree(self, cls, capsys):
+        model = cls(random_state=0).fit([[0, 1], [2, 3], [4, 5]], [0, 1, 2])
+        dumped = sio.dumps(model)
+        sio.visualize(dumped)
+
+        classes = []
+        if isinstance(model, DecisionTreeClassifier):
+            criterion = "gini"
+            classes = [
+                "    ├── classes_: numpy.ndarray",
+                "    ├── n_classes_: numpy.int64",
+            ]
+        elif isinstance(model, DecisionTreeRegressor):
+            criterion = "squared_error"
+
+        expected = [
+            "root: sklearn.tree._classes.{}".format(cls.__name__),
+            "└── attrs: builtins.dict",
+            '    ├── criterion: json-type("{}")'.format(criterion),
+            '    ├── splitter: json-type("best")',
+            "    ├── max_depth: json-type(null)",
+            "    ├── min_samples_split: json-type(2)",
+            "    ├── min_samples_leaf: json-type(1)",
+            "    ├── min_weight_fraction_leaf: json-type(0.0)",
+            "    ├── max_features: json-type(null)",
+            "    ├── max_leaf_nodes: json-type(null)",
+            "    ├── random_state: json-type(0)",
+            "    ├── min_impurity_decrease: json-type(0.0)",
+            "    ├── class_weight: json-type(null)",
+            "    ├── ccp_alpha: json-type(0.0)",
+            "    ├── n_features_in_: json-type(2)",
+            "    ├── n_outputs_: json-type(1)",
+        ]
+        expected += classes
+        expected += [
+            "    ├── max_features_: json-type(2)",
+            "    ├── tree_: sklearn.tree._tree.Tree",
+            "    │   ├── attrs: builtins.dict",
+            "    │   │   ├── max_depth: json-type(2)",
+            "    │   │   ├── node_count: json-type(5)",
+            "    │   │   ├── nodes: numpy.ndarray",
+            "    │   │   └── values: numpy.ndarray",
+            "    │   ├── args: builtins.tuple",
+            "    │   │   ├── content: json-type(2)",
+            "    │   │   ├── content: numpy.ndarray",
+            "    │   │   └── content: json-type(1)",
+            "    │   └── constructor: type [UNSAFE]",
+            '    └── _sklearn_version: json-type("{}")'.format(sklearn.__version__),
         ]
         stdout, _ = capsys.readouterr()
         assert stdout.strip() == "\n".join(expected)
