@@ -40,7 +40,7 @@ class TestVisualizeTree:
                     ("scale", MinMaxScaler()),
                 ])),
             ])),
-            ("clf", LogisticRegression(random_state=0, solver="lbfgs")),
+            ("clf", LogisticRegression(random_state=0, solver="liblinear")),
         ]).fit([[0, 1], [2, 3], [4, 5]], [0, 1, 2])
         # fmt: on
         return pipeline
