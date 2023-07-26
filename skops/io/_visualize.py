@@ -232,7 +232,15 @@ def walk_tree(
             "here: https://github.com/skops-dev/skops/issues"
         )
 
-    if node_name == "constructor":
+    if isinstance(node, type):
+        yield NodeInfo(
+            level=level,
+            key=node_name,
+            val=type(node).__name__,
+            is_self_safe=False,
+            is_safe=False,
+            is_last=is_last,
+        )
         return
 
     if isinstance(node, dict):
