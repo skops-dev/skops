@@ -182,7 +182,8 @@ def walk_tree(
     node_name: str = "root",
     level: int = 0,
     is_last: bool = False,
-    **kwargs,
+    is_self_safe: bool = False,
+    is_safe: bool = False,
 ) -> Iterator[NodeInfo]:
     """Visit all nodes of the tree and yield their important attributes.
 
@@ -203,9 +204,6 @@ def walk_tree(
     node: :class:`skops.io._audit.Node`
         The current node to visit. Children are visited recursively.
 
-    show: "all" or "untrusted" or "trusted"
-        Whether to print all nodes, only untrusted nodes, or only trusted nodes.
-
     node_name: str (default="root")
         The key to the current node. If "key_types" is encountered, it is
         skipped.
@@ -216,17 +214,18 @@ def walk_tree(
     is_last: bool (default=False)
         Whether this is the last node among its sibling nodes.
 
+    is_self_safe: bool (default=False)
+        Whether this specific node is safe.
+
+    is_safe: bool (default=False)
+        Whether this node and all of its children are safe.
+
     Yields
     ------
     :class:`~NodeInfo`:
         A dataclass containing the aforementioned information.
 
     """
-    if "is_self_safe" in kwargs:
-        is_self_safe = kwargs["is_self_safe"]
-    if "is_safe" in kwargs:
-        is_safe = kwargs["is_safe"]
-
     # key_types is not helpful, as it is artificially added by skops to
     # circumvent the fact that json only allows keys to be strings. It is not
     # useful to the user and adds a lot of noise, thus skip key_types.
