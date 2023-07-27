@@ -331,7 +331,7 @@ class TestVisualizeTree:
             "    │   │   ├── content: json-type(2)",
             "    │   │   ├── content: numpy.ndarray",
             "    │   │   └── content: json-type(1)",
-            "    │   └── constructor: type [UNSAFE]",
+            "    │   └── constructor: sklearn.tree._tree.Tree",
             '    └── _sklearn_version: json-type("{}")'.format(sklearn.__version__),
         ]
         stdout, _ = capsys.readouterr()

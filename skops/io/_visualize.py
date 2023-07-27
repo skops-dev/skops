@@ -11,7 +11,7 @@ from ._audit import VALID_NODE_CHILD_TYPES, Node, get_tree
 from ._general import BytearrayNode, BytesNode, FunctionNode, JsonNode, ListNode
 from ._numpy import NdArrayNode
 from ._scipy import SparseMatrixNode
-from ._utils import LoadContext
+from ._utils import LoadContext, get_module
 
 # The children of these types are not visualized
 SKIPPED_TYPES = (
@@ -182,6 +182,7 @@ def walk_tree(
     node_name: str = "root",
     level: int = 0,
     is_last: bool = False,
+    **kwargs,
 ) -> Iterator[NodeInfo]:
     """Visit all nodes of the tree and yield their important attributes.
 
@@ -221,6 +222,11 @@ def walk_tree(
         A dataclass containing the aforementioned information.
 
     """
+    if "is_self_safe" in kwargs:
+        is_self_safe = kwargs["is_self_safe"]
+    if "is_safe" in kwargs:
+        is_safe = kwargs["is_safe"]
+
     # key_types is not helpful, as it is artificially added by skops to
     # circumvent the fact that json only allows keys to be strings. It is not
     # useful to the user and adds a lot of noise, thus skip key_types.
@@ -232,13 +238,13 @@ def walk_tree(
             "here: https://github.com/skops-dev/skops/issues"
         )
 
-    if isinstance(node, type):
+    if type(node) is type:
         yield NodeInfo(
             level=level,
             key=node_name,
-            val=type(node).__name__,
-            is_self_safe=False,
-            is_safe=False,
+            val=get_module(node) + "." + node.__name__,
+            is_self_safe=is_self_safe,
+            is_safe=is_safe,
             is_last=is_last,
         )
         return
@@ -251,6 +257,8 @@ def walk_tree(
                 node_name=key,
                 level=level,
                 is_last=i == num_nodes,
+                is_self_safe=is_self_safe,
+                is_safe=is_safe,
             )
         return
 
@@ -297,6 +305,8 @@ def walk_tree(
         node.children,
         node_name=node_name,
         level=level + 1,
+        is_self_safe=node.is_self_safe(),
+        is_safe=node.is_safe(),
     )
 
 
