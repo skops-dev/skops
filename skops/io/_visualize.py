@@ -11,7 +11,7 @@ from ._audit import VALID_NODE_CHILD_TYPES, Node, get_tree
 from ._general import BytearrayNode, BytesNode, FunctionNode, JsonNode, ListNode
 from ._numpy import NdArrayNode
 from ._scipy import SparseMatrixNode
-from ._utils import LoadContext, get_module
+from ._utils import LoadContext
 
 # The children of these types are not visualized
 SKIPPED_TYPES = (
@@ -182,8 +182,6 @@ def walk_tree(
     node_name: str = "root",
     level: int = 0,
     is_last: bool = False,
-    is_self_safe: bool = False,
-    is_safe: bool = False,
 ) -> Iterator[NodeInfo]:
     """Visit all nodes of the tree and yield their important attributes.
 
@@ -214,12 +212,6 @@ def walk_tree(
     is_last: bool (default=False)
         Whether this is the last node among its sibling nodes.
 
-    is_self_safe: bool (default=False)
-        Whether this specific node is safe.
-
-    is_safe: bool (default=False)
-        Whether this node and all of its children are safe.
-
     Yields
     ------
     :class:`~NodeInfo`:
@@ -237,17 +229,6 @@ def walk_tree(
             "here: https://github.com/skops-dev/skops/issues"
         )
 
-    if type(node) is type:
-        yield NodeInfo(
-            level=level,
-            key=node_name,
-            val=get_module(node) + "." + node.__name__,
-            is_self_safe=is_self_safe,
-            is_safe=is_safe,
-            is_last=is_last,
-        )
-        return
-
     if isinstance(node, dict):
         num_nodes = len(node)
         for i, (key, val) in enumerate(node.items(), start=1):
@@ -256,8 +237,6 @@ def walk_tree(
                 node_name=key,
                 level=level,
                 is_last=i == num_nodes,
-                is_self_safe=is_self_safe,
-                is_safe=is_safe,
             )
         return
 
@@ -304,8 +283,6 @@ def walk_tree(
         node.children,
         node_name=node_name,
         level=level + 1,
-        is_self_safe=node.is_self_safe(),
-        is_safe=node.is_safe(),
     )
 
 

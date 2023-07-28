@@ -4,6 +4,7 @@ from typing import Any, Sequence, Type
 
 from sklearn.cluster import Birch
 
+from ._general import TypeNode
 from ._protocol import PROTOCOL
 
 try:
@@ -104,12 +105,23 @@ class ReduceNode(Node):
         self.children = {
             "attrs": get_tree(state["content"], load_context, trusted=trusted),
             "args": get_tree(reduce["args"], load_context, trusted=trusted),
-            "constructor": constructor,
+            "constructor": TypeNode(
+                {
+                    "__class__": constructor.__name__,
+                    "__module__": constructor.__module__,
+                    "__id__": id(constructor),
+                },
+                load_context,
+                trusted=trusted,
+            ),
         }
 
     def _construct(self):
         args = self.children["args"].construct()
-        constructor = self.children["constructor"]
+        constructor = gettype(
+            self.children["constructor"].module_name,
+            self.children["constructor"].class_name,
+        )
         instance = constructor(*args)
         attrs = self.children["attrs"].construct()
         if not attrs:
@@ -147,8 +159,8 @@ class TreeNode(ReduceNode):
         load_context: LoadContext,
         trusted: bool | Sequence[str] = False,
     ) -> None:
-        super().__init__(state, load_context, constructor=Tree, trusted=trusted)
         self.trusted = self._get_trusted(trusted, [get_module(Tree) + ".Tree"])
+        super().__init__(state, load_context, constructor=Tree, trusted=self.trusted)
 
 
 def sgd_loss_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
@@ -165,14 +177,14 @@ class SGDNode(ReduceNode):
         trusted: bool | Sequence[str] = False,
     ) -> None:
         # TODO: make sure trusted here makes sense and used.
+        self.trusted = self._get_trusted(
+            trusted, [get_module(x) + "." + x.__name__ for x in ALLOWED_SGD_LOSSES]
+        )
         super().__init__(
             state,
             load_context,
             constructor=gettype(state["__module__"], state["__class__"]),
-            trusted=False,
-        )
-        self.trusted = self._get_trusted(
-            trusted, [get_module(x) + "." + x.__name__ for x in ALLOWED_SGD_LOSSES]
+            trusted=self.trusted,
         )
 
 
