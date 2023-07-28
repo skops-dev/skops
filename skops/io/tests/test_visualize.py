@@ -290,20 +290,20 @@ class TestVisualizeTree:
         dumped = sio.dumps(model)
         sio.visualize(dumped)
 
-        classes = []
         if isinstance(model, DecisionTreeClassifier):
-            criterion = "gini"
-            classes = [
+            dt_criterion = "gini"
+            dt_classes = [
                 "    ├── classes_: numpy.ndarray",
                 "    ├── n_classes_: numpy.int64",
             ]
         elif isinstance(model, DecisionTreeRegressor):
-            criterion = "squared_error"
+            dt_criterion = "squared_error"
+            dt_classes = []
 
         expected = [
             "root: sklearn.tree._classes.{}".format(cls.__name__),
             "└── attrs: builtins.dict",
-            '    ├── criterion: json-type("{}")'.format(criterion),
+            '    ├── criterion: json-type("{}")'.format(dt_criterion),
             '    ├── splitter: json-type("best")',
             "    ├── max_depth: json-type(null)",
             "    ├── min_samples_split: json-type(2)",
@@ -318,7 +318,7 @@ class TestVisualizeTree:
             "    ├── n_features_in_: json-type(2)",
             "    ├── n_outputs_: json-type(1)",
         ]
-        expected += classes
+        expected += dt_classes
         expected += [
             "    ├── max_features_: json-type(2)",
             "    ├── tree_: sklearn.tree._tree.Tree",
