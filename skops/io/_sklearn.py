@@ -108,7 +108,7 @@ class ReduceNode(Node):
             "constructor": TypeNode(
                 {
                     "__class__": constructor.__name__,
-                    "__module__": constructor.__module__,
+                    "__module__": get_module(constructor),
                     "__id__": id(constructor),
                 },
                 load_context,
