@@ -12,6 +12,8 @@ skops Changelog
 
 v0.9
 ----
+- Fix an issue with visualizing Skops files for `scikit-learn` tree estimators.
+  :pr:`386` by :user:`Reid Johnson <reidjohnson>`.
 
 v0.8
 ----
