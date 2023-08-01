@@ -202,9 +202,6 @@ def walk_tree(
     node: :class:`skops.io._audit.Node`
         The current node to visit. Children are visited recursively.
 
-    show: "all" or "untrusted" or "trusted"
-        Whether to print all nodes, only untrusted nodes, or only trusted nodes.
-
     node_name: str (default="root")
         The key to the current node. If "key_types" is encountered, it is
         skipped.
