@@ -13,6 +13,7 @@ from sklearn.preprocessing import (
     StandardScaler,
 )
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
+from sklearn.utils import parse_version
 
 import skops.io as sio
 
@@ -315,6 +316,10 @@ class TestVisualizeTree:
             "    ├── min_impurity_decrease: json-type(0.0)",
             "    ├── class_weight: json-type(null)",
             "    ├── ccp_alpha: json-type(0.0)",
+        ]
+        if parse_version(sklearn.__version__) >= parse_version("1.4.0dev"):
+            expected += ["    ├── monotonic_cst: json-type(null)"]
+        expected += [
             "    ├── n_features_in_: json-type(2)",
             "    ├── n_outputs_: json-type(1)",
         ]
