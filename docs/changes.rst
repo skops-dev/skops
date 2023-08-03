@@ -12,6 +12,8 @@ skops Changelog
 
 v0.9
 ----
+- Add support for `quantile-forest <https://github.com/zillow/quantile-forest>`__
+  estimators. :pr:`384` by :user:`Reid Johnson <reidjohnson>`.
 - Fix an issue with visualizing Skops files for `scikit-learn` tree estimators.
   :pr:`386` by :user:`Reid Johnson <reidjohnson>`.
 
