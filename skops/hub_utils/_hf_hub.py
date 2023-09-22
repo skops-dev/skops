@@ -10,11 +10,16 @@ import json
 import os
 import shutil
 from pathlib import Path
+from pickle import dump as pickle_dump
 from typing import Any, List, Literal, MutableMapping, Optional, Sequence, Union
 
 import numpy as np
 from huggingface_hub import HfApi, InferenceApi, snapshot_download
+from sklearn.base import BaseEstimator
 from sklearn.utils import check_array
+
+from skops import card, io
+from skops.card._model_card import _load_model
 
 SUPPORTED_TASKS = [
     "tabular-classification",
@@ -405,8 +410,6 @@ def init(
             f"Task {task} not supported. Supported tasks are: {SUPPORTED_TASKS}"
         )
 
-    model = _check_model_file(model)
-
     dst.mkdir(parents=True, exist_ok=True)
 
     # add intelex requirement, if it's used and not already in requirements
@@ -415,19 +418,64 @@ def init(
     ):
         requirements.append("scikit-learn-intelex")
 
+    # model parameter can be either a path or a model object
     try:
-        shutil.copy2(src=model, dst=dst)
+        if isinstance(model, (str, Path)):
+            model = _check_model_file(model)
+            shutil.copy2(src=model, dst=dst)
 
-        model_name = model.name
-        _create_config(
-            model_path=model_name,
-            requirements=requirements,
-            dst=dst,
-            task=task,
-            data=data,
-            model_format=model_format,
-            use_intelex=use_intelex,
-        )
+            model_name = model.name
+
+            _create_config(
+                model_path=model_name,
+                requirements=requirements,
+                dst=dst,
+                task=task,
+                data=data,
+                model_format=model_format,
+                use_intelex=use_intelex,
+            )
+
+            # load model from file
+            model = _load_model(model, trusted=True)
+            model_card = card.Card(model, metadata=card.metadata_from_config(dst))
+            model_card.save(dst / "README.md")
+        elif isinstance(model, BaseEstimator):
+            # if it is a model object and its format is set to auto, choose skops by default
+            if model_format == "auto":
+                model_format = "skops"
+            elif model_format in ["pkl", "pickle", "joblib"]:
+                model_format = "pickle"
+            model_name = Path(dst / f"model.{model_format}")
+
+            _create_config(
+                model_path=model_name,
+                requirements=requirements,
+                dst=dst,
+                task=task,
+                data=data,
+                model_format=model_format,
+                use_intelex=use_intelex,
+            )
+
+            # create model file if it doesn't exist to make a valid repository
+            if not os.path.isfile(model_name):
+                if model_format == "pickle":
+                    with open(model_name, "wb") as f:
+                        pickle_dump(model, f)
+                elif model_format == "skops":
+                    io.dump(model, model_name)
+
+            # create README if it doesn't exist
+            if not os.path.isfile(dst / "README.md"):
+                model_card = card.Card(model, metadata=card.metadata_from_config(dst))
+                model_card.save(dst / "README.md")
+        else:
+            raise ValueError(
+                "Cannot determine the input model argument. "
+                "Please indicate a model with the expected type."
+            )
+
     except Exception:
         shutil.rmtree(dst)
         raise

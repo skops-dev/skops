@@ -15,6 +15,7 @@ import pytest
 import sklearn
 from flaky import flaky
 from huggingface_hub import HfApi
+from huggingface_hub.repocard import RepoCard
 from huggingface_hub.utils import RepositoryNotFoundError
 from sklearn.datasets import load_diabetes, load_iris
 from sklearn.linear_model import LinearRegression, LogisticRegression
@@ -85,10 +86,12 @@ def classifier(repo_path, config_json):
     path = repo_path / model_file
 
     try:
-        if file_format == "pickle":
+        if file_format == "pickle" or file_format == "joblib":
             with open(path, "wb") as f:
                 pickle.dump(clf, f)
         elif file_format == "skops":
+            dump(clf, path)
+        elif file_format == "auto":
             dump(clf, path)
         yield path
     finally:
@@ -108,10 +111,22 @@ CONFIG = {
             "model": {"file": "model.skops"},
         }
     },
+    "auto": {
+        "sklearn": {
+            "environment": ['scikit-learn="1.1.1"'],
+            "model": {"file": "model.skops"},
+        }
+    },
+    "joblib": {
+        "sklearn": {
+            "environment": ['scikit-learn="1.1.1"'],
+            "model": {"file": "model.joblib"},
+        }
+    },
 }
 
 
-@pytest.fixture(scope="session", params=["skops", "pickle"])
+@pytest.fixture(scope="session", params=["skops", "pickle", "auto", "joblib"])
 def config_json(repo_path, request):
     path = repo_path / "config.json"
     try:
@@ -292,6 +307,8 @@ def test_init(classifier, config_json):
     )
     _validate_folder(path=dir_path)
 
+    assert os.path.isfile(Path(dir_path) / "README.md")
+
     # it should fail a second time since the folder is no longer empty.
     with pytest.raises(OSError, match="None-empty dst path already exists!"):
         init(
@@ -301,6 +318,56 @@ def test_init(classifier, config_json):
             task="tabular-classification",
             data=iris.data,
         )
+
+
+@pytest.fixture(
+    params=[pytest.param("classifier", marks=pytest.mark.usefixtures), get_classifier()]
+)
+def classifiers(request):
+    # Returns a model object or a path to a model with all
+    # model formats combinations from CONFIG dict
+    try:
+        yield request.getfixturevalue(request.param)
+    except Exception:  # get_classifier() is not a fixuture, exception raised
+        yield request.param
+
+
+def test_override_init_modelcard(classifiers, config_json):
+    # create a temp directory and delete it, we just need a unique name.
+    dir_path = tempfile.mkdtemp()
+    shutil.rmtree(dir_path)
+
+    version = metadata.version("scikit-learn")
+    _, model_format = config_json
+    # joblib type falls unders auto format, explicityly set to auto
+    # because we can't repeat key "auto" in CONFIG dict
+    if model_format == "joblib":
+        model_format = "auto"
+
+    init(
+        model=classifiers,
+        requirements=[f'scikit-learn="{version}"'],
+        dst=dir_path,
+        task="tabular-classification",
+        data=iris.data,
+        model_format=model_format,
+    )
+    _validate_folder(path=dir_path)
+
+    # inital card does not have a license set
+    with pytest.raises(
+        AttributeError, match="'CardData' object has no attribute 'license'"
+    ):
+        model_card = RepoCard.load(Path(dir_path) / "README.md")
+        model_card.data.license
+
+    # override existent modelcard created by init with license attribute
+    model = get_classifier()
+    model_card = card.Card(model, metadata=card.metadata_from_config(Path(dir_path)))
+    model_card.metadata.license = "mit"
+    model_card.save(Path(dir_path) / "README.md")
+    new_card = RepoCard.load(Path(dir_path) / "README.md")
+    assert new_card.data.license == "mit"
 
 
 def test_init_no_warning_or_error(classifier, config_json):
