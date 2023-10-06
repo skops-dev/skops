@@ -1396,7 +1396,7 @@ class Card:
         metadata_reprs = []
         for key, val in self.metadata.to_dict().items() if self.metadata else {}:
             if key == "widget":
-                metadata_reprs.append("metadata.widget={...},")
+                metadata_reprs.append("metadata.widget=[{...}],")
                 continue
 
             metadata_reprs.append(self._format_repr(f"metadata.{key}={val},"))
