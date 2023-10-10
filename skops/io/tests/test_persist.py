@@ -605,6 +605,11 @@ def test_metainfo():
     for key, val_expected in expected.items():
         for state in states:
             val_state = state[key]
+
+            # skipping all the state values that are a cached node
+            if val_state["__loader__"] == "CachedNode":
+                continue
+
             # check presence of "content"/"file" but not exact values
             assert ("content" in val_state) or ("file" in val_state)
             assert val_state["__class__"] == val_expected["__class__"]
