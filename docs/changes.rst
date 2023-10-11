@@ -16,6 +16,8 @@ v0.9
   estimators. :pr:`384` by :user:`Reid Johnson <reidjohnson>`.
 - Fix an issue with visualizing Skops files for `scikit-learn` tree estimators.
   :pr:`386` by :user:`Reid Johnson <reidjohnson>`.
+- Fix dumping Scikeras model failing because of maximum recursion depth. :pr:`388`
+  by :user:`Thomas Lazarus <lazarust>`.
 
 v0.8
 ----
