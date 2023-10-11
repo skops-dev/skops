@@ -114,7 +114,7 @@ def metadata_from_config(config_path: Union[str, Path]) -> ModelCardData:
     # https://huggingface.co/docs/hub/models-widgets-examples
     if example_input:
         if "tabular" in task:
-            card_data.widget = {"structuredData": example_input}  # type: ignore
+            card_data.widget = [{"structuredData": example_input}]  # type: ignore
         # TODO: add text data example here.
 
     return card_data
@@ -1396,7 +1396,7 @@ class Card:
         metadata_reprs = []
         for key, val in self.metadata.to_dict().items() if self.metadata else {}:
             if key == "widget":
-                metadata_reprs.append("metadata.widget={...},")
+                metadata_reprs.append("metadata.widget=[{...}],")
                 continue
 
             metadata_reprs.append(self._format_repr(f"metadata.{key}={val},"))
