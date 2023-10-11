@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any, List, Literal, MutableMapping, Optional, Sequence, Union
 
 import numpy as np
-from huggingface_hub import HfApi, InferenceApi, snapshot_download
+from huggingface_hub import HfApi, InferenceClient, snapshot_download
 from sklearn.utils import check_array
 
 SUPPORTED_TASKS = [
@@ -755,9 +755,9 @@ def get_model_output(repo_id: str, data: Any, token: Optional[str] = None) -> An
         inputs = {f"x{i}": data[:, i] for i in range(data.shape[1])}
         inputs = {"data": inputs}
 
-    res = InferenceApi(repo_id=repo_id, task=model_info.pipeline_tag, token=token)(
-        inputs=inputs
-    )
+    client = InferenceClient(token=token)
+    res_bytes = client.post(json={"inputs": inputs}, model=repo_id)
+    res = json.loads(res_bytes.decode("utf-8"))
 
     if isinstance(res, list):
         return np.array(res)

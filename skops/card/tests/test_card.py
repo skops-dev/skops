@@ -1186,14 +1186,16 @@ class TestMetadata:
         metadata = metadata_load(local_path=Path(destination_path) / "README.md")
         assert "widget" in metadata
 
-        expected_data = {
-            "structuredData": {
-                "petal length (cm)": [1.4, 1.4, 1.3],
-                "petal width (cm)": [0.2, 0.2, 0.2],
-                "sepal length (cm)": [5.1, 4.9, 4.7],
-                "sepal width (cm)": [3.5, 3.0, 3.2],
-            }
-        }
+        expected_data = [
+            {
+                "structuredData": {
+                    "petal length (cm)": [1.4, 1.4, 1.3],
+                    "petal width (cm)": [0.2, 0.2, 0.2],
+                    "sepal length (cm)": [5.1, 4.9, 4.7],
+                    "sepal width (cm)": [3.5, 3.0, 3.2],
+                }
+            },
+        ]
         assert metadata["widget"] == expected_data
 
         for tag in ["sklearn", "skops", "tabular-classification"]:
@@ -1403,7 +1405,7 @@ class TestCardRepr:
             library_name="sklearn",
             tags=["sklearn", "tabular-classification"],
             foo={"bar": 123},
-            widget={"something": "very-long"},
+            widget=[{"something": "very-long"}],
         )
         card.metadata = metadata
 
@@ -1414,7 +1416,7 @@ class TestCardRepr:
             "  metadata.library_name=sklearn,",
             "  metadata.tags=['sklearn', 'tabular-classification'],",
             "  metadata.foo={'bar': 123},",
-            "  metadata.widget={...},",
+            "  metadata.widget=[{...}],",
         ]
         expected = "\n".join(expected_lines[:2] + extra_lines + expected_lines[2:])
 
