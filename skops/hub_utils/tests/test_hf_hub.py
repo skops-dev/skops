@@ -503,13 +503,20 @@ def test_inference(
 
     X_test = data.data.head(5)
     y_pred = model.predict(X_test)
-    output = get_model_output(repo_id, data=X_test, token=HF_HUB_TOKEN)
+    with pytest.warns(FutureWarning):
+        output = get_model_output(repo_id, data=X_test, token=HF_HUB_TOKEN)
 
     # cleanup
     client.delete_repo(repo_id=repo_id, token=HF_HUB_TOKEN)
     model_path.unlink(missing_ok=True)
 
     assert np.allclose(output, y_pred)
+
+
+def test_get_model_output_deprecated():
+    with pytest.raises(Exception):
+        with pytest.warns(FutureWarning, match="This feature is no longer free"):
+            get_model_output("dummy", data=iris.data)
 
 
 def test_get_config(repo_path, config_json):

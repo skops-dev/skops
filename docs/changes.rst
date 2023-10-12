@@ -17,7 +17,7 @@ v0.9
 - Fix an issue with visualizing Skops files for `scikit-learn` tree estimators.
   :pr:`386` by :user:`Reid Johnson <reidjohnson>`.
 - :func:`skops.hug_utils.get_model_output` is deprecated and will be removed in version
-  0.10.
+  0.10. :pr:`396` by `Adrin Jalali`_.
 
 v0.8
 ----
