@@ -744,11 +744,9 @@ def get_model_output(repo_id: str, data: Any, token: Optional[str] = None) -> An
     available.
     """
     warnings.warn(
-        (
-            "This feature is no longer free on hf.co and therefore this function will"
-            " be removed in the next release. Use `huggingface_hub.InferenceClient`"
-            " instead."
-        ),
+        "This feature is no longer free on hf.co and therefore this function will"
+        " be removed in the next release. Use `huggingface_hub.InferenceClient`"
+        " instead.",
         FutureWarning,
     )
     model_info = HfApi().model_info(repo_id=repo_id, use_auth_token=token)  # type: ignore
