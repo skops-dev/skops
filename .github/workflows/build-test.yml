@@ -55,7 +55,7 @@ jobs:
     - name: Install dependencies
       run: |
         pip install .[docs,tests]
-        pip install black=="23.9.1" ruff=="0.0.292" mypy=="1.0.0"
+        pip install black=="23.9.1" ruff=="0.0.292" mypy=="1.6.0"
         pip uninstall --yes scikit-learn
         if [ ${{ matrix.sklearn_version }} == "nightly" ];
           then pip install --pre --extra-index https://pypi.anaconda.org/scientific-python-nightly-wheels/simple scikit-learn;
