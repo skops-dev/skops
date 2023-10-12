@@ -807,14 +807,12 @@ class TestRender:
         model_card.metadata.foo = "something"
         model_card.metadata.bar = "something else"
         rendered = model_card.render()
-        expected = textwrap.dedent(
-            """
+        expected = textwrap.dedent("""
             ---
             foo: something
             bar: something else
             ---
-            """
-        ).strip()
+            """).strip()
         assert rendered.startswith(expected)
 
 
@@ -1362,13 +1360,11 @@ class TestCardRepr:
         model = fit_model()
         card = Card(model, model_diagram=False, template=None)
         result = meth(card)
-        expected = textwrap.dedent(
-            """
+        expected = textwrap.dedent("""
         Card(
           model=LinearRegression(),
         )
-        """
-        ).strip()
+        """).strip()
         assert result == expected
 
     @pytest.mark.parametrize("meth", [repr, str])

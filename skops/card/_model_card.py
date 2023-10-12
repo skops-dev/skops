@@ -1254,8 +1254,9 @@ class Card:
         description: str | None = None,
     ) -> Self:
         """
-        Add a :class:`fairlearn.metrics.MetricFrame` table to the model card. The table contains
-        the difference, group_ma, group_min, and ratio for each metric.
+        Add a :class:`fairlearn.metrics.MetricFrame` table to the model card.
+        The table contains the difference, group_ma, group_min, and ratio for
+        each metric.
 
         Parameters
         ----------
@@ -1451,9 +1452,10 @@ class Card:
             Filepath to save your card.
 
         plot_path: str
-            Filepath to save the plots. Use this when saving the model card before creating the
-            repository. Without this path the README will have an absolute path to the plot that
-            won't exist in the repository.
+            Filepath to save the plots. Use this when saving the model card
+            before creating the repository. Without this path the README will
+            have an absolute path to the plot that won't exist in the
+            repository.
 
         Notes
         -----
@@ -1487,7 +1489,8 @@ class Card:
         Parameters
         ----------
         data : dict[str, Section]
-            The card data to iterate through. This is usually the sections and subsections.
+            The card data to iterate through. This is usually the sections and
+            subsections.
 
         level : int, optional
             The level of the section, by default 0. This keeps track of subsections.
