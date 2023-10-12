@@ -8,6 +8,7 @@ import numpy as np
 from ._audit import Node, get_tree
 from ._general import function_get_state
 from ._protocol import PROTOCOL
+from ._trusted_types import NUMPY_DTYPE_TYPE_NAMES
 from ._utils import LoadContext, SaveContext, get_module, get_state, gettype
 from .exceptions import UnsupportedTypeException
 
@@ -52,6 +53,10 @@ def ndarray_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
 
 
 class NdArrayNode(Node):
+    # TODO: NdArrayNode is not only responsible for np.arrays
+    #  but also for np.generics, thus the confusion with DTypeNode.
+    #  See PR-336
+
     def __init__(
         self,
         state: dict[str, Any],
@@ -60,7 +65,9 @@ class NdArrayNode(Node):
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.type = state["type"]
-        self.trusted = self._get_trusted(trusted, [np.ndarray])
+        self.trusted = self._get_trusted(
+            trusted, [np.ndarray] + NUMPY_DTYPE_TYPE_NAMES  # type: ignore
+        )
         if self.type == "numpy":
             self.children = {
                 "content": io.BytesIO(load_context.src.read(state["file"]))
@@ -249,6 +256,17 @@ GET_STATE_DISPATCH_FUNCTIONS = [
     (np.random.RandomState, random_state_get_state),
     (np.random.Generator, random_generator_get_state),
 ]
+
+try:
+    # From numpy=1.25.0 dispatching for `__array_function__` is done via
+    # a C wrapper: https://github.com/numpy/numpy/pull/23020
+    from numpy.core._multiarray_umath import _ArrayFunctionDispatcher
+
+    GET_STATE_DISPATCH_FUNCTIONS.append((_ArrayFunctionDispatcher, function_get_state))
+except ImportError:
+    pass
+
+
 # tuples of type and function that creates the instance of that type
 NODE_TYPE_MAPPING = {
     ("NdArrayNode", PROTOCOL): NdArrayNode,

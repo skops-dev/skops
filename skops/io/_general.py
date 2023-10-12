@@ -5,6 +5,7 @@ import json
 import operator
 import uuid
 from functools import partial
+from reprlib import Repr
 from types import FunctionType, MethodType
 from typing import Any, Sequence
 
@@ -13,6 +14,8 @@ import numpy as np
 from ._audit import Node, get_tree
 from ._protocol import PROTOCOL
 from ._trusted_types import (
+    NUMPY_DTYPE_TYPE_NAMES,
+    NUMPY_UFUNC_TYPE_NAMES,
     PRIMITIVE_TYPE_NAMES,
     SCIPY_UFUNC_TYPE_NAMES,
     SKLEARN_ESTIMATOR_TYPE_NAMES,
@@ -26,6 +29,9 @@ from ._utils import (
     gettype,
 )
 from .exceptions import UnsupportedTypeException
+
+arepr = Repr()
+arepr.maxstring = 24
 
 
 def dict_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
@@ -206,7 +212,9 @@ class FunctionNode(Node):
     ) -> None:
         super().__init__(state, load_context, trusted)
         # TODO: what do we trust?
-        self.trusted = self._get_trusted(trusted, default=SCIPY_UFUNC_TYPE_NAMES)
+        self.trusted = self._get_trusted(
+            trusted, default=SCIPY_UFUNC_TYPE_NAMES + NUMPY_UFUNC_TYPE_NAMES
+        )
         self.children = {}
 
     def _construct(self):
@@ -289,7 +297,9 @@ class TypeNode(Node):
     ) -> None:
         super().__init__(state, load_context, trusted)
         # TODO: what do we trust?
-        self.trusted = self._get_trusted(trusted, PRIMITIVE_TYPE_NAMES)
+        self.trusted = self._get_trusted(
+            trusted, PRIMITIVE_TYPE_NAMES + NUMPY_DTYPE_TYPE_NAMES
+        )
         # We use a bare Node type here since a Node only checks the type in the
         # dict using __class__ and __module__ keys.
         self.children = {}
@@ -527,6 +537,11 @@ class BytesNode(Node):
         content = self.children["content"].getvalue()
         return content
 
+    def format(self):
+        content = self.children["content"].getvalue()
+        byte_repr = arepr.repr(content)
+        return byte_repr
+
 
 class BytearrayNode(BytesNode):
     def __init__(
@@ -542,6 +557,9 @@ class BytearrayNode(BytesNode):
         content_bytes = super()._construct()
         content_bytearray = bytearray(list(content_bytes))
         return content_bytearray
+
+    def format(self):
+        return f"bytearray({super().format()})"
 
 
 def operator_func_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:

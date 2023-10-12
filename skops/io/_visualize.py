@@ -8,10 +8,20 @@ from typing import Any, Callable, Iterator, Literal, Sequence
 from zipfile import ZipFile
 
 from ._audit import VALID_NODE_CHILD_TYPES, Node, get_tree
-from ._general import FunctionNode, JsonNode, ListNode
+from ._general import BytearrayNode, BytesNode, FunctionNode, JsonNode, ListNode
 from ._numpy import NdArrayNode
 from ._scipy import SparseMatrixNode
 from ._utils import LoadContext
+
+# The children of these types are not visualized
+SKIPPED_TYPES = (
+    BytearrayNode,
+    BytesNode,
+    FunctionNode,
+    JsonNode,
+    NdArrayNode,
+    SparseMatrixNode,
+)
 
 
 @dataclass
@@ -192,9 +202,6 @@ def walk_tree(
     node: :class:`skops.io._audit.Node`
         The current node to visit. Children are visited recursively.
 
-    show: "all" or "untrusted" or "trusted"
-        Whether to print all nodes, only untrusted nodes, or only trusted nodes.
-
     node_name: str (default="root")
         The key to the current node. If "key_types" is encountered, it is
         skipped.
@@ -269,7 +276,7 @@ def walk_tree(
     # TODO: For better security, we should check the schema if we return early,
     # otherwise something nefarious could be hidden inside (however, if there
     # is, the node should be marked as unsafe)
-    if isinstance(node, (NdArrayNode, SparseMatrixNode, FunctionNode, JsonNode)):
+    if isinstance(node, SKIPPED_TYPES):
         return
 
     yield from walk_tree(

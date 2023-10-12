@@ -8,7 +8,7 @@ import warnings
 from collections import Counter
 from functools import partial, wraps
 from pathlib import Path
-from zipfile import ZipFile
+from zipfile import ZIP_DEFLATED, ZipFile
 
 import joblib
 import numpy as np
@@ -20,6 +20,7 @@ from sklearn.datasets import load_sample_images, make_classification, make_regre
 from sklearn.decomposition import SparseCoder
 from sklearn.exceptions import SkipTestWarning
 from sklearn.experimental import enable_halving_search_cv  # noqa
+from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import (
     GridSearchCV,
@@ -48,12 +49,19 @@ from sklearn.utils.estimator_checks import (
     _enforce_estimator_tags_y,
     _get_check_estimator_ids,
 )
+from sklearn.utils.fixes import parse_version, sp_version
 
 import skops
 from skops.io import dump, dumps, get_untrusted_types, load, loads
 from skops.io._audit import NODE_TYPE_MAPPING, get_tree
 from skops.io._sklearn import UNSUPPORTED_TYPES
-from skops.io._trusted_types import SCIPY_UFUNC_TYPE_NAMES, SKLEARN_ESTIMATOR_TYPE_NAMES
+from skops.io._trusted_types import (
+    NUMPY_DTYPE_TYPE_NAMES,
+    NUMPY_UFUNC_TYPE_NAMES,
+    PRIMITIVE_TYPE_NAMES,
+    SCIPY_UFUNC_TYPE_NAMES,
+    SKLEARN_ESTIMATOR_TYPE_NAMES,
+)
 from skops.io._utils import LoadContext, SaveContext, _get_state, get_state, gettype
 from skops.io.exceptions import UnsupportedTypeException, UntrustedTypesFoundException
 from skops.io.tests._utils import assert_method_outputs_equal, assert_params_equal
@@ -129,7 +137,16 @@ def _tested_estimators(type_filter=None):
                     category=SkipTestWarning,
                     message="Can't instantiate estimator",
                 )
-                estimator = _construct_instance(Estimator)
+                if name == "QuantileRegressor" and sp_version >= parse_version(
+                    "1.11.0"
+                ):
+                    # The solver "interior-point" (the default solver in
+                    # scikit-learn < 1.4.0) is not available in scipy >= 1.11.0. The
+                    # default solver will be "highs" from scikit-learn >= 1.4.0.
+                    # https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.QuantileRegressor.html
+                    estimator = _construct_instance(partial(Estimator, solver="highs"))
+                else:
+                    estimator = _construct_instance(Estimator)
                 # with the kind of data we pass, it needs to be 1 for the few
                 # estimators which have this.
                 if "n_components" in estimator.get_params():
@@ -224,9 +241,15 @@ def _tested_estimators(type_filter=None):
 
 
 def _tested_ufuncs():
-    for full_name in SCIPY_UFUNC_TYPE_NAMES:
+    for full_name in SCIPY_UFUNC_TYPE_NAMES + NUMPY_UFUNC_TYPE_NAMES:
         module_name, _, ufunc_name = full_name.rpartition(".")
         yield gettype(module_name=module_name, cls_or_func=ufunc_name)
+
+
+def _tested_types():
+    for full_name in PRIMITIVE_TYPE_NAMES + NUMPY_DTYPE_TYPE_NAMES:
+        module_name, _, type_name = full_name.rpartition(".")
+        yield gettype(module_name=module_name, cls_or_func=type_name)
 
 
 def _unsupported_estimators(type_filter=None):
@@ -358,15 +381,27 @@ def test_can_persist_fitted(estimator):
 
     assert not any(type_ in SKLEARN_ESTIMATOR_TYPE_NAMES for type_ in untrusted_types)
     assert not any(type_ in SCIPY_UFUNC_TYPE_NAMES for type_ in untrusted_types)
+    assert not any(type_ in NUMPY_UFUNC_TYPE_NAMES for type_ in untrusted_types)
+    assert not any(type_ in NUMPY_DTYPE_TYPE_NAMES for type_ in untrusted_types)
     assert_method_outputs_equal(estimator, loaded, X)
 
 
-@pytest.mark.parametrize("ufunc", _tested_ufuncs(), ids=SCIPY_UFUNC_TYPE_NAMES)
+@pytest.mark.parametrize(
+    "ufunc", _tested_ufuncs(), ids=SCIPY_UFUNC_TYPE_NAMES + NUMPY_UFUNC_TYPE_NAMES
+)
 def test_can_trust_ufuncs(ufunc):
     dumped = dumps(ufunc)
     untrusted_types = get_untrusted_types(data=dumped)
     assert len(untrusted_types) == 0
-    # TODO: extend with numpy ufuncs
+
+
+@pytest.mark.parametrize(
+    "type_", _tested_types(), ids=PRIMITIVE_TYPE_NAMES + NUMPY_DTYPE_TYPE_NAMES
+)
+def test_can_trust_types(type_):
+    dumped = dumps(type_)
+    untrusted_types = get_untrusted_types(data=dumped)
+    assert len(untrusted_types) == 0
 
 
 @pytest.mark.parametrize(
@@ -1002,3 +1037,31 @@ def test_persist_function(func):
     # check that loaded estimator is identical
     assert_params_equal(estimator.__dict__, loaded.__dict__)
     assert_method_outputs_equal(estimator, loaded, X)
+
+
+def test_compression_level():
+    # Test that setting the compression to zlib and specifying a
+    # compressionlevel reduces the dumped size.
+    model = TfidfVectorizer().fit([np.__doc__])
+    dumped_raw = dumps(model)
+    dumped_compressed = dumps(model, compression=ZIP_DEFLATED, compresslevel=9)
+    # This reduces the size substantially
+    assert len(dumped_raw) > 5 * len(dumped_compressed)
+
+
+@pytest.mark.parametrize("call_has_canonical_format", [False, True])
+def test_sparse_matrix(call_has_canonical_format):
+    # see https://github.com/skops-dev/skops/pull/375
+
+    # note: this behavior is already implicitly tested by sklearn estimators
+    # that use sparse matrices under the hood (tfidf) but it is better to check
+    # the behavior explicitly
+    x = sparse.csr_matrix((3, 4))
+    if call_has_canonical_format:
+        x.has_canonical_format
+
+    dumped = dumps(x)
+    untrusted_types = get_untrusted_types(data=dumped)
+    y = loads(dumped, trusted=untrusted_types)
+
+    assert_params_equal(x.__dict__, y.__dict__)

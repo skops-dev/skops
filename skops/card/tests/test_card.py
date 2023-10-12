@@ -4,6 +4,7 @@ import re
 import tempfile
 import textwrap
 from pathlib import Path
+from unittest import mock
 
 import numpy as np
 import pytest
@@ -25,7 +26,7 @@ from skops.card._model_card import (
     TableSection,
     _load_model,
 )
-from skops.io import dump
+from skops.io import dump, load
 from skops.utils.importutils import import_or_raise
 
 
@@ -143,6 +144,34 @@ def destination_path():
 def test_save_model_card(destination_path, model_card):
     model_card.save(Path(destination_path) / "README.md")
     assert (Path(destination_path) / "README.md").exists()
+
+
+def test_model_caching(
+    skops_model_card_metadata_from_config, iris_skops_file, destination_path
+):
+    """Tests that the model card caches the model to avoid loading it multiple times"""
+
+    new_model = LogisticRegression(random_state=4321)
+    # mock _load_model, it still loads the model but we can track call count
+    mock_load_model = mock.Mock(side_effect=load)
+    card = Card(iris_skops_file, metadata=metadata_from_config(destination_path))
+    with mock.patch("skops.card._model_card._load_model", mock_load_model):
+        model1 = card.get_model()
+        model2 = card.get_model()
+        assert model1 is model2
+        # model is cached, hence _load_model is not called
+        mock_load_model.assert_not_called()
+
+        # override model with new model
+        dump(new_model, card.model)
+
+        model3 = card.get_model()
+        assert mock_load_model.call_count == 1
+        assert model3.random_state == 4321
+        model4 = card.get_model()
+
+        assert model3 is model4
+        assert mock_load_model.call_count == 1  # cached call
 
 
 CUSTOM_TEMPLATES = [None, {}, {"A Title", "Another Title", "A Title/A Section"}]  # type: ignore
@@ -890,11 +919,18 @@ class TestSelect:
 class TestAdd:
     """Adding sections and subsections"""
 
-    def test_add_new_section(self, model_card):
-        model_card = model_card.add(**{"A new section": "sklearn FTW"})
+    @pytest.mark.parametrize("folded", [True, False])
+    def test_add_new_section(self, model_card, folded):
+        model_card = model_card.add(**{"A new section": "sklearn FTW"}, folded=folded)
         section = model_card.select("A new section")
         assert section.title == "A new section"
         assert section.content == "sklearn FTW"
+
+        output = section.format()
+        if folded:
+            assert "<details>" in output
+        else:
+            assert "<details>" not in output
 
     def test_add_new_subsection(self, model_card):
         model_card = model_card.add(
@@ -1150,14 +1186,16 @@ class TestMetadata:
         metadata = metadata_load(local_path=Path(destination_path) / "README.md")
         assert "widget" in metadata
 
-        expected_data = {
-            "structuredData": {
-                "petal length (cm)": [1.4, 1.4, 1.3],
-                "petal width (cm)": [0.2, 0.2, 0.2],
-                "sepal length (cm)": [5.1, 4.9, 4.7],
-                "sepal width (cm)": [3.5, 3.0, 3.2],
-            }
-        }
+        expected_data = [
+            {
+                "structuredData": {
+                    "petal length (cm)": [1.4, 1.4, 1.3],
+                    "petal width (cm)": [0.2, 0.2, 0.2],
+                    "sepal length (cm)": [5.1, 4.9, 4.7],
+                    "sepal width (cm)": [3.5, 3.0, 3.2],
+                }
+            },
+        ]
         assert metadata["widget"] == expected_data
 
         for tag in ["sklearn", "skops", "tabular-classification"]:
@@ -1367,7 +1405,7 @@ class TestCardRepr:
             library_name="sklearn",
             tags=["sklearn", "tabular-classification"],
             foo={"bar": 123},
-            widget={"something": "very-long"},
+            widget=[{"something": "very-long"}],
         )
         card.metadata = metadata
 
@@ -1378,7 +1416,7 @@ class TestCardRepr:
             "  metadata.library_name=sklearn,",
             "  metadata.tags=['sklearn', 'tabular-classification'],",
             "  metadata.foo={'bar': 123},",
-            "  metadata.widget={...},",
+            "  metadata.widget=[{...}],",
         ]
         expected = "\n".join(expected_lines[:2] + extra_lines + expected_lines[2:])
 
@@ -1887,3 +1925,69 @@ class TestCardTableOfContents:
         ]
 
         assert toc == "\n".join(exptected_toc)
+
+
+class TestFoldedSection:
+    def test_folded_section(self, destination_path, model_card):
+        model_card.add(foo="Foo")
+        model_card.add(**{"foo/bar": "Foo/Bar", "foo/baz": "Foo/Baz"})
+        model_card.select("foo/baz").folded = True
+
+        foo_details = (
+            "<details>\n<summary> Click to expand </summary>\n\nFoo\n\n</details>\n"
+        )
+        foo_bar_details = (
+            "<details>\n<summary> Click to expand </summary>\n\nFoo/Bar\n\n</details>\n"
+        )
+        foo_baz_details = (
+            "<details>\n<summary> Click to expand </summary>\n\nFoo/Baz\n\n</details>\n"
+        )
+
+        output = model_card.render()
+        assert foo_details not in output
+        assert foo_bar_details not in output
+        assert foo_baz_details in output
+
+        model_card.select("foo").folded = True
+
+        output = model_card.render()
+        assert foo_details in output
+        assert foo_bar_details not in output
+        assert foo_baz_details not in output
+
+        model_card.select("foo").folded = False
+
+        output = model_card.render()
+        assert foo_details not in output
+        assert foo_bar_details not in output
+        assert foo_baz_details in output
+
+        model_card.select("foo/bar").folded = True
+        model_card.select("foo/baz").folded = False
+
+        output = model_card.render()
+        assert foo_details not in output
+        assert foo_bar_details in output
+        assert foo_baz_details not in output
+
+
+class TestCardSaveWithPlots:
+    def test_copy_plots(self, destination_path, model_card):
+        import matplotlib.pyplot as plt
+
+        with tempfile.TemporaryDirectory(prefix="skops-test-plots") as plot_path:
+            plt.plot([4, 5, 6, 7])
+            fig_1_path = Path(plot_path) / "fig1.png"
+            plt.savefig(fig_1_path)
+            model_card = model_card.add_plot(fig1=fig_1_path)
+
+            plt.plot([7, 6, 5, 4])
+            fig_2_path = "fig2.png"
+            plt.savefig(fig_2_path)
+            model_card = model_card.add_plot(fig2=fig_2_path)
+
+            model_card.save(Path(destination_path) / "README.md", copy_files=True)
+
+        assert (Path(destination_path) / "README.md").exists()
+        assert (Path(destination_path) / "fig1.png").exists()
+        assert (Path(destination_path) / "fig2.png").exists()

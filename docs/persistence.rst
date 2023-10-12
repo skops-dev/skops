@@ -82,7 +82,7 @@ using :func:`skops.io.get_untrusted_types`:
     from skops.io import get_untrusted_types
     unknown_types = get_untrusted_types(file="my-model.skops")
     print(unknown_types)
-    ['numpy.float64', 'numpy.int64', 'sklearn.metrics._scorer._passthrough_scorer',
+    ['sklearn.metrics._scorer._passthrough_scorer',
     'xgboost.core.Booster', 'xgboost.sklearn.XGBClassifier']
 
 Note that everything in the above list is safe to load. We already have many
@@ -108,13 +108,35 @@ At the moment, ``skops`` cannot persist arbitrary Python code. This means if
 you have custom functions (say, a custom function to be used with
 :class:`sklearn.preprocessing.FunctionTransformer`), it will not work. However,
 most ``numpy`` and ``scipy`` functions should work. Therefore, you can save
-objects having references to functions such as ``numpy.sqrt``.
+objects having references to functions or universal functions (ufuncs)
+such as ``numpy.sqrt``.
+
+Compression
+~~~~~~~~~~~
+
+If file size is an issue, you can compress the file by setting the
+``compression`` and ``compresslevel`` arguments to :func:`skops.io.dump` and
+:func:`skops.io.dumps`. For example, to compress the file using ``zlib`` with
+level 9:
+
+.. code:: python
+
+    from zipfile import ZIP_DEFLATED
+    dump(clf, "my-model.skops", compression=ZIP_DEFLATED, compresslevel=9)
+
+Check the documentation of these two arguments under :class:`zipfile.ZipFile`
+for more details.
 
 Command Line Interface
 ######################
 
-Skops has a command line interface to convert scikit-learn models persisted with
-``Pickle`` to ``Skops`` files.
+Skops has a command line interface to:
+
+- convert scikit-learn models persisted with ``Pickle`` to ``Skops`` files.
+- update ``Skops`` files to the latest version.
+
+``skops convert``
+~~~~~~~~~~~~~~~~~
 
 To convert a file from the command line, use the ``skops convert`` entrypoint.
 
@@ -133,6 +155,22 @@ For example, to convert all ``.pkl`` flies in the current directory:
 
 Further help for the different supported options can be found by calling
 ``skops convert --help`` in a terminal.
+
+``skops update``
+~~~~~~~~~~~~~~~~
+
+To update a ``Skops`` file from the command line, use the ``skops update`` command.
+Skops will check the protocol version of the file to determine if it needs to be updated to the current version.
+
+The below command is an example on how to create an updated version of a file
+``my_model.skops`` and save it as ``my_model-updated.skops``:
+
+.. code-block:: console
+
+    skops update my_model.skops -o my_model-updated.skops
+
+Further help for the different supported options can be found by calling
+``skops update --help`` in a terminal.
 
 Visualization
 #############

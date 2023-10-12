@@ -117,6 +117,8 @@ node_modules
 # Vim
 *.swp
 
+# MacOS
+.DS_Store
 
 exports
 trash

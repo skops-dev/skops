@@ -13,8 +13,9 @@ PYTEST_MIN_VERSION = "5.0.1"
 dependent_packages = {
     "scikit-learn": ("0.24", "install", None),
     "scikit-learn-intelex": ("2021.7.1", "docs", None),
-    "huggingface_hub": ("0.10.1", "install", None),
+    "huggingface_hub": ("0.17.0", "install", None),
     "tabulate": ("0.8.8", "install", None),
+    "quantile-forest": ("1.0.0", "tests", None),
     "pytest": (PYTEST_MIN_VERSION, "tests", None),
     "pytest-cov": ("2.9.0", "tests", None),
     "flake8": ("3.8.2", "tests", None),
@@ -32,8 +33,7 @@ dependent_packages = {
     # required for persistence tests of external libraries
     "lightgbm": ("3", "tests", None),
     "xgboost": ("1.6", "tests", None),
-    # TODO: remove condition when catboost supports python 3.11
-    "catboost": ("1.0", "tests", "python_version < '3.11'"),
+    "catboost": ("1.0", "tests", None),
     "fairlearn": ("0.7.0", "docs, tests", None),
     "rich": ("12", "tests, rich", None),
 }

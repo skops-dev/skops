@@ -2,7 +2,7 @@
 # License: 3-clause BSD
 import builtins
 
-from setuptools import setup
+from setuptools import find_namespace_packages, setup
 
 # This is a bit (!) hackish: we are setting a global variable so that the
 # main modelcard __init__ can detect if it is being loaded by the setup
@@ -53,6 +53,7 @@ def setup_package():
         project_urls=PROJECT_URLS,
         version=VERSION,
         long_description=LONG_DESCRIPTION,
+        long_description_content_type="text/x-rst",
         classifiers=[
             "Intended Audience :: Science/Research",
             "Intended Audience :: Developers",
@@ -80,6 +81,7 @@ def setup_package():
             "rich": min_deps.tag_to_packages["rich"],
         },
         include_package_data=True,
+        packages=find_namespace_packages(include=["skops*"]),
     )
 
     setup(**package_data, **metadata)

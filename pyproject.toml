@@ -18,7 +18,9 @@ filterwarnings = [
     # https://github.com/scikit-learn/scikit-learn/pull/23633
     "ignore:Unlike other reduction functions:FutureWarning",
     # https://github.com/scikit-learn/scikit-learn/pull/25157
-    "ignore:\\w+ is deprecated. Use files\\(\\) instead:DeprecationWarning"
+    "ignore:\\w+ is deprecated. Use files\\(\\) instead:DeprecationWarning",
+    # comes from fairlearn
+    "ignore:DataFrame.applymap has been deprecated. Use DataFrame.map instead:FutureWarning",
 ]
 markers = [
     "network: marks tests as requiring internet (deselect with '-m \"not network\"')",
@@ -34,6 +36,6 @@ omit = [
 ]
 
 [tool.mypy]
-exclude = "(\\w+/)*test_\\w+\\.py$|old"
+exclude = "(\\w+/)*test_\\w+\\.py$|spaces/skops_model_card_creator|old"
 ignore_missing_imports = true
 no_implicit_optional = true

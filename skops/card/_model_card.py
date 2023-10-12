@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 import sys
 import textwrap
 import zipfile
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from functools import cached_property
+from hashlib import sha256
 from pathlib import Path
 from reprlib import Repr
 from typing import Any, Iterator, Literal, Sequence, Union
@@ -111,7 +114,7 @@ def metadata_from_config(config_path: Union[str, Path]) -> ModelCardData:
     # https://huggingface.co/docs/hub/models-widgets-examples
     if example_input:
         if "tabular" in task:
-            card_data.widget = {"structuredData": example_input}  # type: ignore
+            card_data.widget = [{"structuredData": example_input}]  # type: ignore
         # TODO: add text data example here.
 
     return card_data
@@ -204,6 +207,7 @@ class Section:
     content: str
     subsections: dict[str, Section] = field(default_factory=dict)
     visible: bool = True
+    folded: bool = False
 
     def select(self, key: str) -> Section:
         """Return a subsection or subsubsection of this section
@@ -240,7 +244,7 @@ class Section:
         return section
 
     def format(self) -> str:
-        return self.content
+        return wrap_as_details(self.content, folded=self.folded)
 
     def __repr__(self) -> str:
         """Generates the ``repr`` of this section.
@@ -503,6 +507,7 @@ class Card:
 
         self._data: dict[str, Section] = {}
         self._metrics: dict[str, str | float | int] = {}
+        self._model_hash = ""
 
         self._populate_template(model_diagram=model_diagram)
 
@@ -531,7 +536,7 @@ class Card:
 
         # default template
         if self.template == Templates.skops.value:
-            self.add(**SKOPS_TEMPLATE)
+            self.add(folded=False, **SKOPS_TEMPLATE)
             # for the skops template, automatically add some default sections
             self.add_hyperparams()
             self.add_get_started_code()
@@ -544,7 +549,7 @@ class Card:
 
         # non-default template
         if isinstance(self.template, Mapping):
-            self.add(**self.template)
+            self.add(folded=False, **self.template)
 
         if isinstance(model_diagram, str) and (model_diagram != "auto"):
             self.add_model_plot(section=model_diagram)
@@ -564,12 +569,27 @@ class Card:
             The model instance.
 
         """
+        if isinstance(self.model, (str, Path)) and hasattr(self, "_model"):
+            hash_obj = sha256()
+            buf_size = 2**20  # load in chunks to save memory
+            with open(self.model, "rb") as f:
+                for chunk in iter(lambda: f.read(buf_size), b""):
+                    hash_obj.update(chunk)
+            model_hash = hash_obj.hexdigest()
+
+            # if hash changed, invalidate cache by deleting attribute
+            if model_hash != self._model_hash:
+                del self._model
+                self._model_hash = model_hash
+
+        return self._model
+
+    @cached_property
+    def _model(self):
         model = _load_model(self.model, self.trusted)
-        # Ideally, we would only call the method below if we *know* that the
-        # model has changed, but at the moment we have no way of knowing that
         return model
 
-    def add(self, **kwargs: str) -> Self:
+    def add(self, folded: bool = False, **kwargs: str) -> Self:
         """Add new section(s) to the model card.
 
         Add one or multiple sections to the model card. The section names are
@@ -591,6 +611,9 @@ class Card:
 
         Parameters
         ----------
+        folded : bool
+            Whether to fold the sections by default or not.
+
         **kwargs : dict
             The keys of the dictionary serve as the section title and the values
             as the section content. It's possible to add to existing sections.
@@ -602,7 +625,7 @@ class Card:
 
         """
         for key, val in kwargs.items():
-            self._add_single(key, val)
+            self._add_single(key, val, folded=folded)
         return self
 
     def _select(
@@ -741,7 +764,9 @@ class Card:
         parent_section = self._select(subsection_names, create=False)
         del parent_section[leaf_node_name]
 
-    def _add_single(self, key: str, val: str | Section) -> Section:
+    def _add_single(
+        self, key: str, val: str | Section, folded: bool = False
+    ) -> Section:
         """Add a single section.
 
         If the (sub)section does not exist, it is created. Otherwise, the
@@ -757,6 +782,9 @@ class Card:
             section, leave it as it is. If it's a string, create a
             :class:`skops.card._model_card.Section`.
 
+        folded: bool
+            Whether the (sub)section should be folded or not.
+
         Returns
         -------
         Section instance
@@ -768,7 +796,7 @@ class Card:
 
         if isinstance(val, str):
             # val is a str, create a Section
-            new_section = Section(title=leaf_node_name, content=val)
+            new_section = Section(title=leaf_node_name, content=val, folded=folded)
         else:
             # val is already a section and can be used as is
             new_section = val
@@ -1300,7 +1328,10 @@ class Card:
             yield aRepr.repr(f"metadata.{key}={val},").strip('"').strip("'")
 
     def _generate_content(
-        self, data: dict[str, Section], depth: int = 1
+        self,
+        data: dict[str, Section],
+        depth: int = 1,
+        destination_path: Path | None = None,
     ) -> Iterator[str]:
         """Yield title and (formatted) contents.
 
@@ -1318,8 +1349,15 @@ class Card:
 
             yield section.format()
 
-            if section.subsections:
-                yield from self._generate_content(section.subsections, depth=depth + 1)
+            if destination_path is not None and isinstance(section, PlotSection):
+                shutil.copy(section.path, destination_path)
+
+            if section.subsections and not section.folded:
+                yield from self._generate_content(
+                    section.subsections,
+                    depth=depth + 1,
+                    destination_path=destination_path,
+                )
 
     def _iterate_content(
         self, data: dict[str, Section], parent_section: str = ""
@@ -1358,7 +1396,7 @@ class Card:
         metadata_reprs = []
         for key, val in self.metadata.to_dict().items() if self.metadata else {}:
             if key == "widget":
-                metadata_reprs.append("metadata.widget={...},")
+                metadata_reprs.append("metadata.widget=[{...}],")
                 continue
 
             metadata_reprs.append(self._format_repr(f"metadata.{key}={val},"))
@@ -1387,19 +1425,21 @@ class Card:
         complete_repr += ")"
         return complete_repr
 
-    def _generate_card(self) -> Iterator[str]:
+    def _generate_card(self, destination_path: Path | None = None) -> Iterator[str]:
         """Yield sections of the model card, including the metadata."""
         if self.metadata.to_dict():
             yield f"---\n{self.metadata.to_yaml()}\n---"
 
-        for line in self._generate_content(self._data):
+        for line in self._generate_content(
+            self._data, destination_path=destination_path
+        ):
             if line:
                 yield "\n" + line
 
         # add an empty line add the end
         yield ""
 
-    def save(self, path: str | Path) -> None:
+    def save(self, path: str | Path, copy_files: bool = False) -> None:
         """Save the model card.
 
         This method renders the model card in markdown format and then saves it
@@ -1407,8 +1447,13 @@ class Card:
 
         Parameters
         ----------
-        path: str, or Path
+        path: Path
             Filepath to save your card.
+
+        plot_path: str
+            Filepath to save the plots. Use this when saving the model card before creating the
+            repository. Without this path the README will have an absolute path to the plot that
+            won't exist in the repository.
 
         Notes
         -----
@@ -1416,7 +1461,10 @@ class Card:
         <https://huggingface.co/docs/hub/models-cards#model-card-metadata>`__.
         """
         with open(path, "w", encoding="utf-8") as f:
-            f.write("\n".join(self._generate_card()))
+            if not isinstance(path, Path):
+                path = Path(path)
+            destination_path = path.parent if copy_files else None
+            f.write("\n".join(self._generate_card(destination_path=destination_path)))
 
     def render(self) -> str:
         """Render the final model card as a string.

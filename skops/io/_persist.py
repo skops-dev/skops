@@ -5,7 +5,7 @@ import io
 import json
 from pathlib import Path
 from typing import Any, BinaryIO, Sequence
-from zipfile import ZipFile
+from zipfile import ZIP_STORED, ZipFile
 
 import skops
 
@@ -15,7 +15,7 @@ from ._utils import LoadContext, SaveContext, _get_state, get_state
 # We load the dispatch functions from the corresponding modules and register
 # them. Old protocols are found in the 'old/' directory, with the protocol
 # version appended to the corresponding module name.
-modules = ["._general", "._numpy", "._scipy", "._sklearn"]
+modules = ["._general", "._numpy", "._scipy", "._sklearn", "._quantile_forest"]
 modules.extend([".old._general_v0", ".old._numpy_v0"])
 for module_name in modules:
     # register exposed functions for get_state and get_tree
@@ -26,10 +26,12 @@ for module_name in modules:
     NODE_TYPE_MAPPING.update(module.NODE_TYPE_MAPPING)
 
 
-def _save(obj: Any) -> io.BytesIO:
+def _save(obj: Any, compression: int, compresslevel: int | None) -> io.BytesIO:
     buffer = io.BytesIO()
 
-    with ZipFile(buffer, "w") as zip_file:
+    with ZipFile(
+        buffer, "w", compression=compression, compresslevel=compresslevel
+    ) as zip_file:
         save_context = SaveContext(zip_file=zip_file)
         state = get_state(obj, save_context)
         save_context.clear_memo()
@@ -41,18 +43,18 @@ def _save(obj: Any) -> io.BytesIO:
     return buffer
 
 
-def dump(obj: Any, file: str | Path | BinaryIO) -> None:
+def dump(
+    obj: Any,
+    file: str | Path | BinaryIO,
+    *,
+    compression: int = ZIP_STORED,
+    compresslevel: int | None = None,
+) -> None:
     """Save an object using the skops persistence format.
 
     Skops aims at providing a secure persistence feature that does not rely on
     :mod:`pickle`, which is inherently insecure. For more information, please
     visit the :ref:`persistence` documentation.
-
-    .. warning::
-
-        This feature is heavily under development, which means the API is
-        unstable and there might be security issues at the moment. Therefore,
-        use caution when loading files from sources you don't trust.
 
     Parameters
     ----------
@@ -64,8 +66,19 @@ def dump(obj: Any, file: str | Path | BinaryIO) -> None:
         convention, we recommend to use the ".skops" file extension, e.g.
         ``save(model, "my-model.skops")``.
 
+    compression: int, default=zipfile.ZIP_STORED
+        The compression method to use. See :class:`zipfile.ZipFile` for more
+        information.
+
+        .. versionadded:: 0.7
+
+    compresslevel: int, default=None
+        The compression level to use. See :class:`zipfile.ZipFile` for more
+        information.
+
+        .. versionadded:: 0.7
     """
-    buffer = _save(obj)
+    buffer = _save(obj, compression=compression, compresslevel=compresslevel)
 
     if isinstance(file, (str, Path)):
         with open(file, "wb") as f:
@@ -74,22 +87,29 @@ def dump(obj: Any, file: str | Path | BinaryIO) -> None:
         file.write(buffer.getbuffer())
 
 
-def dumps(obj: Any) -> bytes:
+def dumps(
+    obj: Any, *, compression: int = ZIP_STORED, compresslevel: int | None = None
+) -> bytes:
     """Save an object using the skops persistence format as a bytes object.
-
-    .. warning::
-
-        This feature is heavily under development, which means the API is
-        unstable and there might be security issues at the moment. Therefore,
-        use caution when loading files from sources you don't trust.
 
     Parameters
     ----------
     obj: object
         The object to be saved. Usually a scikit-learn compatible model.
 
+    compression: int, default=zipfile.ZIP_STORED
+        The compression method to use. See :class:`zipfile.ZipFile` for more
+        information.
+
+        .. versionadded:: 0.7
+
+    compresslevel: int, default=None
+        The compression level to use. See :class:`zipfile.ZipFile` for more
+        information.
+
+        .. versionadded:: 0.7
     """
-    buffer = _save(obj)
+    buffer = _save(obj, compression=compression, compresslevel=compresslevel)
     return buffer.getbuffer().tobytes()
 
 

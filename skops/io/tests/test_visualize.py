@@ -12,6 +12,8 @@ from sklearn.preprocessing import (
     PolynomialFeatures,
     StandardScaler,
 )
+from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
+from sklearn.utils import parse_version
 
 import skops.io as sio
 
@@ -101,12 +103,8 @@ class TestVisualizeTree:
         nodes_self_unsafe = [node for node in nodes if not node.is_self_safe]
         nodes_unsafe = [node for node in nodes if not node.is_safe]
 
-        # there are currently 2 unsafe nodes, a numpy int and the custom
-        # functions. The former might be considered safe in the future, in which
-        # case this test needs to be changed.
-        assert len(nodes_self_unsafe) == 2
-        assert nodes_self_unsafe[0].val == "numpy.int64"
-        assert nodes_self_unsafe[1].val == "test_visualize.unsafe_function"
+        assert len(nodes_self_unsafe) == 1
+        assert nodes_self_unsafe[0].val == "test_visualize.unsafe_function"
 
         # it's not easy to test the number of indirectly unsafe nodes, because
         # it will depend on the nesting structure; we can only be sure that it's
@@ -114,13 +112,10 @@ class TestVisualizeTree:
         assert len(nodes_unsafe) > 2
         assert any("FunctionTransformer" in node.val for node in nodes_unsafe)
 
-    @pytest.mark.parametrize(
-        "trusted", [True, ["numpy.int64", "test_visualize.unsafe_function"]]
-    )
+    @pytest.mark.parametrize("trusted", [True, ["test_visualize.unsafe_function"]])
     def test_all_nodes_trusted(self, pipeline, trusted, capsys):
         # The pipeline contains untrusted type(s), but if we pass trusted=True,
         # it is not considered untrusted anymore
-        # TODO: remove numpy.int64 from trusted once it's trusted by default
         file = sio.dumps(pipeline)
         sio.visualize(file, show="untrusted", trusted=trusted)
         expected = "root: sklearn.pipeline.Pipeline"
@@ -265,6 +260,83 @@ class TestVisualizeTree:
             "    │   └── content: json-type(123)",
             "    ├── copy: json-type(true)",
             "    ├── clip: json-type(false)",
+            '    └── _sklearn_version: json-type("{}")'.format(sklearn.__version__),
+        ]
+        stdout, _ = capsys.readouterr()
+        assert stdout.strip() == "\n".join(expected)
+
+    def test_long_bytes(self, capsys):
+        obj = {
+            "short_byte": b"abc",
+            "long_byte": b"010203040506070809101112131415",
+            "short_bytearray": bytearray(b"abc"),
+            "long_bytearray": bytearray(b"010203040506070809101112131415"),
+        }
+        dumped = sio.dumps(obj)
+        sio.visualize(dumped)
+
+        expected = [
+            "root: builtins.dict",
+            "├── short_byte: b'abc'",
+            "├── long_byte: b'01020304050...9101112131415'",
+            "├── short_bytearray: bytearray(b'abc')",
+            "└── long_bytearray: bytearray(b'01020304050...9101112131415')",
+        ]
+        stdout, _ = capsys.readouterr()
+        assert stdout.strip() == "\n".join(expected)
+
+    @pytest.mark.parametrize("cls", [DecisionTreeClassifier, DecisionTreeRegressor])
+    def test_decision_tree(self, cls, capsys):
+        model = cls(random_state=0).fit([[0, 1], [2, 3], [4, 5]], [0, 1, 2])
+        dumped = sio.dumps(model)
+        sio.visualize(dumped)
+
+        if isinstance(model, DecisionTreeClassifier):
+            dt_criterion = "gini"
+            dt_classes = [
+                "    ├── classes_: numpy.ndarray",
+                "    ├── n_classes_: numpy.int64",
+            ]
+        elif isinstance(model, DecisionTreeRegressor):
+            dt_criterion = "squared_error"
+            dt_classes = []
+
+        expected = [
+            "root: sklearn.tree._classes.{}".format(cls.__name__),
+            "└── attrs: builtins.dict",
+            '    ├── criterion: json-type("{}")'.format(dt_criterion),
+            '    ├── splitter: json-type("best")',
+            "    ├── max_depth: json-type(null)",
+            "    ├── min_samples_split: json-type(2)",
+            "    ├── min_samples_leaf: json-type(1)",
+            "    ├── min_weight_fraction_leaf: json-type(0.0)",
+            "    ├── max_features: json-type(null)",
+            "    ├── max_leaf_nodes: json-type(null)",
+            "    ├── random_state: json-type(0)",
+            "    ├── min_impurity_decrease: json-type(0.0)",
+            "    ├── class_weight: json-type(null)",
+            "    ├── ccp_alpha: json-type(0.0)",
+        ]
+        if parse_version(sklearn.__version__) >= parse_version("1.4.0dev"):
+            expected += ["    ├── monotonic_cst: json-type(null)"]
+        expected += [
+            "    ├── n_features_in_: json-type(2)",
+            "    ├── n_outputs_: json-type(1)",
+        ]
+        expected += dt_classes
+        expected += [
+            "    ├── max_features_: json-type(2)",
+            "    ├── tree_: sklearn.tree._tree.Tree",
+            "    │   ├── attrs: builtins.dict",
+            "    │   │   ├── max_depth: json-type(2)",
+            "    │   │   ├── node_count: json-type(5)",
+            "    │   │   ├── nodes: numpy.ndarray",
+            "    │   │   └── values: numpy.ndarray",
+            "    │   ├── args: builtins.tuple",
+            "    │   │   ├── content: json-type(2)",
+            "    │   │   ├── content: numpy.ndarray",
+            "    │   │   └── content: json-type(1)",
+            "    │   └── constructor: sklearn.tree._tree.Tree",
             '    └── _sklearn_version: json-type("{}")'.format(sklearn.__version__),
         ]
         stdout, _ = capsys.readouterr()

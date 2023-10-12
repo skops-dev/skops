@@ -29,7 +29,6 @@ jobs:
           - python: "3.11"
             sklearn_version: "nightly"
 
-
     # Timeout: https://stackoverflow.com/a/59076067/4521646
     timeout-minutes: 15
 
@@ -39,7 +38,7 @@ jobs:
     # message and make it available in later steps. This is because we want to
     # check the content of the commit message, but on PRs, it's replaced by an
     # artificial commit message. See https://github.com/skops-dev/skops/pull/147
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
         ref: ${{github.event.after}}
@@ -59,7 +58,7 @@ jobs:
         pip install black=="22.6.0" isort=="5.10.1" mypy=="1.0.0"
         pip uninstall --yes scikit-learn
         if [ ${{ matrix.sklearn_version }} == "nightly" ];
-          then pip install --pre --extra-index https://pypi.anaconda.org/scipy-wheels-nightly/simple scikit-learn;
+          then pip install --pre --extra-index https://pypi.anaconda.org/scientific-python-nightly-wheels/simple scikit-learn;
           else pip install "scikit-learn~=${{ matrix.sklearn_version }}";
         fi
         if [ ${{ matrix.os }} == "ubuntu-latest" ];
@@ -79,6 +78,7 @@ jobs:
     - name: Tests
       env:
         SUPER_SECRET: ${{ secrets.HF_HUB_TOKEN }}
+        PYTHONIOENCODING: "utf-8"
       run: |
         python -m pytest -s -v --cov-report=xml -m "not inference" skops/
 

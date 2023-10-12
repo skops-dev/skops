@@ -1,6 +1,6 @@
 .. -*- mode: rst -*-
 
-|readthedocs| |github-actions| |Codecov| |PyPi| |Black|
+|readthedocs| |github-actions| |Codecov| |PyPI| |Black|
 
 .. |readthedocs| image:: https://readthedocs.org/projects/skops/badge/?version=latest&style=flat
     :target: https://skops.readthedocs.io/en/latest/
@@ -14,7 +14,7 @@
     :target: https://codecov.io/gh/skops-dev/skops
     :alt: Codecov
 
-.. |PyPi| image:: https://img.shields.io/pypi/v/skops
+.. |PyPI| image:: https://img.shields.io/pypi/v/skops
     :target: https://pypi.org/project/skops
     :alt: PyPi
 
@@ -40,14 +40,16 @@ download or load the model.
   `Hugging Face Hub <https://hf.co/models>`__, mainly through
   ``skops.hub_utils.init`` and ``skops.hub_utils.push``. You can see all the
   models uploaded to the hub using this library `here
-  <https://huggingface.co/models?other=skops>`_
+  <https://huggingface.co/models?other=skops>`__. Find out more `here
+  <https://skops.readthedocs.io/en/stable/hf_hub.html>`__.
 - ``skops.card``: tools to create a model card explaining what the model does
   and how it should be used. The model card can then be stored as the
   ``README.md`` file on the Hugging Face Hub, with pre-populated metadata to
-  help Hub understand the model.
+  help Hub understand the model. More information can be found `here
+  <https://skops.readthedocs.io/en/stable/model_card.html>`__.
 - ``skops.io``: Secure persistence of sklearn estimators and more, without using
   ``pickle``. Visit `the docs
-  <https://skops.readthedocs.io/en/latest/persistence.html>`_ for more
+  <https://skops.readthedocs.io/en/latest/persistence.html>`__ for more
   information.
 
 Please refer to our `documentation <https://skops.readthedocs.io/en/latest/>`_
@@ -69,5 +71,6 @@ You can install this library using:
 Bug Reports and Questions
 -------------------------
 
-Please send all your questions and report issues on this repository's issue
-tracker as an issue. Try to look for existing ones before you create a new one.
+Please send all your questions and report issues on `this repository's issue
+tracker <https://github.com/skops-dev/skops/issues>`_ as an issue. Try to look
+for existing ones before you create a new one.
