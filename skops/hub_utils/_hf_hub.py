@@ -9,6 +9,7 @@ import itertools
 import json
 import os
 import shutil
+import warnings
 from pathlib import Path
 from typing import Any, List, Literal, MutableMapping, Optional, Sequence, Union
 
@@ -702,10 +703,15 @@ def download(
         shutil.rmtree(path=cached_folder)
 
 
+# TODO(v0.10): remove this function
 def get_model_output(repo_id: str, data: Any, token: Optional[str] = None) -> Any:
     """Returns the output of the model using Hugging Face Hub's inference API.
 
     See the :ref:`User Guide <hf_hub_inference>` for more details.
+
+    .. deprecated:: 0.9
+        Will be removed in version 0.10. Use ``huggingface_hub.InferenceClient``
+        instead.
 
     Parameters
     ----------
@@ -737,8 +743,12 @@ def get_model_output(repo_id: str, data: Any, token: Optional[str] = None) -> An
     Also note that if the model repo is private, the inference API would not be
     available.
     """
-    # TODO: the "type: ignore" should eventually become unncessary when hf_hub
-    # is updated
+    warnings.warn(
+        "This feature is no longer free on hf.co and therefore this function will"
+        " be removed in the next release. Use `huggingface_hub.InferenceClient`"
+        " instead.",
+        FutureWarning,
+    )
     model_info = HfApi().model_info(repo_id=repo_id, use_auth_token=token)  # type: ignore
     if not model_info.pipeline_tag:
         raise ValueError(
