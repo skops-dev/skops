@@ -72,7 +72,7 @@ jobs:
     - name: Check black
       run: black --check --diff .
 
-    - name: Check isort
+    - name: Check ruff
       run: ruff check --diff .
 
     - name: Tests
