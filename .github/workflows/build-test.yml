@@ -73,7 +73,7 @@ jobs:
       run: black --check --diff .
 
     - name: Check isort
-      run: ruff --check --diff .
+      run: ruff check --diff .
 
     - name: Tests
       env:
