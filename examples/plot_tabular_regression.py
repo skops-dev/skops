@@ -16,7 +16,6 @@ from pathlib import Path
 from tempfile import mkdtemp, mkstemp
 
 import matplotlib.pyplot as plt
-import pandas as pd
 import sklearn
 from sklearn.datasets import load_diabetes
 from sklearn.linear_model import LinearRegression
@@ -42,7 +41,8 @@ X_train, X_test, y_train, y_test = train_test_split(
 # Train a Model
 # =============
 # To train a model, we need to convert our data first to vectors. We will use
-# StandardScalar in our pipeline. We will fit a Linear Regression model with the outputs of the scalar.
+# StandardScalar in our pipeline. We will fit a Linear Regression model with
+# the outputs of the scalar.
 model = Pipeline(
     [
         ("scaler", StandardScaler()),
@@ -112,13 +112,14 @@ model_description = (
 model_card_authors = "skops_user, lazarust"
 citation_bibtex = "bibtex\n@inproceedings{...,year={2022}}"
 model_card.add(
+    folded=False,
     **{
         "Model Card Authors": model_card_authors,
         "Intended uses & limitations": limitations,
         "Citation": citation_bibtex,
         "Model description": model_description,
         "Model description/Intended uses & limitations": limitations,
-    }
+    },
 )
 
 # %%
