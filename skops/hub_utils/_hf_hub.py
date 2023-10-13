@@ -575,12 +575,10 @@ def push(
         folder do not make a valid Hugging Face Hub scikit-learn based repo.
     """
     warnings.warn(
-        (
-            "Creating repos on hf.co is subject to strict rate limits now and therefore"
-            " this feature is to be removed from this library in version 0.10. You can"
-            " use tools directly available in the huggingface_hub library instead to"
-            " create and push files."
-        ),
+        "Creating repos on hf.co is subject to strict rate limits now and therefore"
+        " this feature is to be removed from this library in version 0.10. You can"
+        " use tools directly available in the huggingface_hub library instead to"
+        " create and push files.",
         FutureWarning,
     )
     _validate_folder(path=source)
@@ -753,11 +751,9 @@ def get_model_output(repo_id: str, data: Any, token: Optional[str] = None) -> An
     available.
     """
     warnings.warn(
-        (
-            "This feature is no longer free on hf.co and therefore this function will"
-            " be removed in the next release. Use `huggingface_hub.InferenceClient`"
-            " instead."
-        ),
+        "This feature is no longer free on hf.co and therefore this function will"
+        " be removed in the next release. Use `huggingface_hub.InferenceClient`"
+        " instead.",
         FutureWarning,
     )
     model_info = HfApi().model_info(repo_id=repo_id, use_auth_token=token)  # type: ignore
