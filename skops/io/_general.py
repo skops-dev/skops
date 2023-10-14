@@ -194,7 +194,7 @@ class TupleNode(Node):
         f = getattr(t, "_fields", None)
         if not isinstance(f, tuple):
             return False
-        return all(type(n) == str for n in f)
+        return all(isinstance(n, str) for n in f)
 
 
 def function_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:

@@ -67,8 +67,10 @@ _HUB_TEMPLATE = {
     "Model Details/Model Description/Model type": CONTENT_PLACEHOLDER,
     "Model Details/Model Description/Language(s) (NLP)": CONTENT_PLACEHOLDER,
     "Model Details/Model Description/License": CONTENT_PLACEHOLDER,
-    "Model Details/Model Description/Finetuned from model [optional]": CONTENT_PLACEHOLDER,
-    "Model Details/Model Description/Resources for more information": CONTENT_PLACEHOLDER,
+    "Model Details/Model Description/Finetuned from model [optional]":
+        CONTENT_PLACEHOLDER,
+    "Model Details/Model Description/Resources for more information":
+        CONTENT_PLACEHOLDER,
 
     "Uses": "",
     # Address questions around how the model is intended to be used, including
@@ -102,8 +104,10 @@ _HUB_TEMPLATE = {
     "Training Details/Training Procedure [optional]": "",
     # This relates heavily to the Technical Specifications. Content here should
     # link to that section when it is relevant to the training procedure.
-    "Training Details/Training Procedure [optional]/Preprocessing": CONTENT_PLACEHOLDER,
-    "Training Details/Training Procedure [optional]/Speeds, Sizes, Times": CONTENT_PLACEHOLDER,
+    "Training Details/Training Procedure [optional]/Preprocessing":
+        CONTENT_PLACEHOLDER,
+    "Training Details/Training Procedure [optional]/Speeds, Sizes, Times":
+        CONTENT_PLACEHOLDER,
     # This section provides information about throughput, start/end time,
     # checkpoint size if relevant, etc.
 
@@ -137,10 +141,14 @@ _HUB_TEMPLATE = {
     "Environmental Impact/Carbon Emitted": CONTENT_PLACEHOLDER,
 
     "Technical Specifications [optional]": "",
-    "Technical Specifications [optional]/Model Architecture and Objective": CONTENT_PLACEHOLDER,
-    "Technical Specifications [optional]/Compute Infrastructure": CONTENT_PLACEHOLDER,
-    "Technical Specifications [optional]/Compute Infrastructure/Hardware": CONTENT_PLACEHOLDER,
-    "Technical Specifications [optional]/Compute Infrastructure/Software": CONTENT_PLACEHOLDER,
+    "Technical Specifications [optional]/Model Architecture and Objective":
+        CONTENT_PLACEHOLDER,
+    "Technical Specifications [optional]/Compute Infrastructure":
+        CONTENT_PLACEHOLDER,
+    "Technical Specifications [optional]/Compute Infrastructure/Hardware":
+        CONTENT_PLACEHOLDER,
+    "Technical Specifications [optional]/Compute Infrastructure/Software":
+        CONTENT_PLACEHOLDER,
 
     "Citation [optional]": "",
     # If there is a paper or blog post introducing the model, the APA and Bibtex
@@ -155,7 +163,8 @@ _HUB_TEMPLATE = {
     "More Information [optional]": CONTENT_PLACEHOLDER,
     "Model Card Authors [optional]": CONTENT_PLACEHOLDER,
     "Model Card Contact": CONTENT_PLACEHOLDER,
-    "How to Get Started with the Model": f"""Use the code below to get started with the model.
+    "How to Get Started with the Model":
+        f"""Use the code below to get started with the model.
 
 <details>
 <summary> Click to expand </summary>
