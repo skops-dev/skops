@@ -574,6 +574,13 @@ def push(
         This function raises a ``TypeError`` if the contents of the source
         folder do not make a valid Hugging Face Hub scikit-learn based repo.
     """
+    warnings.warn(
+        "Creating repos on hf.co is subject to strict rate limits now and therefore"
+        " this feature is to be removed from this library in version 0.10. You can"
+        " use tools directly available in the huggingface_hub library instead to"
+        " create and push files.",
+        FutureWarning,
+    )
     _validate_folder(path=source)
     client = HfApi()
 

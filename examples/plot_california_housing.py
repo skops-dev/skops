@@ -1,6 +1,6 @@
 """
-Improve your data science workflow with skops and Hugging Face
-==============================================================
+Improve your data science workflow with skops
+=============================================
 """
 
 # %%
@@ -48,7 +48,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import sklearn
-from huggingface_hub import HfApi
 from matplotlib.patches import Rectangle
 from sklearn.compose import ColumnTransformer
 from sklearn.datasets import fetch_california_housing
@@ -1860,57 +1859,10 @@ hub_utils.add_files(
 os.listdir(hub_dir)
 
 # %%
-# Perfect. In order to create a repository on the Hub, we need a token.
-# When you’re logged into the Hub, you can find it here:
-# https://huggingface.co/settings/tokens. For this exercise, we assume the
-# token is set as an environment variable called ``HF_HUB_TOKEN``.
-# We could also set it here directly by pasting it as a string, but
-# generally we should keep the token secret.
-
-
-# %%
-token = os.environ["HF_HUB_TOKEN"]
-
-# %%
-# Now it’s time to push the repository to the Hub. We think of a good
-# name, which, together with the user name, will constitute the
-# ``repo_id``:
-
-# %%
-repo_name = "example-california-housing"
-user_name = HfApi().whoami(token=token)["name"]
-repo_id = f"{user_name}/{repo_name}"
-print(f"Creating and pushing to repo: {repo_id}")
-
-# %% [markdown]
-# Finally, we call `hub_utils.push` like this:
-
-# %%
-hub_utils.push(
-    repo_id=repo_id,
-    source=hub_dir,
-    token=token,
-    create_remote=True,
-    private=False,
-)
-
-# %%
-# We might consider changing the ``private`` argument here,
-# depending on our goal. However, we can always change it later on the
-# repository settings if we want to.
-
-# %%
-# Now let’s print the full URL and visit it:
-
-# %%
-print(f"Visit the following URL: https://huggingface.co/{repo_id}")
-
-# %%
-# We can now visit the page and see the rendered model card, we can use
-# the inference widget to try out what the model would predict for a given
-# input (the warmup for the widget may take a while), other people can
-# comment on the repo and make PRs, etc. So let’s share the link with our
-# interested friends and colleagues!
+# Creating the Repo and Pushing to Hugging Face Hub
+# You can use the tools available in ``huggingface_hub`` to create a repo and
+# push the contents of the repo folder to that repo. For more information visit
+# https://huggingface.co/docs/huggingface_hub/index
 
 # %%
 # Conclusion

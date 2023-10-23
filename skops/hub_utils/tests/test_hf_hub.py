@@ -15,14 +15,12 @@ import pytest
 import sklearn
 from flaky import flaky
 from huggingface_hub import HfApi
-from huggingface_hub.utils import RepositoryNotFoundError
 from sklearn.datasets import load_diabetes, load_iris
 from sklearn.linear_model import LinearRegression, LogisticRegression
 
 from skops import card
 from skops.hub_utils import (
     add_files,
-    download,
     get_config,
     get_model_output,
     get_requirements,
@@ -364,66 +362,10 @@ def test_init_empty_model_file_errors(repo_path, config_json):
     model_path.unlink(missing_ok=True)
 
 
-@pytest.mark.network
-@flaky(max_runs=3)
-@pytest.mark.parametrize("explicit_create", [True, False])
-def test_push_download(
-    explicit_create,
-    repo_path,
-    destination_path,
-    classifier,
-    config_json,
-):
-    config_path, file_format = config_json
-    client = HfApi()
-
-    version = metadata.version("scikit-learn")
-    init(
-        model=classifier,
-        requirements=[f'scikit-learn="{version}"'],
-        dst=destination_path,
-        task="tabular-classification",
-        data=iris.data,
-    )
-
-    user = client.whoami(token=HF_HUB_TOKEN)["name"]
-    repo_id = f"{user}/test-{uuid4()}"
-    if explicit_create:
-        client.create_repo(repo_id=repo_id, token=HF_HUB_TOKEN, repo_type="model")
-    push(
-        repo_id=repo_id,
-        source=repo_path,
-        token=HF_HUB_TOKEN,
-        commit_message="test message",
-        create_remote=True,
-        private=True,
-    )
-
-    # TODO: remove 1st message when huggingface_hub < v0.12 is dropped
-    # message changes in huggingface_hub v0.12, test both
-    match = (
-        "If the repo is private, make sure you are authenticated"
-        "|"
-        "If you are trying to access a private or gated repo, "
-        "make sure you are authenticated"
-    )
-    with pytest.raises(RepositoryNotFoundError, match=match):
-        download(repo_id=repo_id, dst="/tmp/test")
-
-    with pytest.raises(OSError, match="None-empty dst path already exists!"):
-        download(repo_id=repo_id, dst=destination_path, token=HF_HUB_TOKEN)
-
-    files = client.list_repo_files(repo_id=repo_id, use_auth_token=HF_HUB_TOKEN)
-    for f_name in [classifier.name, config_path.name]:
-        assert f_name in files
-
-    try:
-        with tempfile.TemporaryDirectory(prefix="skops-test") as dst:
-            download(repo_id=repo_id, dst=dst, token=HF_HUB_TOKEN, keep_cache=False)
-            copy_files = os.listdir(dst)
-            assert set(copy_files) == set(files)
-    finally:
-        client.delete_repo(repo_id=repo_id, token=HF_HUB_TOKEN)
+def test_push_deprecation():
+    with pytest.raises(Exception):
+        with pytest.warns(FutureWarning, match="Creating repos on hf.co is subject"):
+            push(repo_id="dummy", source=".")
 
 
 @pytest.fixture
