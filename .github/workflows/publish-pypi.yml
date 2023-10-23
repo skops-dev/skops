@@ -14,6 +14,11 @@ jobs:
   publish:
 
     runs-on: ubuntu-latest
+    # Specifying a GitHub environment is optional, but strongly encouraged
+    environment: publish-pypi
+    permissions:
+      # IMPORTANT: this permission is mandatory for trusted publishing
+      id-token: write
 
     steps:
     - uses: actions/checkout@v4
@@ -36,14 +41,9 @@ jobs:
     - name: Publish package to TestPyPI
       uses: pypa/gh-action-pypi-publish@v1.8.10
       with:
-        user: __token__
-        password: ${{ secrets.TEST_PYPI_TOKEN }}
         repository-url: https://test.pypi.org/legacy/
       if: ${{ github.event.inputs.pypi_repo == 'testpypi' }}
 
     - name: Publish package to PyPI
       uses: pypa/gh-action-pypi-publish@v1.8.10
-      with:
-        user: __token__
-        password: ${{ secrets.PYPI_TOKEN }}
       if: ${{ github.event.inputs.pypi_repo == 'pypi' }}
