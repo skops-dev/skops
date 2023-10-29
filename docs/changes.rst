@@ -18,6 +18,8 @@ v0.9
   :pr:`386` by :user:`Reid Johnson <reidjohnson>`.
 - :func:`skops.hug_utils.get_model_output` is deprecated and will be removed in version
   0.10. :pr:`396` by `Adrin Jalali`_.
+- :func:`skops.hub_utils.get_model_output` and :func:`skops.hub_utils.push` are
+  deprecated and will be removed in version 0.10. :pr:`396` by `Adrin Jalali`_.
 - Fix dumping Scikeras model failing because of maximum recursion depth. :pr:`388`
   by :user:`Thomas Lazarus <lazarust>`.
 
