@@ -16,8 +16,9 @@ from unittest.mock import Mock, patch
 
 import pytest
 from sklearn.datasets import make_classification, make_regression
+from sklearn.pipeline import Pipeline
 
-from skops.io import dumps, loads, visualize
+from skops.io import dump, dumps, loads, visualize
 from skops.io.tests._utils import assert_method_outputs_equal, assert_params_equal
 
 # Default settings for generated data
@@ -427,3 +428,40 @@ class TestQuantileForest:
         assert_method_outputs_equal(estimator, loaded, X)
 
         visualize(dumped, trusted=trusted)
+
+
+class TestSciKeras:
+    """Tests for SciKerasRegressor and SciKerasClassifier"""
+
+    @pytest.fixture(autouse=True)
+    def capture_stdout(self):
+        # Mock print and rich.print so that running these tests with pytest -s
+        # does not spam stdout. Other, more common methods of suppressing
+        # printing to stdout don't seem to work, perhaps because of pytest.
+        with patch("builtins.print", Mock()), patch("rich.print", Mock()):
+            yield
+
+    @pytest.fixture(autouse=True)
+    def keras(self):
+        scikeras = pytest.importorskip("scikeras")
+        return scikeras
+
+    @pytest.fixture
+    def test_dumping_model(self, keras):
+        from scikeras.wrappers import KerasClassifier
+
+        # This simplifies the basic usage tutorial from https://adriangb.com/scikeras/stable/notebooks/Basic_Usage.html
+
+        def get_clf(meta):
+            n_features_in_ = meta["n_features_in_"]
+            model = keras.models.Sequential()
+            model.add(keras.layers.Input(shape=(n_features_in_,)))
+            model.add(keras.layers.Dense(1, activation="sigmoid"))
+            return model
+
+        clf = KerasClassifier(model=get_clf, loss="binary_crossentropy")
+
+        pipeline = Pipeline([("classifier", clf)])
+
+        dump(clf, "keras-test.skops")
+        dump(pipeline, "keras-test.skops")
