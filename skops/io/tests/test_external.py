@@ -447,7 +447,16 @@ class TestSciKeras:
         return scikeras
 
     @pytest.fixture
-    def test_dumping_model(self, keras):
+    def trusted(self):
+        return [
+            "scikeras.wrappers.KerasClassifier",
+            "keras.models.Sequential",
+            "keras.layers.core.Dense",
+            "keras.layers.core.Input",
+        ]
+
+    @pytest.fixture
+    def test_dumping_model(self, keras, trusted):
         from scikeras.wrappers import KerasClassifier
 
         # This simplifies the basic usage tutorial from https://adriangb.com/scikeras/stable/notebooks/Basic_Usage.html
@@ -465,3 +474,10 @@ class TestSciKeras:
 
         dump(clf, "keras-test.skops")
         dump(pipeline, "keras-test.skops")
+
+        X, y = make_classification(1000, 20, n_informative=10, random_state=0)
+        clf.fit(X, y)
+        dumped = dump(clf, "keras-test.skops")
+
+        loaded = loads(dumped, trusted=trusted)
+        assert_method_outputs_equal(clf, loaded, X)
