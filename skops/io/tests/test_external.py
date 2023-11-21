@@ -18,7 +18,7 @@ import pytest
 from sklearn.datasets import make_classification, make_regression
 from sklearn.pipeline import Pipeline
 
-from skops.io import dump, dumps, loads, visualize
+from skops.io import dumps, loads, visualize
 from skops.io.tests._utils import assert_method_outputs_equal, assert_params_equal
 
 # Default settings for generated data
@@ -472,12 +472,12 @@ class TestSciKeras:
 
         pipeline = Pipeline([("classifier", clf)])
 
-        dump(clf, "keras-test.skops")
-        dump(pipeline, "keras-test.skops")
+        dumps(clf, "keras-test.skops")
+        dumps(pipeline, "keras-test.skops")
 
         X, y = make_classification(1000, 20, n_informative=10, random_state=0)
         clf.fit(X, y)
-        dumped = dump(clf, "keras-test.skops")
+        dumped = dumps(clf, "keras-test.skops")
 
         loaded = loads(dumped, trusted=trusted)
         assert_method_outputs_equal(clf, loaded, X)
