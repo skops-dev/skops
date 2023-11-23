@@ -37,6 +37,7 @@ dependent_packages = {
     "fairlearn": ("0.7.0", "docs, tests", None),
     "rich": ("12", "tests, rich", None),
     "scikeras": ("0.4.0", "tests", None),
+    "tensorflow": ("2.4.0", "tests", None),
 }
 
 

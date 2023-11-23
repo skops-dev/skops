@@ -442,42 +442,113 @@ class TestSciKeras:
             yield
 
     @pytest.fixture(autouse=True)
-    def keras(self):
+    def tensorflow(self):
+        tensorflow = pytest.importorskip("tensorflow")
+        return tensorflow
+
+    @pytest.fixture(autouse=True)
+    def scikeras(self):
         scikeras = pytest.importorskip("scikeras")
         return scikeras
 
     @pytest.fixture
     def trusted(self):
         return [
+            "_thread.RLock",
+            "builtins.weakref",
+            "collections.Counter",
+            "collections.OrderedDict",
+            "collections.defaultdict",
+            "inspect.FullArgSpec",
+            "inspect.Signature",
+            "keras.src.activations.sigmoid",
+            "keras.src.backend.RandomGenerator",
+            "keras.src.callbacks.History",
+            "keras.src.engine.compile_utils.LossesContainer",
+            "keras.src.engine.compile_utils.MetricsContainer",
+            "keras.src.engine.input_layer.InputLayer",
+            "keras.src.engine.input_spec.InputSpec",
+            "keras.src.engine.keras_tensor.KerasTensor",
+            "keras.src.engine.node.KerasHistory",
+            "keras.src.engine.node.Node",
+            "keras.src.engine.sequential.Sequential",
+            "keras.src.engine.training.train_function",
+            "keras.src.initializers.initializers.GlorotUniform",
+            "keras.src.initializers.initializers.Zeros",
+            "keras.src.layers.core.dense.Dense",
+            "keras.src.losses.LossFunctionWrapper",
+            "keras.src.losses.binary_crossentropy",
+            "keras.src.metrics.base_metric.Mean",
+            "keras.src.metrics.base_metric.method",
+            "keras.src.mixed_precision.policy.Policy",
+            "keras.src.optimizers.legacy.rmsprop.RMSprop",
+            "keras.src.optimizers.utils.<lambda>",
+            "keras.src.optimizers.utils.all_reduce_sum_gradients",
+            "keras.src.saving.serialization_lib.Config",
+            "keras.src.utils.layer_utils.CallFunctionSpec",
+            "keras.src.utils.metrics_utils.Reduction",
+            "keras.src.utils.object_identity.ObjectIdentityDictionary",
+            "numpy.dtype",
+            "scikeras.utils.transformers.ClassifierLabelEncoder",
+            "scikeras.utils.transformers.TargetReshaper",
             "scikeras.wrappers.KerasClassifier",
-            "keras.models.Sequential",
-            "keras.layers.core.Dense",
-            "keras.layers.core.Input",
+            "tensorflow.core.function.capture.capture_container.FunctionCaptures",
+            "tensorflow.core.function.capture.capture_container.MutationAwareDict",
+            "tensorflow.core.function.polymorphism.function_cache.FunctionCache",
+            "tensorflow.core.function.polymorphism.function_type.FunctionType",
+            "tensorflow.python.checkpoint.checkpoint.Checkpoint",
+            "tensorflow.python.checkpoint.checkpoint.TrackableSaver",
+            "tensorflow.python.checkpoint.graph_view.ObjectGraphView",
+            "tensorflow.python.data.ops.iterator_ops.IteratorSpec",
+            "tensorflow.python.eager.polymorphic_function.atomic_function.AtomicFunction",
+            "tensorflow.python.eager.polymorphic_function.function_spec.FunctionSpec",
+            "tensorflow.python.eager.polymorphic_function.monomorphic_function.ConcreteFunction",
+            "tensorflow.python.eager.polymorphic_function.monomorphic_function.ConcreteFunctionGarbageCollector",
+            "tensorflow.python.eager.polymorphic_function.monomorphic_function._DelayedRewriteGradientFunctions",
+            "tensorflow.python.eager.polymorphic_function.polymorphic_function.Function",
+            "tensorflow.python.eager.polymorphic_function.polymorphic_function.UnliftedInitializerVariable",
+            "tensorflow.python.eager.polymorphic_function.tracing_compiler.TracingCompiler",
+            "tensorflow.python.framework.dtypes.DType",
+            "tensorflow.python.framework.func_graph.FuncGraph",
+            "tensorflow.python.framework.ops.EagerTensor",
+            "tensorflow.python.framework.tensor.TensorSpec",
+            "tensorflow.python.framework.tensor_shape.TensorShape",
+            "tensorflow.python.ops.resource_variable_ops.ResourceVariable",
+            "tensorflow.python.ops.variables.VariableAggregation",
+            "tensorflow.python.ops.variables.VariableAggregationV2",
+            "tensorflow.python.ops.variables.VariableSynchronization",
+            "tensorflow.python.trackable.base.TrackableReference",
+            "tensorflow.python.trackable.base.WeakTrackableReference",
+            "tensorflow.python.trackable.data_structures.dict",
+            "tensorflow.python.util.object_identity.ObjectIdentitySet",
+            "tensorflow.python.util.tf_decorator.TFDecorator",
+            "test_external.get_clf",
+            "weakref.WeakKeyDictionary",
+            "weakref.remove",
         ]
 
-    @pytest.fixture
-    def test_dumping_model(self, keras, trusted):
-        from scikeras.wrappers import KerasClassifier
-
+    def test_dumping_model(self, scikeras, tensorflow, trusted):
         # This simplifies the basic usage tutorial from https://adriangb.com/scikeras/stable/notebooks/Basic_Usage.html
 
         def get_clf(meta):
             n_features_in_ = meta["n_features_in_"]
-            model = keras.models.Sequential()
-            model.add(keras.layers.Input(shape=(n_features_in_,)))
-            model.add(keras.layers.Dense(1, activation="sigmoid"))
+            model = tensorflow.keras.models.Sequential()
+            model.add(tensorflow.keras.layers.Input(shape=(n_features_in_,)))
+            model.add(tensorflow.keras.layers.Dense(1, activation="sigmoid"))
             return model
 
-        clf = KerasClassifier(model=get_clf, loss="binary_crossentropy")
+        clf = scikeras.wrappers.KerasClassifier(
+            model=get_clf, loss="binary_crossentropy"
+        )
 
         pipeline = Pipeline([("classifier", clf)])
 
-        dumps(clf, "keras-test.skops")
-        dumps(pipeline, "keras-test.skops")
+        dumps(clf)
+        dumps(pipeline)
 
         X, y = make_classification(1000, 20, n_informative=10, random_state=0)
         clf.fit(X, y)
-        dumped = dumps(clf, "keras-test.skops")
+        dumped = dumps(clf)
 
         loaded = loads(dumped, trusted=trusted)
         assert_method_outputs_equal(clf, loaded, X)
