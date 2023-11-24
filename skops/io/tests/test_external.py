@@ -522,7 +522,6 @@ class TestSciKeras:
             "tensorflow.python.trackable.data_structures.dict",
             "tensorflow.python.util.object_identity.ObjectIdentitySet",
             "tensorflow.python.util.tf_decorator.TFDecorator",
-            "test_external.get_clf",
             "weakref.WeakKeyDictionary",
             "weakref.remove",
         ]
@@ -530,16 +529,12 @@ class TestSciKeras:
     def test_dumping_model(self, scikeras, tensorflow, trusted):
         # This simplifies the basic usage tutorial from https://adriangb.com/scikeras/stable/notebooks/Basic_Usage.html
 
-        def get_clf(meta):
-            n_features_in_ = meta["n_features_in_"]
-            model = tensorflow.keras.models.Sequential()
-            model.add(tensorflow.keras.layers.Input(shape=(n_features_in_,)))
-            model.add(tensorflow.keras.layers.Dense(1, activation="sigmoid"))
-            return model
+        n_features_in_ = 20
+        model = tensorflow.keras.models.Sequential()
+        model.add(tensorflow.keras.layers.Input(shape=(n_features_in_,)))
+        model.add(tensorflow.keras.layers.Dense(1, activation="sigmoid"))
 
-        clf = scikeras.wrappers.KerasClassifier(
-            model=get_clf, loss="binary_crossentropy"
-        )
+        clf = scikeras.wrappers.KerasClassifier(model=model, loss="binary_crossentropy")
 
         pipeline = Pipeline([("classifier", clf)])
 
