@@ -446,11 +446,6 @@ class TestSciKeras:
         tensorflow = pytest.importorskip("tensorflow")
         return tensorflow
 
-    @pytest.fixture(autouse=True)
-    def scikeras(self):
-        scikeras = pytest.importorskip("scikeras")
-        return scikeras
-
     @pytest.fixture
     def trusted(self):
         return [
@@ -526,7 +521,7 @@ class TestSciKeras:
             "weakref.remove",
         ]
 
-    def test_dumping_model(self, scikeras, tensorflow, trusted):
+    def test_dumping_model(self, tensorflow, trusted):
         # This simplifies the basic usage tutorial from https://adriangb.com/scikeras/stable/notebooks/Basic_Usage.html
 
         n_features_in_ = 20
@@ -534,7 +529,9 @@ class TestSciKeras:
         model.add(tensorflow.keras.layers.Input(shape=(n_features_in_,)))
         model.add(tensorflow.keras.layers.Dense(1, activation="sigmoid"))
 
-        clf = scikeras.wrappers.KerasClassifier(model=model, loss="binary_crossentropy")
+        from scikeras.wrappers import KerasClassifier
+
+        clf = KerasClassifier(model=model, loss="binary_crossentropy")
 
         pipeline = Pipeline([("classifier", clf)])
 
