@@ -159,8 +159,8 @@ def get_state(value, save_context: SaveContext) -> dict[str, Any]:
 
     if id(value) in save_context.memo:
         return {
-            "__module__": None,
-            "__class__": None,
+            "__module__": get_module(type(value)),
+            "__class__": value.__class__.__name__,
             "__id__": id(value),
             "__loader__": "CachedNode",
         }
