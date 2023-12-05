@@ -433,15 +433,16 @@ def test_inference(
     user = client.whoami(token=HF_HUB_TOKEN)["name"]
     repo_id = f"{user}/test-{uuid4()}"
 
-    push(
-        repo_id=repo_id,
-        source=destination_path,
-        token=HF_HUB_TOKEN,
-        commit_message="test message",
-        create_remote=True,
-        # api-inference doesn't support private repos for community projects.
-        private=False,
-    )
+    with pytest.warns(FutureWarning, match="Creating repos on hf.co is subject"):
+        push(
+            repo_id=repo_id,
+            source=destination_path,
+            token=HF_HUB_TOKEN,
+            commit_message="test message",
+            create_remote=True,
+            # api-inference doesn't support private repos for community projects.
+            private=False,
+        )
 
     X_test = data.data.head(5)
     y_pred = model.predict(X_test)
