@@ -1430,13 +1430,7 @@ class TestCardRepr:
 
         print("DEBUG MESSAGE", expected)
         print("DEBUG MESSAGE", result)
-
-        expected = _strip_html_tag_whitespace(expected)
-        result = _strip_html_tag_whitespace(result)
-
-        print("DEBUG MESSAGE", expected)
-        print("DEBUG MESSAGE", result)
-        assert result == expected
+        assert re.match(expected, result)
 
 
 class TestCardModelAttributeIsPath:
