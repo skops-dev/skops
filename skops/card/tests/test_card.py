@@ -29,8 +29,6 @@ from skops.card._model_card import (
 from skops.io import dump, load
 from skops.utils.importutils import import_or_raise
 
-whitespaces = re.compile(r"\s+")
-
 
 def fit_model():
     X = np.array([[1, 1], [1, 2], [2, 2], [2, 3]])
