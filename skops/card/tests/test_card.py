@@ -29,6 +29,8 @@ from skops.card._model_card import (
 from skops.io import dump, load
 from skops.utils.importutils import import_or_raise
 
+whitespaces = re.compile(r"\s+")
+
 
 def fit_model():
     X = np.array([[1, 1], [1, 2], [2, 2], [2, 3]])
@@ -326,6 +328,11 @@ def _strip_multiple_chars(text, char):
     while char + char in text:
         text = text.replace(char + char, char)
     return text
+
+
+def _strip_html_tag_whitespace(text):
+    # Utility function to remove whitespaces after html tags such as `<div>`.
+    return re.sub(re.compile(r"div>\s+"), "div>", text)
 
 
 class TestAddHyperparams:
@@ -1350,8 +1357,8 @@ class TestCardRepr:
 
     @pytest.mark.parametrize("meth", [repr, str])
     def test_card_repr(self, card: Card, meth, expected_lines):
-        result = meth(card)
-        expected = "\n".join(expected_lines)
+        result = _strip_html_tag_whitespace(meth(card))
+        expected = _strip_html_tag_whitespace("\n".join(expected_lines))
         assert result == expected
 
     @pytest.mark.parametrize("meth", [repr, str])
@@ -1378,8 +1385,9 @@ class TestCardRepr:
         )
         expected_lines.insert(-1, extra_line)
         expected = "\n".join(expected_lines)
+        expected = _strip_html_tag_whitespace(expected)
 
-        result = meth(card)
+        result = _strip_html_tag_whitespace(meth(card))
         assert result == expected
 
     @pytest.mark.parametrize("meth", [repr, str])
@@ -1389,8 +1397,9 @@ class TestCardRepr:
         # remove line 1 from expected results, which corresponds to the model
         del expected_lines[1]
         expected = "\n".join(expected_lines)
+        expected = _strip_html_tag_whitespace(expected)
 
-        result = meth(card)
+        result = _strip_html_tag_whitespace(meth(card))
         assert result == expected
 
     @pytest.mark.parametrize("meth", [repr, str])
@@ -1415,8 +1424,9 @@ class TestCardRepr:
             "  metadata.widget=[{...}],",
         ]
         expected = "\n".join(expected_lines[:2] + extra_lines + expected_lines[2:])
+        expected = _strip_html_tag_whitespace(expected)
 
-        result = meth(card)
+        result = _strip_html_tag_whitespace(meth(card))
         assert result == expected
 
 
