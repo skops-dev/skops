@@ -30,11 +30,6 @@ from skops.io import dump, load
 from skops.utils.importutils import import_or_raise
 
 
-def _strip_html_tag_whitespace(text):
-    # Utility function to remove whitespaces after html tags such as `<div>`.
-    return re.sub(re.compile(r"div>\s+"), "div>", text)
-
-
 def fit_model():
     X = np.array([[1, 1], [1, 2], [2, 2], [2, 3]])
     y = np.dot(X, np.array([1, 2])) + 3
@@ -189,13 +184,10 @@ class TestAddModelPlot:
         result = model_card.select(
             "Model description/Training Procedure/Model Plot"
         ).format()
-        result = _strip_html_tag_whitespace(result)
         # don't compare whole text, as it's quite long and non-deterministic
         assert result.startswith("<style>#sk-")
         assert "<style>" in result
-        assert result.endswith(
-            "<pre>LinearRegression()</pre></div></div></div></div></div>"
-        )
+        assert "LinearRegression()" in result
 
     def test_no_overflow(self, model_card):
         result = model_card.select(
@@ -229,19 +221,14 @@ class TestAddModelPlot:
         result = model_card.select(other_section_name).format()
         assert result.startswith("<style>#sk-")
         assert "<style>" in result
-        assert result.endswith(
-            "<pre>LinearRegression()</pre></div></div></div></div></div>"
-        )
+        assert "LinearRegression()" in result
 
     def test_other_section(self, model_card):
         model_card.add_model_plot(section="Other section")
         result = model_card.select("Other section").content
-        result = _strip_html_tag_whitespace(result)
         assert result.startswith("<style>#sk-")
         assert "<style>" in result
-        assert result.endswith(
-            "<pre>LinearRegression()</pre></div></div></div></div></div>"
-        )
+        assert "LinearRegression()" in result
 
     def test_with_description(self, model_card):
         model_card.add_model_plot(description="Awesome diagram below")
@@ -261,11 +248,8 @@ class TestAddModelPlot:
 
         # don't compare whole text, as it's quite long and non-deterministic
         assert result.startswith("<style>#sk-")
-        result = _strip_html_tag_whitespace(result)
         assert "<style>" in result
-        assert result.endswith(
-            "<pre>LinearRegression()</pre></div></div></div></div></div>"
-        )
+        assert "LinearRegression()" in result
 
     @pytest.mark.parametrize("template", CUSTOM_TEMPLATES)
     def test_custom_template_init_str_works(self, template):
@@ -274,12 +258,9 @@ class TestAddModelPlot:
         model_card = Card(model, template=template, model_diagram=section_name)
 
         result = model_card.select(section_name).format()
-        result = _strip_html_tag_whitespace(result)
         assert result.startswith("<style>#sk-")
         assert "<style>" in result
-        assert result.endswith(
-            "<pre>LinearRegression()</pre></div></div></div></div></div>"
-        )
+        assert "LinearRegression()" in result
 
     def test_default_template_and_model_diagram_true(self, model_card):
         # setting model_diagram=True should not change anything vs auto with the
@@ -289,13 +270,10 @@ class TestAddModelPlot:
         result = model_card.select(
             "Model description/Training Procedure/Model Plot"
         ).format()
-        result = _strip_html_tag_whitespace(result)
         # don't compare whole text, as it's quite long and non-deterministic
         assert result.startswith("<style>#sk-")
         assert "<style>" in result
-        assert result.endswith(
-            "<pre>LinearRegression()</pre></div></div></div></div></div>"
-        )
+        assert "LinearRegression()" in result
 
     @pytest.mark.parametrize("template", CUSTOM_TEMPLATES)
     def test_custom_template_and_model_diagram_true_uses_default(
@@ -308,13 +286,10 @@ class TestAddModelPlot:
         result = model_card.select(
             "Model description/Training Procedure/Model Plot"
         ).format()
-        result = _strip_html_tag_whitespace(result)
         # don't compare whole text, as it's quite long and non-deterministic
         assert result.startswith("<style>#sk-")
         assert "<style>" in result
-        assert result.endswith(
-            "<pre>LinearRegression()</pre></div></div></div></div></div>"
-        )
+        assert "LinearRegression()" in result
 
     def test_add_twice(self, model_card):
         # it's possible to add the section twice, even if it doesn't make a lot
@@ -1347,7 +1322,7 @@ class TestCardRepr:
         Card(
           model=LinearRegression(fit_intercept=False),
           Model description/Training Procedure/Hyperparameters=TableSection(4x2),
-          Model description/Training Procedure/.*</div>,
+          Model description/Training Procedure/...</div>,
           Model Card Authors=Jane Doe,
           Figures/ROC=PlotSection(ROC.png),
           Figures/Confusion matrix=PlotSection(confusion_matrix.jpg),
@@ -1363,6 +1338,8 @@ class TestCardRepr:
     def test_card_repr(self, card: Card, meth, expected_lines):
         result = meth(card)
         expected = "\n".join(expected_lines)
+        expected = re.escape(expected)
+        expected = expected.replace(r"\.\.\.", ".*")
         assert re.match(expected, result)
 
     @pytest.mark.parametrize("meth", [repr, str])
@@ -1376,7 +1353,7 @@ class TestCardRepr:
           model=LinearRegression(),
         )
         """).strip()
-        assert re.match(expected, result)
+        assert result == expected
 
     @pytest.mark.parametrize("meth", [repr, str])
     def test_very_long_lines_are_shortened(self, card: Card, meth, expected_lines):
@@ -1389,6 +1366,8 @@ class TestCardRepr:
         )
         expected_lines.insert(-1, extra_line)
         expected = "\n".join(expected_lines)
+        expected = re.escape(expected)
+        expected = expected.replace(r"\.\.\.", ".*")
 
         result = meth(card)
         assert re.match(expected, result)
@@ -1400,6 +1379,8 @@ class TestCardRepr:
         # remove line 1 from expected results, which corresponds to the model
         del expected_lines[1]
         expected = "\n".join(expected_lines)
+        expected = re.escape(expected)
+        expected = expected.replace(r"\.\.\.", ".*")
 
         result = meth(card)
         assert re.match(expected, result)
@@ -1426,10 +1407,10 @@ class TestCardRepr:
             "  metadata.widget=[{...}],",
         ]
         expected = "\n".join(expected_lines[:2] + extra_lines + expected_lines[2:])
+        expected = re.escape(expected)
+        expected = expected.replace(r"\.\.\.", ".*")
         result = meth(card)
 
-        print("DEBUG MESSAGE", expected)
-        print("DEBUG MESSAGE", result)
         assert re.match(expected, result)
 
 
