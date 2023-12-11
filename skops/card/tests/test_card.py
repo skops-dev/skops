@@ -1428,9 +1428,16 @@ class TestCardRepr:
             "  metadata.widget=[{...}],",
         ]
         expected = "\n".join(expected_lines[:2] + extra_lines + expected_lines[2:])
-        expected = _strip_html_tag_whitespace(expected)
+        result = meth(card)
 
-        result = _strip_html_tag_whitespace(meth(card))
+        print("DEBUG MESSAGE", expected)
+        print("DEBUG MESSAGE", result)
+
+        expected = _strip_html_tag_whitespace(expected)
+        result = _strip_html_tag_whitespace(result)
+
+        print("DEBUG MESSAGE", expected)
+        print("DEBUG MESSAGE", result)
         assert result == expected
 
 
