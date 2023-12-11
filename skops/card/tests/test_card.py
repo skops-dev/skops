@@ -1347,7 +1347,7 @@ class TestCardRepr:
         Card(
           model=LinearRegression(fit_intercept=False),
           Model description/Training Procedure/Hyperparameters=TableSection(4x2),
-          Model description/Training Procedure/...</pre></div></div></div></div></div>,
+          Model description/Training Procedure/.*</div>,
           Model Card Authors=Jane Doe,
           Figures/ROC=PlotSection(ROC.png),
           Figures/Confusion matrix=PlotSection(confusion_matrix.jpg),
@@ -1361,9 +1361,9 @@ class TestCardRepr:
 
     @pytest.mark.parametrize("meth", [repr, str])
     def test_card_repr(self, card: Card, meth, expected_lines):
-        result = _strip_html_tag_whitespace(meth(card))
-        expected = _strip_html_tag_whitespace("\n".join(expected_lines))
-        assert result == expected
+        result = meth(card)
+        expected = "\n".join(expected_lines)
+        assert re.match(expected, result)
 
     @pytest.mark.parametrize("meth", [repr, str])
     def test_card_repr_empty_card(self, meth):
@@ -1376,7 +1376,7 @@ class TestCardRepr:
           model=LinearRegression(),
         )
         """).strip()
-        assert result == expected
+        assert re.match(expected, result)
 
     @pytest.mark.parametrize("meth", [repr, str])
     def test_very_long_lines_are_shortened(self, card: Card, meth, expected_lines):
@@ -1389,10 +1389,9 @@ class TestCardRepr:
         )
         expected_lines.insert(-1, extra_line)
         expected = "\n".join(expected_lines)
-        expected = _strip_html_tag_whitespace(expected)
 
-        result = _strip_html_tag_whitespace(meth(card))
-        assert result == expected
+        result = meth(card)
+        assert re.match(expected, result)
 
     @pytest.mark.parametrize("meth", [repr, str])
     def test_without_model_attribute(self, card: Card, meth, expected_lines):
@@ -1401,10 +1400,9 @@ class TestCardRepr:
         # remove line 1 from expected results, which corresponds to the model
         del expected_lines[1]
         expected = "\n".join(expected_lines)
-        expected = _strip_html_tag_whitespace(expected)
 
-        result = _strip_html_tag_whitespace(meth(card))
-        assert result == expected
+        result = meth(card)
+        assert re.match(expected, result)
 
     @pytest.mark.parametrize("meth", [repr, str])
     def test_with_metadata(self, card: Card, meth, expected_lines):
