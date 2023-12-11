@@ -30,6 +30,11 @@ from skops.io import dump, load
 from skops.utils.importutils import import_or_raise
 
 
+def _strip_html_tag_whitespace(text):
+    # Utility function to remove whitespaces after html tags such as `<div>`.
+    return re.sub(re.compile(r"div>\s+"), "div>", text)
+
+
 def fit_model():
     X = np.array([[1, 1], [1, 2], [2, 2], [2, 3]])
     y = np.dot(X, np.array([1, 2])) + 3
@@ -184,6 +189,7 @@ class TestAddModelPlot:
         result = model_card.select(
             "Model description/Training Procedure/Model Plot"
         ).format()
+        result = _strip_html_tag_whitespace(result)
         # don't compare whole text, as it's quite long and non-deterministic
         assert result.startswith("<style>#sk-")
         assert "<style>" in result
@@ -230,6 +236,7 @@ class TestAddModelPlot:
     def test_other_section(self, model_card):
         model_card.add_model_plot(section="Other section")
         result = model_card.select("Other section").content
+        result = _strip_html_tag_whitespace(result)
         assert result.startswith("<style>#sk-")
         assert "<style>" in result
         assert result.endswith(
@@ -254,6 +261,7 @@ class TestAddModelPlot:
 
         # don't compare whole text, as it's quite long and non-deterministic
         assert result.startswith("<style>#sk-")
+        result = _strip_html_tag_whitespace(result)
         assert "<style>" in result
         assert result.endswith(
             "<pre>LinearRegression()</pre></div></div></div></div></div>"
@@ -266,6 +274,7 @@ class TestAddModelPlot:
         model_card = Card(model, template=template, model_diagram=section_name)
 
         result = model_card.select(section_name).format()
+        result = _strip_html_tag_whitespace(result)
         assert result.startswith("<style>#sk-")
         assert "<style>" in result
         assert result.endswith(
@@ -280,6 +289,7 @@ class TestAddModelPlot:
         result = model_card.select(
             "Model description/Training Procedure/Model Plot"
         ).format()
+        result = _strip_html_tag_whitespace(result)
         # don't compare whole text, as it's quite long and non-deterministic
         assert result.startswith("<style>#sk-")
         assert "<style>" in result
@@ -298,6 +308,7 @@ class TestAddModelPlot:
         result = model_card.select(
             "Model description/Training Procedure/Model Plot"
         ).format()
+        result = _strip_html_tag_whitespace(result)
         # don't compare whole text, as it's quite long and non-deterministic
         assert result.startswith("<style>#sk-")
         assert "<style>" in result
@@ -326,11 +337,6 @@ def _strip_multiple_chars(text, char):
     while char + char in text:
         text = text.replace(char + char, char)
     return text
-
-
-def _strip_html_tag_whitespace(text):
-    # Utility function to remove whitespaces after html tags such as `<div>`.
-    return re.sub(re.compile(r"div>\s+"), "div>", text)
 
 
 class TestAddHyperparams:
