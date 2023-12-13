@@ -12,7 +12,7 @@ from requests.exceptions import HTTPError
 MAX_AGE = 7  # in days
 
 # This is the token for the skops user. TODO remove eventually, see issue #47
-token = "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"
+token = "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"
 client = HfApi(token=token)
 user = client.whoami()["name"]
 answer = input(

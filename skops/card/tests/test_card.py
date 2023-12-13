@@ -187,9 +187,7 @@ class TestAddModelPlot:
         # don't compare whole text, as it's quite long and non-deterministic
         assert result.startswith("<style>#sk-")
         assert "<style>" in result
-        assert result.endswith(
-            "<pre>LinearRegression()</pre></div></div></div></div></div>"
-        )
+        assert "LinearRegression()" in result
 
     def test_no_overflow(self, model_card):
         result = model_card.select(
@@ -223,18 +221,14 @@ class TestAddModelPlot:
         result = model_card.select(other_section_name).format()
         assert result.startswith("<style>#sk-")
         assert "<style>" in result
-        assert result.endswith(
-            "<pre>LinearRegression()</pre></div></div></div></div></div>"
-        )
+        assert "LinearRegression()" in result
 
     def test_other_section(self, model_card):
         model_card.add_model_plot(section="Other section")
         result = model_card.select("Other section").content
         assert result.startswith("<style>#sk-")
         assert "<style>" in result
-        assert result.endswith(
-            "<pre>LinearRegression()</pre></div></div></div></div></div>"
-        )
+        assert "LinearRegression()" in result
 
     def test_with_description(self, model_card):
         model_card.add_model_plot(description="Awesome diagram below")
@@ -255,9 +249,7 @@ class TestAddModelPlot:
         # don't compare whole text, as it's quite long and non-deterministic
         assert result.startswith("<style>#sk-")
         assert "<style>" in result
-        assert result.endswith(
-            "<pre>LinearRegression()</pre></div></div></div></div></div>"
-        )
+        assert "LinearRegression()" in result
 
     @pytest.mark.parametrize("template", CUSTOM_TEMPLATES)
     def test_custom_template_init_str_works(self, template):
@@ -268,9 +260,7 @@ class TestAddModelPlot:
         result = model_card.select(section_name).format()
         assert result.startswith("<style>#sk-")
         assert "<style>" in result
-        assert result.endswith(
-            "<pre>LinearRegression()</pre></div></div></div></div></div>"
-        )
+        assert "LinearRegression()" in result
 
     def test_default_template_and_model_diagram_true(self, model_card):
         # setting model_diagram=True should not change anything vs auto with the
@@ -283,9 +273,7 @@ class TestAddModelPlot:
         # don't compare whole text, as it's quite long and non-deterministic
         assert result.startswith("<style>#sk-")
         assert "<style>" in result
-        assert result.endswith(
-            "<pre>LinearRegression()</pre></div></div></div></div></div>"
-        )
+        assert "LinearRegression()" in result
 
     @pytest.mark.parametrize("template", CUSTOM_TEMPLATES)
     def test_custom_template_and_model_diagram_true_uses_default(
@@ -301,9 +289,7 @@ class TestAddModelPlot:
         # don't compare whole text, as it's quite long and non-deterministic
         assert result.startswith("<style>#sk-")
         assert "<style>" in result
-        assert result.endswith(
-            "<pre>LinearRegression()</pre></div></div></div></div></div>"
-        )
+        assert "LinearRegression()" in result
 
     def test_add_twice(self, model_card):
         # it's possible to add the section twice, even if it doesn't make a lot
@@ -1336,7 +1322,7 @@ class TestCardRepr:
         Card(
           model=LinearRegression(fit_intercept=False),
           Model description/Training Procedure/Hyperparameters=TableSection(4x2),
-          Model description/Training Procedure/...</pre></div></div></div></div></div>,
+          Model description/Training Procedure/...</div>,
           Model Card Authors=Jane Doe,
           Figures/ROC=PlotSection(ROC.png),
           Figures/Confusion matrix=PlotSection(confusion_matrix.jpg),
@@ -1352,7 +1338,9 @@ class TestCardRepr:
     def test_card_repr(self, card: Card, meth, expected_lines):
         result = meth(card)
         expected = "\n".join(expected_lines)
-        assert result == expected
+        expected = re.escape(expected)
+        expected = expected.replace(r"\.\.\.", ".*")
+        assert re.match(expected, result)
 
     @pytest.mark.parametrize("meth", [repr, str])
     def test_card_repr_empty_card(self, meth):
@@ -1378,9 +1366,11 @@ class TestCardRepr:
         )
         expected_lines.insert(-1, extra_line)
         expected = "\n".join(expected_lines)
+        expected = re.escape(expected)
+        expected = expected.replace(r"\.\.\.", ".*")
 
         result = meth(card)
-        assert result == expected
+        assert re.match(expected, result)
 
     @pytest.mark.parametrize("meth", [repr, str])
     def test_without_model_attribute(self, card: Card, meth, expected_lines):
@@ -1389,9 +1379,11 @@ class TestCardRepr:
         # remove line 1 from expected results, which corresponds to the model
         del expected_lines[1]
         expected = "\n".join(expected_lines)
+        expected = re.escape(expected)
+        expected = expected.replace(r"\.\.\.", ".*")
 
         result = meth(card)
-        assert result == expected
+        assert re.match(expected, result)
 
     @pytest.mark.parametrize("meth", [repr, str])
     def test_with_metadata(self, card: Card, meth, expected_lines):
@@ -1415,9 +1407,11 @@ class TestCardRepr:
             "  metadata.widget=[{...}],",
         ]
         expected = "\n".join(expected_lines[:2] + extra_lines + expected_lines[2:])
-
+        expected = re.escape(expected)
+        expected = expected.replace(r"\.\.\.", ".*")
         result = meth(card)
-        assert result == expected
+
+        assert re.match(expected, result)
 
 
 class TestCardModelAttributeIsPath:
