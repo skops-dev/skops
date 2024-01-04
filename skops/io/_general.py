@@ -4,7 +4,6 @@ import io
 import json
 import operator
 import uuid
-import weakref
 from functools import partial
 from reprlib import Repr
 from types import FunctionType, MethodType
@@ -47,12 +46,10 @@ def dict_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     for key, value in obj.items():
         if isinstance(value, property):
             continue
-        if isinstance(key, weakref.ref):
-            key = getattr(key(), "_name")
         if np.isscalar(key) and hasattr(key, "item"):
             # convert numpy value to python object
             key = key.item()  # type: ignore
-        content[str(key)] = get_state(value, save_context)
+        content[key] = get_state(value, save_context)
     res["content"] = content
     res["key_types"] = key_types
     return res
