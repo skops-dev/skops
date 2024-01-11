@@ -34,11 +34,9 @@ for model_info in models:
         # https://github.com/huggingface/moon-landing/issues/6034
         continue
 
-    age = (
-        datetime.datetime.now()
-        - datetime.datetime.fromisoformat(info.lastModified.rsplit(".", 1)[0])
-    ).days
-    if age < MAX_AGE:
+    now = datetime.datetime.now(info.lastModified.tzinfo)
+    age = now - info.lastModified
+    if age.days < MAX_AGE:
         print(f"Skipping model: {model_info.modelId}, age: {age}")
         continue
     print(f"deleting {model_info.modelId}, age: {age} days")
@@ -56,11 +54,9 @@ for space_info in spaces:
         # https://github.com/huggingface/moon-landing/issues/6034
         continue
 
-    age = (
-        datetime.datetime.now()
-        - datetime.datetime.fromisoformat(info.lastModified.rsplit(".", 1)[0])
-    ).days
-    if age < MAX_AGE:
+    now = datetime.datetime.now(info.lastModified.tzinfo)
+    age = now - info.lastModified
+    if age.days < MAX_AGE:
         print(f"Skipping space: {space_info.id}, age: {age}")
         continue
     print(f"deleting {space_info.id}, age: {age} days")
