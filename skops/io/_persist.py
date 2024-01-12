@@ -33,12 +33,18 @@ def _save(obj: Any, compression: int, compresslevel: int | None) -> io.BytesIO:
         buffer, "w", compression=compression, compresslevel=compresslevel
     ) as zip_file:
         save_context = SaveContext(zip_file=zip_file)
-        state = get_state(obj, save_context)
-        save_context.clear_memo()
+        # If obj is scikeras model save the scikeras model via scikeras
+        if "scikeras" in obj.__class__.__module__:
+            # TODO: This needs fixed to not save the model outside of the zip file.
+            obj.model.save("model", save_format="tf")
+            zip_file.write("model")
+        else:
+            state = get_state(obj, save_context)
+            save_context.clear_memo()
 
-        state["protocol"] = save_context.protocol
-        state["_skops_version"] = skops.__version__
-        zip_file.writestr("schema.json", json.dumps(state, indent=2))
+            state["protocol"] = save_context.protocol
+            state["_skops_version"] = skops.__version__
+            zip_file.writestr("schema.json", json.dumps(state, indent=2))
 
     return buffer
 
