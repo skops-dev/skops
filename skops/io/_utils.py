@@ -157,6 +157,7 @@ def get_state(value, save_context: SaveContext) -> dict[str, Any]:
     # fails with `get_state`, we try with json.dumps, if that fails, we raise
     # the original error alongside the json error.
 
+    # TODO: This should help with fixing recursive references.
     # if id(value) in save_context.memo:
     #     return {
     #         "__module__": None,
