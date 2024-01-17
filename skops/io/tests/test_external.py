@@ -465,9 +465,9 @@ class TestSciKeras:
         predictions = clf.predict(X)
 
         dumped = dumps(clf)
-        ZipFile(io.BytesIO(dumped)).read("model/")
+        ZipFile(io.BytesIO(dumped)).read("model.keras")
 
-        new_clf_model = tensorflow.keras.models.load_model("model/")
+        new_clf_model = tensorflow.keras.models.load_model("model.keras")
         clf_new = KerasClassifier(new_clf_model)
         clf_new.initialize(X, y)
         new_preidctions = clf_new.predict(X)

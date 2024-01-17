@@ -36,8 +36,8 @@ def _save(obj: Any, compression: int, compresslevel: int | None) -> io.BytesIO:
         # If obj is scikeras model save the scikeras model via scikeras
         if "scikeras" in obj.__class__.__module__:
             # TODO: This needs fixed to not save the model outside of the zip file.
-            obj.model.save("model", save_format="tf")
-            zip_file.write("model")
+            obj.model.save("model.keras")
+            zip_file.write("model.keras", "model.keras")
         else:
             state = get_state(obj, save_context)
             save_context.clear_memo()
