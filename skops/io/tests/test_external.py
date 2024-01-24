@@ -467,7 +467,7 @@ class TestSciKeras:
 
         dumped = dumps(clf)
         # Using a tempfile here to avoid creating a file in the current directory.
-        # This is reuiqred because `.load_model()` expects a file path.
+        # This is required because `.load_model()` expects a file path.
         with tempfile.NamedTemporaryFile(mode="w+", newline="") as temp_file:
             file_name = temp_file.name + ".keras"
             ZipFile(io.BytesIO(dumped)).extract("model.keras", file_name)
