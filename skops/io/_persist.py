@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib
 import io
 import json
+import tempfile
 from pathlib import Path
 from typing import Any, BinaryIO, Sequence
 from zipfile import ZIP_STORED, ZipFile
@@ -35,9 +36,10 @@ def _save(obj: Any, compression: int, compresslevel: int | None) -> io.BytesIO:
         save_context = SaveContext(zip_file=zip_file)
         # If obj is scikeras model save the scikeras model via scikeras
         if "scikeras" in obj.__class__.__module__:
-            # TODO: This needs fixed to not save the model outside of the zip file.
-            obj.model.save("model.keras")
-            zip_file.write("model.keras", "model.keras")
+            with tempfile.NamedTemporaryFile(mode="w+", newline="") as temp_file:
+                file_name = temp_file.name + ".keras"
+                obj.model.save(file_name)
+                zip_file.write(file_name, "model.keras")
         else:
             state = get_state(obj, save_context)
             save_context.clear_memo()
