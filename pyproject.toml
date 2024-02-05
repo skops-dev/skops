@@ -22,6 +22,8 @@ filterwarnings = [
     "ignore:\\w+ is deprecated. Use files\\(\\) instead:DeprecationWarning",
     # comes from fairlearn
     "ignore:DataFrame.applymap has been deprecated. Use DataFrame.map instead:FutureWarning",
+    # Ignore Pandas 2.2 warning on PyArrow. It might be reverted in a later release.
+    "ignore:\s*Pyarrow will become a required dependency of pandas.*:DeprecationWarning",
 ]
 markers = [
     "network: marks tests as requiring internet (deselect with '-m \"not network\"')",
