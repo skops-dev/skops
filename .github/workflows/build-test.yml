@@ -99,3 +99,7 @@ jobs:
         flags: unittests
         name: codecov-umbrella
         verbose: true
+        # the coverage is uploaded with or without a token. This only helps with some
+        # codecov errors. It's a recommended action from here:
+        # https://github.com/codecov/codecov-action/issues/837#issuecomment-1453877750
+        token: 79395387-e193-4b18-b2ee-74a3b8dce269
