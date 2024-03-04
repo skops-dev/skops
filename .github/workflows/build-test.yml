@@ -54,6 +54,7 @@ jobs:
 
     - name: Install dependencies
       run: |
+        pip install pytest<8
         pip install .[docs,tests]
         pip install black=="23.9.1" ruff=="0.0.292" mypy=="1.6.0"
         pip uninstall --yes scikit-learn

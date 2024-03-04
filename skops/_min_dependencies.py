@@ -2,7 +2,7 @@
 import argparse
 
 # TODO: flaky fails on pytest=8
-PYTEST_MIN_VERSION = ">=7,<8"
+PYTEST_MIN_VERSION = "7"
 
 # 'build' and 'install' is included to have structured metadata for CI.
 # It will NOT be included in setup's extras_require
