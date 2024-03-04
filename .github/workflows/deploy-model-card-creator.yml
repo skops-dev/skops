@@ -25,7 +25,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        pip install pytest<8
+        pip install "pytest<8"
         pip install -e .[docs,tests]
         python --version
         pip --version
