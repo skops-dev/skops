@@ -1,7 +1,8 @@
 """All minimum dependencies for scikit-learn."""
 import argparse
 
-PYTEST_MIN_VERSION = "5.0.1"
+# TODO: flaky fails on pytest=8
+PYTEST_MIN_VERSION = ">=7,<8"
 
 # 'build' and 'install' is included to have structured metadata for CI.
 # It will NOT be included in setup's extras_require
