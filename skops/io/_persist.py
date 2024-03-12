@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib
 import io
 import json
+import tempfile
 from pathlib import Path
 from typing import Any, BinaryIO, Sequence
 from zipfile import ZIP_STORED, ZipFile
@@ -33,12 +34,19 @@ def _save(obj: Any, compression: int, compresslevel: int | None) -> io.BytesIO:
         buffer, "w", compression=compression, compresslevel=compresslevel
     ) as zip_file:
         save_context = SaveContext(zip_file=zip_file)
-        state = get_state(obj, save_context)
-        save_context.clear_memo()
+        # If obj is scikeras model save the scikeras model via scikeras
+        if "scikeras" in obj.__class__.__module__:
+            with tempfile.NamedTemporaryFile(mode="w+", newline="") as temp_file:
+                file_name = temp_file.name + ".keras"
+                obj.model.save(file_name)
+                zip_file.write(file_name, "model.keras")
+        else:
+            state = get_state(obj, save_context)
+            save_context.clear_memo()
 
-        state["protocol"] = save_context.protocol
-        state["_skops_version"] = skops.__version__
-        zip_file.writestr("schema.json", json.dumps(state, indent=2))
+            state["protocol"] = save_context.protocol
+            state["_skops_version"] = skops.__version__
+            zip_file.writestr("schema.json", json.dumps(state, indent=2))
 
     return buffer
 
