@@ -14,7 +14,7 @@ PYTEST_MIN_VERSION = "7"
 dependent_packages = {
     "scikit-learn": ("0.24", "install", None),
     "scikit-learn-intelex": ("2021.7.1", "docs", None),
-    "huggingface_hub": ("0.17.0", "install", None),
+    "huggingface_hub": ("0.22.0.rc0", "install", None),
     "tabulate": ("0.8.8", "install", None),
     "quantile-forest": ("1.0.0", "tests", None),
     "pytest": (PYTEST_MIN_VERSION, "tests", None),
