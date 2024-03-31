@@ -13,7 +13,7 @@ from sklearn.preprocessing import (
     StandardScaler,
 )
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
-from sklearn.utils import parse_version
+from sklearn.utils.fixes import parse_version
 
 import skops.io as sio
 
