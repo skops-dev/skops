@@ -1,18 +1,21 @@
+import io
 import os
 import tempfile
-from typing import Type
+from typing import Sequence, Type
 
+import keras
 from scikeras.wrappers import KerasClassifier, KerasRegressor
-from torch import Node
 
-from ._utils import Any, SaveContext, get_module
+from ._audit import Node
+from ._protocol import PROTOCOL
+from ._utils import Any, LoadContext, SaveContext, get_module
 
 
 def scikeras_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
-        "__loader__": "ScikerasNode",
+        "__loader__": "SciKerasNode",
     }
 
     obj_id = save_context.memoize(obj)
@@ -27,9 +30,32 @@ def scikeras_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     return res
 
 
+class SciKerasNode(Node):
+    def __init__(
+        self,
+        state: dict[str, Any],
+        load_context: LoadContext,
+        trusted: bool | Sequence[str] = False,
+    ) -> None:
+        super().__init__(state, load_context, trusted)
+        self.trusted = self._get_trusted(trusted, [KerasClassifier, KerasRegressor])
+
+        self.children = {"content": io.BytesIO(load_context.src.read(state["file"]))}
+
+    def _construct(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            file_path = os.path.join(temp_dir, "model.keras")
+            with open(file_path, "wb") as f:
+                f.write(self.children["content"].getbuffer())
+            model = keras.models.load_model(file_path)
+        return model
+
+
 GET_STATE_DISPATCH_FUNCTIONS = [
     (KerasClassifier, scikeras_get_state),
     (KerasRegressor, scikeras_get_state),
 ]
 
-NODE_TYPE_MAPPING: dict[tuple[str, int], Type[Node]] = {}
+NODE_TYPE_MAPPING: dict[tuple[str, int], Type[Node]] = {
+    ("SciKerasNode", PROTOCOL): SciKerasNode
+}

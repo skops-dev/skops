@@ -11,11 +11,7 @@ Testing:
 with a range of hyperparameters.
 
 """
-import io
-import os
-import tempfile
 from unittest.mock import Mock, patch
-from zipfile import ZipFile
 
 import pytest
 from sklearn.datasets import make_classification, make_regression
@@ -466,13 +462,8 @@ class TestSciKeras:
         predictions = clf.predict(X)
 
         dumped = dumps(clf)
-        # Using a tempfile here to avoid creating a file in the current directory.
-        # This is required because `.load_model()` expects a file path.
-        with tempfile.TemporaryDirectory() as temp_dir:
-            file_name = os.path.join(temp_dir, f"{id(clf)}.keras")
-            ZipFile(io.BytesIO(dumped)).extract(f"{id(clf)}.keras", path=temp_dir)
 
-            new_clf_model = tensorflow.keras.models.load_model(file_name, compile=False)
+        new_clf_model = loads(dumped)
 
         clf_new = KerasClassifier(new_clf_model)
         clf_new.initialize(X, y)
