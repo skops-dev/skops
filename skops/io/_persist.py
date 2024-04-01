@@ -40,7 +40,6 @@ def _save(obj: Any, compression: int, compresslevel: int | None) -> io.BytesIO:
         buffer, "w", compression=compression, compresslevel=compresslevel
     ) as zip_file:
         save_context = SaveContext(zip_file=zip_file)
-        # If obj is scikeras model save the scikeras model via scikeras
         state = get_state(obj, save_context)
         save_context.clear_memo()
 
