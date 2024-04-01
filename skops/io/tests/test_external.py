@@ -11,8 +11,8 @@ Testing:
 with a range of hyperparameters.
 
 """
-
 import io
+import os
 import tempfile
 from unittest.mock import Mock, patch
 from zipfile import ZipFile
@@ -468,13 +468,11 @@ class TestSciKeras:
         dumped = dumps(clf)
         # Using a tempfile here to avoid creating a file in the current directory.
         # This is required because `.load_model()` expects a file path.
-        with tempfile.NamedTemporaryFile(mode="w+", newline="") as temp_file:
-            file_name = temp_file.name + ".keras"
-            ZipFile(io.BytesIO(dumped)).extract("model.keras", file_name)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            file_name = os.path.join(temp_dir, f"{id(clf)}.keras")
+            ZipFile(io.BytesIO(dumped)).extract(f"{id(clf)}.keras", path=temp_dir)
 
-        new_clf_model = tensorflow.keras.models.load_model(
-            file_name + "/model.keras", compile=False
-        )
+            new_clf_model = tensorflow.keras.models.load_model(file_name, compile=False)
 
         clf_new = KerasClassifier(new_clf_model)
         clf_new.initialize(X, y)
