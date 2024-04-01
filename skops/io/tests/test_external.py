@@ -463,6 +463,7 @@ class TestSciKeras:
 
         dumped = dumps(clf)
 
+        # Loads returns the Keras model so we need to initialize it as a SciKeras model
         new_clf_model = loads(dumped)
 
         clf_new = KerasClassifier(new_clf_model)

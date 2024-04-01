@@ -3,7 +3,7 @@ import os
 import tempfile
 from typing import Sequence, Type
 
-import keras
+import tensorflow as tf
 from scikeras.wrappers import KerasClassifier, KerasRegressor
 
 from ._audit import Node
@@ -47,7 +47,7 @@ class SciKerasNode(Node):
             file_path = os.path.join(temp_dir, "model.keras")
             with open(file_path, "wb") as f:
                 f.write(self.children["content"].getbuffer())
-            model = keras.models.load_model(file_path)
+            model = tf.keras.models.load_model(file_path, compile=False)
         return model
 
 
