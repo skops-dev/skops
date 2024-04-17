@@ -38,7 +38,7 @@ class SciKerasNode(Node):
         trusted: bool | Sequence[str] = False,
     ) -> None:
         super().__init__(state, load_context, trusted)
-        self.trusted = self._get_trusted(trusted, [KerasClassifier, KerasRegressor])
+        self.trusted = self._get_trusted(trusted, default=[])
 
         self.children = {"content": io.BytesIO(load_context.src.read(state["file"]))}
 

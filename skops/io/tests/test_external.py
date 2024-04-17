@@ -431,6 +431,10 @@ class TestQuantileForest:
 class TestSciKeras:
     """Tests for SciKerasRegressor and SciKerasClassifier"""
 
+    @pytest.fixture
+    def trusted(self):
+        return ["scikeras.wrappers.KerasClassifier"]
+
     @pytest.fixture(autouse=True)
     def capture_stdout(self):
         # Mock print and rich.print so that running these tests with pytest -s
@@ -444,7 +448,7 @@ class TestSciKeras:
         tensorflow = pytest.importorskip("tensorflow")
         return tensorflow
 
-    def test_dumping_model(self, tensorflow):
+    def test_dumping_model(self, tensorflow, trusted):
         # This simplifies the basic usage tutorial from https://adriangb.com/scikeras/stable/notebooks/Basic_Usage.html
 
         n_features_in_ = 20
@@ -464,7 +468,7 @@ class TestSciKeras:
         dumped = dumps(clf)
 
         # Loads returns the Keras model so we need to initialize it as a SciKeras model
-        new_clf_model = loads(dumped)
+        new_clf_model = loads(dumped, trusted=trusted)
 
         clf_new = KerasClassifier(new_clf_model)
         clf_new.initialize(X, y)
