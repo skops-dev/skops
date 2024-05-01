@@ -16,7 +16,7 @@ jobs:
       fail-fast: false # need to see which ones fail
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        python: ["3.9", "3.10", "3.11"]
+        python: ["3.9", "3.10", "3.11", "3.12"]
         # this is to make the CI run on different sklearn versions
         include:
           - python: "3.9"
@@ -24,6 +24,8 @@ jobs:
           - python: "3.10"
             sklearn_version: "1.2"
           - python: "3.11"
+            sklearn_version: "1.4"
+          - python: "3.12"
             sklearn_version: "nightly"
 
     # Timeout: https://stackoverflow.com/a/59076067/4521646
