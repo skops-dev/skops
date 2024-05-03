@@ -10,97 +10,95 @@ concurrency:
 
 jobs:
   pytest:
-
     runs-on: ${{ matrix.os }}
     if: "github.repository == 'skops-dev/skops'"
     strategy:
-      fail-fast: false  # need to see which ones fail
+      fail-fast: false # need to see which ones fail
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        python: ["3.8", "3.9", "3.10", "3.11"]
+        os: [ubuntu-latest, windows-latest, macos-12]
+        python: ["3.9", "3.10", "3.11", "3.12"]
         # this is to make the CI run on different sklearn versions
         include:
-          - python: "3.8"
-            sklearn_version: "1.0"
           - python: "3.9"
             sklearn_version: "1.1"
           - python: "3.10"
             sklearn_version: "1.2"
           - python: "3.11"
+            sklearn_version: "1.4"
+          - python: "3.12"
             sklearn_version: "nightly"
 
     # Timeout: https://stackoverflow.com/a/59076067/4521646
     timeout-minutes: 15
 
     steps:
+      # The following two steps are workarounds to retrieve the "real" commit
+      # message and make it available in later steps. This is because we want to
+      # check the content of the commit message, but on PRs, it's replaced by an
+      # artificial commit message. See https://github.com/skops-dev/skops/pull/147
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{github.event.after}}
 
-    # The following two steps are workarounds to retrieve the "real" commit
-    # message and make it available in later steps. This is because we want to
-    # check the content of the commit message, but on PRs, it's replaced by an
-    # artificial commit message. See https://github.com/skops-dev/skops/pull/147
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-        ref: ${{github.event.after}}
+      - run: |
+          echo PR_COMMIT_MESSAGE=$(git log -1 --pretty=format:\"%s\") >> $GITHUB_ENV
+        shell: bash
 
-    - run: |
-        echo PR_COMMIT_MESSAGE=$(git log -1 --pretty=format:\"%s\") >> $GITHUB_ENV
-      shell: bash
+      - name: Set up Python ${{ matrix.python }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
 
-    - name: Set up Python ${{ matrix.python }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python }}
+      - name: Install dependencies
+        run: |
+          pip install "pytest<8"
+          pip install .[docs,tests]
+          pip install black=="23.9.1" ruff=="0.0.292" mypy=="1.6.0"
+          pip uninstall --yes scikit-learn
+          if [ ${{ matrix.sklearn_version }} == "nightly" ];
+            then pip install --pre --extra-index https://pypi.anaconda.org/scientific-python-nightly-wheels/simple scikit-learn;
+            else pip install "scikit-learn~=${{ matrix.sklearn_version }}";
+          fi
+          if [ ${{ matrix.os }} == "ubuntu-latest" ];
+            then sudo apt install pandoc && pandoc --version;
+          fi
+          python --version
+          pip --version
+          pip list
+        shell: bash
 
-    - name: Install dependencies
-      run: |
-        pip install "pytest<8"
-        pip install .[docs,tests]
-        pip install black=="23.9.1" ruff=="0.0.292" mypy=="1.6.0"
-        pip uninstall --yes scikit-learn
-        if [ ${{ matrix.sklearn_version }} == "nightly" ];
-          then pip install --pre --extra-index https://pypi.anaconda.org/scientific-python-nightly-wheels/simple scikit-learn;
-          else pip install "scikit-learn~=${{ matrix.sklearn_version }}";
-        fi
-        if [ ${{ matrix.os }} == "ubuntu-latest" ];
-          then sudo apt install pandoc && pandoc --version;
-        fi
-        python --version
-        pip --version
-        pip list
-      shell: bash
+      - name: Check black
+        run: black --check --diff .
 
-    - name: Check black
-      run: black --check --diff .
+      - name: Check ruff
+        run: ruff check --diff .
 
-    - name: Check ruff
-      run: ruff check --diff .
+      - name: Tests
+        env:
+          SUPER_SECRET: ${{ secrets.HF_HUB_TOKEN }}
+          PYTHONIOENCODING: "utf-8"
+        run: |
+          python -m pytest -s -v --cov-report=xml -m "not inference" skops/
 
-    - name: Tests
-      env:
-        SUPER_SECRET: ${{ secrets.HF_HUB_TOKEN }}
-        PYTHONIOENCODING: "utf-8"
-      run: |
-        python -m pytest -s -v --cov-report=xml -m "not inference" skops/
+      - name: Mypy
+        run: mypy --config-file pyproject.toml skops
 
-    - name: Mypy
-      run: mypy --config-file pyproject.toml skops
+      - name: Inference tests (conditional)
+        if: contains(env.PR_COMMIT_MESSAGE, '[CI inference]')
+        run: |
+          python -m pytest -s -v -m "inference" skops/
 
-    - name: Inference tests (conditional)
-      if: contains(env.PR_COMMIT_MESSAGE, '[CI inference]')
-      run: |
-        python -m pytest -s -v -m "inference" skops/
-
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v4
-      with:
-        env_vars: OS,PYTHON
-        fail_ci_if_error: true
-        files: ./coverage.xml
-        flags: unittests
-        name: codecov-umbrella
-        verbose: true
-        # the coverage is uploaded with or without a token. This only helps with some
-        # codecov errors. It's a recommended action from here:
-        # https://github.com/codecov/codecov-action/issues/837#issuecomment-1453877750
-        token: 79395387-e193-4b18-b2ee-74a3b8dce269
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          env_vars: OS,PYTHON
+          fail_ci_if_error: true
+          files: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+          verbose: true
+          # the coverage is uploaded with or without a token. This only helps with some
+          # codecov errors. It's a recommended action from here:
+          # https://github.com/codecov/codecov-action/issues/837#issuecomment-1453877750
+          token: 79395387-e193-4b18-b2ee-74a3b8dce269
