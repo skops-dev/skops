@@ -1197,38 +1197,6 @@ class TestMetadata:
         metadata = metadata_load(local_path=Path(destination_path) / "README.md")
         assert metadata["model_format"] == "skops"
 
-    def test_metadata_tags_without_sklearn_intelex_tag(
-        self, destination_path, iris_data, iris_pkl_file
-    ):
-        # by default, intelex is not being used
-        X, _ = iris_data
-        hub_utils.init(
-            model=iris_pkl_file,
-            requirements=[],
-            dst=destination_path,
-            task="tabular-classification",
-            data=X,
-        )
-
-        metadata = metadata_from_config(destination_path)
-        assert "scikit-learn-intelex" not in metadata.tags
-
-    def test_metadata_tags_with_sklearn_intelex_tag(
-        self, destination_path, iris_data, iris_pkl_file
-    ):
-        X, _ = iris_data
-        hub_utils.init(
-            model=iris_pkl_file,
-            requirements=[],
-            dst=destination_path,
-            task="tabular-classification",
-            data=X,
-            use_intelex=True,
-        )
-
-        metadata = metadata_from_config(destination_path)
-        assert "scikit-learn-intelex" in metadata.tags
-
 
 @pytest.mark.xfail(reason="dynamic adjustment when model changes not implemented yet")
 class TestModelDynamicUpdate:
