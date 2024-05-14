@@ -11,6 +11,9 @@ skops Changelog
 
 v0.10
 ----
+- Removes Pythn 3.8 support and adds Python 3.12 Support :pr:`418` by :user:`Thomas Lazarus <lazarust>`.
+- Removes a shortcut to add `sklearn-intelex` as a not dependency.
+  :pr:`420` by :user:`Thomas Lazarus < lazarust > `.
 - Fix dumping Scikeras model failing because of maximum recursion depth. :pr:`388`
   by :user:`Thomas Lazarus <lazarust>`.
 
