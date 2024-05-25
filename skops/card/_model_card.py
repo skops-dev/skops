@@ -1227,7 +1227,7 @@ class Card:
         _, ax = plt.subplots()
         ax.boxplot(
             x=permutation_importances.importances[sorted_importances_idx].T,
-            labels=columns[sorted_importances_idx],
+            tick_labels=columns[sorted_importances_idx],
             vert=False,
         )
         ax.set_title(plot_name)
