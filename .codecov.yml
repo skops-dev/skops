@@ -2,6 +2,7 @@ comment: false
 codecov:
   branch: main
   require_ci_to_pass: true
+  token: 2b8d4d69-6de6-4e1d-840a-5ccf9d849565
   notify:
     after_n_builds: 12
     wait_for_ci: true
