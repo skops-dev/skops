@@ -22,6 +22,7 @@ from tabulate import tabulate  # type: ignore
 from skops.card._templates import CONTENT_PLACEHOLDER, SKOPS_TEMPLATE, Templates
 from skops.io import load
 from skops.utils.importutils import import_or_raise
+from skops.utils._fixes import boxplot
 
 if sys.version_info >= (3, 11):
     from typing import Self
@@ -1225,9 +1226,9 @@ class Card:
             )
         sorted_importances_idx = permutation_importances.importances_mean.argsort()
         _, ax = plt.subplots()
-        ax.boxplot(
+        boxplot(ax,
             x=permutation_importances.importances[sorted_importances_idx].T,
-            labels=columns[sorted_importances_idx],
+            tick_labels=columns[sorted_importances_idx],
             vert=False,
         )
         ax.set_title(plot_name)
