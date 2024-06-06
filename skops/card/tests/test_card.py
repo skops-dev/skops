@@ -1387,8 +1387,11 @@ class TestCardRepr:
 
 
 class TestCardModelAttributeIsPath:
-    def path_to_card(self, path):
-        card = Card(model=path, trusted=get_untrusted_types(file=path))
+    def path_to_card(self, path, suffix):
+        if suffix == ".skops":
+            card = Card(model=path, trusted=get_untrusted_types(file=path))
+        else:
+            card = Card(model=path)
         return card
 
     @pytest.mark.parametrize("meth", [repr, str])
@@ -1401,7 +1404,7 @@ class TestCardModelAttributeIsPath:
         model = LinearRegression(fit_intercept=False)
         file_handle, file_name = save_model_to_file(model, suffix)
         os.close(file_handle)
-        card_from_path = self.path_to_card(file_name)
+        card_from_path = self.path_to_card(file_name, suffix=suffix)
 
         result0 = meth(card_from_path)
         expected = "Card(\n  model=LinearRegression(fit_intercept=False),"

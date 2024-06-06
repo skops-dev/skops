@@ -106,11 +106,6 @@ def test_random_generator_v0(rng):
     )
 
     # old loader only worked with trusted=True, see #329
-    loaded = loads(downgraded, trusted=get_untrusted_types(data=downgraded))
-
-    # sanity check: ensure that the old get_state function was really called
-    assert call_count == 1
-
-    rand_floats_expected = rng.random(100)
-    rand_floats_loaded = loaded.random(100)
-    np.testing.assert_equal(rand_floats_loaded, rand_floats_expected)
+    # update: we have removed trusted=True, so this doesn't work anymore.
+    with pytest.raises(AttributeError):
+        loads(downgraded, trusted=[])
