@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import io
-from typing import Any, Sequence
+from typing import Any, Optional, Sequence
 
 from scipy.sparse import load_npz, save_npz, spmatrix
 
@@ -38,7 +38,7 @@ class SparseMatrixNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: bool | Sequence[str] = False,
+        trusted: Optional[Sequence[str]] = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.type = state["type"]

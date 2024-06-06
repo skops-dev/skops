@@ -851,7 +851,7 @@ def test_dump_to_and_load_from_disk(tmp_path):
     json.loads(ZipFile(f_name).read("schema.json"))
 
     # load and compare the actual estimator
-    loaded = load(f_name, trusted=True)
+    loaded = load(f_name, trusted=get_untrusted_types(file=f_name))
     assert_params_equal(loaded.__dict__, estimator.__dict__)
 
 
@@ -878,8 +878,10 @@ def test_disk_and_memory_are_identical(tmp_path):
 
     f_name = tmp_path / "estimator.skops"
     dump(estimator, f_name)
-    loaded_disk = load(f_name, trusted=True)
-    loaded_memory = loads(dumps(estimator), trusted=True)
+    loaded_disk = load(f_name, trusted=get_untrusted_types(file=f_name))
+    loaded_memory = loads(
+        dumps(estimator), trusted=get_untrusted_types(data=dumps(estimator))
+    )
 
     assert joblib.hash(loaded_disk) == joblib.hash(loaded_memory)
 
@@ -894,7 +896,7 @@ def test_dump_and_load_with_file_wrapper(tmp_path):
     with open(f_name, "wb") as f:
         dump(estimator, f)
     with open(f_name, "rb") as f:
-        loaded = load(f, trusted=True)
+        loaded = load(f, trusted=get_untrusted_types(file=f_name))
 
     assert_params_equal(loaded.__dict__, estimator.__dict__)
 

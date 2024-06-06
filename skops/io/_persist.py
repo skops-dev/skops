@@ -4,7 +4,7 @@ import importlib
 import io
 import json
 from pathlib import Path
-from typing import Any, BinaryIO, Sequence
+from typing import Any, BinaryIO, Optional, Sequence
 from zipfile import ZIP_STORED, ZipFile
 
 import skops
@@ -113,30 +113,21 @@ def dumps(
     return buffer.getbuffer().tobytes()
 
 
-def load(file: str | Path, trusted: bool | Sequence[str] = False) -> Any:
+def load(file: str | Path, trusted: Optional[Sequence[str]] = None) -> Any:
     """Load an object saved with the skops persistence format.
 
     Skops aims at providing a secure persistence feature that does not rely on
     :mod:`pickle`, which is inherently insecure. For more information, please
     visit the :ref:`persistence` documentation.
 
-    .. warning::
-
-        This feature is heavily under development, which means the API is
-        unstable and there might be security issues at the moment. Therefore,
-        use caution when loading files from sources you don't trust.
-
     Parameters
     ----------
     file: str or pathlib.Path
         The file name of the object to be loaded.
 
-    trusted: bool, or list of str, default=False
-        If ``True``, the object will be loaded without any security checks. If
-        ``False``, the object will be loaded only if there are only trusted
-        objects in the dumped file. If a list of strings, the object will be
-        loaded only if there are only trusted objects and objects of types
-        listed in ``trusted`` in the dumped file.
+    trusted: list of str, default=None
+        The object will be loaded only if there are only trusted objects and
+        objects of types listed in ``trusted`` in the dumped file.
 
     Returns
     -------
@@ -144,6 +135,8 @@ def load(file: str | Path, trusted: bool | Sequence[str] = False) -> Any:
         The loaded object.
 
     """
+    if trusted and not isinstance(trusted, list):
+        raise TypeError("trusted must be a list of strings")
     with ZipFile(file, "r") as input_zip:
         schema = json.loads(input_zip.read("schema.json"))
         load_context = LoadContext(src=input_zip, protocol=schema["protocol"])
@@ -154,15 +147,9 @@ def load(file: str | Path, trusted: bool | Sequence[str] = False) -> Any:
     return instance
 
 
-def loads(data: bytes, trusted: bool | Sequence[str] = False) -> Any:
+def loads(data: bytes, trusted: Optional[Sequence[str]] = None) -> Any:
     """Load an object saved with the skops persistence format from a bytes
     object.
-
-    .. warning::
-
-        This feature is heavily under development, which means the API is
-        unstable and there might be security issues at the moment. Therefore,
-        use caution when loading files from sources you don't trust.
 
     Parameters
     ----------
@@ -170,11 +157,8 @@ def loads(data: bytes, trusted: bool | Sequence[str] = False) -> Any:
         The dumped data to be loaded in bytes format.
 
     trusted: bool, or list of str, default=False
-        If ``True``, the object will be loaded without any security checks. If
-        ``False``, the object will be loaded only if there are only trusted
-        objects in the dumped file. If a list of strings, the object will be
-        loaded only if there are only trusted objects and objects of types
-        listed in ``trusted`` in the dumped file.
+        The object will be loaded only if there are only trusted objects and
+        objects of types listed in ``trusted`` in the dumped file.
 
     Returns
     -------
@@ -183,6 +167,9 @@ def loads(data: bytes, trusted: bool | Sequence[str] = False) -> Any:
     """
     if isinstance(data, str):
         raise TypeError("Can't load skops format from string, pass bytes")
+
+    if trusted and not isinstance(trusted, list):
+        raise TypeError("trusted must be a list of strings")
 
     with ZipFile(io.BytesIO(data), "r") as zip_file:
         schema = json.loads(zip_file.read("schema.json"))
@@ -231,7 +218,7 @@ def get_untrusted_types(
     with ZipFile(content, "r") as zip_file:
         schema = json.loads(zip_file.read("schema.json"))
         load_context = LoadContext(src=zip_file, protocol=schema["protocol"])
-        tree = get_tree(schema, load_context=load_context, trusted=False)
+        tree = get_tree(schema, load_context=load_context, trusted=None)
         untrusted_types = tree.get_unsafe_set()
 
     return sorted(untrusted_types)

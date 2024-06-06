@@ -49,8 +49,8 @@ def test_audit_tree_untrusted():
     ):
         audit_tree(node)
 
-    # there shouldn't be an error with trusted=True
-    node = DictNode(state, LoadContext(None, -1), trusted=True)
+    # there shouldn't be an error with trusted=everything
+    node = DictNode(state, LoadContext(None, -1), trusted=[])
     audit_tree(node)
 
     untrusted_list = get_untrusted_types(data=dumps(var))

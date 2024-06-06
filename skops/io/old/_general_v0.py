@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Sequence
+from typing import Any, Optional, Sequence
 
 from skops.io._audit import Node
 from skops.io._trusted_types import SCIPY_UFUNC_TYPE_NAMES
@@ -14,12 +14,12 @@ class FunctionNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: bool | Sequence[str] = False,
+        trusted: Optional[Sequence[str]] = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         # TODO: what do we trust?
         self.trusted = self._get_trusted(trusted, default=SCIPY_UFUNC_TYPE_NAMES)
-        self.children = {"content": state["content"]}
+        self.children: dict = {"content": state["content"]}
 
     def _construct(self):
         return _import_obj(
