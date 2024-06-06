@@ -15,7 +15,7 @@ v0.10
 - Removes a shortcut to add `sklearn-intelex` as a not dependency.
   :pr:`420` by :user:`Thomas Lazarus < lazarust > `.
 - ``trusted=True`` is now removed from ``skops.io.load`` and ``skops.io.loads``.
-  :pr:`XXX` by `Adrin Jalali`_.
+  :pr:`422` by `Adrin Jalali`_.
 
 v0.9
 ----
