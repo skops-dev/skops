@@ -1019,7 +1019,7 @@ def test_persist_operator_raises_untrusted(op):
     name, func = op
     est = FunctionTransformer(func)
     with pytest.raises(UntrustedTypesFoundException, match=name):
-        loads(dumps(est), trusted=False)
+        loads(dumps(est), trusted=None)
 
 
 def dummy_func(X):
@@ -1067,3 +1067,14 @@ def test_sparse_matrix(call_has_canonical_format):
     y = loads(dumped, trusted=untrusted_types)
 
     assert_params_equal(x.__dict__, y.__dict__)
+
+
+def test_trusted_bool_raises(tmp_path):
+    """Make sure trusted=True is no longer accepted."""
+    f_name = tmp_path / "file.skops"
+    dump(10, f_name)
+    with pytest.raises(TypeError, match="trusted must be a list of strings"):
+        load(f_name, trusted=True)  # type: ignore
+
+    with pytest.raises(TypeError, match="trusted must be a list of strings"):
+        loads(dumps(10), trusted=True)  # type: ignore
