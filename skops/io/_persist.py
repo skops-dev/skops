@@ -136,7 +136,14 @@ def load(file: str | Path, trusted: Optional[Sequence[str]] = None) -> Any:
 
     """
     if trusted and not isinstance(trusted, list):
-        raise TypeError("trusted must be a list of strings")
+        raise TypeError(
+            "trusted must be a list of strings. Before version 0.10 trusted could "
+            "be a boolean, but this is no longer supported, due to a reported "
+            "CVE-2024-37065. You can pass the output of `get_untrusted_types` as "
+            "trusted to load the data. Be sure to review the output of the function "
+            "before passing it as trusted."
+        )
+
     with ZipFile(file, "r") as input_zip:
         schema = json.loads(input_zip.read("schema.json"))
         load_context = LoadContext(src=input_zip, protocol=schema["protocol"])
@@ -169,7 +176,13 @@ def loads(data: bytes, trusted: Optional[Sequence[str]] = None) -> Any:
         raise TypeError("Can't load skops format from string, pass bytes")
 
     if trusted and not isinstance(trusted, list):
-        raise TypeError("trusted must be a list of strings")
+        raise TypeError(
+            "trusted must be a list of strings. Before version 0.10 trusted could "
+            "be a boolean, but this is no longer supported, due to a reported "
+            "CVE-2024-37065. You can pass the output of `get_untrusted_types` as "
+            "trusted to load the data. Be sure to review the output of the function "
+            "before passing it as trusted."
+        )
 
     with ZipFile(io.BytesIO(data), "r") as zip_file:
         schema = json.loads(zip_file.read("schema.json"))
