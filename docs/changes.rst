@@ -14,6 +14,8 @@ v0.10
 - Removes Pythn 3.8 support and adds Python 3.12 Support :pr:`418` by :user:`Thomas Lazarus <lazarust>`.
 - Removes a shortcut to add `sklearn-intelex` as a not dependency.
   :pr:`420` by :user:`Thomas Lazarus < lazarust > `.
+- ``trusted=True`` is now removed from ``skops.io.load`` and ``skops.io.loads``.
+  :pr:`XXX` by `Adrin Jalali`_.
 
 v0.9
 ----
