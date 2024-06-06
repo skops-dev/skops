@@ -21,6 +21,7 @@ from tabulate import tabulate  # type: ignore
 
 from skops.card._templates import CONTENT_PLACEHOLDER, SKOPS_TEMPLATE, Templates
 from skops.io import load
+from skops.utils._fixes import boxplot
 from skops.utils.importutils import import_or_raise
 
 if sys.version_info >= (3, 11):
@@ -28,12 +29,10 @@ if sys.version_info >= (3, 11):
 else:
     from typing_extensions import Self
 
-
 # Repr attributes can be used to control the behavior of repr
 aRepr = Repr()
 aRepr.maxother = 79
 aRepr.maxstring = 79
-
 
 VALID_TEMPLATES = {item.value for item in Templates}
 NEED_SECTION_ERR_MSG = (
@@ -1225,9 +1224,10 @@ class Card:
             )
         sorted_importances_idx = permutation_importances.importances_mean.argsort()
         _, ax = plt.subplots()
-        ax.boxplot(
+        boxplot(
+            ax,
             x=permutation_importances.importances[sorted_importances_idx].T,
-            labels=columns[sorted_importances_idx],
+            tick_labels=columns[sorted_importances_idx],
             vert=False,
         )
         ax.set_title(plot_name)

@@ -90,7 +90,7 @@ jobs:
           python -m pytest -s -v -m "inference" skops/
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v3
         with:
           env_vars: OS,PYTHON
           fail_ci_if_error: true
@@ -101,4 +101,4 @@ jobs:
           # the coverage is uploaded with or without a token. This only helps with some
           # codecov errors. It's a recommended action from here:
           # https://github.com/codecov/codecov-action/issues/837#issuecomment-1453877750
-          token: 79395387-e193-4b18-b2ee-74a3b8dce269
+          token: 2b8d4d69-6de6-4e1d-840a-5ccf9d849565
