@@ -79,6 +79,9 @@ The code snippet below illustrates how to use :func:`skops.io.dump` and
 
 Note that the ``get_untrusted_types`` function is used to check which types are
 not trusted by default. The user can then decide whether to trust them or not.
+In previous before version 0.10, users could pass ``trusted=True`` to skip the
+audit phase, which is now removed to encourage users to validate the input
+before loading.
 
 Note that everything in the above list is safe to load. We already have many
 types included as trusted by default, and some of the above values might be

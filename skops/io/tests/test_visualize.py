@@ -113,8 +113,7 @@ class TestVisualizeTree:
         assert len(nodes_unsafe) > 2
         assert any("FunctionTransformer" in node.val for node in nodes_unsafe)
 
-    @pytest.mark.parametrize("trusted", [True, ["test_visualize.unsafe_function"]])
-    def test_all_nodes_trusted(self, pipeline, trusted, capsys):
+    def test_all_nodes_trusted(self, pipeline, capsys):
         # The pipeline contains untrusted type(s), so we have to pass extra
         # trusted types
         file = sio.dumps(pipeline)
