@@ -135,7 +135,7 @@ def load(file: str | Path, trusted: Optional[Sequence[str]] = None) -> Any:
         The loaded object.
 
     """
-    if trusted and not isinstance(trusted, list):
+    if trusted is True:
         raise TypeError(
             "trusted must be a list of strings. Before version 0.10 trusted could "
             "be a boolean, but this is no longer supported, due to a reported "
@@ -175,7 +175,7 @@ def loads(data: bytes, trusted: Optional[Sequence[str]] = None) -> Any:
     if isinstance(data, str):
         raise TypeError("Can't load skops format from string, pass bytes")
 
-    if trusted and not isinstance(trusted, list):
+    if trusted is True:
         raise TypeError(
             "trusted must be a list of strings. Before version 0.10 trusted could "
             "be a boolean, but this is no longer supported, due to a reported "
