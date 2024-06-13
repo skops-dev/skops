@@ -28,6 +28,7 @@ from sklearn.dummy import DummyClassifier
 
 import skops.io as sio
 from skops import card, hub_utils
+from skops.io import get_untrusted_types
 
 tmp_path = Path(mkdtemp(prefix="skops-"))  # temporary files
 description = """Create a Hugging Face model repository for scikit learn models
@@ -46,7 +47,7 @@ def load_model() -> None:
 
     bytes_data = st.session_state.model_file.getvalue()
     if st.session_state.model_file.name.endswith("skops"):
-        model = sio.loads(bytes_data, trusted=True)
+        model = sio.loads(bytes_data, trusted=get_untrusted_types(data=bytes_data))
     else:
         model = pickle.loads(bytes_data)
     assert isinstance(model, BaseEstimator), "model must be an sklearn model"

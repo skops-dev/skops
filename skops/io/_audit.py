@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import io
 from contextlib import contextmanager
-from typing import Any, Dict, Generator, List, Literal, Optional, Sequence, Type, Union
+from typing import Any, Dict, Generator, List, Optional, Sequence, Type, Union
 
 from ._protocol import PROTOCOL
 from ._utils import LoadContext, get_module, get_type_paths
@@ -14,9 +14,7 @@ VALID_NODE_CHILD_TYPES = Optional[
 ]
 
 
-def check_type(
-    module_name: str, type_name: str, trusted: Literal[True] | Sequence[str]
-) -> bool:
+def check_type(module_name: str, type_name: str, trusted: Sequence[str]) -> bool:
     """Check if a type is safe to load.
 
     A type is safe to load only if it's present in the trusted list.
@@ -38,16 +36,13 @@ def check_type(
     is_safe : bool
         True if the type is safe, False otherwise.
     """
-    if trusted is True:
-        return True
     return module_name + "." + type_name in trusted
 
 
 def audit_tree(tree: Node) -> None:
     """Audit a tree of nodes.
 
-    A tree is safe if it only contains trusted types. Audit is skipped if
-    trusted is ``True``.
+    A tree is safe if it only contains trusted types.
 
     Parameters
     ----------
@@ -59,9 +54,6 @@ def audit_tree(tree: Node) -> None:
     UntrustedTypesFoundException
         If the tree contains an untrusted type.
     """
-    if tree.trusted is True:
-        return
-
     unsafe = tree.get_unsafe_set()
     if unsafe:
         raise UntrustedTypesFoundException(unsafe)
@@ -142,7 +134,7 @@ class Node:
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: bool | Sequence[str] = False,
+        trusted: Optional[Sequence[str]] = None,
         memoize: bool = True,
     ) -> None:
         self.class_name, self.module_name = state["__class__"], state["__module__"]
@@ -180,22 +172,19 @@ class Node:
 
     @staticmethod
     def _get_trusted(
-        trusted: bool | Sequence[Union[str, Type]], default: Sequence[Union[str, Type]]
-    ) -> Literal[True] | list[str]:
+        trusted: Optional[Sequence[Union[str, Type]]],
+        default: Sequence[Union[str, Type]],
+    ) -> list[str]:
         """Return a trusted list, or True.
 
-        If ``trusted`` is ``False``, we return the ``default``. If a list of
+        If ``trusted`` is ``None``, we return the ``default``. If a list of
         types are being passed, those types, as well as default trusted types,
         are returned.
 
         This is a convenience method called by child classes.
 
         """
-        if trusted is True:
-            # if trusted is True, we trust the node
-            return True
-
-        if trusted is False:
+        if trusted is None:
             # if trusted is False, we only trust the defaults
             return get_type_paths(default)
 
@@ -289,12 +278,12 @@ class CachedNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: bool = False,
+        trusted: Optional[List[str]] = None,
     ):
         # we pass memoize as False because we don't want to memoize the cached
         # node.
         super().__init__(state, load_context, trusted, memoize=False)
-        self.trusted = True
+        self.trusted = self._get_trusted(trusted, default=[])
         # TODO: deal with case that __id__ is unknown or prevent it from
         # happening
         self.cached = load_context.get_object(state.get("__id__"))  # type: ignore
@@ -313,7 +302,7 @@ NODE_TYPE_MAPPING[("CachedNode", PROTOCOL)] = CachedNode
 def get_tree(
     state: dict[str, Any],
     load_context: LoadContext,
-    trusted: bool | Sequence[str],
+    trusted: Optional[Sequence[str]],
 ) -> Node:
     """Get the tree of nodes.
 

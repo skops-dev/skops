@@ -14,6 +14,11 @@ v0.10
 - Removes Pythn 3.8 support and adds Python 3.12 Support :pr:`418` by :user:`Thomas Lazarus <lazarust>`.
 - Removes a shortcut to add `sklearn-intelex` as a not dependency.
   :pr:`420` by :user:`Thomas Lazarus < lazarust > `.
+- ``trusted=True`` is now removed from ``skops.io.load`` and ``skops.io.loads``.
+  This is to further encourage users to inspect the input data before loading
+  it. :func:`skops.io.get_untrusted_types` can be used to get the untrusted types
+  present in the input.
+  :pr:`422` by `Adrin Jalali`_.
 
 v0.9
 ----

@@ -9,7 +9,7 @@ import zipfile
 from pathlib import Path
 
 from skops.cli._utils import get_log_level
-from skops.io import dump, load
+from skops.io import dump, get_untrusted_types, load
 from skops.io._protocol import PROTOCOL
 
 
@@ -48,7 +48,7 @@ def _update_file(
                 " file."
             )
 
-    input_model = load(input_file, trusted=True)
+    input_model = load(input_file, trusted=get_untrusted_types(file=input_file))
     with zipfile.ZipFile(input_file, "r") as zip_file:
         input_file_schema = json.loads(zip_file.read("schema.json"))
 

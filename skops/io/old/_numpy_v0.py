@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Sequence
+from typing import Any, Optional, Sequence
 
 import numpy as np
 
@@ -15,7 +15,7 @@ class RandomGeneratorNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: bool | Sequence[str] = False,
+        trusted: Optional[Sequence[str]] = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.children = {"bit_generator_state": state["content"]["bit_generator"]}

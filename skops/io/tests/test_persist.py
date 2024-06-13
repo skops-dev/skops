@@ -851,7 +851,7 @@ def test_dump_to_and_load_from_disk(tmp_path):
     json.loads(ZipFile(f_name).read("schema.json"))
 
     # load and compare the actual estimator
-    loaded = load(f_name, trusted=True)
+    loaded = load(f_name, trusted=get_untrusted_types(file=f_name))
     assert_params_equal(loaded.__dict__, estimator.__dict__)
 
 
@@ -878,8 +878,10 @@ def test_disk_and_memory_are_identical(tmp_path):
 
     f_name = tmp_path / "estimator.skops"
     dump(estimator, f_name)
-    loaded_disk = load(f_name, trusted=True)
-    loaded_memory = loads(dumps(estimator), trusted=True)
+    loaded_disk = load(f_name, trusted=get_untrusted_types(file=f_name))
+    loaded_memory = loads(
+        dumps(estimator), trusted=get_untrusted_types(data=dumps(estimator))
+    )
 
     assert joblib.hash(loaded_disk) == joblib.hash(loaded_memory)
 
@@ -894,7 +896,7 @@ def test_dump_and_load_with_file_wrapper(tmp_path):
     with open(f_name, "wb") as f:
         dump(estimator, f)
     with open(f_name, "rb") as f:
-        loaded = load(f, trusted=True)
+        loaded = load(f, trusted=get_untrusted_types(file=f_name))
 
     assert_params_equal(loaded.__dict__, estimator.__dict__)
 
@@ -1017,7 +1019,7 @@ def test_persist_operator_raises_untrusted(op):
     name, func = op
     est = FunctionTransformer(func)
     with pytest.raises(UntrustedTypesFoundException, match=name):
-        loads(dumps(est), trusted=False)
+        loads(dumps(est), trusted=None)
 
 
 def dummy_func(X):
@@ -1065,3 +1067,14 @@ def test_sparse_matrix(call_has_canonical_format):
     y = loads(dumped, trusted=untrusted_types)
 
     assert_params_equal(x.__dict__, y.__dict__)
+
+
+def test_trusted_bool_raises(tmp_path):
+    """Make sure trusted=True is no longer accepted."""
+    f_name = tmp_path / "file.skops"
+    dump(10, f_name)
+    with pytest.raises(TypeError, match="trusted must be a list of strings"):
+        load(f_name, trusted=True)  # type: ignore
+
+    with pytest.raises(TypeError, match="trusted must be a list of strings"):
+        loads(dumps(10), trusted=True)  # type: ignore

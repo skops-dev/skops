@@ -16,6 +16,7 @@ from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 from sklearn.utils.fixes import parse_version
 
 import skops.io as sio
+from skops.io import get_untrusted_types
 
 
 class TestVisualizeTree:
@@ -112,12 +113,11 @@ class TestVisualizeTree:
         assert len(nodes_unsafe) > 2
         assert any("FunctionTransformer" in node.val for node in nodes_unsafe)
 
-    @pytest.mark.parametrize("trusted", [True, ["test_visualize.unsafe_function"]])
-    def test_all_nodes_trusted(self, pipeline, trusted, capsys):
-        # The pipeline contains untrusted type(s), but if we pass trusted=True,
-        # it is not considered untrusted anymore
+    def test_all_nodes_trusted(self, pipeline, capsys):
+        # The pipeline contains untrusted type(s), so we have to pass extra
+        # trusted types
         file = sio.dumps(pipeline)
-        sio.visualize(file, show="untrusted", trusted=trusted)
+        sio.visualize(file, show="untrusted", trusted=get_untrusted_types(data=file))
         expected = "root: sklearn.pipeline.Pipeline"
         stdout, _ = capsys.readouterr()
         assert stdout.strip() == expected

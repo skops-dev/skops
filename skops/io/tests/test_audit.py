@@ -25,11 +25,10 @@ class CustomType:
     [
         ("sklearn", "Pipeline", ["sklearn.Pipeline"], True),
         ("sklearn", "Pipeline", ["sklearn.preprocessing.StandardScaler"], False),
-        ("sklearn", "Pipeline", True, True),
         ("builtins", "int", ["builtins.int"], True),
         ("builtins", "int", [], False),
     ],
-    ids=["list-True", "list-False", "True", "int-True", "int-False"],
+    ids=["list-True", "list-False", "int-True", "int-False"],
 )
 def test_check_type(module_name, type_name, trusted, expected):
     assert check_type(module_name, type_name, trusted) == expected
@@ -40,7 +39,7 @@ def test_audit_tree_untrusted():
     state = dict_get_state(var, SaveContext(None, 0, {}))
     load_context = LoadContext(None, -1)
 
-    node = DictNode(state, load_context, trusted=False)
+    node = DictNode(state, load_context, trusted=None)
     with pytest.raises(
         TypeError,
         match=re.escape(
@@ -49,8 +48,8 @@ def test_audit_tree_untrusted():
     ):
         audit_tree(node)
 
-    # there shouldn't be an error with trusted=True
-    node = DictNode(state, LoadContext(None, -1), trusted=True)
+    # there shouldn't be an error with trusted=everything
+    node = DictNode(state, LoadContext(None, -1), trusted=["test_audit.CustomType"])
     audit_tree(node)
 
     untrusted_list = get_untrusted_types(data=dumps(var))
@@ -65,18 +64,17 @@ def test_audit_tree_defaults():
     # test that the default types are trusted
     var = {"a": 1, 2: "b"}
     state = dict_get_state(var, SaveContext(None, 0, {}))
-    node = DictNode(state, LoadContext(None, -1), trusted=False)
+    node = DictNode(state, LoadContext(None, -1), trusted=None)
     audit_tree(node)
 
 
 @pytest.mark.parametrize(
     "trusted, defaults, expected",
     [
-        (True, None, True),
-        (False, int, ["builtins.int"]),
+        (None, int, ["builtins.int"]),
         ([int], None, ["builtins.int"]),
     ],
-    ids=["trusted", "untrusted", "untrusted_list"],
+    ids=["untrusted", "untrusted_list"],
 )
 def test_Node_get_trusted(trusted, defaults, expected):
     assert Node._get_trusted(trusted, defaults) == expected
