@@ -11,7 +11,7 @@ import os
 import shutil
 import warnings
 from pathlib import Path
-from typing import Any, List, Literal, MutableMapping, Optional, Sequence, Union
+from typing import Any, Literal, MutableMapping
 
 import numpy as np
 from huggingface_hub import HfApi, InferenceClient, snapshot_download
@@ -25,7 +25,7 @@ SUPPORTED_TASKS = [
 ]
 
 
-def _validate_folder(path: Union[str, Path]) -> None:
+def _validate_folder(path: str | Path) -> None:
     """Validate the contents of a folder.
 
     This function checks if the contents of a folder make a valid repo for a
@@ -117,7 +117,7 @@ def _get_example_input_from_tabular_data(data):
     )
 
 
-def _get_example_input_from_text_data(data: Sequence[str]):
+def _get_example_input_from_text_data(data: list[str]):
     """Returns the example input of a model for a text task.
 
     The input is converted into a dictionary which is then stored in the config
@@ -125,7 +125,7 @@ def _get_example_input_from_text_data(data: Sequence[str]):
 
     Parameters
     ----------
-    data: Sequence[str]
+    data: list of str
         A sequence of strings. The first 3 elements are used as example input.
 
     Returns
@@ -197,9 +197,9 @@ def _get_column_names(data):
 
 def _create_config(
     *,
-    model_path: Union[str, Path],
-    requirements: List[str],
-    dst: Union[str, Path],
+    model_path: str | Path,
+    requirements: list[str],
+    dst: str | Path,
     task: Literal[
         "tabular-classification",
         "tabular-regression",
@@ -319,9 +319,9 @@ def _check_model_file(path: str | Path) -> Path:
 
 def init(
     *,
-    model: Union[str, Path],
-    requirements: List[str],
-    dst: Union[str, Path],
+    model: str | Path,
+    requirements: list[str],
+    dst: str | Path,
     task: Literal[
         "tabular-classification",
         "tabular-regression",
@@ -468,9 +468,7 @@ def dump_json(path, content):
         json.dump(content, f, sort_keys=True, indent=4)
 
 
-def update_env(
-    *, path: Union[str, Path], requirements: Union[List[str], None] = None
-) -> None:
+def update_env(*, path: str | Path, requirements: list[str] | None = None) -> None:
     """Update the environment requirements of a repo.
 
     This function takes the path to the repo, and updates the requirements of
@@ -498,7 +496,7 @@ def update_env(
 def push(
     *,
     repo_id: str,
-    source: Union[str, Path],
+    source: str | Path,
     token: str | None = None,
     commit_message: str | None = None,
     create_remote: bool = False,
@@ -579,7 +577,7 @@ def push(
     )
 
 
-def get_config(path: Union[str, Path]) -> dict[str, Any]:
+def get_config(path: str | Path) -> dict[str, Any]:
     """Returns the configuration of a project.
 
     Parameters
@@ -598,7 +596,7 @@ def get_config(path: Union[str, Path]) -> dict[str, Any]:
     return config
 
 
-def get_requirements(path: Union[str, Path]) -> List[str]:
+def get_requirements(path: str | Path) -> list[str]:
     """Returns the requirements of a project.
 
     Parameters
@@ -620,7 +618,7 @@ def get_requirements(path: Union[str, Path]) -> List[str]:
 def download(
     *,
     repo_id: str,
-    dst: Union[str, Path],
+    dst: str | Path,
     revision: str | None = None,
     token: str | None = None,
     keep_cache: bool = True,
@@ -685,7 +683,7 @@ def download(
 
 
 # TODO(v0.10): remove this function
-def get_model_output(repo_id: str, data: Any, token: Optional[str] = None) -> Any:
+def get_model_output(repo_id: str, data: Any, token: str | None = None) -> Any:
     """Returns the output of the model using Hugging Face Hub's inference API.
 
     See the :ref:`User Guide <hf_hub_inference>` for more details.

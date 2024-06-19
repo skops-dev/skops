@@ -5,7 +5,6 @@ import logging
 import os
 import pathlib
 import pickle
-from typing import Optional
 
 from skops.cli._utils import get_log_level
 from skops.io import dumps, get_untrusted_types
@@ -59,7 +58,7 @@ def _convert_file(
 
 
 def format_parser(
-    parser: Optional[argparse.ArgumentParser] = None,
+    parser: argparse.ArgumentParser | None = None,
 ) -> argparse.ArgumentParser:
     """Adds arguments and help to parent CLI parser for the convert method."""
 

@@ -4,7 +4,7 @@ import io
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Iterator, Literal, Optional, Sequence
+from typing import Any, Callable, Iterator, Literal
 from zipfile import ZipFile
 
 from ._audit import VALID_NODE_CHILD_TYPES, Node, get_tree
@@ -290,7 +290,7 @@ def visualize(
     file: Path | str | bytes,
     *,
     show: Literal["all", "untrusted", "trusted"] = "all",
-    trusted: Optional[Sequence[str]] = None,
+    trusted: [str] | None = None,
     sink: Callable[..., None] = pretty_print_tree,
     **kwargs: Any,
 ) -> None:
