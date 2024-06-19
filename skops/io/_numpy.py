@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import io
-from typing import Any, Optional, Sequence
+from typing import Any
 
 import numpy as np
 
@@ -61,7 +61,7 @@ class NdArrayNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: Optional[Sequence[str]] = None,
+        trusted: list[str] | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.type = state["type"]
@@ -128,7 +128,7 @@ class MaskedArrayNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: Optional[Sequence[str]] = None,
+        trusted: list[str] | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.trusted = self._get_trusted(trusted, [np.ma.MaskedArray])
@@ -159,7 +159,7 @@ class RandomStateNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: Optional[Sequence[str]] = None,
+        trusted: list[str] | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         # TODO
@@ -190,7 +190,7 @@ class RandomGeneratorNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: Optional[Sequence[str]] = None,
+        trusted: list[str] | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.children = {
@@ -231,7 +231,7 @@ class DTypeNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: Optional[Sequence[str]] = None,
+        trusted: list[str] | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.children = {
