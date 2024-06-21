@@ -47,6 +47,14 @@ def save_model_to_file(model_instance, suffix):
     return save_file_handle, save_file
 
 
+def reprs_equal(repr1, repr2):
+    """Check that repr1 and repr2 are basically equal.
+
+    This ignores line order of what comes after the first and before the last line.
+    """
+    return sorted(repr1.split("\n")[1:-1]) == sorted(repr2.split("\n")[1:-1])
+
+
 @pytest.mark.parametrize("suffix", [".pkl", ".pickle", ".skops"])
 def test_load_model(suffix):
     model0 = LinearRegression(n_jobs=123)
@@ -1294,14 +1302,14 @@ class TestCardRepr:
         Card(
           model=LinearRegression(fit_intercept=False),
           Model description/Training Procedure/Hyperparameters=TableSection(4x2),
-          Model description/Training Procedure/...</div>,
+          Model description/Training Procedure/Model Plot=<style>#sk-co...v></div></div>,
           Model Card Authors=Jane Doe,
           Figures/ROC=PlotSection(ROC.png),
           Figures/Confusion matrix=PlotSection(confusion_matrix.jpg),
           Model Description=A description,
           Search Results=TableSection(3x2),
         )
-        """
+        """  # noqa: E501
         expected = textwrap.dedent(card_repr).strip()
         lines = expected.split("\n")
         return lines
@@ -1310,9 +1318,7 @@ class TestCardRepr:
     def test_card_repr(self, card: Card, meth, expected_lines):
         result = meth(card)
         expected = "\n".join(expected_lines)
-        expected = re.escape(expected)
-        expected = expected.replace(r"\.\.\.", ".*")
-        assert re.match(expected, result)
+        assert reprs_equal(expected, result)
 
     @pytest.mark.parametrize("meth", [repr, str])
     def test_card_repr_empty_card(self, meth):
@@ -1333,16 +1339,14 @@ class TestCardRepr:
 
         # expected results contain 1 line at the very end
         extra_line = (
-            "  my_section=very long line very long l... "
-            "line very long line very long line ,"
+            "  my_section=very long line very long line ve...e very long line "
+            "very long line ,"
         )
         expected_lines.insert(-1, extra_line)
         expected = "\n".join(expected_lines)
-        expected = re.escape(expected)
-        expected = expected.replace(r"\.\.\.", ".*")
 
         result = meth(card)
-        assert re.match(expected, result)
+        assert reprs_equal(expected, result)
 
     @pytest.mark.parametrize("meth", [repr, str])
     def test_without_model_attribute(self, card: Card, meth, expected_lines):
@@ -1351,11 +1355,9 @@ class TestCardRepr:
         # remove line 1 from expected results, which corresponds to the model
         del expected_lines[1]
         expected = "\n".join(expected_lines)
-        expected = re.escape(expected)
-        expected = expected.replace(r"\.\.\.", ".*")
 
         result = meth(card)
-        assert re.match(expected, result)
+        assert reprs_equal(expected, result)
 
     @pytest.mark.parametrize("meth", [repr, str])
     def test_with_metadata(self, card: Card, meth, expected_lines):
@@ -1379,11 +1381,9 @@ class TestCardRepr:
             "  metadata.widget=[{...}],",
         ]
         expected = "\n".join(expected_lines[:2] + extra_lines + expected_lines[2:])
-        expected = re.escape(expected)
-        expected = expected.replace(r"\.\.\.", ".*")
         result = meth(card)
 
-        assert re.match(expected, result)
+        assert reprs_equal(expected, result)
 
 
 class TestCardModelAttributeIsPath:

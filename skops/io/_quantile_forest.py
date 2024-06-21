@@ -10,6 +10,9 @@ try:
     from quantile_forest._quantile_forest_fast import QuantileForest
 except ImportError:
     QuantileForest = None
+except ValueError:
+    # TODO: remove when quantile forest supports numpy=2
+    QuantileForest = None
 
 
 def quantile_forest_get_state(

@@ -260,7 +260,11 @@ GET_STATE_DISPATCH_FUNCTIONS = [
 try:
     # From numpy=1.25.0 dispatching for `__array_function__` is done via
     # a C wrapper: https://github.com/numpy/numpy/pull/23020
-    from numpy.core._multiarray_umath import _ArrayFunctionDispatcher
+    try:
+        # numpy>=2
+        from numpy._core._multiarray_umath import _ArrayFunctionDispatcher
+    except ImportError:
+        from numpy.core._multiarray_umath import _ArrayFunctionDispatcher
 
     GET_STATE_DISPATCH_FUNCTIONS.append((_ArrayFunctionDispatcher, function_get_state))
 except ImportError:
