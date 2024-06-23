@@ -29,8 +29,7 @@ NUMPY_UFUNC_TYPE_NAMES = get_public_type_names(module=np, oftype=np.ufunc)
 NUMPY_DTYPE_TYPE_NAMES = sorted(
     {
         type_name
-        for dtype in dir(np.dtypes)
-        if not dtype.startswith("_")
-        and (type_name := get_type_name(getattr(np.dtypes, dtype))).startswith("numpy")
+        for dtype in np.sctypeDict.values()
+        if (type_name := get_type_name(dtype)).startswith("numpy")
     }
 )
