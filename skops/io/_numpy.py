@@ -176,11 +176,12 @@ class RandomStateNode(Node):
 
 def random_generator_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     bit_generator_state = get_state(obj.bit_generator.state, save_context)
+    seed_seq_state = get_state(obj.bit_generator.seed_seq.state, save_context)
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
         "__loader__": "RandomGeneratorNode",
-        "content": {"bit_generator": bit_generator_state},
+        "content": {"bit_generator": bit_generator_state, "seed_seq": seed_seq_state},
     }
     return res
 
@@ -196,17 +197,27 @@ class RandomGeneratorNode(Node):
         self.children = {
             "bit_generator_state": get_tree(
                 state["content"]["bit_generator"], load_context, trusted=trusted
-            )
+            ),
+            "seed_seq_state": get_tree(
+                state["content"]["seed_seq"], load_context, trusted=trusted
+            ),
         }
         self.trusted = self._get_trusted(trusted, [np.random.Generator])
 
     def _construct(self):
         # first restore the state of the bit generator
+        seed_seq_cls = gettype(
+            "numpy.random.bit_generator",
+            "SeedSequence",
+        )
+        seed_seq_state = self.children["seed_seq_state"].construct()
+        seed_seq = seed_seq_cls(**seed_seq_state)
+
         bit_generator_state = self.children["bit_generator_state"].construct()
         bit_generator_cls = gettype(
             "numpy.random", bit_generator_state["bit_generator"]
         )
-        bit_generator = bit_generator_cls()
+        bit_generator = bit_generator_cls(seed_seq)
         bit_generator.state = bit_generator_state
 
         # next create the generator instance
