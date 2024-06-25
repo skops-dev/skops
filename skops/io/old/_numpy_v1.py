@@ -4,8 +4,8 @@ from typing import Any, Optional, Sequence
 
 import numpy as np
 
-from .._audit import Node, get_tree
-from .._utils import LoadContext, gettype
+from skops.io._audit import Node, get_tree
+from skops.io._utils import LoadContext, gettype
 
 PROTOCOL = 1
 
