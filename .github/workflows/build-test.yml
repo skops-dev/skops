@@ -21,7 +21,7 @@ jobs:
         include:
           - python: "3.9"
             sklearn_version: "1.1"
-            numpy_version: "1"
+            numpy_version: "numpy<2"
           - python: "3.10"
             sklearn_version: "1.2"
           - python: "3.11"
@@ -59,7 +59,7 @@ jobs:
           if [ ${{ matrix.numpy_version }} ];
             then
               pip uninstall --yes numpy
-              pip install "numpy~=${{ matrix.numpy_version }}"
+              pip install "${{ matrix.numpy_version }}"
           fi
           pip uninstall --yes scikit-learn
           if [ ${{ matrix.sklearn_version }} == "nightly" ];
