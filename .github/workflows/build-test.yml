@@ -21,6 +21,7 @@ jobs:
         include:
           - python: "3.9"
             sklearn_version: "1.1"
+            numpy_version: "1"
           - python: "3.10"
             sklearn_version: "1.2"
           - python: "3.11"
@@ -55,6 +56,11 @@ jobs:
           pip install "pytest<8"
           pip install .[docs,tests]
           pip install black=="23.9.1" ruff=="0.0.292" mypy=="1.6.0"
+          if [ ${{ matrix.numpy_version }} ];
+            then
+              pip uninstall --yes numpy
+              pip install "numpy~=${{ matrix.numpy_version }}"
+          fi
           pip uninstall --yes scikit-learn
           if [ ${{ matrix.sklearn_version }} == "nightly" ];
             then pip install --pre --extra-index https://pypi.anaconda.org/scientific-python-nightly-wheels/simple scikit-learn;
