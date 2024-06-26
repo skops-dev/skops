@@ -275,7 +275,9 @@ try:
         # numpy>=2
         from numpy._core._multiarray_umath import _ArrayFunctionDispatcher
     except ImportError:
-        from numpy.core._multiarray_umath import _ArrayFunctionDispatcher
+        from numpy.core._multiarray_umath import (  # type: ignore
+            _ArrayFunctionDispatcher,
+        )
 
     GET_STATE_DISPATCH_FUNCTIONS.append((_ArrayFunctionDispatcher, function_get_state))
 except ImportError:
