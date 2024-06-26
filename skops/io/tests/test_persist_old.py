@@ -2,26 +2,37 @@
 
 from __future__ import annotations
 
+import io
+from zipfile import ZipFile
+
 import numpy as np
 import pytest
 from scipy import special
 from sklearn.preprocessing import FunctionTransformer
 
 from skops.io import dumps, get_untrusted_types, loads
-from skops.io._utils import get_module
+from skops.io._utils import SaveContext, get_module, get_state
 from skops.io.tests._utils import (
     assert_method_outputs_equal,
     assert_params_equal,
     downgrade_state,
 )
 
-#############
-# VERSION 0 #
-#############
-
 
 def dummy_func(X):
     return X
+
+
+@pytest.fixture
+def save_context():
+    buffer = io.BytesIO()
+    with ZipFile(buffer, "w") as zip_file:
+        yield SaveContext(zip_file=zip_file)
+
+
+#############
+# VERSION 0 #
+#############
 
 
 @pytest.mark.parametrize("func", [np.sqrt, len, special.exp10, dummy_func])
@@ -109,3 +120,48 @@ def test_random_generator_v0(rng):
     # update: we have removed trusted=True, so this doesn't work anymore.
     with pytest.raises(AttributeError):
         loads(downgraded, trusted=[])
+
+
+#############
+# VERSION 1 #
+#############
+
+
+@pytest.mark.parametrize(
+    "rng",
+    [
+        np.random.default_rng(),
+        np.random.Generator(np.random.PCG64DXSM(seed=123)),
+    ],
+    ids=["default_rng", "Generator"],
+)
+def test_random_generator_v1(save_context, rng):
+    call_count = 0
+
+    # random_generator_get_state as it was for protocol 0
+    def old_random_generator_get_state(obj, save_context):
+        # added for testing
+        nonlocal call_count
+        call_count += 1
+        # end
+
+        bit_generator_state = get_state(obj.bit_generator.state, save_context)
+        res = {
+            "__class__": obj.__class__.__name__,
+            "__module__": get_module(type(obj)),
+            "__loader__": "RandomGeneratorNode",
+            "content": {"bit_generator": bit_generator_state},
+        }
+        return res
+
+    rng.random(123)  # move RNG forwards
+    dumped = dumps(rng)
+    # importent: downgrade the whole state to mimic older version
+    downgraded = downgrade_state(
+        data=dumped,
+        keys=None,
+        old_state=old_random_generator_get_state(rng, save_context),
+        protocol=1,
+    )
+
+    loads(downgraded, trusted=[])

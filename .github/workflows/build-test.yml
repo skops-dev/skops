@@ -21,12 +21,16 @@ jobs:
         include:
           - python: "3.9"
             sklearn_version: "1.1"
+            numpy_version: "numpy<2"
           - python: "3.10"
             sklearn_version: "1.2"
+            numpy_version: "numpy"
           - python: "3.11"
             sklearn_version: "1.4"
+            numpy_version: "numpy"
           - python: "3.12"
             sklearn_version: "nightly"
+            numpy_version: "numpy"
 
     # Timeout: https://stackoverflow.com/a/59076067/4521646
     timeout-minutes: 15
@@ -52,14 +56,15 @@ jobs:
 
       - name: Install dependencies
         run: |
+          python -m pip install -U pip
           pip install "pytest<8"
-          pip install .[docs,tests]
-          pip install black=="23.9.1" ruff=="0.0.292" mypy=="1.6.0"
-          pip uninstall --yes scikit-learn
+          pip install "${{ matrix.numpy_version }}"
           if [ ${{ matrix.sklearn_version }} == "nightly" ];
             then pip install --pre --extra-index https://pypi.anaconda.org/scientific-python-nightly-wheels/simple scikit-learn;
             else pip install "scikit-learn~=${{ matrix.sklearn_version }}";
           fi
+          pip install .[docs,tests]
+          pip install black=="23.9.1" ruff=="0.0.292" mypy=="1.6.0"
           if [ ${{ matrix.os }} == "ubuntu-latest" ];
             then sudo apt install pandoc && pandoc --version;
           fi

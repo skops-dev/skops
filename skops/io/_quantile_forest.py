@@ -8,7 +8,10 @@ from ._utils import LoadContext, SaveContext
 
 try:
     from quantile_forest._quantile_forest_fast import QuantileForest
-except ImportError:
+except Exception:
+    # Mostly ImportError, but in case of older QuantileForest and numpy>=2 it
+    # could also be ValueError.
+    # In general, this warrants no errors on our side if the import fails.
     QuantileForest = None
 
 

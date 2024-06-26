@@ -29,11 +29,6 @@ if sys.version_info >= (3, 11):
 else:
     from typing_extensions import Self
 
-# Repr attributes can be used to control the behavior of repr
-aRepr = Repr()
-aRepr.maxother = 79
-aRepr.maxstring = 79
-
 VALID_TEMPLATES = {item.value for item in Templates}
 NEED_SECTION_ERR_MSG = (
     "You are trying to {action} but you're using a custom template, please pass the "
@@ -1316,6 +1311,11 @@ class Card:
 
     def _generate_metadata(self, metadata: ModelCardData) -> Iterator[str]:
         """Yield metadata in yaml format"""
+        # Repr attributes can be used to control the behavior of repr
+        aRepr = Repr()
+        aRepr.maxother = 79
+        aRepr.maxstring = 79
+
         for key, val in metadata.to_dict().items() if metadata else {}:
             yield aRepr.repr(f"metadata.{key}={val},").strip('"').strip("'")
 
@@ -1367,11 +1367,18 @@ class Card:
                 yield from self._iterate_content(val.subsections, parent_section=title)
 
     @staticmethod
-    def _format_repr(text: str) -> str:
+    def _format_repr(title: str, content: str) -> str:
         # Remove new lines, multiple spaces, quotation marks, and cap line length
-        text = text.replace("\n", " ")
-        text = re.sub(r"\s+", r" ", text)
-        return aRepr.repr(text).strip('"').strip("'")
+        content = content.replace("\n", " ")
+        content = re.sub(r"\s+", r" ", content)
+
+        # Repr attributes can be used to control the behavior of repr
+        aRepr = Repr()
+        aRepr.maxother = max(3, 79 - len(title))
+        aRepr.maxstring = max(3, 79 - len(title))
+
+        content = aRepr.repr(content).strip('"').strip("'")
+        return f"{title}={content},"
 
     def __str__(self) -> str:
         return self.__repr__()
@@ -1380,7 +1387,7 @@ class Card:
         # repr for the model
         model = getattr(self, "model", None)
         if model:
-            model_repr = self._format_repr(f"model={repr(self.get_model())},")
+            model_repr = self._format_repr("model", repr(self.get_model()))
         else:
             model_repr = None
 
@@ -1391,7 +1398,7 @@ class Card:
                 metadata_reprs.append("metadata.widget=[{...}],")
                 continue
 
-            metadata_reprs.append(self._format_repr(f"metadata.{key}={val},"))
+            metadata_reprs.append(self._format_repr(f"metadata.{key}", repr(val)))
         metadata_repr = "\n".join(metadata_reprs)
 
         # repr for contents
@@ -1403,7 +1410,7 @@ class Card:
             if content.rstrip("`").rstrip().endswith(CONTENT_PLACEHOLDER):
                 # if content is just some default text, no need to show it
                 continue
-            content_reprs.append(self._format_repr(f"{title}={section},"))
+            content_reprs.append(self._format_repr(title, repr(section)))
         content_repr = "\n".join(content_reprs)
 
         # combine all parts
