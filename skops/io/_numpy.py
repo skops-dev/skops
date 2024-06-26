@@ -273,7 +273,9 @@ try:
     # a C wrapper: https://github.com/numpy/numpy/pull/23020
     try:
         # numpy>=2
-        from numpy._core._multiarray_umath import _ArrayFunctionDispatcher
+        from numpy._core._multiarray_umath import (  # type: ignore
+            _ArrayFunctionDispatcher,
+        )
     except ImportError:
         from numpy.core._multiarray_umath import (  # type: ignore
             _ArrayFunctionDispatcher,
