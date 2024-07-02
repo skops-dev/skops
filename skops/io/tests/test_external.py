@@ -17,6 +17,7 @@ import pytest
 from sklearn.datasets import make_classification, make_regression
 
 from skops.io import dumps, loads, visualize
+from skops.io.exceptions import UntrustedTypesFoundException
 from skops.io.tests._utils import assert_method_outputs_equal, assert_params_equal
 
 # Default settings for generated data
@@ -431,7 +432,7 @@ class TestQuantileForest:
 class TestSciKeras:
     """Tests for SciKerasRegressor and SciKerasClassifier"""
 
-    @pytest.fixture
+    @pytest.fixture()
     def trusted(self):
         return ["scikeras.wrappers.KerasClassifier"]
 
@@ -474,3 +475,24 @@ class TestSciKeras:
         clf_new.initialize(X, y)
         new_preidctions = clf_new.predict(X)
         assert all(new_preidctions == predictions)
+
+    def test_dumping_untrusted_model(self, tensorflow):
+        # This simplifies the basic usage tutorial from https://adriangb.com/scikeras/stable/notebooks/Basic_Usage.html
+
+        n_features_in_ = 20
+        model = tensorflow.keras.models.Sequential()
+        model.add(tensorflow.keras.layers.Input(shape=(n_features_in_,)))
+        model.add(tensorflow.keras.layers.Dense(1, activation="sigmoid"))
+
+        from scikeras.wrappers import KerasClassifier
+
+        clf = KerasClassifier(model=model, loss="binary_crossentropy")
+
+        X, y = make_classification(1000, 20, n_informative=10, random_state=0)
+        clf.fit(X, y)
+
+        dumped = dumps(clf)
+
+        # Tries to load the dumped model but returns an untrusted exception
+        with pytest.raises(UntrustedTypesFoundException):
+            loads(dumped)

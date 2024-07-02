@@ -3,7 +3,7 @@ from __future__ import annotations
 import io
 import os
 import tempfile
-from typing import Sequence, Type
+from typing import Optional, Sequence, Type
 
 import tensorflow as tf
 
@@ -14,7 +14,8 @@ from ._utils import Any, LoadContext, SaveContext, get_module
 try:
     from scikeras.wrappers import KerasClassifier, KerasRegressor
 except ImportError:
-    SciKeras = None
+    KerasClassifier = None
+    KerasRegressor = None
 
 
 def scikeras_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
@@ -41,9 +42,9 @@ class SciKerasNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: bool | Sequence[str] = False,
+        trusted: Optional[Sequence[str]] = None,
     ) -> None:
-        if SciKeras is None:
+        if KerasClassifier is None and KerasRegressor is None:
             raise ImportError(
                 "`scikeras` is missing and needs to be installed in order to load this"
                 " model"
@@ -62,10 +63,11 @@ class SciKerasNode(Node):
         return model
 
 
-GET_STATE_DISPATCH_FUNCTIONS = [
-    (KerasClassifier, scikeras_get_state),
-    (KerasRegressor, scikeras_get_state),
-]
+if KerasClassifier is not None and KerasRegressor is not None:
+    GET_STATE_DISPATCH_FUNCTIONS = [
+        (KerasClassifier, scikeras_get_state),
+        (KerasRegressor, scikeras_get_state),
+    ]
 
 NODE_TYPE_MAPPING: dict[tuple[str, int], Type[Node]] = {
     ("SciKerasNode", PROTOCOL): SciKerasNode
