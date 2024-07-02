@@ -432,7 +432,7 @@ class TestQuantileForest:
 class TestSciKeras:
     """Tests for SciKerasRegressor and SciKerasClassifier"""
 
-    @pytest.fixture()
+    @pytest.fixture
     def trusted(self):
         return ["scikeras.wrappers.KerasClassifier"]
 
