@@ -6,11 +6,15 @@ import tempfile
 from typing import Sequence, Type
 
 import tensorflow as tf
-from scikeras.wrappers import KerasClassifier, KerasRegressor
 
 from ._audit import Node
 from ._protocol import PROTOCOL
 from ._utils import Any, LoadContext, SaveContext, get_module
+
+try:
+    from scikeras.wrappers import KerasClassifier, KerasRegressor
+except ImportError:
+    SciKeras = None
 
 
 def scikeras_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
@@ -39,6 +43,11 @@ class SciKerasNode(Node):
         load_context: LoadContext,
         trusted: bool | Sequence[str] = False,
     ) -> None:
+        if SciKeras is None:
+            raise ImportError(
+                "`scikeras` is missing and needs to be installed in order to load this"
+                " model"
+            )
         super().__init__(state, load_context, trusted)
         self.trusted = self._get_trusted(trusted, default=[])
 
