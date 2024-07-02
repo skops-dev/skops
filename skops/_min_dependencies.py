@@ -36,6 +36,8 @@ dependent_packages = {
     "catboost": ("1.0", "tests", None),
     "fairlearn": ("0.7.0", "docs, tests", None),
     "rich": ("12", "tests, rich", None),
+    "scikeras": ("0.12.0", "docs, tests", None),
+    "tensorflow": ("2.12.0", "docs, tests", None),
 }
 
 
