@@ -12,7 +12,7 @@ from functools import cached_property
 from hashlib import sha256
 from pathlib import Path
 from reprlib import Repr
-from typing import Any, Iterator, Literal, Sequence, Union
+from typing import Any, Iterator, List, Literal, Optional, Sequence, Union
 
 import joblib
 from huggingface_hub import ModelCardData
@@ -488,7 +488,7 @@ class Card:
         model_diagram: bool | Literal["auto"] | str = "auto",
         metadata: ModelCardData | None = None,
         template: Literal["skops"] | dict[str, str] | None = "skops",
-        trusted: bool = False,
+        trusted: Optional[List[str]] = None,
     ) -> None:
         self.model = model
         self.metadata = metadata or ModelCardData()

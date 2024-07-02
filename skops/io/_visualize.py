@@ -4,7 +4,7 @@ import io
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Iterator, Literal, Sequence
+from typing import Any, Callable, Iterator, Literal, Optional, Sequence
 from zipfile import ZipFile
 
 from ._audit import VALID_NODE_CHILD_TYPES, Node, get_tree
@@ -290,7 +290,7 @@ def visualize(
     file: Path | str | bytes,
     *,
     show: Literal["all", "untrusted", "trusted"] = "all",
-    trusted: bool | Sequence[str] = False,
+    trusted: Optional[Sequence[str]] = None,
     sink: Callable[..., None] = pretty_print_tree,
     **kwargs: Any,
 ) -> None:
@@ -317,10 +317,8 @@ def visualize(
         Whether to print all nodes, only untrusted nodes, or only trusted nodes.
 
     trusted: bool, or list of str, default=False
-        If ``True``, all nodes will be treated as trusted. If ``False``, only
-        default types are trusted. If a list of strings, where those strongs
-        describe the trusted types, these types are trusted on top of the
-        default trusted types.
+        The object will be loaded only if there are only trusted objects and
+        objects of types listed in ``trusted`` in the dumped file.
 
     sink: function (default=:func:`~pretty_print_tree`)
         This function should take at least two arguments, an iterator of

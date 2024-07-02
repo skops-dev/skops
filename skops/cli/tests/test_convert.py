@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 from skops.cli import _convert
-from skops.io import load
+from skops.io import get_untrusted_types, load
 
 
 class MockUnsafeType:
@@ -61,7 +61,7 @@ class TestConvert:
     ):
         caplog.set_level(logging.WARNING)
         _convert._convert_file(pkl_path, skops_path)
-        persisted_obj = load(skops_path, trusted=True)
+        persisted_obj = load(skops_path, trusted=get_untrusted_types(file=skops_path))
 
         assert isinstance(persisted_obj, MockUnsafeType)
 

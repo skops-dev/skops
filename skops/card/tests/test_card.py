@@ -26,7 +26,7 @@ from skops.card._model_card import (
     TableSection,
     _load_model,
 )
-from skops.io import dump, load
+from skops.io import dump, get_untrusted_types, load
 from skops.utils.importutils import import_or_raise
 
 
@@ -51,10 +51,14 @@ def save_model_to_file(model_instance, suffix):
 def test_load_model(suffix):
     model0 = LinearRegression(n_jobs=123)
     _, save_file = save_model_to_file(model0, suffix)
-    loaded_model_str = _load_model(save_file, trusted=True)
+    if suffix == ".skops":
+        untrusted_types = get_untrusted_types(file=save_file)
+    else:
+        untrusted_types = None
+    loaded_model_str = _load_model(save_file, trusted=untrusted_types)
     save_file_path = Path(save_file)
-    loaded_model_path = _load_model(save_file_path, trusted=True)
-    loaded_model_instance = _load_model(model0, trusted=True)
+    loaded_model_path = _load_model(save_file_path, trusted=untrusted_types)
+    loaded_model_instance = _load_model(model0, trusted=untrusted_types)
 
     assert loaded_model_str.n_jobs == 123
     assert loaded_model_path.n_jobs == 123
@@ -1383,8 +1387,11 @@ class TestCardRepr:
 
 
 class TestCardModelAttributeIsPath:
-    def path_to_card(self, path):
-        card = Card(model=path, trusted=True)
+    def path_to_card(self, path, suffix):
+        if suffix == ".skops":
+            card = Card(model=path, trusted=get_untrusted_types(file=path))
+        else:
+            card = Card(model=path)
         return card
 
     @pytest.mark.parametrize("meth", [repr, str])
@@ -1397,7 +1404,7 @@ class TestCardModelAttributeIsPath:
         model = LinearRegression(fit_intercept=False)
         file_handle, file_name = save_model_to_file(model, suffix)
         os.close(file_handle)
-        card_from_path = self.path_to_card(file_name)
+        card_from_path = self.path_to_card(file_name, suffix=suffix)
 
         result0 = meth(card_from_path)
         expected = "Card(\n  model=LinearRegression(fit_intercept=False),"

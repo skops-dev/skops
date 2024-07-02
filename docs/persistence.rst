@@ -54,7 +54,7 @@ The code snippet below illustrates how to use :func:`skops.io.dump` and
     from xgboost.sklearn import XGBClassifier
     from sklearn.model_selection import GridSearchCV, train_test_split
     from sklearn.datasets import load_iris
-    from skops.io import dump, load
+    from skops.io import dump, load, get_untrusted_types
 
     X, y = load_iris(return_X_y=True)
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4)
@@ -64,26 +64,24 @@ The code snippet below illustrates how to use :func:`skops.io.dump` and
     0.9666666666666667
     dump(clf, "my-model.skops")
     # ...
-    loaded = load("my-model.skops", trusted=True)
+    unknown_types = get_untrusted_types(file="my-model.skops")
+    print(unknown_types)
+    ['sklearn.metrics._scorer._passthrough_scorer',
+    'xgboost.core.Booster', 'xgboost.sklearn.XGBClassifier']
+    loaded = load("my-model.skops", trusted=unknown_types)
     print(loaded.score(X_test, y_test))
     0.9666666666666667
 
     # in memory
     from skops.io import dumps, loads
     serialized = dumps(clf)
-    loaded = loads(serialized, trusted=True)
+    loaded = loads(serialized, trusted=unknown_types)
 
-Note that you should only load files with ``trusted=True`` if you trust the
-source. Otherwise you can get a list of untrusted types present in the dump
-using :func:`skops.io.get_untrusted_types`:
-
-.. code:: python
-
-    from skops.io import get_untrusted_types
-    unknown_types = get_untrusted_types(file="my-model.skops")
-    print(unknown_types)
-    ['sklearn.metrics._scorer._passthrough_scorer',
-    'xgboost.core.Booster', 'xgboost.sklearn.XGBClassifier']
+Note that the ``get_untrusted_types`` function is used to check which types are
+not trusted by default. The user can then decide whether to trust them or not.
+In previous before version 0.10, users could pass ``trusted=True`` to skip the
+audit phase, which is now removed to encourage users to validate the input
+before loading.
 
 Note that everything in the above list is safe to load. We already have many
 types included as trusted by default, and some of the above values might be
@@ -91,10 +89,6 @@ added to that list in the future.
 
 Once you check the list and you validate that everything in the list is safe,
 you can load the file with ``trusted=unknown_types``:
-
-.. code:: python
-
-    loaded = load("my-model.skops", trusted=unknown_types)
 
 At the moment, we support the vast majority of sklearn estimators. This
 includes complex use cases such as :class:`sklearn.pipeline.Pipeline`,
@@ -226,10 +220,11 @@ green to cyan. The ``rich`` docs list the `supported standard colors
 
 Note that the visualization feature is intended to help understand the structure
 of the object, e.g. what attributes are identified as untrusted. It is not a
-replacement for a proper security check. In particular, just because an object's
-visualization looks innocent does *not* mean you can just call `sio.load(<file>,
-trusted=True)` on this object -- only pass the types you really trust to the
-``trusted`` argument.
+replacement for a proper security check of the included types in the file. In
+particular, just because an object's visualization looks innocent does *not*
+mean you can just call `sio.load(<file>,
+trusted=get_untrusted_types(file=<file>))` on this object -- only pass the
+types you really trust to the ``trusted`` argument.
 
 Supported libraries
 -------------------
