@@ -121,8 +121,6 @@ def _assert_vals_equal(val1, val2):
         assert set(val1.keys()) == set(val2.keys())
         for key in val1:
             _assert_vals_equal(val1[key], val2[key])
-    # elif isinstance(val1, np.random.Generator):
-    #     assert val1.bit_generator.state == val2.bit_generator.state
     elif hasattr(val1, "__dict__") and hasattr(val2, "__dict__"):
         _assert_vals_equal(val1.__dict__, val2.__dict__)
     elif isinstance(val1, np.ufunc):
