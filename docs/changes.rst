@@ -19,6 +19,7 @@ v0.10
   it. :func:`skops.io.get_untrusted_types` can be used to get the untrusted types
   present in the input.
   :pr:`422` by `Adrin Jalali`_.
+- ``skops.io`` now supports `numpy>=2`. :pr:`429` by `Adrin Jalali`_.
 
 v0.9
 ----
