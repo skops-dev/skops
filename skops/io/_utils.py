@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import sys
+import warnings
 from dataclasses import dataclass, field
 from functools import singledispatch
 from types import ModuleType
@@ -46,8 +47,11 @@ def whichmodule(obj: Any, name: str) -> str:
         ):
             continue
         try:
-            if _getattribute(module, name)[0] is obj:
-                return module_name
+            with warnings.catch_warnings():
+                # this is to silence numpy.core import warnings
+                warnings.simplefilter("ignore", DeprecationWarning)
+                if _getattribute(module, name)[0] is obj:
+                    return module_name
         except AttributeError:
             pass
     return "__main__"

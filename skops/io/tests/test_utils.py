@@ -27,7 +27,7 @@ class TestGetTypeName:
             (str, "builtins.str"),
             # Numpy types
             (np.ndarray, "numpy.ndarray"),
-            (np.ma.MaskedArray, "numpy.ma.core.MaskedArray"),
+            (np.ma.ndenumerate, "numpy.ma.extras.ndenumerate"),
             # SciPy types
             (scipy.fft.fft, "scipy.fft._basic.fft"),
             # SKlearn types
