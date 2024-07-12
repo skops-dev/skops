@@ -76,7 +76,7 @@ class TestLightGBM:
     def trusted(self):
         # TODO: adjust once more types are trusted by default
         return [
-            "collections.defaultdict",
+            "collections.OrderedDict",
             "lightgbm.basic.Booster",
             "lightgbm.sklearn.LGBMClassifier",
             "lightgbm.sklearn.LGBMRegressor",

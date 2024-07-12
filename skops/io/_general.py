@@ -65,7 +65,7 @@ class DictNode(Node):
         trusted: Optional[Sequence[str]] = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
-        self.trusted = self._get_trusted(trusted, [dict])
+        self.trusted = self._get_trusted(trusted, [dict, "collections.OrderedDict"])
         self.children = {
             "key_types": get_tree(state["key_types"], load_context, trusted=trusted),
             "content": {
