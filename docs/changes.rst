@@ -21,6 +21,7 @@ v0.10
   :pr:`422` by `Adrin Jalali`_.
 - Fix dumping Scikeras model failing because of maximum recursion depth. :pr:`388`
   by :user:`Thomas Lazarus <lazarust>`.
+- ``skops.io`` now supports `numpy>=2`. :pr:`429` by `Adrin Jalali`_.
 
 v0.9
 ----

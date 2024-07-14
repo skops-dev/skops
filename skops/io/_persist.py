@@ -23,7 +23,7 @@ modules = [
     "._sklearn",
     "._quantile_forest",
 ]
-modules.extend([".old._general_v0", ".old._numpy_v0"])
+modules.extend([".old._general_v0", ".old._numpy_v0", ".old._numpy_v1"])
 for module_name in modules:
     # register exposed functions for get_state and get_tree
     module = importlib.import_module(module_name, package="skops.io")

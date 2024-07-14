@@ -62,7 +62,7 @@ def _assert_generic_objects_equal(val1, val2):
         assert val1 == val2
     else:
         # not a normal Python class, could be e.g. a Cython class
-        assert val1.__reduce__() == val2.__reduce__()
+        _assert_tuples_equal(val1.__reduce__(), val2.__reduce__())
 
 
 def _assert_tuples_equal(val1, val2):
@@ -72,7 +72,7 @@ def _assert_tuples_equal(val1, val2):
 
 
 def _assert_vals_equal(val1, val2):
-    if type(val1) == type:  # e.g. could be np.int64
+    if isinstance(val1, type):  # e.g. could be np.int64
         assert val1 is val2
     elif hasattr(val1, "__getstate__") and (val1.__getstate__() is not None):
         # This includes BaseEstimator since they implement __getstate__ and
@@ -113,9 +113,7 @@ def _assert_vals_equal(val1, val2):
             # we don't know what to do with these values, for now.
             assert False
     elif isinstance(val1, (tuple, list)):
-        assert len(val1) == len(val2)
-        for subval1, subval2 in zip(val1, val2):
-            _assert_vals_equal(subval1, subval2)
+        _assert_tuples_equal(val1, val2)
     elif isinstance(val1, float) and np.isnan(val1):
         assert np.isnan(val2)
     elif isinstance(val1, dict):

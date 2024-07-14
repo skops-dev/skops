@@ -319,7 +319,11 @@ class TestCatboost:
 
     @pytest.fixture(autouse=True)
     def catboost(self):
-        catboost = pytest.importorskip("catboost")
+        try:
+            catboost = pytest.importorskip("catboost")
+        except ValueError:  # TODO(numpy2) remove when catboost supports numpy2
+            pytest.skip("Catboost not supporting numpy2 yet")
+
         return catboost
 
     @pytest.fixture
