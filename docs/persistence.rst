@@ -132,6 +132,11 @@ Skops has a command line interface to:
 ``skops convert``
 ~~~~~~~~~~~~~~~~~
 
+.. warning::
+    This command loads the given pickle file(s) to retrieve the objects and
+    then saves them to a skops file. Therefore you should only use this on
+    files which you absolutely trust.
+
 To convert a file from the command line, use the ``skops convert`` entrypoint.
 
 Below is an example call to convert a file ``my_model.pkl`` to ``my_model.skops``:
