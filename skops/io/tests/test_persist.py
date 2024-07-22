@@ -5,7 +5,7 @@ import json
 import operator
 import sys
 import warnings
-from collections import Counter, defaultdict
+from collections import Counter, OrderedDict, defaultdict
 from functools import partial, wraps
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
@@ -1092,3 +1092,10 @@ def test_defaultdict():
     obj_loaded = loads(dumps(obj))
     assert obj_loaded == obj
     assert obj_loaded.default_factory == obj.default_factory
+
+
+@pytest.mark.parametrize("cls", [dict, OrderedDict])
+def test_dictionary(cls):
+    obj = cls({1: 5, 6: 3, 2: 4})
+    loaded_obj = loads(dumps(obj))
+    assert obj == loaded_obj
