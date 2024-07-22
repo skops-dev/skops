@@ -10,9 +10,9 @@ PRIMITIVES_TYPES = [int, float, str, bool]
 
 PRIMITIVE_TYPE_NAMES = ["builtins." + t.__name__ for t in PRIMITIVES_TYPES]
 
-BUILTIN_TYPES = [list, set, map, tuple]
+CONTAINER_TYPES = [list, set, map, tuple]
 
-BUILTIN_TYPE_NAMES = ["builtins." + t.__name__ for t in BUILTIN_TYPES]
+CONTAINER_TYPE_NAMES = ["builtins." + t.__name__ for t in CONTAINER_TYPES]
 
 SKLEARN_ESTIMATOR_TYPE_NAMES = [
     get_type_name(estimator_class)

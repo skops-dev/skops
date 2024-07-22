@@ -56,7 +56,7 @@ from skops.io import dump, dumps, get_untrusted_types, load, loads
 from skops.io._audit import NODE_TYPE_MAPPING, get_tree
 from skops.io._sklearn import UNSUPPORTED_TYPES
 from skops.io._trusted_types import (
-    BUILTIN_TYPE_NAMES,
+    CONTAINER_TYPE_NAMES,
     NUMPY_DTYPE_TYPE_NAMES,
     NUMPY_UFUNC_TYPE_NAMES,
     PRIMITIVE_TYPE_NAMES,
@@ -248,7 +248,9 @@ def _tested_ufuncs():
 
 
 def _tested_types():
-    for full_name in PRIMITIVE_TYPE_NAMES + NUMPY_DTYPE_TYPE_NAMES + BUILTIN_TYPE_NAMES:
+    for full_name in (
+        PRIMITIVE_TYPE_NAMES + NUMPY_DTYPE_TYPE_NAMES + CONTAINER_TYPE_NAMES
+    ):
         module_name, _, type_name = full_name.rpartition(".")
         yield gettype(module_name=module_name, cls_or_func=type_name)
 
@@ -399,7 +401,7 @@ def test_can_trust_ufuncs(ufunc):
 @pytest.mark.parametrize(
     "type_",
     _tested_types(),
-    ids=PRIMITIVE_TYPE_NAMES + NUMPY_DTYPE_TYPE_NAMES + BUILTIN_TYPE_NAMES,
+    ids=PRIMITIVE_TYPE_NAMES + NUMPY_DTYPE_TYPE_NAMES + CONTAINER_TYPE_NAMES,
 )
 def test_can_trust_types(type_):
     dumped = dumps(type_)
