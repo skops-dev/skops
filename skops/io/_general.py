@@ -4,6 +4,7 @@ import io
 import json
 import operator
 import uuid
+from collections import defaultdict
 from functools import partial
 from reprlib import Repr
 from types import FunctionType, MethodType
@@ -14,6 +15,7 @@ import numpy as np
 from ._audit import Node, get_tree
 from ._protocol import PROTOCOL
 from ._trusted_types import (
+    CONTAINER_TYPE_NAMES,
     NUMPY_DTYPE_TYPE_NAMES,
     NUMPY_UFUNC_TYPE_NAMES,
     PRIMITIVE_TYPE_NAMES,
@@ -63,7 +65,7 @@ class DictNode(Node):
         trusted: Optional[Sequence[str]] = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
-        self.trusted = self._get_trusted(trusted, [dict])
+        self.trusted = self._get_trusted(trusted, [dict, "collections.OrderedDict"])
         self.children = {
             "key_types": get_tree(state["key_types"], load_context, trusted=trusted),
             "content": {
@@ -78,6 +80,45 @@ class DictNode(Node):
         for k_type, (key, val) in zip(key_types, self.children["content"].items()):
             content[k_type(key)] = val.construct()
         return content
+
+
+def defaultdict_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
+    res = {
+        "__class__": obj.__class__.__name__,
+        "__module__": get_module(type(obj)),
+        "__loader__": "DefaultDictNode",
+    }
+    content = {}
+    # explicitly pass a dict object instead of _DictWithDeprecatedKeys and
+    # later construct a _DictWithDeprecatedKeys object.
+    content["main"] = get_state(dict(obj), save_context)
+    content["default_factory"] = get_state(obj.default_factory, save_context)
+    res["content"] = content
+    return res
+
+
+class DefaultDictNode(Node):
+    def __init__(
+        self,
+        state: dict[str, Any],
+        load_context: LoadContext,
+        trusted: Optional[Sequence[str]] = None,
+    ) -> None:
+        super().__init__(state, load_context, trusted)
+        self.trusted = ["collections.defaultdict"]
+        self.children = {
+            "main": get_tree(state["content"]["main"], load_context, trusted=trusted),
+            "default_factory": get_tree(
+                state["content"]["default_factory"],
+                load_context,
+                trusted=trusted,
+            ),
+        }
+
+    def _construct(self):
+        instance = defaultdict(**self.children["main"].construct())
+        instance.default_factory = self.children["default_factory"].construct()
+        return instance
 
 
 def list_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
@@ -298,7 +339,8 @@ class TypeNode(Node):
         super().__init__(state, load_context, trusted)
         # TODO: what do we trust?
         self.trusted = self._get_trusted(
-            trusted, PRIMITIVE_TYPE_NAMES + NUMPY_DTYPE_TYPE_NAMES
+            trusted,
+            PRIMITIVE_TYPE_NAMES + CONTAINER_TYPE_NAMES + NUMPY_DTYPE_TYPE_NAMES,
         )
         # We use a bare Node type here since a Node only checks the type in the
         # dict using __class__ and __module__ keys.
@@ -597,6 +639,7 @@ builtin_function_or_method = type(len)
 # tuples of type and function that gets the state of that type
 GET_STATE_DISPATCH_FUNCTIONS = [
     (dict, dict_get_state),
+    (defaultdict, defaultdict_get_state),
     (list, list_get_state),
     (set, set_get_state),
     (tuple, tuple_get_state),
@@ -616,6 +659,7 @@ GET_STATE_DISPATCH_FUNCTIONS = [
 
 NODE_TYPE_MAPPING = {
     ("DictNode", PROTOCOL): DictNode,
+    ("DefaultDictNode", PROTOCOL): DefaultDictNode,
     ("ListNode", PROTOCOL): ListNode,
     ("SetNode", PROTOCOL): SetNode,
     ("TupleNode", PROTOCOL): TupleNode,

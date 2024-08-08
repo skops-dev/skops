@@ -5,7 +5,7 @@ import json
 import operator
 import sys
 import warnings
-from collections import Counter
+from collections import Counter, OrderedDict, defaultdict
 from functools import partial, wraps
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
@@ -56,6 +56,7 @@ from skops.io import dump, dumps, get_untrusted_types, load, loads
 from skops.io._audit import NODE_TYPE_MAPPING, get_tree
 from skops.io._sklearn import UNSUPPORTED_TYPES
 from skops.io._trusted_types import (
+    CONTAINER_TYPE_NAMES,
     NUMPY_DTYPE_TYPE_NAMES,
     NUMPY_UFUNC_TYPE_NAMES,
     PRIMITIVE_TYPE_NAMES,
@@ -247,7 +248,9 @@ def _tested_ufuncs():
 
 
 def _tested_types():
-    for full_name in PRIMITIVE_TYPE_NAMES + NUMPY_DTYPE_TYPE_NAMES:
+    for full_name in (
+        PRIMITIVE_TYPE_NAMES + NUMPY_DTYPE_TYPE_NAMES + CONTAINER_TYPE_NAMES
+    ):
         module_name, _, type_name = full_name.rpartition(".")
         yield gettype(module_name=module_name, cls_or_func=type_name)
 
@@ -396,7 +399,9 @@ def test_can_trust_ufuncs(ufunc):
 
 
 @pytest.mark.parametrize(
-    "type_", _tested_types(), ids=PRIMITIVE_TYPE_NAMES + NUMPY_DTYPE_TYPE_NAMES
+    "type_",
+    _tested_types(),
+    ids=PRIMITIVE_TYPE_NAMES + NUMPY_DTYPE_TYPE_NAMES + CONTAINER_TYPE_NAMES,
 )
 def test_can_trust_types(type_):
     dumped = dumps(type_)
@@ -1078,3 +1083,20 @@ def test_trusted_bool_raises(tmp_path):
 
     with pytest.raises(TypeError, match="trusted must be a list of strings"):
         loads(dumps(10), trusted=True)  # type: ignore
+
+
+def test_defaultdict():
+    """Test that we correctly restore a defaultdict."""
+    obj = defaultdict(set)
+    obj["foo"] = "bar"
+    obj_loaded = loads(dumps(obj))
+    assert obj_loaded == obj
+    assert obj_loaded.default_factory == obj.default_factory
+
+
+@pytest.mark.parametrize("cls", [dict, OrderedDict])
+def test_dictionary(cls):
+    obj = cls({1: 5, 6: 3, 2: 4})
+    loaded_obj = loads(dumps(obj))
+    assert obj == loaded_obj
+    assert type(obj) is cls
