@@ -1099,3 +1099,4 @@ def test_dictionary(cls):
     obj = cls({1: 5, 6: 3, 2: 4})
     loaded_obj = loads(dumps(obj))
     assert obj == loaded_obj
+    assert type(obj) is cls
