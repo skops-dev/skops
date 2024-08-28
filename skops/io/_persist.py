@@ -18,7 +18,7 @@ from ._utils import LoadContext, SaveContext, _get_state, get_state
 modules = [
     "._general",
     "._numpy",
-    "._scikeras",
+    "._keras",
     "._scipy",
     "._sklearn",
     "._quantile_forest",

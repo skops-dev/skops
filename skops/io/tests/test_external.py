@@ -11,6 +11,7 @@ Testing:
 with a range of hyperparameters.
 
 """
+
 from unittest.mock import Mock, patch
 
 import pytest
@@ -438,7 +439,14 @@ class TestSciKeras:
 
     @pytest.fixture
     def trusted(self):
-        return ["scikeras.wrappers.KerasClassifier"]
+        return [
+            "collections.defaultdict",
+            "keras.src.models.sequential.Sequential",
+            "numpy.dtype",
+            "scikeras.utils.transformers.ClassifierLabelEncoder",
+            "scikeras.utils.transformers.TargetReshaper",
+            "scikeras.wrappers.KerasClassifier",
+        ]
 
     @pytest.fixture(autouse=True)
     def capture_stdout(self):
@@ -473,10 +481,7 @@ class TestSciKeras:
         dumped = dumps(clf)
 
         # Loads returns the Keras model so we need to initialize it as a SciKeras model
-        new_clf_model = loads(dumped, trusted=trusted)
-
-        clf_new = KerasClassifier(new_clf_model)
-        clf_new.initialize(X, y)
+        clf_new = loads(dumped, trusted=trusted)
         new_preidctions = clf_new.predict(X)
         assert all(new_preidctions == predictions)
 
