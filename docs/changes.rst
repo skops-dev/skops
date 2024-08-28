@@ -13,6 +13,8 @@ v0.11
 -----
 - Correctly restore ``default_factory`` when saving and loading a ``defaultdict``.
   :pr:`433` by `Adrin Jalali`_.
+- Fix dumping Scikeras model failing because of maximum recursion depth. :pr:`388`
+  by :user:`Thomas Lazarus <lazarust>`.
 
 v0.10
 -----
@@ -24,8 +26,6 @@ v0.10
   it. :func:`skops.io.get_untrusted_types` can be used to get the untrusted types
   present in the input.
   :pr:`422` by `Adrin Jalali`_.
-- Fix dumping Scikeras model failing because of maximum recursion depth. :pr:`388`
-  by :user:`Thomas Lazarus <lazarust>`.
 - ``skops.io`` now supports `numpy>=2`. :pr:`429` by `Adrin Jalali`_.
 
 v0.9
