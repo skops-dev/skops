@@ -9,8 +9,13 @@ skops Changelog
     :depth: 1
     :local:
 
+v0.11
+-----
+- Correctly restore ``default_factory`` when saving and loading a ``defaultdict``.
+  :pr:`433` by `Adrin Jalali`_.
+
 v0.10
-----
+-----
 - Removes Pythn 3.8 support and adds Python 3.12 Support :pr:`418` by :user:`Thomas Lazarus <lazarust>`.
 - Removes a shortcut to add `sklearn-intelex` as a not dependency.
   :pr:`420` by :user:`Thomas Lazarus < lazarust > `.
