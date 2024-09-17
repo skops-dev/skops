@@ -13,6 +13,8 @@ v0.11
 -----
 - Correctly restore ``default_factory`` when saving and loading a ``defaultdict``.
   :pr:`433` by `Adrin Jalali`_.
+- Fix dumping Scikeras model failing because of maximum recursion depth. :pr:`388`
+  by :user:`Thomas Lazarus <lazarust>`.
 
 v0.10
 -----

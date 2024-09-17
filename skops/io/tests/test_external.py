@@ -18,6 +18,7 @@ import pytest
 from sklearn.datasets import make_classification, make_regression
 
 from skops.io import dumps, loads, visualize
+from skops.io.exceptions import UntrustedTypesFoundException
 from skops.io.tests._utils import assert_method_outputs_equal, assert_params_equal
 
 # Default settings for generated data
@@ -431,3 +432,76 @@ class TestQuantileForest:
         assert_method_outputs_equal(estimator, loaded, X)
 
         visualize(dumped, trusted=trusted)
+
+
+class TestSciKeras:
+    """Tests for SciKerasRegressor and SciKerasClassifier"""
+
+    @pytest.fixture
+    def trusted(self):
+        return [
+            "collections.defaultdict",
+            "keras.src.models.sequential.Sequential",
+            "numpy.dtype",
+            "scikeras.utils.transformers.ClassifierLabelEncoder",
+            "scikeras.utils.transformers.TargetReshaper",
+            "scikeras.wrappers.KerasClassifier",
+        ]
+
+    @pytest.fixture(autouse=True)
+    def capture_stdout(self):
+        # Mock print and rich.print so that running these tests with pytest -s
+        # does not spam stdout. Other, more common methods of suppressing
+        # printing to stdout don't seem to work, perhaps because of pytest.
+        with patch("builtins.print", Mock()), patch("rich.print", Mock()):
+            yield
+
+    @pytest.fixture(autouse=True)
+    def tensorflow(self):
+        tensorflow = pytest.importorskip("tensorflow")
+        return tensorflow
+
+    def test_dumping_model(self, tensorflow, trusted):
+        # This simplifies the basic usage tutorial from https://adriangb.com/scikeras/stable/notebooks/Basic_Usage.html
+
+        n_features_in_ = 20
+        model = tensorflow.keras.models.Sequential()
+        model.add(tensorflow.keras.layers.Input(shape=(n_features_in_,)))
+        model.add(tensorflow.keras.layers.Dense(1, activation="sigmoid"))
+
+        from scikeras.wrappers import KerasClassifier
+
+        clf = KerasClassifier(model=model, loss="binary_crossentropy")
+
+        X, y = make_classification(1000, 20, n_informative=10, random_state=0)
+        clf.fit(X, y)
+
+        predictions = clf.predict(X)
+
+        dumped = dumps(clf)
+
+        # Loads returns the Keras model so we need to initialize it as a SciKeras model
+        clf_new = loads(dumped, trusted=trusted)
+        new_preidctions = clf_new.predict(X)
+        assert all(new_preidctions == predictions)
+
+    def test_dumping_untrusted_model(self, tensorflow):
+        # This simplifies the basic usage tutorial from https://adriangb.com/scikeras/stable/notebooks/Basic_Usage.html
+
+        n_features_in_ = 20
+        model = tensorflow.keras.models.Sequential()
+        model.add(tensorflow.keras.layers.Input(shape=(n_features_in_,)))
+        model.add(tensorflow.keras.layers.Dense(1, activation="sigmoid"))
+
+        from scikeras.wrappers import KerasClassifier
+
+        clf = KerasClassifier(model=model, loss="binary_crossentropy")
+
+        X, y = make_classification(1000, 20, n_informative=10, random_state=0)
+        clf.fit(X, y)
+
+        dumped = dumps(clf)
+
+        # Tries to load the dumped model but returns an untrusted exception
+        with pytest.raises(UntrustedTypesFoundException):
+            loads(dumped)
