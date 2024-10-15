@@ -207,7 +207,7 @@ def get_type_paths(types: Any) -> list[str]:
     return [get_type_name(t) if not isinstance(t, str) else t for t in types]
 
 
-def get_public_type_names(module: ModuleType, oftype: Type) -> list[str]:
+def get_public_type_names(module: ModuleType, oftype: Type) -> list[str | type[Any]]:
     """
     Helper function that gets the type names of all
     public objects of the given ``oftype`` from the given ``module``,
@@ -237,4 +237,6 @@ def get_public_type_names(module: ModuleType, oftype: Type) -> list[str]:
             if issubclass((obj := getattr(module, attr)).__class__, oftype)
             and (type_name := get_type_name(obj)).startswith(module_name)
         }
-    )
+    )  # type: ignore
+    # type check is ignored because list[str] can't be converted to
+    # list[str | type[Any]]

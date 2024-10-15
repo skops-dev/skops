@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Optional, Sequence
+from typing import Any
 
 from ._protocol import PROTOCOL
 from ._sklearn import ReduceNode, reduce_get_state
@@ -29,7 +29,7 @@ class QuantileForestNode(ReduceNode):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: Optional[Sequence[str]] = None,
+        trusted: list[str] | None = None,
     ) -> None:
         if QuantileForest is None:
             raise ImportError(
