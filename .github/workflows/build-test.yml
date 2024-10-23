@@ -29,6 +29,9 @@ jobs:
             sklearn_version: "1.4"
             numpy_version: "numpy"
           - python: "3.12"
+            sklearn_version: "1.5"
+            numpy_version: "numpy"
+          - python: "3.13"
             sklearn_version: "nightly"
             numpy_version: "numpy"
 
