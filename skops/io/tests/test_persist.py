@@ -42,7 +42,7 @@ from sklearn.preprocessing import (
     StandardScaler,
 )
 from sklearn.utils import all_estimators, check_random_state
-from sklearn.utils._tags import _safe_tags
+from sklearn.utils._tags import get_tags
 from sklearn.utils._testing import SkipTest, set_random_state
 from sklearn.utils.estimator_checks import (
     _construct_instance,
@@ -311,7 +311,7 @@ def get_input(estimator):
             n_samples=N_SAMPLES, n_features=N_FEATURES, random_state=0
         )
     y = _enforce_estimator_tags_y(estimator, y)
-    tags = _safe_tags(estimator)
+    tags = get_tags(estimator)
 
     if tags["pairwise"] is True:
         return np.random.rand(N_FEATURES, N_FEATURES), None
@@ -364,7 +364,7 @@ def test_can_persist_fitted(estimator):
     set_random_state(estimator, random_state=0)
 
     X, y = get_input(estimator)
-    tags = _safe_tags(estimator)
+    tags = get_tags(estimator)
     if tags.get("requires_fit", True):
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", module="sklearn")
@@ -417,7 +417,7 @@ def test_unsupported_type_raises(estimator):
     set_random_state(estimator, random_state=0)
 
     X, y = get_input(estimator)
-    tags = _safe_tags(estimator)
+    tags = get_tags(estimator)
     if tags.get("requires_fit", True):
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", module="sklearn")
