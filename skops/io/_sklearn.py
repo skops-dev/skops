@@ -12,34 +12,40 @@ try:
     from sklearn.covariance._graph_lasso import _DictWithDeprecatedKeys
 except ImportError:
     _DictWithDeprecatedKeys = None
-from sklearn.linear_model._sgd_fast import (
-    EpsilonInsensitive,
-    Hinge,
-    Huber,
-    Log,
-    LossFunction,
-    ModifiedHuber,
-    SquaredEpsilonInsensitive,
-    SquaredHinge,
-    SquaredLoss,
-)
+try:
+    # TODO: remove once support for sklearn<1.6 is dropped.
+    from sklearn.linear_model._sgd_fast import (
+        EpsilonInsensitive,
+        Hinge,
+        Huber,
+        Log,
+        LossFunction,
+        ModifiedHuber,
+        SquaredEpsilonInsensitive,
+        SquaredHinge,
+        SquaredLoss,
+    )
+
+    ALLOWED_SGD_LOSSES = {
+        ModifiedHuber,
+        Hinge,
+        SquaredHinge,
+        Log,
+        SquaredLoss,
+        Huber,
+        EpsilonInsensitive,
+        SquaredEpsilonInsensitive,
+    }
+    SKLEARN_GT_15 = False
+except ImportError:
+    SKLEARN_GT_15 = True
+
 from sklearn.tree._tree import Tree
 
 from ._audit import Node, get_tree
 from ._general import unsupported_get_state
 from ._utils import LoadContext, SaveContext, get_module, get_state, gettype
 from .exceptions import UnsupportedTypeException
-
-ALLOWED_SGD_LOSSES = {
-    ModifiedHuber,
-    Hinge,
-    SquaredHinge,
-    Log,
-    SquaredLoss,
-    Huber,
-    EpsilonInsensitive,
-    SquaredEpsilonInsensitive,
-}
 
 UNSUPPORTED_TYPES = {Birch}
 
@@ -52,7 +58,7 @@ def reduce_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
         "__module__": get_module(type(obj)),
     }
 
-    # We get the output of __reduce__ and use it to reconstruct the object.
+    # We get the oPutput of __reduce__ and use it to reconstruct the object.
     # For security reasons, we don't save the constructor object returned by
     # __reduce__, and instead use the pre-defined constructor for the object
     # that we know. This avoids having a function such as `eval()` as the
@@ -169,23 +175,25 @@ def sgd_loss_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     return state
 
 
-class SGDNode(ReduceNode):
-    def __init__(
-        self,
-        state: dict[str, Any],
-        load_context: LoadContext,
-        trusted: Optional[Sequence[str]] = None,
-    ) -> None:
-        # TODO: make sure trusted here makes sense and used.
-        self.trusted = self._get_trusted(
-            trusted, [get_module(x) + "." + x.__name__ for x in ALLOWED_SGD_LOSSES]
-        )
-        super().__init__(
-            state,
-            load_context,
-            constructor=gettype(state["__module__"], state["__class__"]),
-            trusted=self.trusted,
-        )
+if not SKLEARN_GT_15:
+
+    class SGDNode(ReduceNode):
+        def __init__(
+            self,
+            state: dict[str, Any],
+            load_context: LoadContext,
+            trusted: Optional[Sequence[str]] = None,
+        ) -> None:
+            # TODO: make sure trusted here makes sense and used.
+            self.trusted = self._get_trusted(
+                trusted, [get_module(x) + "." + x.__name__ for x in ALLOWED_SGD_LOSSES]
+            )
+            super().__init__(
+                state,
+                load_context,
+                constructor=gettype(state["__module__"], state["__class__"]),
+                trusted=self.trusted,
+            )
 
 
 # TODO: remove once support for sklearn<1.2 is dropped.
@@ -240,17 +248,25 @@ class _DictWithDeprecatedKeysNode(Node):
 
 # tuples of type and function that gets the state of that type
 GET_STATE_DISPATCH_FUNCTIONS = [
-    (LossFunction, sgd_loss_get_state),
     (Tree, tree_get_state),
 ]
+if not SKLEARN_GT_15:
+    GET_STATE_DISPATCH_FUNCTIONS.append((LossFunction, sgd_loss_get_state))
+
 for type_ in UNSUPPORTED_TYPES:
     GET_STATE_DISPATCH_FUNCTIONS.append((type_, unsupported_get_state))
 
 # tuples of type and function that creates the instance of that type
-NODE_TYPE_MAPPING = {
-    ("SGDNode", PROTOCOL): SGDNode,
-    ("TreeNode", PROTOCOL): TreeNode,
-}
+if not SKLEARN_GT_15:
+    NODE_TYPE_MAPPING = {
+        ("TreeNode", PROTOCOL): TreeNode,
+        ("SGDNode", PROTOCOL): SGDNode,
+    }
+else:
+    NODE_TYPE_MAPPING = {
+        ("TreeNode", PROTOCOL): TreeNode,
+    }
+
 
 # TODO: remove once support for sklearn<1.2 is dropped.
 # Starting from sklearn 1.2, _DictWithDeprecatedKeys is removed as it's no
