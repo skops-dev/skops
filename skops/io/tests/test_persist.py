@@ -43,9 +43,9 @@ from sklearn.preprocessing import (
 )
 from sklearn.utils import all_estimators, check_random_state
 from sklearn.utils._tags import get_tags
+from sklearn.utils._test_common.instance_generator import _construct_instances
 from sklearn.utils._testing import SkipTest, set_random_state
 from sklearn.utils.estimator_checks import (
-    _construct_instance,
     _enforce_estimator_tags_y,
     _get_check_estimator_ids,
 )
@@ -145,9 +145,12 @@ def _tested_estimators(type_filter=None):
                     # scikit-learn < 1.4.0) is not available in scipy >= 1.11.0. The
                     # default solver will be "highs" from scikit-learn >= 1.4.0.
                     # https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.QuantileRegressor.html
-                    estimator = _construct_instance(partial(Estimator, solver="highs"))
+                    estimator = next(
+                        _construct_instances(partial(Estimator, solver="highs"))
+                    )
                 else:
-                    estimator = _construct_instance(Estimator)
+                    estimator = next(_construct_instances(Estimator))
+
                 # with the kind of data we pass, it needs to be 1 for the few
                 # estimators which have this.
                 if "n_components" in estimator.get_params():
@@ -267,7 +270,8 @@ def _unsupported_estimators(type_filter=None):
                     category=SkipTestWarning,
                     message="Can't instantiate estimator",
                 )
-                estimator = _construct_instance(Estimator)
+                # Get the first instance directly from the generator
+                estimator = next(_construct_instances(Estimator))
                 # with the kind of data we pass, it needs to be 1 for the few
                 # estimators which have this.
                 if "n_components" in estimator.get_params():
