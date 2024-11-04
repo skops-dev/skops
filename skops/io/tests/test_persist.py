@@ -317,35 +317,35 @@ def get_input(estimator):
     y = _enforce_estimator_tags_y(estimator, y)
     tags = get_tags(estimator)
 
-    if tags["pairwise"] is True:
+    if tags.input_tags.pairwise:
         return np.random.rand(N_FEATURES, N_FEATURES), None
 
-    if "2darray" in tags["X_types"]:
+    if tags.input_tags.two_d_array:
         # Some models require positive X
         return np.abs(X), y
 
-    if "1darray" in tags["X_types"]:
+    if tags.input_tags.one_d_array:
         return X[:, 0], y
 
-    if "3darray" in tags["X_types"]:
+    if tags.input_tags.three_d_array:
         return load_sample_images().images[1], None
 
-    if "1dlabels" in tags["X_types"]:
+    if tags.target_tags.one_d_labels:
         # model only expects y
         return y, None
 
-    if "2dlabels" in tags["X_types"]:
+    if tags.target_tags.two_d_labels:
         return [(1, 2), (3,)], None
 
-    if "categorical" in tags["X_types"]:
+    if tags.input_tags.categorical:
         X = [["Male", 1], ["Female", 3], ["Female", 2]]
-        y = y[: len(X)] if tags["requires_y"] else None
+        y = y[: len(X)] if tags.target_tags.required else None
         return X, y
 
-    if "dict" in tags["X_types"]:
+    if tags.input_tags.dict:
         return [{"foo": 1, "bar": 2}, {"foo": 3, "baz": 1}], None
 
-    if "string" in tags["X_types"]:
+    if tags.input_tags.string:
         return [
             "This is the first document.",
             "This document is the second document.",
@@ -353,11 +353,11 @@ def get_input(estimator):
             "Is this the first document?",
         ], None
 
-    if tags["X_types"] == "sparse":
+    if tags.input_tags.sparse:
         # TfidfTransformer in sklearn 0.24 needs this
         return sparse.csr_matrix(X), y
 
-    raise ValueError(f"Unsupported X type for estimator: {tags['X_types']}")
+    raise ValueError(f"Unsupported X type for estimator: {tags.input_tags}")
 
 
 @pytest.mark.parametrize(
@@ -369,7 +369,7 @@ def test_can_persist_fitted(estimator):
 
     X, y = get_input(estimator)
     tags = get_tags(estimator)
-    if tags.get("requires_fit", True):
+    if tags.requires_fit:
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", module="sklearn")
             if y is not None:
@@ -422,7 +422,7 @@ def test_unsupported_type_raises(estimator):
 
     X, y = get_input(estimator)
     tags = get_tags(estimator)
-    if tags.get("requires_fit", True):
+    if tags.requires_fit:
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", module="sklearn")
             if y is not None:
