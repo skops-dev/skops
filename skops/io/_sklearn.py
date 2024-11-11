@@ -58,7 +58,7 @@ def reduce_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
         "__module__": get_module(type(obj)),
     }
 
-    # We get the oPutput of __reduce__ and use it to reconstruct the object.
+    # We get the output of __reduce__ and use it to reconstruct the object.
     # For security reasons, we don't save the constructor object returned by
     # __reduce__, and instead use the pre-defined constructor for the object
     # that we know. This avoids having a function such as `eval()` as the
