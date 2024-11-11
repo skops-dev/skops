@@ -25,7 +25,7 @@ filterwarnings = [
     "ignore:DataFrameGroupBy.apply operated on the grouping columns.:DeprecationWarning",
     # Ignore Pandas 2.2 warning on PyArrow. It might be reverted in a later release.
     "ignore:\\s*Pyarrow will become a required dependency of pandas.*:DeprecationWarning",
-    # sklearn 1.6 deprecation warning, currently raised in the library itself
+    # LightGBM sklearn 1.6 deprecation warning, fixed in the next release
     "ignore:'force_all_finite' was renamed to 'ensure_all_finite' in 1.6 and will be removed in 1.8.:FutureWarning",
 ]
 markers = [
