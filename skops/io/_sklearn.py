@@ -38,7 +38,7 @@ try:
     }
     SKLEARN_SGD_LOSS = True
 except ImportError:
-    SKLEARN_GT_15 = True
+    SKLEARN_SGD_LOSS = False
 
 from sklearn.tree._tree import Tree
 
@@ -175,7 +175,7 @@ def sgd_loss_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     return state
 
 
-if not SKLEARN_GT_15:
+if SKLEARN_SGD_LOSS:
 
     class SGDNode(ReduceNode):
         def __init__(
@@ -250,21 +250,22 @@ class _DictWithDeprecatedKeysNode(Node):
 GET_STATE_DISPATCH_FUNCTIONS = [
     (Tree, tree_get_state),
 ]
-if not SKLEARN_GT_15:
+if SKLEARN_SGD_LOSS:
     GET_STATE_DISPATCH_FUNCTIONS.append((LossFunction, sgd_loss_get_state))
 
 for type_ in UNSUPPORTED_TYPES:
     GET_STATE_DISPATCH_FUNCTIONS.append((type_, unsupported_get_state))
 
 # tuples of type and function that creates the instance of that type
-NODE_TYPE_MAPPING = {
-    ("TreeNode", PROTOCOL): TreeNode,
-}
 if SKLEARN_SGD_LOSS:
-    NODE_TYPE_MAPPING.update({
+    NODE_TYPE_MAPPING = {
+        ("TreeNode", PROTOCOL): TreeNode,
         ("SGDNode", PROTOCOL): SGDNode,
-    })
-
+    }
+else:
+    NODE_TYPE_MAPPING = {
+        ("TreeNode", PROTOCOL): TreeNode,
+    }
 
 # TODO: remove once support for sklearn<1.2 is dropped.
 # Starting from sklearn 1.2, _DictWithDeprecatedKeys is removed as it's no
