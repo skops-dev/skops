@@ -36,7 +36,7 @@ try:
         EpsilonInsensitive,
         SquaredEpsilonInsensitive,
     }
-    SKLEARN_GT_15 = False
+    SKLEARN_SGD_LOSS = True
 except ImportError:
     SKLEARN_GT_15 = True
 
