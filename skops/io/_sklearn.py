@@ -257,15 +257,13 @@ for type_ in UNSUPPORTED_TYPES:
     GET_STATE_DISPATCH_FUNCTIONS.append((type_, unsupported_get_state))
 
 # tuples of type and function that creates the instance of that type
-if not SKLEARN_GT_15:
-    NODE_TYPE_MAPPING = {
-        ("TreeNode", PROTOCOL): TreeNode,
+NODE_TYPE_MAPPING = {
+    ("TreeNode", PROTOCOL): TreeNode,
+}
+if SKLEARN_SGD_LOSS:
+    NODE_TYPE_MAPPING.update({
         ("SGDNode", PROTOCOL): SGDNode,
-    }
-else:
-    NODE_TYPE_MAPPING = {
-        ("TreeNode", PROTOCOL): TreeNode,
-    }
+    })
 
 
 # TODO: remove once support for sklearn<1.2 is dropped.
