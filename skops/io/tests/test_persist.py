@@ -41,10 +41,11 @@ from sklearn.preprocessing import (
     PolynomialFeatures,
     StandardScaler,
 )
-from sklearn.utils import all_estimators, check_random_state
+from sklearn.utils import check_random_state
 from sklearn.utils._tags import get_tags
 from sklearn.utils._test_common.instance_generator import _construct_instances
 from sklearn.utils._testing import SkipTest, set_random_state
+from sklearn.utils.discovery import all_estimators
 from sklearn.utils.estimator_checks import (
     _enforce_estimator_tags_y,
     _get_check_estimator_ids,
@@ -373,8 +374,10 @@ def test_can_persist_fitted(estimator):
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", module="sklearn")
             if y is not None:
+                print(estimator.__class__.__name__)
                 estimator.fit(X, y)
             else:
+                print(estimator.__class__.__name__)
                 estimator.fit(X)
 
     # test that we can get a list of untrusted types. This is a smoke test
