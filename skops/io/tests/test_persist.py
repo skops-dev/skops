@@ -374,10 +374,8 @@ def test_can_persist_fitted(estimator):
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", module="sklearn")
             if y is not None:
-                print(estimator.__class__.__name__)
                 estimator.fit(X, y)
             else:
-                print(estimator.__class__.__name__)
                 estimator.fit(X)
 
     # test that we can get a list of untrusted types. This is a smoke test

@@ -126,7 +126,6 @@ def _assert_vals_equal(val1, val2):
     elif isinstance(val1, np.ufunc):
         assert val1 == val2
     elif val1.__class__.__module__ == "builtins":
-        print(val1, val2)
         assert val1 == val2
     else:
         _assert_generic_objects_equal(val1, val2)
@@ -146,7 +145,6 @@ def _clean_params(params):
 
 
 def assert_params_equal(params1, params2):
-    print(params1, params2)
     # helper function to compare estimator dictionaries of parameters
     if params1 is None and params2 is None:
         return
