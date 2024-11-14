@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Optional, Sequence, Type
+from typing import Any, Dict, Optional, Sequence, Tuple, Type, Union
 
 from sklearn.cluster import Birch
 
@@ -257,15 +257,15 @@ for type_ in UNSUPPORTED_TYPES:
     GET_STATE_DISPATCH_FUNCTIONS.append((type_, unsupported_get_state))
 
 # tuples of type and function that creates the instance of that type
+NODE_TYPE_MAPPING: Dict[Tuple[str, int], Union[Type[TreeNode], Type[SGDNode]]] = {
+    ("TreeNode", PROTOCOL): TreeNode,
+}
 if SKLEARN_SGD_LOSS:
-    NODE_TYPE_MAPPING = {
-        ("TreeNode", PROTOCOL): TreeNode,
-        ("SGDNode", PROTOCOL): SGDNode,
-    }
-else:
-    NODE_TYPE_MAPPING = {
-        ("TreeNode", PROTOCOL): TreeNode,
-    }
+    NODE_TYPE_MAPPING.update(
+        {
+            ("SGDNode", PROTOCOL): SGDNode,
+        }
+    )
 
 # TODO: remove once support for sklearn<1.2 is dropped.
 # Starting from sklearn 1.2, _DictWithDeprecatedKeys is removed as it's no
