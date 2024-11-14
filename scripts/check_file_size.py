@@ -20,7 +20,7 @@ from typing import Any
 from zipfile import ZIP_DEFLATED, ZipFile
 
 import pandas as pd
-from sklearn.utils._tags import _safe_tags
+from sklearn.utils._tags import get_tags
 from sklearn.utils._testing import set_random_state
 
 import skops.io as sio
@@ -46,8 +46,8 @@ def check_file_size() -> None:
         set_random_state(estimator, random_state=0)
 
         X, y = get_input(estimator)
-        tags = _safe_tags(estimator)
-        if tags.get("requires_fit", True):
+        tags = get_tags(estimator)
+        if tags.requires_fit:
             with warnings.catch_warnings():
                 warnings.filterwarnings("ignore", module="sklearn")
                 if y is not None:
