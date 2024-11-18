@@ -13,7 +13,9 @@ from zipfile import ZIP_DEFLATED, ZipFile
 import joblib
 import numpy as np
 import pytest
+from packaging.version import Version
 from scipy import sparse, special
+from sklearn import __version__ as sklearn_version
 from sklearn.base import BaseEstimator, is_regressor
 from sklearn.compose import ColumnTransformer
 from sklearn.datasets import load_sample_images, make_classification, make_regression
@@ -131,6 +133,17 @@ def _tested_estimators(type_filter=None):
     for name, Estimator in all_estimators(type_filter=type_filter):
         if Estimator in UNSUPPORTED_TYPES:
             continue
+
+        # Skip SGD-based estimators for sklearn > 1.5
+        if Version(sklearn_version) > Version("1.5") and name in {
+            "SGDClassifier",
+            "SGDRegressor",
+            "SGDOneClassSVM",
+            "PassiveAggressiveClassifier",
+            "GraphicalLassoCV",
+        }:
+            continue
+
         try:
             # suppress warnings here for skipped estimators.
             with warnings.catch_warnings():
