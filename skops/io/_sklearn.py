@@ -257,7 +257,7 @@ for type_ in UNSUPPORTED_TYPES:
     GET_STATE_DISPATCH_FUNCTIONS.append((type_, unsupported_get_state))
 
 # tuples of type and function that creates the instance of that type
-NODE_TYPE_MAPPING: Dict[Tuple[str, int], Union[Type[TreeNode], Type[SGDNode]]] = {
+NODE_TYPE_MAPPING: Dict[Tuple[str, int], Any] = {
     ("TreeNode", PROTOCOL): TreeNode,
 }
 if SKLEARN_SGD_LOSS:
