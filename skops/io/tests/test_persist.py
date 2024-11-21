@@ -44,7 +44,6 @@ from sklearn.preprocessing import (
     StandardScaler,
 )
 from sklearn.utils import check_random_state
-from sklearn.utils._tags import get_tags
 from sklearn.utils._testing import SkipTest, set_random_state
 from sklearn.utils.discovery import all_estimators
 from sklearn.utils.estimator_checks import (
@@ -68,7 +67,7 @@ from skops.io._trusted_types import (
 from skops.io._utils import LoadContext, SaveContext, _get_state, get_state, gettype
 from skops.io.exceptions import UnsupportedTypeException, UntrustedTypesFoundException
 from skops.io.tests._utils import assert_method_outputs_equal, assert_params_equal
-from skops.utils._fixes import construct_instances, requires_fit
+from skops.utils._fixes import construct_instances, get_tags
 
 # Default settings for X
 N_SAMPLES = 50
@@ -328,35 +327,35 @@ def get_input(estimator):
     y = _enforce_estimator_tags_y(estimator, y)
     tags = get_tags(estimator)
 
-    if tags.input_tags.pairwise:
+    if tags.pairwise:
         return np.random.rand(N_FEATURES, N_FEATURES), None
 
-    if tags.input_tags.two_d_array:
+    if tags.two_d_array:
         # Some models require positive X
         return np.abs(X), y
 
-    if tags.input_tags.one_d_array:
+    if tags.one_d_array:
         return X[:, 0], y
 
-    if tags.input_tags.three_d_array:
+    if tags.three_d_array:
         return load_sample_images().images[1], None
 
-    if tags.target_tags.one_d_labels:
+    if tags.one_d_labels:
         # model only expects y
         return y, None
 
-    if tags.target_tags.two_d_labels:
+    if tags.two_d_labels:
         return [(1, 2), (3,)], None
 
-    if tags.input_tags.categorical:
+    if tags.categorical:
         X = [["Male", 1], ["Female", 3], ["Female", 2]]
-        y = y[: len(X)] if tags.target_tags.required else None
+        y = y[: len(X)] if tags.y_required else None
         return X, y
 
-    if tags.input_tags.dict:
+    if tags.dict:
         return [{"foo": 1, "bar": 2}, {"foo": 3, "baz": 1}], None
 
-    if tags.input_tags.string:
+    if tags.string:
         return [
             "This is the first document.",
             "This document is the second document.",
@@ -364,7 +363,7 @@ def get_input(estimator):
             "Is this the first document?",
         ], None
 
-    if tags.input_tags.sparse:
+    if tags.sparse:
         # TfidfTransformer in sklearn 0.24 needs this
         return sparse.csr_matrix(X), y
 
@@ -379,7 +378,7 @@ def test_can_persist_fitted(estimator):
     set_random_state(estimator, random_state=0)
 
     X, y = get_input(estimator)
-    if requires_fit(estimator):
+    if get_tags(estimator).requires_fit:
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", module="sklearn")
             if y is not None:
@@ -431,7 +430,7 @@ def test_unsupported_type_raises(estimator):
     set_random_state(estimator, random_state=0)
 
     X, y = get_input(estimator)
-    if requires_fit(estimator):
+    if get_tags(estimator).requires_fit:
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", module="sklearn")
             if y is not None:

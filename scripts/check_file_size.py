@@ -28,7 +28,7 @@ from skops.io.tests.test_persist import (
     _tested_estimators,
     get_input,
 )
-from skops.utils._fixes import requires_fit
+from skops.utils._fixes import get_tags
 
 TOPK = 10  # number of largest estimators reported
 MAX_ALLOWED_SIZE = 1024  # maximum allowed file size in kb
@@ -46,7 +46,7 @@ def check_file_size() -> None:
         set_random_state(estimator, random_state=0)
 
         X, y = get_input(estimator)
-        if requires_fit(estimator):
+        if get_tags(estimator).requires_fit:
             with warnings.catch_warnings():
                 warnings.filterwarnings("ignore", module="sklearn")
                 if y is not None:
