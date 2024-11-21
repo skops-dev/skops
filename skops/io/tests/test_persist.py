@@ -45,7 +45,6 @@ from sklearn.preprocessing import (
 )
 from sklearn.utils import check_random_state
 from sklearn.utils._tags import get_tags
-from sklearn.utils._test_common.instance_generator import _construct_instances
 from sklearn.utils._testing import SkipTest, set_random_state
 from sklearn.utils.discovery import all_estimators
 from sklearn.utils.estimator_checks import (
@@ -69,6 +68,7 @@ from skops.io._trusted_types import (
 from skops.io._utils import LoadContext, SaveContext, _get_state, get_state, gettype
 from skops.io.exceptions import UnsupportedTypeException, UntrustedTypesFoundException
 from skops.io.tests._utils import assert_method_outputs_equal, assert_params_equal
+from skops.utils._fixes import construct_instances
 
 # Default settings for X
 N_SAMPLES = 50
@@ -143,7 +143,6 @@ def _tested_estimators(type_filter=None):
             "GraphicalLassoCV",
         }:
             continue
-
         try:
             # suppress warnings here for skipped estimators.
             with warnings.catch_warnings():
@@ -159,11 +158,9 @@ def _tested_estimators(type_filter=None):
                     # scikit-learn < 1.4.0) is not available in scipy >= 1.11.0. The
                     # default solver will be "highs" from scikit-learn >= 1.4.0.
                     # https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.QuantileRegressor.html
-                    estimator = next(
-                        _construct_instances(partial(Estimator, solver="highs"))
-                    )
+                    estimator = construct_instances(partial(Estimator, solver="highs"))
                 else:
-                    estimator = next(_construct_instances(Estimator))
+                    estimator = construct_instances(Estimator)
 
                 # with the kind of data we pass, it needs to be 1 for the few
                 # estimators which have this.
@@ -285,7 +282,7 @@ def _unsupported_estimators(type_filter=None):
                     message="Can't instantiate estimator",
                 )
                 # Get the first instance directly from the generator
-                estimator = next(_construct_instances(Estimator))
+                estimator = construct_instances(Estimator)
                 # with the kind of data we pass, it needs to be 1 for the few
                 # estimators which have this.
                 if "n_components" in estimator.get_params():

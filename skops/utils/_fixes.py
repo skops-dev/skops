@@ -1,3 +1,9 @@
+try:
+    from sklearn.utils._test_common.instance_generator import _construct_instances
+except ImportError:
+    from sklearn.utils.estimator_checks import _construct_instances
+
+
 def boxplot(ax, *, tick_labels, **kwargs):
     """A function to handle labels->tick_labels deprecation.
     labels is deprecated in 3.9 and removed in 3.11.
@@ -6,3 +12,11 @@ def boxplot(ax, *, tick_labels, **kwargs):
         return ax.boxplot(tick_labels=tick_labels, **kwargs)
     except TypeError:
         return ax.boxplot(labels=tick_labels, **kwargs)
+
+
+def construct_instances(estimator):
+    """Added for sklearn<1.6 support."""
+    try:
+        return next(_construct_instances(estimator))
+    except TypeError:
+        return _construct_instances(estimator)
