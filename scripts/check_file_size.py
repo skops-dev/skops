@@ -20,7 +20,6 @@ from typing import Any
 from zipfile import ZIP_DEFLATED, ZipFile
 
 import pandas as pd
-from sklearn.utils._tags import get_tags
 from sklearn.utils._testing import set_random_state
 
 import skops.io as sio
@@ -29,6 +28,7 @@ from skops.io.tests.test_persist import (
     _tested_estimators,
     get_input,
 )
+from skops.utils._fixes import requires_fit
 
 TOPK = 10  # number of largest estimators reported
 MAX_ALLOWED_SIZE = 1024  # maximum allowed file size in kb
@@ -46,8 +46,7 @@ def check_file_size() -> None:
         set_random_state(estimator, random_state=0)
 
         X, y = get_input(estimator)
-        tags = get_tags(estimator)
-        if tags.requires_fit:
+        if requires_fit(estimator):
             with warnings.catch_warnings():
                 warnings.filterwarnings("ignore", module="sklearn")
                 if y is not None:

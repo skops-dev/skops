@@ -68,7 +68,7 @@ from skops.io._trusted_types import (
 from skops.io._utils import LoadContext, SaveContext, _get_state, get_state, gettype
 from skops.io.exceptions import UnsupportedTypeException, UntrustedTypesFoundException
 from skops.io.tests._utils import assert_method_outputs_equal, assert_params_equal
-from skops.utils._fixes import construct_instances
+from skops.utils._fixes import construct_instances, requires_fit
 
 # Default settings for X
 N_SAMPLES = 50
@@ -379,8 +379,7 @@ def test_can_persist_fitted(estimator):
     set_random_state(estimator, random_state=0)
 
     X, y = get_input(estimator)
-    tags = get_tags(estimator)
-    if tags.requires_fit:
+    if requires_fit(estimator):
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", module="sklearn")
             if y is not None:
@@ -432,8 +431,7 @@ def test_unsupported_type_raises(estimator):
     set_random_state(estimator, random_state=0)
 
     X, y = get_input(estimator)
-    tags = get_tags(estimator)
-    if tags.requires_fit:
+    if requires_fit(estimator):
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", module="sklearn")
             if y is not None:

@@ -19,3 +19,15 @@ def construct_instances(estimator):
         from sklearn.utils.estimator_checks import _construct_instances
 
         return _construct_instances(estimator)
+
+
+def requires_fit(estimator):
+    """Added for sklearn<1.6 support."""
+    try:
+        from sklearn.utils._tags import get_tags
+
+        return get_tags(estimator).requires_fit
+    except ImportError:
+        from sklearn.utils._tags import _safe_tags
+
+        return _safe_tags(estimator).get("requires_fit", True)
