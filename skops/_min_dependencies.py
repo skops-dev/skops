@@ -33,7 +33,7 @@ dependent_packages = {
     # required for persistence tests of external libraries
     "lightgbm": ("3", "tests", None),
     "xgboost": ("1.6", "tests", None),
-    "catboost": ("1.0", "tests", None),
+    "catboost": ("1.0", "tests", 'python_version < "3.13"'),
     "fairlearn": ("0.7.0", "docs, tests", None),
     "rich": ("12", "tests, rich", None),
 }

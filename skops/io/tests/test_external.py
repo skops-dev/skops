@@ -290,6 +290,15 @@ class TestCatboost:
     """Tests for CatBoostClassifier, CatBoostRegressor, and CatBoostRanker"""
 
     @pytest.fixture(autouse=True)
+    def catboost(self):
+        """Skip all tests in this class if catboost is not available."""
+        try:
+            catboost = pytest.importorskip("catboost")
+        except (ImportError, ValueError):  # ValueError for numpy2 incompatibility
+            pytest.skip("Catboost not available or incompatible")
+        return catboost
+
+    @pytest.fixture(autouse=True)
     def capture_stdout(self):
         # Mock print and rich.print so that running these tests with pytest -s
         # does not spam stdout. Other, more common methods of suppressing
@@ -316,15 +325,6 @@ class TestCatboost:
         X = (X - X.min()).astype(int)
         group_id = sum([[i] * n for i, n in enumerate(group)], [])
         return X, y, group_id
-
-    @pytest.fixture(autouse=True)
-    def catboost(self):
-        try:
-            catboost = pytest.importorskip("catboost")
-        except ValueError:  # TODO(numpy2) remove when catboost supports numpy2
-            pytest.skip("Catboost not supporting numpy2 yet")
-
-        return catboost
 
     @pytest.fixture
     def trusted(self):

@@ -1,4 +1,4 @@
-catboost
+catboost; python_version < "3.13"
 huggingface_hub
 lightgbm
 pandas
