@@ -31,6 +31,8 @@ filterwarnings = [
     "ignore:The RandomForestQuantileRegressor or classes from which it inherits use `_get_tags` and `_more_tags`:FutureWarning",
     # ExtraTreesQuantileRegressor tags deprecation warning in sklearn 1.7
     "ignore:The ExtraTreesQuantileRegressor or classes from which it inherits use `_get_tags` and `_more_tags`:FutureWarning",
+    # BaseEstimator._validate_data deprecation warning in sklearn 1.6 #TODO can be removed when a new release of quantile-forest is out
+    "ignore:`BaseEstimator._validate_data` is deprecated in 1.6 and will be removed in 1.7:FutureWarning",
 ]
 markers = [
     "network: marks tests as requiring internet (deselect with '-m \"not network\"')",
