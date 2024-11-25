@@ -27,6 +27,10 @@ filterwarnings = [
     "ignore:\\s*Pyarrow will become a required dependency of pandas.*:DeprecationWarning",
     # LightGBM sklearn 1.6 deprecation warning, fixed in the next release
     "ignore:'force_all_finite' was renamed to 'ensure_all_finite' in 1.6 and will be removed in 1.8.:FutureWarning",
+    # RandomForestQuantileRegressor tags deprecation warning in sklearn 1.7
+    "ignore:The RandomForestQuantileRegressor or classes from which it inherits use `_get_tags` and `_more_tags`:FutureWarning",
+    # ExtraTreesQuantileRegressor tags deprecation warning in sklearn 1.7
+    "ignore:The ExtraTreesQuantileRegressor or classes from which it inherits use `_get_tags` and `_more_tags`:FutureWarning",
 ]
 markers = [
     "network: marks tests as requiring internet (deselect with '-m \"not network\"')",
