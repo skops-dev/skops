@@ -33,6 +33,8 @@ dependent_packages = {
     # required for persistence tests of external libraries
     "lightgbm": ("3", "tests", None),
     "xgboost": ("1.6", "tests", None),
+    # remove python constraint when catboost supports 3.13
+    # https://github.com/catboost/catboost/issues/2748
     "catboost": ("1.0", "tests", 'python_version < "3.13"'),
     "fairlearn": ("0.7.0", "docs, tests", None),
     "rich": ("12", "tests, rich", None),
