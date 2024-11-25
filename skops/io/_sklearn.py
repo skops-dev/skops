@@ -175,25 +175,29 @@ def sgd_loss_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     return state
 
 
-if SKLEARN_SGD_LOSS:
-
-    class SGDNode(ReduceNode):
-        def __init__(
-            self,
-            state: dict[str, Any],
-            load_context: LoadContext,
-            trusted: Optional[Sequence[str]] = None,
-        ) -> None:
-            # TODO: make sure trusted here makes sense and used.
-            self.trusted = self._get_trusted(
-                trusted, [get_module(x) + "." + x.__name__ for x in ALLOWED_SGD_LOSSES]
+class SGDNode(ReduceNode):
+    def __init__(
+        self,
+        state: dict[str, Any],
+        load_context: LoadContext,
+        trusted: Optional[Sequence[str]] = None,
+    ) -> None:
+        if not SKLEARN_SGD_LOSS:
+            raise ImportError(
+                "Cannot load SGD loss functions. This might happen if you're trying to "
+                "load a model that was saved with an older version of scikit-learn. "
+                "Please make sure you're using a compatible scikit-learn version."
             )
-            super().__init__(
-                state,
-                load_context,
-                constructor=gettype(state["__module__"], state["__class__"]),
-                trusted=self.trusted,
-            )
+        # TODO: make sure trusted here makes sense and used.
+        self.trusted = self._get_trusted(
+            trusted, [get_module(x) + "." + x.__name__ for x in ALLOWED_SGD_LOSSES]
+        )
+        super().__init__(
+            state,
+            load_context,
+            constructor=gettype(state["__module__"], state["__class__"]),
+            trusted=self.trusted,
+        )
 
 
 # TODO: remove once support for sklearn<1.2 is dropped.
