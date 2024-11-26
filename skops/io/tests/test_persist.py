@@ -327,35 +327,35 @@ def get_input(estimator):
     y = _enforce_estimator_tags_y(estimator, y)
     tags = get_tags(estimator)
 
-    if tags.pairwise:
+    if tags.input_tags.pairwise:
         return np.random.rand(N_FEATURES, N_FEATURES), None
 
-    if tags.two_d_array:
+    if tags.input_tags.two_d_array:
         # Some models require positive X
         return np.abs(X), y
 
-    if tags.one_d_array:
+    if tags.input_tags.one_d_array:
         return X[:, 0], y
 
-    if tags.three_d_array:
+    if tags.input_tags.three_d_array:
         return load_sample_images().images[1], None
 
-    if tags.one_d_labels:
+    if tags.target_tags.one_d_labels:
         # model only expects y
         return y, None
 
-    if tags.two_d_labels:
+    if tags.target_tags.two_d_labels:
         return [(1, 2), (3,)], None
 
-    if tags.categorical:
+    if tags.input_tags.categorical:
         X = [["Male", 1], ["Female", 3], ["Female", 2]]
         y = y[: len(X)] if tags.y_required else None
         return X, y
 
-    if tags.dict:
+    if tags.input_tags.dict:
         return [{"foo": 1, "bar": 2}, {"foo": 3, "baz": 1}], None
 
-    if tags.string:
+    if tags.input_tags.string:
         return [
             "This is the first document.",
             "This document is the second document.",
@@ -363,7 +363,7 @@ def get_input(estimator):
             "Is this the first document?",
         ], None
 
-    if tags.sparse:
+    if tags.input_tags.sparse:
         # TfidfTransformer in sklearn 0.24 needs this
         return sparse.csr_matrix(X), y
 
