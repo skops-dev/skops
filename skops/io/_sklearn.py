@@ -81,6 +81,8 @@ try:
 except ImportError:
     pass
 
+# This import is for the parent class of all loss functions, which is used to
+# set the dispatch function for all loss functions.
 try:
     # From sklearn>=1.6
     from sklearn._loss._loss import CyLossFunction as ParentLossClass

@@ -68,7 +68,7 @@ from skops.io.tests._utils import assert_method_outputs_equal, assert_params_equ
 from skops.utils._fixes import construct_instances, get_tags
 
 # Default settings for X
-N_SAMPLES = 50
+N_SAMPLES = 100
 N_FEATURES = 20
 
 
