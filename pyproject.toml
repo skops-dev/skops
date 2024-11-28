@@ -25,6 +25,9 @@ filterwarnings = [
     "ignore:DataFrameGroupBy.apply operated on the grouping columns.:DeprecationWarning",
     # Ignore Pandas 2.2 warning on PyArrow. It might be reverted in a later release.
     "ignore:\\s*Pyarrow will become a required dependency of pandas.*:DeprecationWarning",
+    # Ignore Google protobuf deprecation warnings. This should be reverted once tensorflow supports protobuf 5.0+
+    "ignore:Type google._upb._message.MessageMapContainer uses PyType_Spec with a metaclass that has custom tp_new. This is deprecated and will no longer be allowed in Python 3.14.:DeprecationWarning:importlib.*:",
+    "ignore:Type google._upb._message.ScalarMapContainer uses PyType_Spec with a metaclass that has custom tp_new. This is deprecated and will no longer be allowed in Python 3.14.:DeprecationWarning:importlib.*:",
 ]
 markers = [
     "network: marks tests as requiring internet (deselect with '-m \"not network\"')",
