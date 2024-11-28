@@ -68,7 +68,7 @@ from skops.io.tests._utils import assert_method_outputs_equal, assert_params_equ
 from skops.utils._fixes import construct_instances, get_tags
 
 # Default settings for X
-N_SAMPLES = 100
+N_SAMPLES = 120
 N_FEATURES = 20
 
 
@@ -146,20 +146,21 @@ def _tested_estimators(type_filter=None):
                     # scikit-learn < 1.4.0) is not available in scipy >= 1.11.0. The
                     # default solver will be "highs" from scikit-learn >= 1.4.0.
                     # https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.QuantileRegressor.html
-                    estimator = construct_instances(partial(Estimator, solver="highs"))
+                    estimators = construct_instances(partial(Estimator, solver="highs"))
                 else:
-                    estimator = construct_instances(Estimator)
+                    estimators = construct_instances(Estimator)
 
-                # with the kind of data we pass, it needs to be 1 for the few
-                # estimators which have this.
-                if "n_components" in estimator.get_params():
-                    estimator.set_params(n_components=1)
-                    # Then n_best needs to be <= n_components
-                    if "n_best" in estimator.get_params():
-                        estimator.set_params(n_best=1)
-                if "patch_size" in estimator.get_params():
-                    # set patch size to fix PatchExtractor test.
-                    estimator.set_params(patch_size=(3, 3))
+                for estimator in estimators:
+                    # with the kind of data we pass, it needs to be 1 for the few
+                    # estimators which have this.
+                    if "n_components" in estimator.get_params():
+                        estimator.set_params(n_components=1)
+                        # Then n_best needs to be <= n_components
+                        if "n_best" in estimator.get_params():
+                            estimator.set_params(n_best=1)
+                    if "patch_size" in estimator.get_params():
+                        # set patch size to fix PatchExtractor test.
+                        estimator.set_params(patch_size=(3, 3))
         except SkipTest:
             continue
 
@@ -270,17 +271,18 @@ def _unsupported_estimators(type_filter=None):
                     message="Can't instantiate estimator",
                 )
                 # Get the first instance directly from the generator
-                estimator = construct_instances(Estimator)
+                estimators = construct_instances(Estimator)
                 # with the kind of data we pass, it needs to be 1 for the few
                 # estimators which have this.
-                if "n_components" in estimator.get_params():
-                    estimator.set_params(n_components=1)
-                    # Then n_best needs to be <= n_components
-                    if "n_best" in estimator.get_params():
-                        estimator.set_params(n_best=1)
-                if "patch_size" in estimator.get_params():
-                    # set patch size to fix PatchExtractor test.
-                    estimator.set_params(patch_size=(3, 3))
+                for estimator in estimators:
+                    if "n_components" in estimator.get_params():
+                        estimator.set_params(n_components=1)
+                        # Then n_best needs to be <= n_components
+                        if "n_best" in estimator.get_params():
+                            estimator.set_params(n_best=1)
+                    if "patch_size" in estimator.get_params():
+                        # set patch size to fix PatchExtractor test.
+                        estimator.set_params(patch_size=(3, 3))
         except SkipTest:
             continue
 
@@ -317,7 +319,10 @@ def get_input(estimator):
     tags = get_tags(estimator)
 
     if tags.input_tags.pairwise:
-        return np.random.rand(N_FEATURES, N_FEATURES), None
+        if not tags.target_tags.required:
+            return np.random.rand(N_FEATURES, N_FEATURES), None
+        else:
+            return np.random.rand(N_FEATURES, N_FEATURES), y[:N_FEATURES]
 
     if tags.input_tags.two_d_array:
         # Some models require positive X
@@ -338,7 +343,7 @@ def get_input(estimator):
 
     if tags.input_tags.categorical:
         X = [["Male", 1], ["Female", 3], ["Female", 2]]
-        y = y[: len(X)] if tags.y_required else None
+        y = y[: len(X)] if tags.target_tags.required else None
         return X, y
 
     if tags.input_tags.dict:
@@ -417,7 +422,6 @@ def test_can_trust_types(type_):
 def test_unsupported_type_raises(estimator):
     """Estimators that are known to fail should raise an error"""
     set_random_state(estimator, random_state=0)
-
     X, y = get_input(estimator)
     if get_tags(estimator).requires_fit:
         with warnings.catch_warnings():

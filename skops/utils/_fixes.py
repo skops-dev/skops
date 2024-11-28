@@ -25,12 +25,12 @@ def construct_instances(estimator):
     try:
         from sklearn.utils._test_common.instance_generator import _construct_instances
 
-        return next(_construct_instances(estimator))
+        return list(_construct_instances(estimator))
 
     except ImportError:
         from sklearn.utils.estimator_checks import _construct_instance
 
-        return _construct_instance(estimator)
+        return [_construct_instance(estimator)]
 
 
 """
