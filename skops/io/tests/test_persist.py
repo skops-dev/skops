@@ -45,6 +45,7 @@ from sklearn.utils import check_random_state
 from sklearn.utils._testing import SkipTest, set_random_state
 from sklearn.utils.discovery import all_estimators
 from sklearn.utils.estimator_checks import (
+    _enforce_estimator_tags_X,
     _enforce_estimator_tags_y,
     _get_check_estimator_ids,
 )
@@ -161,6 +162,15 @@ def _tested_estimators(type_filter=None):
                     if "patch_size" in estimator.get_params():
                         # set patch size to fix PatchExtractor test.
                         estimator.set_params(patch_size=(3, 3))
+                    if "skewedness" in estimator.get_params():
+                        # prevent data generation errors for SkewedChi2Sampler
+                        estimator.set_params(skewedness=20)
+                    if estimator.__class__.__name__ == "GraphicalLasso":
+                        # prevent data generation errors
+                        estimator.set_params(alpha=1)
+                    if estimator.__class__.__name__ == "GraphicalLassoCV":
+                        # prevent data generation errors
+                        estimator.set_params(alphas=[1, 2])
         except SkipTest:
             continue
 
@@ -316,19 +326,24 @@ def get_input(estimator):
             n_samples=N_SAMPLES, n_features=N_FEATURES, random_state=0
         )
     y = _enforce_estimator_tags_y(estimator, y)
+    X = _enforce_estimator_tags_X(estimator, X)
+
     tags = get_tags(estimator)
 
     if tags.input_tags.pairwise:
-        if not tags.target_tags.required:
-            return np.random.rand(N_FEATURES, N_FEATURES), None
-        else:
-            return np.random.rand(N_FEATURES, N_FEATURES), y[:N_FEATURES]
+        # return a square matrix of size N_FEATURES x N_FEATURES and positive values
+        return np.abs(X[:N_FEATURES, :N_FEATURES]), y[:N_FEATURES]
 
-    if tags.input_tags.two_d_array:
+    if tags.input_tags.positive_only:
         # Some models require positive X
         return np.abs(X), y
 
+    if tags.input_tags.two_d_array:
+        return X, y
+
     if tags.input_tags.one_d_array:
+        if X.ndim == 1:
+            return X, y
         return X[:, 0], y
 
     if tags.input_tags.three_d_array:
