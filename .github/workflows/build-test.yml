@@ -20,16 +20,16 @@ jobs:
         # this is to make the CI run on different sklearn versions
         include:
           - python: "3.9"
-            sklearn_version: "1.1"
+            sklearn_version: ">=1.1,<1.2"
             numpy_version: "numpy<2"
           - python: "3.10"
-            sklearn_version: "1.2"
+            sklearn_version: ">=1.2,<1.3"
             numpy_version: "numpy"
           - python: "3.11"
-            sklearn_version: "1.4"
+            sklearn_version: ">=1.4,<1.5"
             numpy_version: "numpy"
           - python: "3.12"
-            sklearn_version: "1.5"
+            sklearn_version: ">=1.5,<1.6"
             numpy_version: "numpy"
           - python: "3.13"
             sklearn_version: "nightly"
@@ -68,7 +68,7 @@ jobs:
           pip install "${{ matrix.numpy_version }}"
           if [ ${{ matrix.sklearn_version }} == "nightly" ];
             then pip install --pre --extra-index https://pypi.anaconda.org/scientific-python-nightly-wheels/simple scikit-learn;
-            else pip install "scikit-learn~=${{ matrix.sklearn_version }}";
+            else pip install "scikit-learn${{ matrix.sklearn_version }}";
           fi
           pip install .[docs,tests]
           pip install black=="23.9.1" ruff=="0.0.292" mypy=="1.6.0"
