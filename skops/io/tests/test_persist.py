@@ -13,6 +13,7 @@ from zipfile import ZIP_DEFLATED, ZipFile
 import joblib
 import numpy as np
 import pytest
+import sklearn
 from scipy import sparse, special
 from sklearn.base import BaseEstimator, is_regressor
 from sklearn.compose import ColumnTransformer
@@ -42,13 +43,8 @@ from sklearn.preprocessing import (
     StandardScaler,
 )
 from sklearn.utils import all_estimators, check_random_state
-from sklearn.utils._tags import _safe_tags
 from sklearn.utils._testing import SkipTest, set_random_state
-from sklearn.utils.estimator_checks import (
-    _construct_instance,
-    _enforce_estimator_tags_y,
-    _get_check_estimator_ids,
-)
+from sklearn.utils.estimator_checks import _get_check_estimator_ids
 from sklearn.utils.fixes import parse_version, sp_version
 
 import skops
@@ -66,9 +62,15 @@ from skops.io._trusted_types import (
 from skops.io._utils import LoadContext, SaveContext, _get_state, get_state, gettype
 from skops.io.exceptions import UnsupportedTypeException, UntrustedTypesFoundException
 from skops.io.tests._utils import assert_method_outputs_equal, assert_params_equal
+from skops.utils._fixes import (
+    _enforce_estimator_tags_X,
+    _enforce_estimator_tags_y,
+    construct_instances,
+    get_tags,
+)
 
 # Default settings for X
-N_SAMPLES = 50
+N_SAMPLES = 120
 N_FEATURES = 20
 
 
@@ -130,6 +132,7 @@ def _tested_estimators(type_filter=None):
     for name, Estimator in all_estimators(type_filter=type_filter):
         if Estimator in UNSUPPORTED_TYPES:
             continue
+
         try:
             # suppress warnings here for skipped estimators.
             with warnings.catch_warnings():
@@ -145,19 +148,30 @@ def _tested_estimators(type_filter=None):
                     # scikit-learn < 1.4.0) is not available in scipy >= 1.11.0. The
                     # default solver will be "highs" from scikit-learn >= 1.4.0.
                     # https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.QuantileRegressor.html
-                    estimator = _construct_instance(partial(Estimator, solver="highs"))
+                    estimators = construct_instances(partial(Estimator, solver="highs"))
                 else:
-                    estimator = _construct_instance(Estimator)
-                # with the kind of data we pass, it needs to be 1 for the few
-                # estimators which have this.
-                if "n_components" in estimator.get_params():
-                    estimator.set_params(n_components=1)
-                    # Then n_best needs to be <= n_components
-                    if "n_best" in estimator.get_params():
-                        estimator.set_params(n_best=1)
-                if "patch_size" in estimator.get_params():
-                    # set patch size to fix PatchExtractor test.
-                    estimator.set_params(patch_size=(3, 3))
+                    estimators = construct_instances(Estimator)
+
+                for estimator in estimators:
+                    # with the kind of data we pass, it needs to be 1 for the few
+                    # estimators which have this.
+                    if "n_components" in estimator.get_params():
+                        estimator.set_params(n_components=1)
+                        # Then n_best needs to be <= n_components
+                        if "n_best" in estimator.get_params():
+                            estimator.set_params(n_best=1)
+                    if "patch_size" in estimator.get_params():
+                        # set patch size to fix PatchExtractor test.
+                        estimator.set_params(patch_size=(3, 3))
+                    if "skewedness" in estimator.get_params():
+                        # prevent data generation errors for SkewedChi2Sampler
+                        estimator.set_params(skewedness=20)
+                    if estimator.__class__.__name__ == "GraphicalLasso":
+                        # prevent data generation errors
+                        estimator.set_params(alpha=1)
+                    if estimator.__class__.__name__ == "GraphicalLassoCV":
+                        # prevent data generation errors
+                        estimator.set_params(alphas=[1, 2])
         except SkipTest:
             continue
 
@@ -267,17 +281,19 @@ def _unsupported_estimators(type_filter=None):
                     category=SkipTestWarning,
                     message="Can't instantiate estimator",
                 )
-                estimator = _construct_instance(Estimator)
+                # Get the first instance directly from the generator
+                estimators = construct_instances(Estimator)
                 # with the kind of data we pass, it needs to be 1 for the few
                 # estimators which have this.
-                if "n_components" in estimator.get_params():
-                    estimator.set_params(n_components=1)
-                    # Then n_best needs to be <= n_components
-                    if "n_best" in estimator.get_params():
-                        estimator.set_params(n_best=1)
-                if "patch_size" in estimator.get_params():
-                    # set patch size to fix PatchExtractor test.
-                    estimator.set_params(patch_size=(3, 3))
+                for estimator in estimators:
+                    if "n_components" in estimator.get_params():
+                        estimator.set_params(n_components=1)
+                        # Then n_best needs to be <= n_components
+                        if "n_best" in estimator.get_params():
+                            estimator.set_params(n_best=1)
+                    if "patch_size" in estimator.get_params():
+                        # set patch size to fix PatchExtractor test.
+                        estimator.set_params(patch_size=(3, 3))
         except SkipTest:
             continue
 
@@ -311,37 +327,45 @@ def get_input(estimator):
             n_samples=N_SAMPLES, n_features=N_FEATURES, random_state=0
         )
     y = _enforce_estimator_tags_y(estimator, y)
-    tags = _safe_tags(estimator)
+    X = _enforce_estimator_tags_X(estimator, X)
 
-    if tags["pairwise"] is True:
-        return np.random.rand(N_FEATURES, N_FEATURES), None
+    tags = get_tags(estimator)
 
-    if "2darray" in tags["X_types"]:
+    if tags.input_tags.pairwise:
+        # return a square matrix of size N_FEATURES x N_FEATURES and positive values
+        return np.abs(X[:N_FEATURES, :N_FEATURES]), y[:N_FEATURES]
+
+    if tags.input_tags.positive_only:
         # Some models require positive X
         return np.abs(X), y
 
-    if "1darray" in tags["X_types"]:
+    if tags.input_tags.two_d_array:
+        return X, y
+
+    if tags.input_tags.one_d_array:
+        if X.ndim == 1:
+            return X, y
         return X[:, 0], y
 
-    if "3darray" in tags["X_types"]:
+    if tags.input_tags.three_d_array:
         return load_sample_images().images[1], None
 
-    if "1dlabels" in tags["X_types"]:
+    if tags.target_tags.one_d_labels:
         # model only expects y
         return y, None
 
-    if "2dlabels" in tags["X_types"]:
+    if tags.target_tags.two_d_labels:
         return [(1, 2), (3,)], None
 
-    if "categorical" in tags["X_types"]:
+    if tags.input_tags.categorical:
         X = [["Male", 1], ["Female", 3], ["Female", 2]]
-        y = y[: len(X)] if tags["requires_y"] else None
+        y = y[: len(X)] if tags.target_tags.required else None
         return X, y
 
-    if "dict" in tags["X_types"]:
+    if tags.input_tags.dict:
         return [{"foo": 1, "bar": 2}, {"foo": 3, "baz": 1}], None
 
-    if "string" in tags["X_types"]:
+    if tags.input_tags.string:
         return [
             "This is the first document.",
             "This document is the second document.",
@@ -349,11 +373,11 @@ def get_input(estimator):
             "Is this the first document?",
         ], None
 
-    if tags["X_types"] == "sparse":
+    if tags.input_tags.sparse:
         # TfidfTransformer in sklearn 0.24 needs this
         return sparse.csr_matrix(X), y
 
-    raise ValueError(f"Unsupported X type for estimator: {tags['X_types']}")
+    raise ValueError(f"Unsupported X type for estimator: {tags.input_tags}")
 
 
 @pytest.mark.parametrize(
@@ -363,9 +387,27 @@ def test_can_persist_fitted(estimator):
     """Check that fitted estimators can be persisted and return the right results."""
     set_random_state(estimator, random_state=0)
 
+    # A list of estimators which fail on sklearn versions indicated in the list.
+    xfail = [
+        # These are related to loss classes not having the right __reduce__ method.
+        ("PassiveAggressiveClassifier", ["1.4", "1.5"]),
+        ("SGDClassifier", ["1.4", "1.5"]),
+        ("SGDOneClassSVM", ["1.4", "1.5"]),
+        ("TweedieRegressor", ["1.4", "1.5"]),
+    ]
+
+    if any(
+        estimator.__class__.__name__ == name and sklearn.__version__.startswith(version)
+        for name, versions in xfail
+        for version in versions
+    ):
+        pytest.xfail(
+            f"Known issue with {estimator.__class__.__name__} on sklearn version"
+            f" {sklearn.__version__}"
+        )
+
     X, y = get_input(estimator)
-    tags = _safe_tags(estimator)
-    if tags.get("requires_fit", True):
+    if get_tags(estimator).requires_fit:
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", module="sklearn")
             if y is not None:
@@ -415,10 +457,8 @@ def test_can_trust_types(type_):
 def test_unsupported_type_raises(estimator):
     """Estimators that are known to fail should raise an error"""
     set_random_state(estimator, random_state=0)
-
     X, y = get_input(estimator)
-    tags = _safe_tags(estimator)
-    if tags.get("requires_fit", True):
+    if get_tags(estimator).requires_fit:
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", module="sklearn")
             if y is not None:

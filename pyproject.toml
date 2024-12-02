@@ -25,6 +25,14 @@ filterwarnings = [
     "ignore:DataFrameGroupBy.apply operated on the grouping columns.:DeprecationWarning",
     # Ignore Pandas 2.2 warning on PyArrow. It might be reverted in a later release.
     "ignore:\\s*Pyarrow will become a required dependency of pandas.*:DeprecationWarning",
+    # LightGBM sklearn 1.6 deprecation warning, fixed in the next release
+    "ignore:'force_all_finite' was renamed to 'ensure_all_finite' in 1.6 and will be removed in 1.8.:FutureWarning",
+    # RandomForestQuantileRegressor tags deprecation warning in sklearn 1.7
+    "ignore:The RandomForestQuantileRegressor or classes from which it inherits use `_get_tags` and `_more_tags`:FutureWarning",
+    # ExtraTreesQuantileRegressor tags deprecation warning in sklearn 1.7
+    "ignore:The ExtraTreesQuantileRegressor or classes from which it inherits use `_get_tags` and `_more_tags`:FutureWarning",
+    # BaseEstimator._validate_data deprecation warning in sklearn 1.6 #TODO can be removed when a new release of quantile-forest is out
+    "ignore:`BaseEstimator._validate_data` is deprecated in 1.6 and will be removed in 1.7:FutureWarning",
 ]
 markers = [
     "network: marks tests as requiring internet (deselect with '-m \"not network\"')",

@@ -44,36 +44,38 @@ def _is_steps_like(obj):
     return True
 
 
-def _assert_generic_objects_equal(val1, val2):
+def _assert_generic_objects_equal(val1, val2, path=""):
     def _is_builtin(val):
         # Check if value is a builtin type
         return getattr(getattr(val, "__class__", {}), "__module__", None) == "builtins"
 
     if isinstance(val1, (list, tuple, np.ndarray)):
-        assert len(val1) == len(val2)
+        assert len(val1) == len(val2), f"Path: len({path})"
         for subval1, subval2 in zip(val1, val2):
-            _assert_generic_objects_equal(subval1, subval2)
+            _assert_generic_objects_equal(subval1, subval2, path=f"{path}[]")
             return
 
-    assert type(val1) == type(val2)
+    assert type(val1) == type(val2), f"Path: type({path})"
     if hasattr(val1, "__dict__"):
-        assert_params_equal(val1.__dict__, val2.__dict__)
+        assert_params_equal(val1.__dict__, val2.__dict__, path=f"{path}.__dict__")
     elif _is_builtin(val1):
-        assert val1 == val2
+        assert val1 == val2, f"Path: {path}"
     else:
         # not a normal Python class, could be e.g. a Cython class
-        _assert_tuples_equal(val1.__reduce__(), val2.__reduce__())
+        _assert_tuples_equal(
+            val1.__reduce__(), val2.__reduce__(), path=f"{path}.__reduce__"
+        )
 
 
-def _assert_tuples_equal(val1, val2):
-    assert len(val1) == len(val2)
+def _assert_tuples_equal(val1, val2, path=""):
+    assert len(val1) == len(val2), f"Path: len({path})"
     for subval1, subval2 in zip(val1, val2):
-        _assert_vals_equal(subval1, subval2)
+        _assert_vals_equal(subval1, subval2, path=f"{path}[]")
 
 
-def _assert_vals_equal(val1, val2):
+def _assert_vals_equal(val1, val2, path=""):
     if isinstance(val1, type):  # e.g. could be np.int64
-        assert val1 is val2
+        assert val1 is val2, f"Path: {path}"
     elif hasattr(val1, "__getstate__") and (val1.__getstate__() is not None):
         # This includes BaseEstimator since they implement __getstate__ and
         # that returns the parameters as well.
@@ -82,53 +84,59 @@ def _assert_vals_equal(val1, val2):
         # Some objects return a tuple of parameters, others a dict.
         state1 = val1.__getstate__()
         state2 = val2.__getstate__()
-        assert type(state1) == type(state2)
+        assert type(state1) == type(state2), f"Path: {path}"
         if isinstance(state1, tuple):
-            _assert_tuples_equal(state1, state2)
+            _assert_tuples_equal(state1, state2, path=path)
         else:
-            assert_params_equal(val1.__getstate__(), val2.__getstate__())
+            assert_params_equal(
+                val1.__getstate__(), val2.__getstate__(), path=f"{path}.__getstate__()"
+            )
     elif sparse.issparse(val1):
-        assert sparse.issparse(val2) and ((val1 - val2).nnz == 0)
+        assert sparse.issparse(val2) and ((val1 - val2).nnz == 0), f"Path: {path}"
     elif isinstance(val1, (np.ndarray, np.generic)):
         if len(val1.dtype) == 0:
             # for arrays with at least 2 dimensions, check that contiguity is
             # preserved
             if val1.squeeze().ndim > 1:
-                assert val1.flags["C_CONTIGUOUS"] is val2.flags["C_CONTIGUOUS"]
-                assert val1.flags["F_CONTIGUOUS"] is val2.flags["F_CONTIGUOUS"]
+                assert (
+                    val1.flags["C_CONTIGUOUS"] is val2.flags["C_CONTIGUOUS"]
+                ), f"Path: {path}.flags"
+                assert (
+                    val1.flags["F_CONTIGUOUS"] is val2.flags["F_CONTIGUOUS"]
+                ), f"Path: {path}.flags"
             if val1.dtype == object:
-                assert val2.dtype == object
-                assert val1.shape == val2.shape
+                assert val2.dtype == object, f"Path: {path}.dtype"
+                assert val1.shape == val2.shape, f"Path: {path}.shape"
                 for subval1, subval2 in zip(val1, val2):
-                    _assert_generic_objects_equal(subval1, subval2)
+                    _assert_generic_objects_equal(subval1, subval2, path=f"{path}[]")
             else:
                 # simple comparison of arrays with simple dtypes, almost all
                 # arrays are of this sort.
-                np.testing.assert_array_equal(val1, val2)
+                np.testing.assert_array_equal(val1, val2, err_msg=f"Path: {path}")
         elif len(val1.shape) == 1:
             # comparing arrays with structured dtypes, but they have to be 1D
             # arrays. This is what we get from the Tree's state.
-            assert np.all([x == y for x, y in zip(val1, val2)])
+            assert np.all([x == y for x, y in zip(val1, val2)]), f"Path: {path}"
         else:
             # we don't know what to do with these values, for now.
-            assert False
+            assert False, f"Path: {path}"
     elif isinstance(val1, (tuple, list)):
-        _assert_tuples_equal(val1, val2)
+        _assert_tuples_equal(val1, val2, path=path)
     elif isinstance(val1, float) and np.isnan(val1):
-        assert np.isnan(val2)
+        assert np.isnan(val2), f"Path: {path}"
     elif isinstance(val1, dict):
         # dictionaries are compared by comparing their values recursively.
-        assert set(val1.keys()) == set(val2.keys())
+        assert set(val1.keys()) == set(val2.keys()), f"Path: {path}.keys()"
         for key in val1:
-            _assert_vals_equal(val1[key], val2[key])
+            _assert_vals_equal(val1[key], val2[key], path=f"{path}[{key}]")
     elif hasattr(val1, "__dict__") and hasattr(val2, "__dict__"):
-        _assert_vals_equal(val1.__dict__, val2.__dict__)
+        _assert_vals_equal(val1.__dict__, val2.__dict__, path=f"{path}.__dict__")
     elif isinstance(val1, np.ufunc):
-        assert val1 == val2
+        assert val1 == val2, f"Path: {path}"
     elif val1.__class__.__module__ == "builtins":
-        assert val1 == val2
+        assert val1 == val2, f"Path: {path}"
     else:
-        _assert_generic_objects_equal(val1, val2)
+        _assert_generic_objects_equal(val1, val2, path=path)
 
 
 def _clean_params(params):
@@ -144,34 +152,35 @@ def _clean_params(params):
     return params
 
 
-def assert_params_equal(params1, params2):
+def assert_params_equal(params1, params2, path=""):
     # helper function to compare estimator dictionaries of parameters
     if params1 is None and params2 is None:
         return
 
     params1, params2 = _clean_params(params1), _clean_params(params2)
-    assert len(params1) == len(params2)
-    assert set(params1.keys()) == set(params2.keys())
+    assert len(params1) == len(params2), f"Path: len({path})"
+    assert set(params1.keys()) == set(params2.keys()), f"Path: {path}.keys()"
     for key in params1:
         with warnings.catch_warnings():
             # this is to silence the deprecation warning from _DictWithDeprecatedKeys
             warnings.filterwarnings("ignore", category=FutureWarning, module="sklearn")
             val1, val2 = params1[key], params2[key]
-        assert type(val1) == type(val2)
+            subpath = f"{path}[{key}]"
+        assert type(val1) == type(val2), f"Path: type({subpath})"
 
         if _is_steps_like(val1):
             # Deal with Pipeline.steps, FeatureUnion.transformer_list, etc.
-            assert _is_steps_like(val2)
+            assert _is_steps_like(val2), f"Path: {subpath}"
             val1, val2 = dict(val1), dict(val2)
 
         if isinstance(val1, (tuple, list)):
             assert len(val1) == len(val2)
             for subval1, subval2 in zip(val1, val2):
-                _assert_vals_equal(subval1, subval2)
+                _assert_vals_equal(subval1, subval2, path=f"{subpath}[]")
         elif isinstance(val1, dict):
-            assert_params_equal(val1, val2)
+            assert_params_equal(val1, val2, path=subpath)
         else:
-            _assert_vals_equal(val1, val2)
+            _assert_vals_equal(val1, val2, path=subpath)
 
 
 def assert_method_outputs_equal(estimator, loaded, X):

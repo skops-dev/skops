@@ -32,7 +32,11 @@ from tempfile import mkdtemp
 
 import streamlit as st
 from huggingface_hub import hf_hub_download
-from tasks import (
+
+from skops import card
+from skops.card._model_card import PlotSection, split_subsection_names
+
+from .tasks import (
     AddFigureTask,
     AddMetricsTask,
     AddSectionTask,
@@ -42,14 +46,11 @@ from tasks import (
     UpdateFigureTitleTask,
     UpdateSectionTask,
 )
-from utils import (
+from .utils import (
     get_rendered_model_card,
     iterate_key_section_content,
     process_card_for_rendering,
 )
-
-from skops import card
-from skops.card._model_card import PlotSection, split_subsection_names
 
 arepr = reprlib.Repr()
 arepr.maxstring = 24

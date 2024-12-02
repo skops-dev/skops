@@ -2,9 +2,10 @@ import os
 from pathlib import Path
 
 import streamlit as st
-from utils import get_rendered_model_card
 
 from skops import hub_utils
+
+from .utils import get_rendered_model_card
 
 
 def _add_back_button():

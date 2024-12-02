@@ -3,43 +3,93 @@ from __future__ import annotations
 from typing import Any, Optional, Sequence, Type
 
 from sklearn.cluster import Birch
+from sklearn.tree._tree import Tree
 
-from ._general import TypeNode
+from ._audit import Node, get_tree
+from ._general import TypeNode, unsupported_get_state
 from ._protocol import PROTOCOL
+from ._utils import LoadContext, SaveContext, get_module, get_state, gettype
+from .exceptions import UnsupportedTypeException
 
 try:
     # TODO: remove once support for sklearn<1.2 is dropped. See #187
     from sklearn.covariance._graph_lasso import _DictWithDeprecatedKeys
 except ImportError:
     _DictWithDeprecatedKeys = None
+
 from sklearn.linear_model._sgd_fast import (
     EpsilonInsensitive,
     Hinge,
-    Huber,
-    Log,
-    LossFunction,
     ModifiedHuber,
     SquaredEpsilonInsensitive,
     SquaredHinge,
-    SquaredLoss,
 )
-from sklearn.tree._tree import Tree
 
-from ._audit import Node, get_tree
-from ._general import unsupported_get_state
-from ._utils import LoadContext, SaveContext, get_module, get_state, gettype
-from .exceptions import UnsupportedTypeException
-
-ALLOWED_SGD_LOSSES = {
-    ModifiedHuber,
-    Hinge,
-    SquaredHinge,
-    Log,
-    SquaredLoss,
-    Huber,
+ALLOWED_LOSSES = {
     EpsilonInsensitive,
+    Hinge,
+    ModifiedHuber,
     SquaredEpsilonInsensitive,
+    SquaredHinge,
 }
+
+try:
+    # TODO: remove once support for sklearn<1.6 is dropped.
+    from sklearn.linear_model._sgd_fast import (
+        Huber,
+        Log,
+        SquaredLoss,
+    )
+
+    ALLOWED_LOSSES |= {
+        Huber,
+        Log,
+        SquaredLoss,
+    }
+except ImportError:
+    pass
+
+try:
+    # sklearn>=1.6
+    from sklearn._loss._loss import (
+        CyAbsoluteError,
+        CyExponentialLoss,
+        CyHalfBinomialLoss,
+        CyHalfGammaLoss,
+        CyHalfMultinomialLoss,
+        CyHalfPoissonLoss,
+        CyHalfSquaredError,
+        CyHalfTweedieLoss,
+        CyHalfTweedieLossIdentity,
+        CyHuberLoss,
+        CyPinballLoss,
+    )
+
+    ALLOWED_LOSSES |= {
+        CyAbsoluteError,
+        CyExponentialLoss,
+        CyHalfBinomialLoss,
+        CyHalfGammaLoss,
+        CyHalfMultinomialLoss,
+        CyHalfPoissonLoss,
+        CyHalfSquaredError,
+        CyHalfTweedieLoss,
+        CyHalfTweedieLossIdentity,
+        CyHuberLoss,
+        CyPinballLoss,
+    }
+except ImportError:
+    pass
+
+# This import is for the parent class of all loss functions, which is used to
+# set the dispatch function for all loss functions.
+try:
+    # From sklearn>=1.6
+    from sklearn._loss._loss import CyLossFunction as ParentLossClass
+except ImportError:
+    # sklearn<1.6
+    from sklearn.linear_model._sgd_fast import LossFunction as ParentLossClass
+
 
 UNSUPPORTED_TYPES = {Birch}
 
@@ -163,13 +213,13 @@ class TreeNode(ReduceNode):
         super().__init__(state, load_context, constructor=Tree, trusted=self.trusted)
 
 
-def sgd_loss_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
+def loss_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     state = reduce_get_state(obj, save_context)
-    state["__loader__"] = "SGDNode"
+    state["__loader__"] = "LossNode"
     return state
 
 
-class SGDNode(ReduceNode):
+class LossNode(ReduceNode):
     def __init__(
         self,
         state: dict[str, Any],
@@ -178,7 +228,7 @@ class SGDNode(ReduceNode):
     ) -> None:
         # TODO: make sure trusted here makes sense and used.
         self.trusted = self._get_trusted(
-            trusted, [get_module(x) + "." + x.__name__ for x in ALLOWED_SGD_LOSSES]
+            trusted, [get_module(x) + "." + x.__name__ for x in ALLOWED_LOSSES]
         )
         super().__init__(
             state,
@@ -240,15 +290,16 @@ class _DictWithDeprecatedKeysNode(Node):
 
 # tuples of type and function that gets the state of that type
 GET_STATE_DISPATCH_FUNCTIONS = [
-    (LossFunction, sgd_loss_get_state),
+    (ParentLossClass, loss_get_state),
     (Tree, tree_get_state),
 ]
+
 for type_ in UNSUPPORTED_TYPES:
     GET_STATE_DISPATCH_FUNCTIONS.append((type_, unsupported_get_state))
 
 # tuples of type and function that creates the instance of that type
-NODE_TYPE_MAPPING = {
-    ("SGDNode", PROTOCOL): SGDNode,
+NODE_TYPE_MAPPING: dict[tuple[str, int], Any] = {
+    ("LossNode", PROTOCOL): LossNode,
     ("TreeNode", PROTOCOL): TreeNode,
 }
 
