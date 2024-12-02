@@ -388,6 +388,16 @@ def test_can_persist_fitted(estimator):
 
     # A list of estimators which fail on sklearn versions bellow what's indicated
     # in the tuple.
+    xfail = [
+        # These are related to loss classes not having the right __reduce__ method.
+        ("PassiveAggressiveClassifier", "1.6"),
+        ("SGDClassifier", "1.6"),
+        ("SGDOneClassSVM", "1.6"),
+        ("TweedieRegressor", "1.6"),
+    ]
+
+    if xfail:
+        pass
 
     X, y = get_input(estimator)
     if get_tags(estimator).requires_fit:

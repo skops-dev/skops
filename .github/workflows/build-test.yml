@@ -66,14 +66,15 @@ jobs:
           fi
           pip install "pytest<8"
           pip install "${{ matrix.numpy_version }}"
-          if [ ${{ matrix.sklearn_version }} == "nightly" ];
-            then pip install --pre --extra-index https://pypi.anaconda.org/scientific-python-nightly-wheels/simple scikit-learn;
-            else pip install "scikit-learn${{ matrix.sklearn_version }}";
+          if [ ${{ matrix.sklearn_version }} == "nightly" ]; then
+            pip install --pre --extra-index https://pypi.anaconda.org/scientific-python-nightly-wheels/simple scikit-learn
+            pip install .[docs,tests]
+          else
+            pip install .[docs,tests] "scikit-learn${{ matrix.sklearn_version }}"
           fi
-          pip install .[docs,tests]
           pip install black=="23.9.1" ruff=="0.0.292" mypy=="1.6.0"
-          if [ ${{ matrix.os }} == "ubuntu-latest" ];
-            then sudo apt install pandoc && pandoc --version;
+          if [ ${{ matrix.os }} == "ubuntu-latest" ]; then
+            sudo apt install pandoc && pandoc --version;
           fi
           python --version
           pip --version
