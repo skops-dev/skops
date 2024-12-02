@@ -41,9 +41,8 @@ from sklearn.preprocessing import (
     PolynomialFeatures,
     StandardScaler,
 )
-from sklearn.utils import check_random_state
+from sklearn.utils import all_estimators, check_random_state
 from sklearn.utils._testing import SkipTest, set_random_state
-from sklearn.utils.discovery import all_estimators
 from sklearn.utils.estimator_checks import (
     _enforce_estimator_tags_X,
     _enforce_estimator_tags_y,
