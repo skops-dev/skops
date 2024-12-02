@@ -390,10 +390,10 @@ def test_can_persist_fitted(estimator):
     # A list of estimators which fail on sklearn versions indicated in the list.
     xfail = [
         # These are related to loss classes not having the right __reduce__ method.
-        ("PassiveAggressiveClassifier", ["1.4"]),
-        ("SGDClassifier", ["1.4"]),
-        ("SGDOneClassSVM", ["1.4"]),
-        ("TweedieRegressor", ["1.4"]),
+        ("PassiveAggressiveClassifier", ["1.4", "1.5"]),
+        ("SGDClassifier", ["1.4", "1.5"]),
+        ("SGDOneClassSVM", ["1.4", "1.5"]),
+        ("TweedieRegressor", ["1.4", "1.5"]),
     ]
 
     if any(
