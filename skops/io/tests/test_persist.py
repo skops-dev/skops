@@ -386,6 +386,9 @@ def test_can_persist_fitted(estimator):
     """Check that fitted estimators can be persisted and return the right results."""
     set_random_state(estimator, random_state=0)
 
+    # A list of estimators which fail on sklearn versions bellow what's indicated
+    # in the tuple.
+
     X, y = get_input(estimator)
     if get_tags(estimator).requires_fit:
         with warnings.catch_warnings():

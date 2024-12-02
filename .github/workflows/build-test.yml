@@ -59,6 +59,7 @@ jobs:
 
       - name: Install dependencies
         run: |
+          set -x
           python -m pip install -U pip
           if [ "${{ matrix.os }}" == "macos-latest" ]; then
             brew install libomp
@@ -98,7 +99,7 @@ jobs:
       - name: Inference tests (conditional)
         if: contains(env.PR_COMMIT_MESSAGE, '[CI inference]')
         run: |
-          python -m pytest -s -v -m "inference" skops/
+          python -l -m pytest -s -v -m "inference" skops/
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
