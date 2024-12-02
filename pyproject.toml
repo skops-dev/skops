@@ -1,3 +1,88 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "skops/__init__.py"
+
+[project]
+name = "skops"
+dynamic = ["version"]
+readme = "README.rst"
+description = "A set of tools, related to machine learning in production."
+maintainers = [
+    { name = "Adrin Jalali", email = "adrin.jalali@gmail.com" },
+    { name= "Benjamin Bossan", email= "benjamin.bossan@gmail.com" },
+]
+requires-python = ">=3.9"
+dependencies = [
+    "scikit-learn>1.0",
+]
+classifiers = [
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved",
+    "Programming Language :: Python",
+    "Topic :: Software Development",
+    "Topic :: Scientific/Engineering",
+    "Development Status :: 1 - Planning",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX",
+    "Operating System :: Unix",
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: Implementation :: CPython",
+]
+license = {file = "LICENSE"}
+dependencies = [
+    "scikit-learn>1.1",
+    "huggingface-hub>=0.17.0",
+    "tabulate>=0.8.8",
+    "packaging>=17.0",
+]
+
+[project.optional-dependencies]
+rich = ["rich>=12"]
+tests = [
+    "quantile-forest>=1.0.0",
+    "pytest>=7",
+    "pytest-cov>=2.9.0",
+    "flake8>=3.8.2",
+    "types-requests>=2.28.5",
+    "flaky>=3.7.0",
+    # remove python constraint when catboost supports 3.13
+    # https://github.com/catboost/catboost/issues/2748
+    "catboost>=1.0;python_version<'3.13'",
+    "rich>=12",
+    "matplotlib>=3.3",
+    "pandas>=1",
+    "lightgbm>=3",
+    "xgboost>=1.6",
+]
+docs = [
+    "matplotlib>=3.3",
+    "pandas>=1",
+    "fairlearn>=0.7.0",
+    "sphinx>=3.2.0",
+    "sphinx-gallery>=0.7.0",
+    "sphinx-rtd-theme>=1",
+    "numpydoc>=1.0.0",
+    "sphinx-prompt>=1.3.0",
+    "sphinx-issues>=1.2.0",
+]
+
+[project.urls]
+Homepage = "http://github.com/skops-dev/skops"
+Documentation = "https://skops.readthedocs.io/en/stable/"
+Repository = "http://github.com/skops-dev/skops"
+Issues = "http://github.com/skops-dev/skops/issues"
+Changelog = "https://skops.readthedocs.io/en/stable/changes.html"
+
 [tool.black]
 line-length = 88
 target_version = ['py38', 'py39', 'py310', 'py311']
