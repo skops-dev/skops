@@ -13,27 +13,18 @@ jobs:
     runs-on: ${{ matrix.os }}
     if: github.repository == 'skops-dev/skops'
     strategy:
-      fail-fast: false # need to see which ones fail
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        python: ["3.9", "3.10", "3.11", "3.12", "3.13"]
-        # this is to make the CI run on different sklearn versions
-        include:
-          - python: "3.9"
-            sklearn_version: ">=1.1,<1.2"
-            numpy_version: "numpy<2"
-          - python: "3.10"
-            sklearn_version: ">=1.2,<1.3"
-            numpy_version: "numpy"
-          - python: "3.11"
-            sklearn_version: ">=1.4,<1.5"
-            numpy_version: "numpy"
-          - python: "3.12"
-            sklearn_version: ">=1.5,<1.6"
-            numpy_version: "numpy"
-          - python: "3.13"
-            sklearn_version: "nightly"
-            numpy_version: "numpy"
+        os: [windows-latest, ubuntu-latest, macos-latest]
+        environment: [
+          ci-min-deps,
+          ci-sklearn11,
+          ci-sklearn12,
+          ci-sklearn13,
+          ci-sklearn14,
+          ci-sklearn15,
+          ci-sklearn16,
+          ci-sklearn17
+        ]
 
     # Timeout: https://stackoverflow.com/a/59076067/4521646
     timeout-minutes: 15
@@ -52,55 +43,21 @@ jobs:
           echo PR_COMMIT_MESSAGE=$(git log -1 --pretty=format:\"%s\") >> $GITHUB_ENV
         shell: bash
 
-      - name: Set up Python ${{ matrix.python }}
-        uses: actions/setup-python@v5
+      - uses: prefix-dev/setup-pixi@v0.8.1
         with:
-          python-version: ${{ matrix.python }}
+          pixi-version: v0.38.0
+          environments: ${{ matrix.environment }}
+          # we can freeze the environment and manually bump the dependencies to the
+          # latest version time to time.
+          frozen: true
 
-      - name: Install dependencies
-        run: |
-          set -x
-          python -m pip install -U pip
-          if [ "${{ matrix.os }}" == "macos-latest" ]; then
-            brew install libomp
-          fi
-          pip install "pytest<8"
-          pip install "${{ matrix.numpy_version }}"
-          if [ ${{ matrix.sklearn_version }} == "nightly" ]; then
-            pip install --pre --extra-index https://pypi.anaconda.org/scientific-python-nightly-wheels/simple scikit-learn
-            pip install .[docs,tests]
-          else
-            pip install .[docs,tests] "scikit-learn${{ matrix.sklearn_version }}"
-          fi
-          pip install black=="23.9.1" ruff=="0.0.292" mypy=="1.6.0"
-          if [ ${{ matrix.os }} == "ubuntu-latest" ]; then
-            sudo apt install pandoc && pandoc --version;
-          fi
-          python --version
-          pip --version
-          pip list
-        shell: bash
+      - name: Linters
+        run: pixi run -e lint lint
 
-      - name: Check black
-        run: black --check --diff .
-
-      - name: Check ruff
-        run: ruff check --diff .
-
-      - name: Tests
-        env:
-          SUPER_SECRET: ${{ secrets.HF_HUB_TOKEN }}
-          PYTHONIOENCODING: "utf-8"
-        run: |
-          python -m pytest -s -v --cov-report=xml -m "not inference" skops/
-
-      - name: Mypy
-        run: mypy --config-file pyproject.toml skops
-
-      - name: Inference tests (conditional)
-        if: contains(env.PR_COMMIT_MESSAGE, '[CI inference]')
-        run: |
-          python -l -m pytest -s -v -m "inference" skops/
+      - name: Run tests
+        # TODO: add -n 3 but we need to generate the ids such that pytest-xdist
+        # handles them correctly.
+        run: pixi run -e ${{ matrix.environment }} tests
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
