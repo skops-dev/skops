@@ -15,9 +15,6 @@ maintainers = [
     { name= "Benjamin Bossan", email= "benjamin.bossan@gmail.com" },
 ]
 requires-python = ">=3.9"
-dependencies = [
-    "scikit-learn>1.0",
-]
 classifiers = [
     "Intended Audience :: Science/Research",
     "Intended Audience :: Developers",
@@ -93,6 +90,7 @@ preview = true
 select = ["E", "F", "W", "I"]
 
 [tool.pytest.ini_options]
+doctest_optionflags = "NORMALIZE_WHITESPACE ELLIPSIS"
 filterwarnings = [
     "error::DeprecationWarning",
     "error::FutureWarning",
