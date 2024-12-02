@@ -4,6 +4,7 @@ import sys
 from dataclasses import dataclass, field
 
 try:
+    # new in sklearn 1.1
     from sklearn.utils.estimator_checks import (
         _enforce_estimator_tags_X,
         _enforce_estimator_tags_y,
