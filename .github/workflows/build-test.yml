@@ -4,15 +4,16 @@ on:
   - push
   - pull_request
 
-# concurrency:
-#   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-#   cancel-in-progress: false
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
 
 jobs:
   pytest:
     runs-on: ${{ matrix.os }}
     if: github.repository == 'skops-dev/skops'
     strategy:
+      fail-fast: false # need to see which ones fail
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
         environment: [
@@ -55,8 +56,6 @@ jobs:
         run: pixi run -e lint lint
 
       - name: Run tests
-        # TODO: add -n 3 but we need to generate the ids such that pytest-xdist
-        # handles them correctly.
         run: pixi run -e ${{ matrix.environment }} tests
 
       - name: Upload coverage to Codecov
