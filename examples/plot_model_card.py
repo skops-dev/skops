@@ -112,7 +112,7 @@ model_description = (
 model_card_authors = "skops_user"
 citation_bibtex = "**BibTeX**\n\n```\n@inproceedings{...,year={2020}}\n```"
 model_card.add(
-    **{
+    **{  # type: ignore
         "Citation": citation_bibtex,
         "Model Card Authors": model_card_authors,
         "Model description": model_description,
@@ -139,7 +139,7 @@ eval_descr = (
     "The model is evaluated on test data using accuracy and F1-score with "
     "macro average."
 )
-model_card.add(**{"Model description/Evaluation Results": eval_descr})
+model_card.add(**{"Model description/Evaluation Results": eval_descr})  # type: ignore
 
 accuracy = accuracy_score(y_test, y_pred)
 f1 = f1_score(y_test, y_pred, average="micro")
