@@ -20308,7 +20308,7 @@ packages:
 - pypi: .
   name: skops
   version: 0.11.dev0
-  sha256: 005d8e0a33d46fc3c684b563f4e0511523b5a5fced60960744017f45421e34dc
+  sha256: aa2e6124680984e0c3def7a7f011ea9518f2692012ad6c39e29190e962cf411b
   requires_dist:
   - huggingface-hub>=0.17.0
   - packaging>=17.0

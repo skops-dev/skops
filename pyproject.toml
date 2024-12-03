@@ -121,6 +121,7 @@ rich = ">=12"
 skops = { path = ".", editable = true }
 
 [tool.pixi.feature.docs.dependencies]
+# To be synced with the versions in docs/requirements.txt
 matplotlib = ">=3.3"
 pandas = ">=1"
 fairlearn = ">=0.7.0"
