@@ -85,11 +85,12 @@ your python interpreter.
 Running Tests Manually
 ~~~~~~~~~~~~~~~~~~~~~~
 
-You can get an interactive shell into an environment with a command like the following:
+You can get an interactive shell into an environment with the nightly build of
+scikit-learn and all other required dependencies with:
 
 .. code:: bash
 
-   pixi shell -e ci-sklearn15
+   pixi shell
 
 ``skops`` uses ``pytest`` as its test runner, just run it from the project root:
 
