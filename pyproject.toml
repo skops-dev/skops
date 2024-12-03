@@ -124,13 +124,17 @@ skops = { path = ".", editable = true }
 # To be synced with the versions in docs/requirements.txt
 matplotlib = ">=3.3"
 pandas = ">=1"
-fairlearn = ">=0.7.0"
 sphinx = ">=3.2.0"
 sphinx-gallery = ">=0.7.0"
 sphinx-rtd-theme = ">=1"
 numpydoc = ">=1.0.0"
 sphinx-prompt = ">=1.3.0"
 sphinx-issues = ">=1.2.0"
+
+[tool.pixi.feature.docs.pypi-dependencies]
+# everything that depends on scikit-learn needs to be a pypi dependency so that this
+# spec is compatible with the nightly build environment.
+fairlearn = ">=0.7.0"
 
 [tool.pixi.feature.tests.dependencies]
 pytest = ">=7"
@@ -244,9 +248,9 @@ lint = { cmd = "pre-commit install && pre-commit run -v --all-files --show-diff-
 tests = { cmd = "pytest -vsl --cov=skops --cov-report=xml --cov-report=term-missing -m \"not inference\" skops" }
 
 [tool.pixi.environments]
+default = ["docs", "tests", "lint", "rich", "dev", "sklearn17"]
 lint = ["lint"]
 docs = ["docs"]
-dev = ["docs","tests", "lint", "dev", "rich"]
 ci-min-deps = ["rich", "tests", "lint", "min-deps"]
 ci-sklearn11 = ["rich", "tests", "lint", "sklearn11"]
 ci-sklearn12 = ["rich", "tests", "lint", "sklearn12"]
