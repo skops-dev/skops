@@ -57,29 +57,41 @@ entails. If you don't understand an issue, it's on us, not on you!
 Setting up the dev environment
 ------------------------------
 
-Following these steps you can prepare a dev environment for yourself to
-contribute to `skops`.
+We use `pixi <https://github.com/prefix-dev/pixi>`_ in our CI and development
+workflows and recommend you use it to test the changes you make.
 
-Using conda/mamba
-~~~~~~~~~~~~~~~~~
+Once you have ``pixi`` installed, you can run the tests with:
 
 .. code:: bash
 
-          mamba create -c conda-forge -n skops python=3.10
-          mamba activate skops
-          python -m pip install -e ".[tests,docs]"
-          # add pre-commit hooks
-          mamba install -c conda-forge pre-commit
-          pre-commit install
+   pixi run tests
 
-You can also replace the above `mamba` commands with `conda` if you don't have
-`mamba` installed.
+And you can choose an environment to run the tests with:
 
+.. code:: bash
 
-Running Tests
-~~~~~~~~~~~~~
+   pixi run -e ci-sklearn15 tests
 
-skops uses pytest as its test runner, just run it from the project root:
+In order to setup ``pre-commit`` hooks, you'd need to run the linter once, ignoring
+the outputs:
+
+.. code:: bash
+
+   pixi run -e lint lint
+
+VSCode-like IDEs automatically detect ``pixi`` environments and you can use them as
+your python interpreter.
+
+Running Tests Manually
+~~~~~~~~~~~~~~~~~~~~~~
+
+You can get an interactive shell into an environment with a command like the following:
+
+.. code:: bash
+
+   pixi shell -e ci-sklearn15
+
+``skops`` uses ``pytest`` as its test runner, just run it from the project root:
 
 .. code:: bash
 
