@@ -13,7 +13,6 @@ from zipfile import ZIP_DEFLATED, ZipFile
 import joblib
 import numpy as np
 import pytest
-import sklearn
 from scipy import sparse, special
 from sklearn.base import BaseEstimator, is_regressor
 from sklearn.compose import ColumnTransformer
@@ -386,25 +385,6 @@ def get_input(estimator):
 def test_can_persist_fitted(estimator):
     """Check that fitted estimators can be persisted and return the right results."""
     set_random_state(estimator, random_state=0)
-
-    # A list of estimators which fail on sklearn versions indicated in the list.
-    xfail = [
-        # These are related to loss classes not having the right __reduce__ method.
-        ("PassiveAggressiveClassifier", ["1.4", "1.5"]),
-        ("SGDClassifier", ["1.4", "1.5"]),
-        ("SGDOneClassSVM", ["1.4", "1.5"]),
-        ("TweedieRegressor", ["1.4", "1.5"]),
-    ]
-
-    if any(
-        estimator.__class__.__name__ == name and sklearn.__version__.startswith(version)
-        for name, versions in xfail
-        for version in versions
-    ):
-        pytest.xfail(
-            f"Known issue with {estimator.__class__.__name__} on sklearn version"
-            f" {sklearn.__version__}"
-        )
 
     X, y = get_input(estimator)
     if get_tags(estimator).requires_fit:
