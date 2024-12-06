@@ -84,11 +84,17 @@ except ImportError:
 # This import is for the parent class of all loss functions, which is used to
 # set the dispatch function for all loss functions.
 try:
-    # From sklearn>=1.6
-    from sklearn._loss._loss import CyLossFunction as ParentLossClass
+    # From sklearn>=1.5
+    from sklearn._loss._loss import CyLossFunction
 except ImportError:
+    CyLossFunction = None
+
+
+try:
     # sklearn<1.6
-    from sklearn.linear_model._sgd_fast import LossFunction as ParentLossClass
+    from sklearn.linear_model._sgd_fast import LossFunction
+except ImportError:
+    LossFunction = None
 
 
 UNSUPPORTED_TYPES = {Birch}
@@ -116,14 +122,14 @@ def reduce_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     # https://docs.python.org/3/library/pickle.html#object.__reduce__
     #
     # As a good example, this makes Tree object to be serializable.
-    reduce = obj.__reduce__()
+    reduced = obj.__reduce__()
     res["__reduce__"] = {}
-    res["__reduce__"]["args"] = get_state(reduce[1], save_context)
+    res["__reduce__"]["args"] = get_state(reduced[1], save_context)
 
-    if len(reduce) == 3:
+    if len(reduced) == 3:
         # reduce includes what's needed for __getstate__ and we don't need to
         # call __getstate__ directly.
-        attrs = reduce[2]
+        attrs = reduced[2]
     elif hasattr(obj, "__getstate__"):
         # since python311 __getstate__ is defined for `object` and might return
         # None
@@ -214,8 +220,24 @@ class TreeNode(ReduceNode):
 
 
 def loss_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
-    state = reduce_get_state(obj, save_context)
-    state["__loader__"] = "LossNode"
+    reduce = obj.__reduce__()
+    if type(obj) == reduce[0]:
+        state = reduce_get_state(obj, save_context)
+        state["__loader__"] = "LossNode"
+    elif type(obj) == reduce[1][0]:
+        # the output is of the form:
+        # >>> CyPinballLoss(1).__reduce__()
+        # (<cyfunction __pyx_unpickle_CyPinballLoss at 0x7b1d00099ff0>,
+        #             (<class '_loss.CyPinballLoss'>, 232784418, (1.0,)))
+        state = {
+            "__class__": obj.__class__.__name__,
+            "__module__": get_module(type(obj)),
+            "__loader__": "LossNode",
+        }
+        state["__reduce__"] = {}
+        state["__reduce__"]["args"] = get_state(reduce[1][2], save_context)
+        state["content"] = get_state({}, save_context)
+
     return state
 
 
@@ -290,9 +312,14 @@ class _DictWithDeprecatedKeysNode(Node):
 
 # tuples of type and function that gets the state of that type
 GET_STATE_DISPATCH_FUNCTIONS = [
-    (ParentLossClass, loss_get_state),
     (Tree, tree_get_state),
 ]
+
+if LossFunction is not None:
+    GET_STATE_DISPATCH_FUNCTIONS.append((LossFunction, loss_get_state))
+
+if CyLossFunction is not None:
+    GET_STATE_DISPATCH_FUNCTIONS.append((CyLossFunction, loss_get_state))
 
 for type_ in UNSUPPORTED_TYPES:
     GET_STATE_DISPATCH_FUNCTIONS.append((type_, unsupported_get_state))

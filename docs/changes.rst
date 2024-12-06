@@ -13,6 +13,10 @@ v0.11
 -----
 - Correctly restore ``default_factory`` when saving and loading a ``defaultdict``.
   :pr:`433` by `Adrin Jalali`_.
+- Support more loss functions implemented in Cython in scikit-learn.
+  :pr:`453` by `Adrin Jalali`_.
+- Fixes for scikit-learn=1.6 release.
+  :pr:`447` by :user:`Tamara Atanasoska <TamaraAtanasoska>`.
 
 v0.10
 -----
