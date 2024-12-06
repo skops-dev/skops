@@ -122,14 +122,14 @@ def reduce_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     # https://docs.python.org/3/library/pickle.html#object.__reduce__
     #
     # As a good example, this makes Tree object to be serializable.
-    reduce = obj.__reduce__()
+    reduced = obj.__reduce__()
     res["__reduce__"] = {}
-    res["__reduce__"]["args"] = get_state(reduce[1], save_context)
+    res["__reduce__"]["args"] = get_state(reduced[1], save_context)
 
-    if len(reduce) == 3:
+    if len(reduced) == 3:
         # reduce includes what's needed for __getstate__ and we don't need to
         # call __getstate__ directly.
-        attrs = reduce[2]
+        attrs = reduced[2]
     elif hasattr(obj, "__getstate__"):
         # since python311 __getstate__ is defined for `object` and might return
         # None
