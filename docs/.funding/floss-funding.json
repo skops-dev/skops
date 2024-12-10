@@ -1,0 +1,62 @@
+{
+    "version": "v1.0.0",
+    "entity": {
+      "type": "individual",
+      "role": "maintainer",
+      "name": "Adrin Jalali",
+      "email": "adrin.jalali@gmail.com",
+      "phone": "",
+      "description": "I'm a maintainer of this package.",
+      "webpageUrl": {
+        "url": "https://github.com/adrinjalali",
+        "wellKnown": "https://github.com/adrinjalali/adrinjalali.github.io/.well-known/funding-manifest-urls"
+      }
+    },
+    "projects": [
+      {
+        "guid": "skops",
+        "name": "skops",
+        "description": "skops is a Python package used to securely persist models in the scikit-learn and statistical machine learning space. It is a way to avoid saving and loading pickle files which can result in running arbitrary code on ysers' machine.",
+        "webpageUrl": {
+          "url": "https://github.com/skops-dev/skops"
+        },
+        "repositoryUrl": {
+          "url": "https://github.com/skops-dev/skops"
+        },
+        "licenses": [
+          "spdx:MIT"
+        ],
+        "tags": [
+          "machine-learning",
+          "security",
+          "mlops",
+          "developer-tools"
+        ]
+      }
+    ],
+    "funding": {
+      "channels": [
+        {
+          "guid": "paypal",
+          "type": "payment-provider",
+          "address": "adrinjalali@paypal.com",
+          "description": ""
+        }
+      ],
+      "plans": [
+        {
+          "guid": "the-plan",
+          "status": "inactive",
+          "name": "Support plan",
+          "description": "This is to support me parttime on the project to improve persistence compatibility with more objects, and to work on moving persisted objects from one version of a dependency to the next.",
+          "amount": 40000,
+          "currency": "EUR",
+          "frequency": "one-time",
+          "channels": [
+            "paypal"
+          ]
+        }
+      ],
+      "history": null
+    }
+  }
