@@ -9,7 +9,7 @@
       "description": "I'm a maintainer of this package.",
       "webpageUrl": {
         "url": "https://github.com/adrinjalali",
-        "wellKnown": "https://github.com/adrinjalali/adrinjalali.github.io/.well-known/funding-manifest-urls"
+        "wellKnown": "https://github.com/adrinjalali/adrinjalali.github.io/blob/source/.well-known/funding-manifest-urls"
       }
     },
     "projects": [
