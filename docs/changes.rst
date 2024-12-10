@@ -9,6 +9,9 @@ skops Changelog
     :depth: 1
     :local:
 
+v0.12
+-----
+
 v0.11
 -----
 - Correctly restore ``default_factory`` when saving and loading a ``defaultdict``.
