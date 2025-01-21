@@ -159,20 +159,6 @@ pre-commit = "*"
 [tool.pixi.feature.dev.dependencies]
 ipython = "*"
 
-[tool.pixi.feature.sklearn12.dependencies]
-scikit-learn = "~=1.2.0"
-pandas = "~=1.5.0"
-numpy = "~=1.24.0"
-scipy = "~=1.9.0"
-fairlearn = "~=0.8.0"
-catboost = ">=1.0"
-python = "~=3.9.0"
-rich = "~=12.0"
-matplotlib = "=3.5.0"
-
-[tool.pixi.feature.sklearn11.pypi-dependencies]
-lightgbm = "==3.3"
-xgboost = "==1.6"
 
 [tool.pixi.feature.sklearn13.dependencies]
 scikit-learn = "~=1.3.0"
@@ -195,26 +181,18 @@ python = "~=3.11.0"
 [tool.pixi.feature.sklearn15.dependencies]
 scikit-learn = "~=1.5.0"
 fairlearn = "~=0.10.0"
-pandas = "~=2.1.0"
+pandas = "~=2.2.0"
 numpy = "~=2.0.0"
 scipy = "~=1.13.0"
 python = "~=3.12.0"
 quantile-forest = "~=1.3.11"
-
-[tool.pixi.feature.sklearn16]
-# TODO: comment this out once scikit-learn 1.6 is released and keep for testing against
-# the next release candidate.
-channels = [
-    {channel = "conda-forge/label/scikit-learn_rc", priority = 2},
-    {channel = "conda-forge", priority = 1},
-]
 
 [tool.pixi.feature.sklearn16.dependencies]
 scikit-learn = "*"
 fairlearn = "~=0.11.0"
 pandas = "~=2.2.0"
 numpy = "~=2.1.0"
-scipy = "~=1.9.0"
+scipy = "~=1.14.0"
 # add when catboost supports 3.13
 # https://github.com/catboost/catboost/issues/2748
 # catboost = ">=1.0"
@@ -222,6 +200,15 @@ scipy = "~=1.9.0"
 # https://github.com/zillow/quantile-forest/issues/103
 # quantile-forest = "~=1.4.0"
 python = "~=3.13.0"
+
+
+# [tool.pixi.feature.sklearn17]
+# this can be used when sklearn=1.7 is in release candidate mode.
+# channels = [
+#     {channel = "conda-forge/label/scikit-learn_rc", priority = 2},
+#     {channel = "conda-forge", priority = 1},
+# ]
+
 
 [tool.pixi.feature.sklearn17.pypi-options]
 # This is for the nightly channel to test the dev version of scikit-learn.
@@ -242,12 +229,11 @@ lint = { cmd = "pre-commit install && pre-commit run -v --all-files --show-diff-
 tests = { cmd = "pytest -vsl --cov=skops --cov-report=xml --cov-report=term-missing -m \"not inference\" skops" }
 
 [tool.pixi.environments]
-#default = ["docs", "tests", "lint", "rich", "dev", "sklearn17"]
+default = ["docs", "tests", "lint", "rich", "dev", "sklearn17"]
 lint = ["lint"]
-#docs = ["docs"]
-ci-sklearn12 = ["rich", "tests", "lint", "sklearn12"]
-#ci-sklearn13 = ["rich", "tests", "lint", "sklearn13"]
-#ci-sklearn14 = ["rich", "tests", "lint", "sklearn14"]
-#ci-sklearn15 = ["rich", "tests", "lint", "sklearn15"]
-#ci-sklearn16 = ["rich", "tests", "lint", "sklearn16"]
-#ci-sklearn17 = ["rich", "tests", "lint", "sklearn17"]
+docs = ["docs"]
+ci-sklearn13 = ["rich", "tests", "lint", "sklearn13"]
+ci-sklearn14 = ["rich", "tests", "lint", "sklearn14"]
+ci-sklearn15 = ["rich", "tests", "lint", "sklearn15"]
+ci-sklearn16 = ["rich", "tests", "lint", "sklearn16"]
+ci-sklearn17 = ["rich", "tests", "lint", "sklearn17"]
