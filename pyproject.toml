@@ -54,7 +54,7 @@ Changelog = "https://skops.readthedocs.io/en/stable/changes.html"
 
 [tool.black]
 line-length = 88
-target_version = ['py310', 'py311', 'py312', 'py313']
+target_version = ['py310', 'py311', 'py312']
 preview = true
 
 [tool.ruff]
