@@ -7,25 +7,19 @@ import tempfile
 import warnings
 from importlib import metadata
 from pathlib import Path
-from uuid import uuid4
 
 import numpy as np
 import pandas as pd
 import pytest
 import sklearn
-from flaky import flaky
-from huggingface_hub import HfApi
 from sklearn.datasets import load_diabetes, load_iris
 from sklearn.linear_model import LinearRegression, LogisticRegression
 
-from skops import card
 from skops.hub_utils import (
     add_files,
     get_config,
-    get_model_output,
     get_requirements,
     init,
-    push,
     update_env,
 )
 from skops.hub_utils._hf_hub import (
@@ -35,7 +29,6 @@ from skops.hub_utils._hf_hub import (
     _get_example_input_from_text_data,
     _validate_folder,
 )
-from skops.hub_utils.tests.common import HF_HUB_TOKEN
 from skops.io import dump
 
 iris = load_iris(as_frame=True, return_X_y=False)
@@ -360,106 +353,6 @@ def test_init_empty_model_file_errors(repo_path, config_json):
             data=iris.data,
         )
     model_path.unlink(missing_ok=True)
-
-
-def test_push_deprecation():
-    with pytest.raises(Exception):
-        with pytest.warns(FutureWarning, match="Creating repos on hf.co is subject"):
-            push(repo_id="dummy", source=".")
-
-
-@pytest.fixture
-def repo_path_for_inference():
-    # Create a separate path for test_inference so that the test does not have
-    # any side-effect on existing tests
-    with tempfile.TemporaryDirectory(prefix="skops-test-sample-repo") as repo_path:
-        yield Path(repo_path)
-
-
-@pytest.mark.network
-@pytest.mark.inference
-@pytest.mark.skipif(
-    IS_SKLEARN_DEV_BUILD, reason="Inference tests cannot run with sklearn dev build"
-)
-@flaky(max_runs=3)
-@pytest.mark.parametrize(
-    "model_func, data, task",
-    [
-        (get_classifier, iris, "tabular-classification"),
-        (get_regressor, diabetes, "tabular-regression"),
-    ],
-    ids=["classifier", "regressor"],
-)
-def test_inference(
-    config_json,
-    model_func,
-    data,
-    task,
-    repo_path_for_inference,
-    destination_path,
-):
-    # test inference backend for classifier and regressor models. This test can
-    # take a lot of time and be flaky.
-    config_path, file_format = config_json
-    if file_format != "pickle":
-        pytest.skip(
-            f"Inference only supports pickle at the moment. Given format: {file_format}"
-        )
-
-    client = HfApi()
-    repo_path = repo_path_for_inference
-    model_file = CONFIG[file_format]["sklearn"]["model"]["file"]
-    model = model_func()
-    model_path = repo_path / model_file
-
-    with open(model_path, "wb") as f:
-        pickle.dump(model, f)
-
-    version = metadata.version("scikit-learn")
-    init(
-        model=model_path,
-        requirements=[f'scikit-learn="{version}"'],
-        dst=destination_path,
-        task=task,
-        data=data.data,
-    )
-
-    # TODO: remove when card init at repo init is merged
-    model_card = card.Card(
-        model, metadata=card.metadata_from_config(Path(destination_path))
-    )
-    model_card.save(Path(destination_path) / "README.md")
-
-    user = client.whoami(token=HF_HUB_TOKEN)["name"]
-    repo_id = f"{user}/test-{uuid4()}"
-
-    with pytest.warns(FutureWarning, match="Creating repos on hf.co is subject"):
-        push(
-            repo_id=repo_id,
-            source=destination_path,
-            token=HF_HUB_TOKEN,
-            commit_message="test message",
-            create_remote=True,
-            # api-inference doesn't support private repos for community projects.
-            private=False,
-        )
-
-    X_test = data.data.head(5)
-    y_pred = model.predict(X_test)
-    with pytest.warns(FutureWarning):
-        output = get_model_output(repo_id, data=X_test, token=HF_HUB_TOKEN)
-
-    # cleanup
-    client.delete_repo(repo_id=repo_id, token=HF_HUB_TOKEN)
-    model_path.unlink(missing_ok=True)
-
-    assert np.allclose(output, y_pred)
-
-
-def test_get_model_output_deprecated():
-    with pytest.raises(Exception):
-        with pytest.warns(FutureWarning, match="This feature is no longer free"):
-            get_model_output("dummy", data=iris.data)
 
 
 def test_get_config(repo_path, config_json):

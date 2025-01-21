@@ -31,26 +31,19 @@ SKOPS
 
 ``skops`` is a Python library helping you share your `scikit-learn
 <https://scikit-learn.org/stable/>`__ based models and put them in production.
-At the moment, it includes tools to easily integrate models on the Hugging Face
-Hub, which allows you to share your models, make them discoverable, and use the
-Hub's API inference and widgets to get outputs of the model without having to
-download or load the model.
+At the moment, it includes `skops.io` to securely persist sklearn estimators and
+more, without using ``pickle``. It also includes `skops.card` to create a model
+card explaining what the model does and how it should be used.
 
-- ``skops.hub_utils``: tools to create a model repository to be stored on
-  `Hugging Face Hub <https://hf.co/models>`__, mainly through
-  ``skops.hub_utils.init`` and ``skops.hub_utils.push``. You can see all the
-  models uploaded to the hub using this library `here
-  <https://huggingface.co/models?other=skops>`__. Find out more `here
-  <https://skops.readthedocs.io/en/stable/hf_hub.html>`__.
+- ``skops.io``: Secure persistence of sklearn estimators and more, without using
+  ``pickle``. Visit `the docs
+  <https://skops.readthedocs.io/en/latest/persistence.html>`__ for more
+  information.
 - ``skops.card``: tools to create a model card explaining what the model does
   and how it should be used. The model card can then be stored as the
   ``README.md`` file on the Hugging Face Hub, with pre-populated metadata to
   help Hub understand the model. More information can be found `here
   <https://skops.readthedocs.io/en/stable/model_card.html>`__.
-- ``skops.io``: Secure persistence of sklearn estimators and more, without using
-  ``pickle``. Visit `the docs
-  <https://skops.readthedocs.io/en/latest/persistence.html>`__ for more
-  information.
 
 Please refer to our `documentation <https://skops.readthedocs.io/en/latest/>`_
 on using the library as user, which includes user guides on the above topics as
