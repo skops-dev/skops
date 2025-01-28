@@ -43,7 +43,11 @@ from sklearn.preprocessing import (
 )
 from sklearn.utils import all_estimators, check_random_state
 from sklearn.utils._testing import SkipTest, set_random_state
-from sklearn.utils.estimator_checks import _get_check_estimator_ids
+from sklearn.utils.estimator_checks import (
+    _enforce_estimator_tags_X,
+    _enforce_estimator_tags_y,
+    _get_check_estimator_ids,
+)
 from sklearn.utils.fixes import parse_version, sp_version
 
 import skops
@@ -61,12 +65,7 @@ from skops.io._trusted_types import (
 from skops.io._utils import LoadContext, SaveContext, _get_state, get_state, gettype
 from skops.io.exceptions import UnsupportedTypeException, UntrustedTypesFoundException
 from skops.io.tests._utils import assert_method_outputs_equal, assert_params_equal
-from skops.utils._fixes import (
-    _enforce_estimator_tags_X,
-    _enforce_estimator_tags_y,
-    construct_instances,
-    get_tags,
-)
+from skops.utils._fixes import construct_instances, get_tags
 
 # Default settings for X
 N_SAMPLES = 120
