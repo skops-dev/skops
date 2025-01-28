@@ -108,11 +108,6 @@ internet with:
 
    pytest -m "not network" skops
 
-Similarly, there is a flag, ``-m inference`` for tests that hit the Hugging Face
-Inference API, which can be quite slow or even hang. Skip these tests as long as
-you don't make any changes to this functionality. If you already skip network
-tests, the inference tests will also be skipped.
-
 
 Releases
 ========

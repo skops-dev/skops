@@ -8,8 +8,7 @@ which are a short documentation explaining what the model does, how it's
 trained, and its limitations. `Hugging Face Hub <https://huggingface.co/>`__
 expects a ``README.md`` file containing a certain set of metadata at the
 beginning of it, following with the content of the model card in markdown
-format. The metadata section is used to make models searchable on the Hub, and
-get the inference API and the widgets on the website working.
+format.
 
 Metadata
 --------
@@ -17,13 +16,7 @@ Metadata
 The metadata part of the file needs to follow the specifications `here
 <https://huggingface.co/docs/hub/models-cards#model-card-metadata>`__. It
 includes simple attributes of your models such as the task you're solving,
-dataset you trained the model with, evaluation results and more. When the model
-is hosted on the Hub, information in metadata like task name or dataset help
-your model be discovered on the `Hugging Face Hub
-<https://huggingface.co/models>`__. The task identifiers should follow the task
-taxonomy defined in Hugging Face Hub, as it enables the inference widget on the
-model page. An example to task identifier can be ``"tabular-classification"``
-or ``"text-regression"``.
+dataset you trained the model with, evaluation results and more.
 
 Here's an example of the metadata section of the ``README.md`` file:
 

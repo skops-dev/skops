@@ -38,7 +38,6 @@ classifiers = [
 license = {file = "LICENSE"}
 dependencies = [
     "scikit-learn>=1.1",
-    "huggingface-hub>=0.17.0",
     "tabulate>=0.8.8",
     "packaging>=17.0",
 ]
@@ -92,7 +91,6 @@ filterwarnings = [
 ]
 markers = [
     "network: marks tests as requiring internet (deselect with '-m \"not network\"')",
-    "inference: marks tests that call inference API (deselect with '-m \"not inference\"')",
 ]
 addopts = "--cov=skops --cov-report=term-missing --doctest-modules"
 

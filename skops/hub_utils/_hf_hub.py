@@ -9,12 +9,11 @@ import itertools
 import json
 import os
 import shutil
-import warnings
 from pathlib import Path
-from typing import Any, List, Literal, MutableMapping, Optional, Sequence, Union
+from typing import Any, List, Literal, MutableMapping, Sequence, Union
 
 import numpy as np
-from huggingface_hub import HfApi, InferenceClient, snapshot_download
+from huggingface_hub import snapshot_download
 from sklearn.utils import check_array
 
 SUPPORTED_TASKS = [
@@ -495,90 +494,6 @@ def update_env(
     dump_json(Path(path) / "config.json", config)
 
 
-def push(
-    *,
-    repo_id: str,
-    source: Union[str, Path],
-    token: str | None = None,
-    commit_message: str | None = None,
-    create_remote: bool = False,
-    private: bool | None = None,
-) -> None:
-    """Pushes the contents of a model repo to Hugging Face Hub.
-
-    This function validates the contents of the folder before pushing it to the
-    Hub.
-
-    Parameters
-    ----------
-    repo_id: str
-        The ID of the destination repository in the form of ``OWNER/REPO_NAME``.
-
-    source: str or Path
-        A folder where the contents of the model repo are located.
-
-    token: str, optional
-        A token to push to the Hub. If not provided, the user should be already
-        logged in using ``huggingface-cli login``.
-
-    commit_message: str, optional
-        The commit message to be used when pushing to the repo.
-
-    create_remote: bool, default=False
-        Whether to create the remote repository if it doesn't exist. If the
-        remote repository doesn't exist and this parameter is ``False``, it
-        raises an error. Otherwise it checks if the remote repository exists,
-        and would create it if it doesn't.
-
-    private: bool, default=None
-        Whether the remote repository should be public or private. If ``True``
-        or ``False`` is passed, this method will set the private/public status
-        of the remote repository, regardless of it already existing or not. If
-        ``None``, no change is applied.
-
-        .. versionadded:: 0.3
-
-    Returns
-    -------
-    None
-
-    Raises
-    ------
-    TypeError
-        This function raises a ``TypeError`` if the contents of the source
-        folder do not make a valid Hugging Face Hub scikit-learn based repo.
-    """
-    warnings.warn(
-        "Creating repos on hf.co is subject to strict rate limits now and therefore"
-        " this feature is to be removed from this library in version 0.10. You can"
-        " use tools directly available in the huggingface_hub library instead to"
-        " create and push files.",
-        FutureWarning,
-    )
-    _validate_folder(path=source)
-    client = HfApi()
-
-    if create_remote:
-        client.create_repo(
-            repo_id=repo_id, token=token, repo_type="model", exist_ok=True
-        )
-
-    if private is not None:
-        client.update_repo_visibility(repo_id=repo_id, private=private, token=token)
-
-    client.upload_folder(
-        repo_id=repo_id,
-        path_in_repo=".",
-        folder_path=source,
-        commit_message=commit_message,
-        commit_description=None,
-        token=token,
-        repo_type=None,
-        revision=None,
-        create_pr=False,
-    )
-
-
 def get_config(path: Union[str, Path]) -> dict[str, Any]:
     """Returns the configuration of a project.
 
@@ -682,75 +597,3 @@ def download(
     shutil.copytree(cached_folder, dst)
     if not keep_cache:
         shutil.rmtree(path=cached_folder)
-
-
-# TODO(v0.10): remove this function
-def get_model_output(repo_id: str, data: Any, token: Optional[str] = None) -> Any:
-    """Returns the output of the model using Hugging Face Hub's inference API.
-
-    See the :ref:`User Guide <hf_hub_inference>` for more details.
-
-    .. deprecated:: 0.9
-        Will be removed in version 0.10. Use ``huggingface_hub.InferenceClient``
-        instead.
-
-    Parameters
-    ----------
-    repo_id: str
-        The ID of the Hugging Face Hub repository in the form of
-        ``OWNER/REPO_NAME``.
-
-    data: Any
-        The input to be given to the model. This can be a
-        :class:`pandas.DataFrame` or a :class:`numpy.ndarray`. If possible, you
-        should always pass a :class:`pandas.DataFrame` with correct column
-        names.
-
-    token: str, optional
-        The token to be used to call the inference API. Only required if the
-        repository is private.
-
-    Returns
-    -------
-    output: numpy.ndarray
-        The output of the model.
-
-    Notes
-    -----
-    If there are warnings or exceptions during inference, this function raises
-    a :class:`RuntimeError` including the original errors and warnings
-    returned from the server.
-
-    Also note that if the model repo is private, the inference API would not be
-    available.
-    """
-    warnings.warn(
-        "This feature is no longer free on hf.co and therefore this function will"
-        " be removed in the next release. Use `huggingface_hub.InferenceClient`"
-        " instead.",
-        FutureWarning,
-    )
-    model_info = HfApi().model_info(repo_id=repo_id, use_auth_token=token)  # type: ignore
-    if not model_info.pipeline_tag:
-        raise ValueError(
-            f"Repo {repo_id} has no pipeline tag. You should set a valid 'task' in"
-            " config.json and README.md files. This is automatically done for you if"
-            " you pass a valid task to the skops.hub_utils.init() and"
-            " skops.card.metadata_from_util() functions to generate those files."
-        )
-
-    try:
-        inputs = {"data": data.to_dict(orient="list")}
-    except AttributeError:
-        # the input is not a pandas DataFrame
-        inputs = {f"x{i}": data[:, i] for i in range(data.shape[1])}
-        inputs = {"data": inputs}
-
-    client = InferenceClient(token=token)
-    res_bytes = client.post(json={"inputs": inputs}, model=repo_id)
-    res = json.loads(res_bytes.decode("utf-8"))
-
-    if isinstance(res, list):
-        return np.array(res)
-    else:
-        raise RuntimeError(f"There were errors or warnings during inference: {res}")
