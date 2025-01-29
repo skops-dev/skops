@@ -28,7 +28,6 @@ classifiers = [
     "Operating System :: Unix",
     "Operating System :: MacOS",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -37,7 +36,7 @@ classifiers = [
 ]
 license = {file = "LICENSE"}
 dependencies = [
-    "scikit-learn>=1.1",
+    "scikit-learn>=1.3",
     "tabulate>=0.8.8",
     "packaging>=17.0",
 ]
@@ -54,7 +53,7 @@ Changelog = "https://skops.readthedocs.io/en/stable/changes.html"
 
 [tool.black]
 line-length = 88
-target_version = ['py38', 'py39', 'py310', 'py311']
+target_version = ['py310', 'py311', 'py312']
 preview = true
 
 [tool.ruff]
@@ -148,93 +147,62 @@ pandas = ">=1"
 lightgbm = ">=3"
 xgboost = ">=1.6"
 
-[tool.pixi.feature.min-deps.dependencies]
-python = "=3.9"
-# all version constraints for this package seem to resolve to the latest. so leaving it
-# as is.
-quantile-forest = "=1.3.11"
-scikit-learn = "~=1.1.0"
-pytest = "=7"
-pytest-cov = "=2.9.0"
-flake8 = "=3.8.2"
-types-requests = "=2.28.5"
-flaky = "=3.7.0"
-catboost = "~=1.0"
-rich = "=12"
-matplotlib = "=3.3"
-pandas = "=1"
-lightgbm = "=3"
-xgboost = "=1.6"
-
-
 [tool.pixi.feature.lint.dependencies]
 pre-commit = "*"
 
 [tool.pixi.feature.dev.dependencies]
 ipython = "*"
 
-[tool.pixi.feature.sklearn11.dependencies]
-scikit-learn = "~=1.1.0"
-catboost = ">=1.0"
-python = "=3.9"
-
-[tool.pixi.feature.sklearn12.dependencies]
-scikit-learn = "~=1.2.0"
-pandas = "~=1.5"
-numpy = "~=1.24"
-scipy = "~=1.9"
-fairlearn = "~=0.8"
-catboost = ">=1.0"
-python = "=3.10"
 
 [tool.pixi.feature.sklearn13.dependencies]
 scikit-learn = "~=1.3.0"
-pandas = "~=2.0"
-numpy = "~=1.25"
-scipy = "~=1.10"
-fairlearn = "~=0.9"
+pandas = "~=2.0.0"
+numpy = "~=1.25.0"
+scipy = "~=1.10.0"
+fairlearn = "~=0.9.0"
 catboost = ">=1.0"
-python = "=3.11"
+python = "~=3.10.0"
 
 [tool.pixi.feature.sklearn14.dependencies]
 scikit-learn = "~=1.4.0"
-pandas = "~=2.1"
-numpy = "~=1.26"
-scipy = "~=1.11"
-fairlearn = "~=0.10"
+pandas = "~=2.1.0"
+numpy = "~=1.26.0"
+scipy = "~=1.11.0"
+fairlearn = "~=0.10.0"
 catboost = ">=1.0"
-python = "=3.12"
+python = "~=3.11.0"
 
 [tool.pixi.feature.sklearn15.dependencies]
-scikit-learn = "~=1.5"
-fairlearn = "~=0.10"
-pandas = "~=2.1"
-numpy = "~=2.0"
-scipy = "~=1.13"
-python = "=3.13"
+scikit-learn = "~=1.5.0"
+fairlearn = "~=0.10.0"
+pandas = "~=2.2.0"
+numpy = "~=2.0.0"
+scipy = "~=1.13.0"
+python = "~=3.12.0"
 quantile-forest = "~=1.3.11"
-
-[tool.pixi.feature.sklearn16]
-# TODO: comment this out once scikit-learn 1.6 is released and keep for testing against
-# the next release candidate.
-channels = [
-    {channel = "conda-forge/label/scikit-learn_rc", priority = 2},
-    {channel = "conda-forge", priority = 1},
-]
 
 [tool.pixi.feature.sklearn16.dependencies]
 scikit-learn = "*"
-fairlearn = "~=0.11"
-pandas = "~=2.2"
-numpy = "~=2.1"
-scipy = "~=1.9"
+fairlearn = "~=0.11.0"
+pandas = "~=2.2.0"
+numpy = "~=2.1.0"
+scipy = "~=1.14.0"
 # add when catboost supports 3.13
 # https://github.com/catboost/catboost/issues/2748
 # catboost = ">=1.0"
 # add quantile-forest when it's released
 # https://github.com/zillow/quantile-forest/issues/103
-# quantile-forest = "~=1.4"
-python = "=3.13"
+# quantile-forest = "~=1.4.0"
+python = "~=3.13.0"
+
+
+# [tool.pixi.feature.sklearn17]
+# this can be used when sklearn=1.7 is in release candidate mode.
+# channels = [
+#     {channel = "conda-forge/label/scikit-learn_rc", priority = 2},
+#     {channel = "conda-forge", priority = 1},
+# ]
+
 
 [tool.pixi.feature.sklearn17.pypi-options]
 # This is for the nightly channel to test the dev version of scikit-learn.
@@ -258,9 +226,6 @@ tests = { cmd = "pytest -vsl --cov=skops --cov-report=xml --cov-report=term-miss
 default = ["docs", "tests", "lint", "rich", "dev", "sklearn17"]
 lint = ["lint"]
 docs = ["docs"]
-ci-min-deps = ["rich", "tests", "lint", "min-deps"]
-ci-sklearn11 = ["rich", "tests", "lint", "sklearn11"]
-ci-sklearn12 = ["rich", "tests", "lint", "sklearn12"]
 ci-sklearn13 = ["rich", "tests", "lint", "sklearn13"]
 ci-sklearn14 = ["rich", "tests", "lint", "sklearn14"]
 ci-sklearn15 = ["rich", "tests", "lint", "sklearn15"]
