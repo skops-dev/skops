@@ -39,7 +39,7 @@ v0.9
   estimators. :pr:`384` by :user:`Reid Johnson <reidjohnson>`.
 - Fix an issue with visualizing Skops files for `scikit-learn` tree estimators.
   :pr:`386` by :user:`Reid Johnson <reidjohnson>`.
-- :func:`skops.hub_utils.get_model_output` and :func:`skops.hub_utils.push` are
+- ``skops.hub_utils.get_model_output`` and ``skops.hub_utils.push`` are
   deprecated and will be removed in version 0.10. :pr:`396` by `Adrin Jalali`_.
 
 v0.8
@@ -156,7 +156,7 @@ v0.2
   filesystem if it fails for some reason. :pr:`60` by `Adrin Jalali`_
 - When adding figures or tables, it's now possible to set ``folded=True`` to
   render the content inside a details tag. :pr:`108` by `Benjamin Bossan`_.
-- Add :meth:`skops.hub_utils.get_model_output` to get the model's output using
+- Add ``skops.hub_utils.get_model_output`` to get the model's output using
   The Hugging Face Hub's inference API, and return an array with the outputs.
   :pr:`105` by `Adrin Jalali`_.
 
@@ -167,7 +167,7 @@ This is the first release of the library. It include two main modules:
 
 - :mod:`skops.hub_utils`: tools to create a model repository to be stored on
   `Hugging Face Hub <https://hf.co/models>`__, mainly through
-  :func:`skops.hub_utils.init` and :func:`skops.hub_utils.push`.
+  :func:`skops.hub_utils.init` and ``skops.hub_utils.push``.
 - :mod:`skops.card`: tools to create a model card explaining what the model does
   and how it should be used. The model card can then be stored as the
   ``README.md`` file on the Hugging Face Hub, with pre-populated metadata to

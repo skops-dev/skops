@@ -17,7 +17,6 @@ from pathlib import Path
 from tempfile import mkdtemp, mkstemp
 
 import pandas as pd
-import sklearn
 from sklearn.datasets import fetch_20newsgroups
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics import (
@@ -31,7 +30,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.pipeline import Pipeline
 
-from skops import card, hub_utils
+from skops import card
 
 # %%
 # Data
@@ -87,23 +86,13 @@ with open(pkl_name, mode="bw") as f:
 
 local_repo = mkdtemp(prefix="skops-")
 
-hub_utils.init(
-    model=pkl_name,
-    requirements=[f"scikit-learn={sklearn.__version__}"],
-    dst=local_repo,
-    task="text-classification",
-    data=X_test,
-)
-
 # %%
 # Create a model card
 # ===================
-# We now create a model card, and populate its metadata with information which
-# is already provided in ``config.json``, which itself is created by the call to
-# :func:`.hub_utils.init` above. We will see below how we can populate the model
+# We now create a model card. We will see below how we can populate the model
 # card with useful information.
 
-model_card = card.Card(model, metadata=card.metadata_from_config(Path(local_repo)))
+model_card = card.Card(model)
 
 # %%
 # Add more information
@@ -112,7 +101,6 @@ model_card = card.Card(model, metadata=card.metadata_from_config(Path(local_repo
 # we add more information about the model, like a description and what its
 # license is.
 
-model_card.metadata.license = "mit"
 limitations = "This model is not ready to be used in production."
 model_description = (
     "This is a Multinomial Naive Bayes model trained on 20 news groups dataset."

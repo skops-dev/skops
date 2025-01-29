@@ -16,7 +16,6 @@ from pathlib import Path
 from tempfile import mkdtemp, mkstemp
 
 import matplotlib.pyplot as plt
-import sklearn
 from sklearn.datasets import load_diabetes
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
@@ -25,7 +24,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
 import skops.io as sio
-from skops import card, hub_utils
+from skops import card
 
 # %%
 # Data
@@ -70,27 +69,13 @@ with open(pkl_name, mode="bw") as f:
 
 local_repo = mkdtemp(prefix="skops-")
 
-hub_utils.init(
-    model=pkl_name,
-    requirements=[f"scikit-learn={sklearn.__version__}"],
-    dst=local_repo,
-    task="tabular-regression",
-    data=X_test,
-)
-
-if "__file__" in locals():  # __file__ not defined during docs built
-    # Add this script itself to the files to be uploaded for reproducibility
-    hub_utils.add_files(__file__, dst=local_repo)
-
 # %%
 # Create a model card
 # ===================
-# We now create a model card, and populate its metadata with information which
-# is already provided in ``config.json``, which itself is created by the call to
-# :func:`.hub_utils.init` above. We will see below how we can populate the model
+# We now create a model card. We will see below how we can populate the model
 # card with useful information.
 
-model_card = card.Card(model, metadata=card.metadata_from_config(Path(local_repo)))
+model_card = card.Card(model)
 
 # %%
 # Add more information
@@ -99,7 +84,6 @@ model_card = card.Card(model, metadata=card.metadata_from_config(Path(local_repo
 # we add more information about the model, like a description and what its
 # license is.
 
-model_card.metadata.license = "mit"
 limitations = (
     "This model is made for educational purposes and is not ready to be used in"
     " production."

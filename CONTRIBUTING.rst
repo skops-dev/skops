@@ -98,21 +98,6 @@ scikit-learn and all other required dependencies with:
 
    pytest
 
-Certain tests require internet access to run, and they typically take slightly
-longer to run than other tests. If you'd like to skip those tests, you can add
-``-m not network`` to your ``pytest`` command, or ``-m network`` to only run
-those tests. For example, you can run all tests except the ones requiring
-internet with:
-
-.. code:: bash
-
-   pytest -m "not network" skops
-
-Similarly, there is a flag, ``-m inference`` for tests that hit the Hugging Face
-Inference API, which can be quite slow or even hang. Skip these tests as long as
-you don't make any changes to this functionality. If you already skip network
-tests, the inference tests will also be skipped.
-
 
 Releases
 ========
