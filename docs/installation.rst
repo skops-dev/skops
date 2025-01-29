@@ -3,7 +3,8 @@
 Installation
 ============
 
-To install skops from `PyPI <https://pypi.org/project/skops>`_, run the following command in your Python environment:
+To install skops from `PyPI <https://pypi.org/project/skops>`_, run the
+following command in your Python environment:
 
 .. code-block:: bash
 
@@ -13,7 +14,7 @@ Skops is also available in `conda-forge <https://anaconda.org/conda-forge/skops>
 
 .. code-block:: bash
 
-    conda install conda-forge::skops 
+    conda install conda-forge::skops
 
 If you're interested in contributing to skops, please follow the `contribution
 guideline <https://github.com/skops-dev/skops/blob/main/CONTRIBUTING.rst>`__
