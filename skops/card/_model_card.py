@@ -14,8 +14,8 @@ from reprlib import Repr
 from typing import Any, Iterator, List, Literal, Optional, Sequence
 
 import joblib
+from prettytable import PrettyTable, TableStyle
 from sklearn.utils import estimator_html_repr
-from tabulate import tabulate  # type: ignore
 
 from skops.card._templates import CONTENT_PLACEHOLDER, SKOPS_TEMPLATE, Templates
 from skops.io import load
@@ -38,19 +38,6 @@ def wrap_as_details(text: str, folded: bool) -> str:
     if not folded:
         return text
     return f"<details>\n<summary> Click to expand </summary>\n\n{text}\n\n</details>"
-
-
-def _clean_table(table: str) -> str:
-    # replace line breaks "\n" with html tag <br />, however, leave end-of-line
-    # line breaks (eol_lb) intact
-    eol_lb = "|\n"
-    placeholder = "\x1f"  # unit separator control character (ASCII control char 31)
-    table = (
-        table.replace(eol_lb, placeholder)
-        .replace("\n", "<br />")
-        .replace(placeholder, eol_lb)
-    )
-    return table
 
 
 def split_subsection_names(key: str) -> list[str]:
@@ -214,13 +201,20 @@ class TableSection(Section):
 
     def format(self) -> str:
         if self._is_pandas_df:
-            headers = self.table.columns  # type: ignore
+            pass  # type: ignore
         else:
-            headers = self.table.keys()
+            self.table.keys()
 
-        table = _clean_table(
-            tabulate(self.table, tablefmt="github", headers=headers, showindex=False)
-        )
+        table = PrettyTable()
+        table.set_style(TableStyle.MARKDOWN)
+        for key, values in self.table.items():
+            # replace \n with <br /> (html new line tag) so that line breaks are
+            # not converted into new rows with PrettyTable.
+            values = [str(value).replace("\n", "<br />") for value in values]
+            table.add_column(key, values)
+
+        table = table.get_string()
+
         val = wrap_as_details(table, folded=self.folded)
 
         if self.content:
