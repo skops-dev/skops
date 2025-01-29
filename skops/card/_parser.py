@@ -11,10 +11,8 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
-from tempfile import mkdtemp
-from typing import Any, Literal
+from typing import Literal
 
-import yaml  # type: ignore
 from packaging.version import Version
 
 from skops.card import Card
@@ -209,55 +207,6 @@ def check_pandoc_installed(
         )
 
 
-def _card_with_detached_metainfo(path: str | Path) -> tuple[str | Path, dict[str, Any]]:
-    """Detach the possibly existing yaml part of the model card
-
-    Model cards always have a markdown part and optionally a yaml part at the
-    head, delimited by "---". Obviously, pandoc cannot parse that. Therefore, we
-    detach the yaml part and return it as a separate dict, only leaving
-    (hopefully) valid markdown.
-
-    path : str or pathlib.Path
-        The path to the model card file.
-
-    Returns
-    -------
-    file : path
-        The path to the model card without any yaml metainfo. If the model card
-        didn't contain that metainfo to begin with, this is just the path to the
-        original model card. If it did contain metainfo, this is a path to a new
-        temporary file with the metainfo removed.
-
-    metainfo : dict
-        The metainfo from the yaml part as a parsed dict. If no metainfo was
-        present, the dict is empty.
-    """
-    with open(path, "r") as f:
-        text = f.read()
-
-    sep_start, sep_end = "---\n", "\n---"
-
-    metainfo: dict[str, Any] = {}
-    if not text.startswith(sep_start):  # no metainfo:
-        return path, metainfo
-
-    idx_separator = text.find(sep_end)
-    if idx_separator < len(sep_start):  # pragma: no cover
-        # separator shouldn't come earlier than this
-        return path, metainfo
-
-    # https://black.readthedocs.io/en/stable/faq.html#why-are-flake8-s-e203-and-w503-violated
-    text_clean = text[idx_separator + len(sep_end) :]  # noqa: E203
-    metainfo = yaml.safe_load(  # type: ignore
-        text[len(sep_start) : idx_separator]  # noqa: E203
-    )
-
-    file = Path(mkdtemp()) / "tmp-model-card.md"
-    with open(file, "w") as f:
-        f.write(text_clean)
-    return file, metainfo
-
-
 def parse_modelcard(path: str | Path) -> Card:
     """Read a model card and return a Card object
 
@@ -328,8 +277,6 @@ def parse_modelcard(path: str | Path) -> Card:
     """
     check_pandoc_installed()
 
-    path, metainfo = _card_with_detached_metainfo(path)
-
     proc = subprocess.run(
         ["pandoc", "-t", "json", "-s", str(path)],
         capture_output=True,
@@ -338,7 +285,4 @@ def parse_modelcard(path: str | Path) -> Card:
 
     parser = PandocParser(source)
     card = parser.generate()
-    for key, val in metainfo.items():
-        setattr(card.metadata, key, val)
-
     return card

@@ -37,15 +37,6 @@ You can find the details about evaluation process and the evaluation results.
 
 {{ eval_results | default("[More Information Needed]", true)}}
 
-# How to Get Started with the Model
-
-Use the code below to get started with the model.
-
-```python
-{{ get_started_code | default("[More Information Needed]", true)}}
-```
-
-
 # Model Card Authors
 
 This model card is written by following authors:

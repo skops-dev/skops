@@ -148,6 +148,5 @@ intersphinx_mapping = {
     "sklearn": ("https://scikit-learn.org/stable/", None),
     "pandas": ("https://pandas.pydata.org/docs/", None),
     "joblib": ("https://joblib.readthedocs.io/en/latest/", None),
-    "huggingface_hub": ("https://huggingface.co/docs/huggingface_hub/main/en", None),
     "fairlearn": ("https://fairlearn.org/v0.8/", None),
 }
