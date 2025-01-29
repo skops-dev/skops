@@ -98,16 +98,6 @@ scikit-learn and all other required dependencies with:
 
    pytest
 
-Certain tests require internet access to run, and they typically take slightly
-longer to run than other tests. If you'd like to skip those tests, you can add
-``-m not network`` to your ``pytest`` command, or ``-m network`` to only run
-those tests. For example, you can run all tests except the ones requiring
-internet with:
-
-.. code:: bash
-
-   pytest -m "not network" skops
-
 
 Releases
 ========
