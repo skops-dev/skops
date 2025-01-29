@@ -39,7 +39,6 @@ Improve your data science workflow with skops
 # ``python -m pip install jupyter matplotlib pandas scikit-learn skops``
 
 # %%
-import os
 from operator import itemgetter
 from pathlib import Path
 from tempfile import mkdtemp
@@ -47,7 +46,6 @@ from tempfile import mkdtemp
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import sklearn
 from matplotlib.patches import Rectangle
 from sklearn.compose import ColumnTransformer
 from sklearn.datasets import fetch_california_housing
@@ -66,8 +64,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import FunctionTransformer
 from sklearn.tree import DecisionTreeRegressor
 
-import skops
-from skops import card, hub_utils
+from skops import card
 from skops import io as sio
 
 # %%
@@ -1664,23 +1661,6 @@ model_card.add(
 # by the new content.
 
 # %%
-# Another useful thing for readers of the card to have is a small code
-# snippet that shows how to load the model. To add this, we use the
-# ``model_card.add_get_started_code`` method. We add a short
-# description, but that’s optional, as well as the model format (remember,
-# we used the skops format here) and the file name. Regarding the latter,
-# since the file is saved in a temporary directory, we should strip that
-# away from the name by calling ``file_name.name``, since another
-# user would not have the file in the exact same temporary location.
-
-# %%
-model_card.add_get_started_code(
-    description="Run the code below to load the model",
-    model_format="skops",
-    file_name=file_name.name,
-)
-
-# %%
 # Another convenience method we should make use of is the
 # ``model_card.add_metrics`` method. This will store the metrics
 # inside a table for better readability. Again, we pass multiple inputs
@@ -1766,103 +1746,7 @@ model_card.save(temp_dir / "README.md")
 # %%
 # Now the model card is saved as a markdown file in the temporary
 # directory, together with the gradient boosting model and the figures we
-# added earlier. We could now share the contents of that folder with
-# people who might be interested in our model by sending them the contents
-# of that directory.
-
-# %%
-# Upload the model to Hugging Face Hub
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-# %%
-# A perhaps better way to share these results is to upload it somewhere
-# for other people to discover and use. Hugging Face provides a platform
-# for doing this, the `Hugging Face
-# Hub <https://huggingface.co/docs/hub/index>`__. Even though it’s mostly
-# known for deep learning models, it also works with scikit-learn. So
-# let’s upload our model and model card there.
-
-# %%
-# First, let’s create yet another temporary directory. This one will
-# contain everything we want to upload to the Hugging Face Hub repository:
-
-# %%
-hub_dir = Path(mkdtemp())
-
-# %%
-# Next we use the ``hub_utils`` provided by skops to initialize and
-# push the repository. For now, let’s create the initial repo using
-# ``hub_utils.init``. Note that we pass the full path to the model
-# file here. We also pass the requirements (which are scikit-learn,
-# pandas, and skops in this case), the kind of task we’re solving,
-# i.e. tabular regression, and a sample of our data (only the first 3 rows
-# will actually be used).
-
-# %%
-requirements = [
-    f"scikit-learn=={sklearn.__version__}",
-    f"pandas=={pd.__version__}",
-    f"skops=={skops.__version__}",
-]
-
-hub_utils.init(
-    model=file_name,
-    requirements=requirements,
-    dst=hub_dir,
-    task="tabular-regression",
-    data=df_test,
-)
-
-# %%
-# When we take a look at the directory of the repo, we find the following:
-
-# %%
-os.listdir(hub_dir)
-
-# %%
-# So the model was automatically copied to the directory (which is why we
-# needed to pass the full path to it), and a ``config.json`` was
-# created, which contains useful metadata about our model.
-
-# %%
-# Remember that we can attach the metadata to our model card? Let’s do
-# this now. To achieve this, we load the metadata from the
-# ``config.json`` using the function ``metadata_from_config``
-# that is provided by skops:
-
-# %%
-metadata = card.metadata_from_config(hub_dir / "config.json")
-metadata
-
-# %%
-# Let’s attach the metadata to our model card and save it again:
-
-# %%
-model_card.metadata = metadata
-model_card.save(temp_dir / "README.md")
-
-# %%
-# So now the ``README.md`` contains the metadata. However, the model
-# card and the figures we created are not part of the repository directory
-# yet, they are still in the temporary directory we created earler. So
-# let’s fix this. We use the ``add_files`` function to do this:
-
-# %%
-hub_utils.add_files(
-    temp_dir / "README.md",
-    temp_dir / "geographic.png",
-    "permutation-importances.png",
-    dst=hub_dir,
-)
-
-# %%
-os.listdir(hub_dir)
-
-# %%
-# Creating the Repo and Pushing to Hugging Face Hub
-# You can use the tools available in ``huggingface_hub`` to create a repo and
-# push the contents of the repo folder to that repo. For more information visit
-# https://huggingface.co/docs/huggingface_hub/index
+# added earlier.
 
 # %%
 # Conclusion
@@ -1874,11 +1758,6 @@ os.listdir(hub_dir)
 # understanding of the data, used some of the more advanced and less well
 # known features of scikit-learn, and trained a machine learning model
 # that performs well.
-
-# %%
-# But we didn’t stop there. We also leveraged skops and the Hugging Face
-# Hub to share our results with a wider public, ensuring that the model
-# artifact is safe to use and that our task is well documented.
 
 # %%
 # If you have any feedback or suggestions for improvement, feel free to

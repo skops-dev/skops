@@ -9,15 +9,13 @@ from unittest import mock
 import numpy as np
 import pytest
 import sklearn
-from huggingface_hub import ModelCardData, metadata_load
 from sklearn.datasets import load_iris
 from sklearn.inspection import permutation_importance
 from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.metrics import f1_score, make_scorer
 from sklearn.neighbors import KNeighborsClassifier
 
-from skops import hub_utils
-from skops.card import Card, metadata_from_config
+from skops.card import Card
 from skops.card._model_card import (
     CONTENT_PLACEHOLDER,
     SKOPS_TEMPLATE,
@@ -113,38 +111,20 @@ def iris_skops_file(iris_estimator):
 def _create_model_card_from_saved_model(
     destination_path,
     iris_estimator,
-    iris_data,
-    save_file,
 ):
-    X, y = iris_data
-    hub_utils.init(
-        model=save_file,
-        requirements=[f"scikit-learn=={sklearn.__version__}"],
-        dst=destination_path,
-        task="tabular-classification",
-        data=X,
-    )
-    card = Card(iris_estimator, metadata=metadata_from_config(destination_path))
+    card = Card(iris_estimator)
     card.save(Path(destination_path) / "README.md")
     return card
 
 
 @pytest.fixture
-def skops_model_card_metadata_from_config(
-    destination_path, iris_estimator, iris_skops_file, iris_data
-):
-    yield _create_model_card_from_saved_model(
-        destination_path, iris_estimator, iris_data, iris_skops_file
-    )
+def skops_model_card(destination_path, iris_estimator):
+    yield _create_model_card_from_saved_model(destination_path, iris_estimator)
 
 
 @pytest.fixture
-def pkl_model_card_metadata_from_config(
-    destination_path, iris_estimator, iris_pkl_file, iris_data
-):
-    yield _create_model_card_from_saved_model(
-        destination_path, iris_estimator, iris_data, iris_pkl_file
-    )
+def pkl_model_card(destination_path, iris_estimator):
+    yield _create_model_card_from_saved_model(destination_path, iris_estimator)
 
 
 @pytest.fixture
@@ -158,15 +138,13 @@ def test_save_model_card(destination_path, model_card):
     assert (Path(destination_path) / "README.md").exists()
 
 
-def test_model_caching(
-    skops_model_card_metadata_from_config, iris_skops_file, destination_path
-):
+def test_model_caching(skops_model_card, iris_skops_file, destination_path):
     """Tests that the model card caches the model to avoid loading it multiple times"""
 
     new_model = LogisticRegression(random_state=4321)
     # mock _load_model, it still loads the model but we can track call count
     mock_load_model = mock.Mock(side_effect=load)
-    card = Card(iris_skops_file, metadata=metadata_from_config(destination_path))
+    card = Card(iris_skops_file)
     with mock.patch("skops.card._model_card._load_model", mock_load_model):
         model1 = card.get_model()
         model2 = card.get_model()
@@ -620,177 +598,6 @@ class TestAddPermutationImportance:
         assert section.format() == expected
 
 
-class TestAddGetStartedCode:
-    """Tests for getting started code"""
-
-    @pytest.fixture
-    def metadata(self):
-        # dummy ModelCardData using pickle
-        class Metadata:
-            def to_dict(self):
-                return {
-                    "model_file": "my-model.pickle",
-                    "sklearn": {
-                        "model_format": "pickle",
-                    },
-                }
-
-        return Metadata()
-
-    @pytest.fixture
-    def model_card(self, metadata):
-        model = fit_model()
-        card = Card(model, metadata=metadata)
-        return card
-
-    @pytest.fixture
-    def metadata_skops(self):
-        # dummy ModelCardData using skops
-        class Metadata:
-            def to_dict(self):
-                return {
-                    "model_file": "my-model.skops",
-                    "sklearn": {
-                        "model_format": "skops",
-                    },
-                }
-
-        return Metadata()
-
-    @pytest.fixture
-    def model_card_skops(self, metadata_skops):
-        model = fit_model()
-        card = Card(model, metadata=metadata_skops)
-        return card
-
-    @pytest.fixture
-    def text_pickle(self):
-        return (
-            "```python\n"
-            "import json\n"
-            "import pandas as pd\n"
-            "import joblib\n"
-            'model = joblib.load("my-model.pickle")\n'
-            'with open("config.json") as f:\n'
-            "    config = json.load(f)\n"
-            'model.predict(pd.DataFrame.from_dict(config["sklearn"]["example_input"]))\n'
-            "```"
-        )
-
-    @pytest.fixture
-    def text_skops(self):
-        return (
-            "```python\n"
-            "import json\n"
-            "import pandas as pd\n"
-            "import skops.io as sio\n"
-            'model = sio.load("my-model.skops")\n'
-            'with open("config.json") as f:\n'
-            "    config = json.load(f)\n"
-            'model.predict(pd.DataFrame.from_dict(config["sklearn"]["example_input"]))\n'
-            "```"
-        )
-
-    def test_default_pickle(self, model_card, text_pickle):
-        # by default, don't add a table, as there are no metrics
-        result = model_card.select("How to Get Started with the Model").format()
-        assert result == text_pickle
-
-    def test_default_skops(self, model_card_skops, text_skops):
-        # by default, don't add a table, as there are no metrics
-        result = model_card_skops.select("How to Get Started with the Model").format()
-        assert result == text_skops
-
-    def test_no_metadata_file_name(self):
-        model = fit_model()
-        card = Card(model, metadata=None)
-        card.add_get_started_code()  # does not raise
-
-    def test_no_metadata_file_format(self):
-        class Metadata:
-            def to_dict(self):
-                return {
-                    "model_file": "my-model.skops",
-                    # missing file format entry
-                }
-
-        model = fit_model()
-        card = Card(model, metadata=Metadata())
-        card.add_get_started_code()  # does not raise
-
-    def test_other_section(self, model_card, text_pickle):
-        model_card.add_get_started_code(section="Other section")
-        result = model_card.select("Other section").format()
-        assert result == text_pickle
-
-    def test_use_description(self, model_card):
-        model_card.add_get_started_code(description="Awesome code")
-        result = model_card.select("How to Get Started with the Model").format()
-        assert result.startswith("Awesome code")
-
-    def test_other_filename(self, model_card, text_pickle):
-        model_card.add_get_started_code(file_name="foobar.pkl")
-        text = text_pickle.replace("my-model.pickle", "foobar.pkl")
-        result = model_card.select("How to Get Started with the Model").format()
-        assert result == text
-
-    def test_explicitly_set_other_model_format(self, model_card, text_skops):
-        model_card.add_get_started_code(model_format="skops")
-        result = model_card.select("How to Get Started with the Model").format()
-        # file name is still "my-model.pickle", only the loading code changes
-        text = text_skops.replace(".skops", ".pickle")
-        assert result == text
-
-    def test_invalid_model_format_passed(self, model_card):
-        # json is not a valid model format
-        msg = "Invalid model format 'json', should be one of 'pickle' or 'skops'"
-        with pytest.raises(ValueError, match=msg):
-            model_card.add_get_started_code(model_format="json")
-
-    def test_invalid_model_format_passed_via_metadata(self):
-        # metadata contains invalid model format json
-        class Metadata:
-            def to_dict(self):
-                return {
-                    "model_file": "my-model.skops",
-                    "sklearn": {
-                        "model_format": "json",
-                    },
-                }
-
-        model = fit_model()
-
-        msg = "Invalid model format 'json', should be one of 'pickle' or 'skops'"
-        with pytest.raises(ValueError, match=msg):
-            Card(model, metadata=Metadata())
-
-    @pytest.mark.parametrize("template", CUSTOM_TEMPLATES)
-    def test_custom_template_no_section_uses_default(self, template, text_pickle):
-        model = fit_model()
-
-        class Metadata:
-            def to_dict(self):
-                return {
-                    "model_file": "my-model.pickle",
-                    "sklearn": {
-                        "model_format": "pickle",
-                    },
-                }
-
-        model_card = Card(model, metadata=Metadata(), template=template)
-        model_card.add_get_started_code()
-        result = model_card.select("How to Get Started with the Model").format()
-        assert result == text_pickle
-
-    def test_add_twice(self, model_card):
-        # it's possible to add the section twice, even if it doesn't make a lot
-        # of sense
-        text1 = model_card.select("How to Get Started with the Model").format()
-        model_card.add_get_started_code(section="Other section")
-        text2 = model_card.select("Other section").format()
-        assert text1 == text2
-
-
 class TestRender:
     def test_render(self, model_card, destination_path):
         file_name = destination_path / "README.md"
@@ -800,18 +607,6 @@ class TestRender:
 
         rendered = model_card.render()
         assert loaded == rendered
-
-    def test_render_with_metadata(self, model_card):
-        model_card.metadata.foo = "something"
-        model_card.metadata.bar = "something else"
-        rendered = model_card.render()
-        expected = textwrap.dedent("""
-            ---
-            foo: something
-            bar: something else
-            ---
-            """).strip()
-        assert rendered.startswith(expected)
 
 
 class TestSelect:
@@ -1167,49 +962,6 @@ class TestAddPlot:
         assert plot_content == "![the figure](fig1.png)"
 
 
-class TestMetadata:
-    def test_adding_metadata(self, model_card):
-        # test if the metadata is added to the card
-        model_card.metadata.tags = "dummy"
-        metadata = list(model_card._generate_metadata(model_card.metadata))
-        assert len(metadata) == 1
-        assert metadata[0] == "metadata.tags=dummy,"
-
-    def test_metadata_from_config_tabular_data(
-        self, pkl_model_card_metadata_from_config, destination_path
-    ):
-        # test if widget data is correctly set in the README
-        metadata = metadata_load(local_path=Path(destination_path) / "README.md")
-        assert "widget" in metadata
-
-        expected_data = [
-            {
-                "structuredData": {
-                    "petal length (cm)": [1.4, 1.4, 1.3],
-                    "petal width (cm)": [0.2, 0.2, 0.2],
-                    "sepal length (cm)": [5.1, 4.9, 4.7],
-                    "sepal width (cm)": [3.5, 3.0, 3.2],
-                }
-            },
-        ]
-        assert metadata["widget"] == expected_data
-
-        for tag in ["sklearn", "skops", "tabular-classification"]:
-            assert tag in metadata["tags"]
-
-    def test_metadata_model_format_pkl(
-        self, pkl_model_card_metadata_from_config, destination_path
-    ):
-        metadata = metadata_load(local_path=Path(destination_path) / "README.md")
-        assert metadata["model_format"] == "pickle"
-
-    def test_metadata_model_format_skops(
-        self, skops_model_card_metadata_from_config, destination_path
-    ):
-        metadata = metadata_load(local_path=Path(destination_path) / "README.md")
-        assert metadata["model_format"] == "skops"
-
-
 @pytest.mark.xfail(reason="dynamic adjustment when model changes not implemented yet")
 class TestModelDynamicUpdate:
     def test_model_related_sections_updated_dynamically_skops_template(
@@ -1357,32 +1109,6 @@ class TestCardRepr:
         expected = "\n".join(expected_lines)
 
         result = meth(card)
-        assert reprs_equal(expected, result)
-
-    @pytest.mark.parametrize("meth", [repr, str])
-    def test_with_metadata(self, card: Card, meth, expected_lines):
-        metadata = ModelCardData(
-            language="fr",
-            license="bsd",
-            library_name="sklearn",
-            tags=["sklearn", "tabular-classification"],
-            foo={"bar": 123},
-            widget=[{"something": "very-long"}],
-        )
-        card.metadata = metadata
-
-        # metadata comes after model line, i.e. position 2
-        extra_lines = [
-            "  metadata.language=fr,",
-            "  metadata.license=bsd,",
-            "  metadata.library_name=sklearn,",
-            "  metadata.tags=['sklearn', 'tabular-classification'],",
-            "  metadata.foo={'bar': 123},",
-            "  metadata.widget=[{...}],",
-        ]
-        expected = "\n".join(expected_lines[:2] + extra_lines + expected_lines[2:])
-        result = meth(card)
-
         assert reprs_equal(expected, result)
 
 
@@ -1660,15 +1386,6 @@ class TestCustomTemplate:
         assert "accuracy" in content
         assert "0.1" in content
 
-    def test_add_get_started_code(self, card):
-        card.add_get_started_code(
-            section="Getting Started",
-            file_name="foobar.skops",
-            model_format="skops",
-        )
-        content = card.select("Getting Started").content
-        assert "load" in content
-
     def test_custom_template_all_sections_present(self, template, card):
         # model_card contains all default sections
         for key in template:
@@ -1853,7 +1570,6 @@ class TestCardTableOfContents:
         card.add_model_plot()
         card.add_hyperparams()
         card.add_metrics(accuracy=0.1)
-        card.add_get_started_code()
         return card
 
     def test_toc(self, card):

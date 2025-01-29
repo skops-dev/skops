@@ -129,17 +129,6 @@ model_card.add_model_plot(
 )
 
 # %%
-# Add getting started code
-# ------------------------
-
-model_card.add_get_started_code(
-    section="Regression on California Housing dataset/Usage/Getting Started",
-    description="Load the model using the snippet below.",
-    file_name=model_file_name,
-    model_format="skops",
-)
-
-# %%
 # Add partial dependence plot
 # ---------------------------
 

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import re
 import shutil
 import sys
@@ -12,10 +11,9 @@ from functools import cached_property
 from hashlib import sha256
 from pathlib import Path
 from reprlib import Repr
-from typing import Any, Iterator, List, Literal, Optional, Sequence, Union
+from typing import Any, Iterator, List, Literal, Optional, Sequence
 
 import joblib
-from huggingface_hub import ModelCardData
 from sklearn.utils import estimator_html_repr
 from tabulate import tabulate  # type: ignore
 
@@ -55,63 +53,6 @@ def _clean_table(table: str) -> str:
     return table
 
 
-def metadata_from_config(config_path: Union[str, Path]) -> ModelCardData:
-    """Construct a ``ModelCardData`` object from a ``config.json`` file.
-
-    Most information needed for the metadata section of a ``README.md`` file on
-    Hugging Face Hub is included in the ``config.json`` file. This utility
-    function constructs a :class:`huggingface_hub.ModelCardData` object which
-    can then be passed to the :class:`~skops.card.Card` object.
-
-    This method populates the following attributes of the instance:
-
-    - ``library_name``: It needs to be ``"sklearn"`` for scikit-learn
-        compatible models.
-    - ``tags``: Set to a list, containing ``"sklearn"`` and the task of the
-        model. You can then add more tags to this list.
-    - ``widget``: It is populated with the example data to be used by the
-        widget component of the Hugging Face Hub widget, on the model's
-        repository page.
-
-    Parameters
-    ----------
-    config_path: str, or Path
-        Filepath to the ``config.json`` file, or the folder including that
-        file.
-
-    Returns
-    -------
-    card_data: huggingface_hub.ModelCardData
-        :class:`huggingface_hub.ModelCardData` object.
-
-    """
-    config_path = Path(config_path)
-    if not config_path.is_file():
-        config_path = config_path / "config.json"
-
-    with open(config_path) as f:
-        config = json.load(f)
-    card_data = ModelCardData(
-        model_format=config.get("sklearn", {}).get("model_format", {})
-    )
-    card_data.library_name = "sklearn"
-    card_data.tags = ["sklearn", "skops"]
-    task = config.get("sklearn", {}).get("task", None)
-    if task:
-        card_data.tags += [task]
-    card_data.model_file = config.get("sklearn", {}).get("model", {}).get("file")  # type: ignore
-
-    example_input = config.get("sklearn", {}).get("example_input", None)
-    # Documentation on what the widget expects:
-    # https://huggingface.co/docs/hub/models-widgets-examples
-    if example_input:
-        if "tabular" in task:
-            card_data.widget = [{"structuredData": example_input}]  # type: ignore
-        # TODO: add text data example here.
-
-    return card_data
-
-
 def split_subsection_names(key: str) -> list[str]:
     r"""Split a string containing multiple sections into a list of strings for
     each.
@@ -146,32 +87,6 @@ def split_subsection_names(key: str) -> list[str]:
     key = key.replace("\\/", placeholder)
     parts = (part.strip() for part in key.split("/"))
     return [part.replace(placeholder, "/") for part in parts]
-
-
-def _getting_started_code(
-    file_name: str, model_format: Literal["pickle", "skops"], indent: str = "    "
-) -> list[str]:
-    # get lines of code required to load the model
-    lines = [
-        "import json",
-        "import pandas as pd",
-    ]
-    if model_format == "skops":
-        lines += ["import skops.io as sio"]
-    else:
-        lines += ["import joblib"]
-
-    if model_format == "skops":
-        lines += [f'model = sio.load("{file_name}")']
-    else:  # pickle
-        lines += [f'model = joblib.load("{file_name}")']
-
-    lines += [
-        'with open("config.json") as f:',
-        indent + "config = json.load(f)",
-        'model.predict(pd.DataFrame.from_dict(config["sklearn"]["example_input"]))',
-    ]
-    return lines
 
 
 @dataclass
@@ -375,6 +290,12 @@ class Card:
     model: pathlib.Path, str, or sklearn estimator object
         ``Path``/``str`` of the model or the actual model instance that will be
         documented. If a ``Path`` or ``str`` is provided, model will be loaded.
+        Note that a a "get started" code block will be added to the card only if
+        the model is a ``Path`` or ``str``.
+
+    model_format: Literal["pickle", "skops"] or None (default=None)
+        The format of the model file. If ``None``, the format will be inferred
+        from the file extension of the model file if possible.
 
     model_diagram: bool or "auto" or str, default="auto"
         If using the skops template, setting this to ``True`` or ``"auto"`` will
@@ -388,16 +309,6 @@ class Card:
         diagram because there is no pre-defined section to put it. The model
         diagram can, however, always be added later using
         :meth:`Card.add_model_plot`.
-
-    metadata: ModelCardData, optional
-        :class:`huggingface_hub.ModelCardData` object. The contents of this
-        object are saved as metadata at the beginning of the output file, and
-        used by Hugging Face Hub.
-
-        You can use :func:`~skops.card.metadata_from_config` to create an
-        instance pre-populated with necessary information based on the contents
-        of the ``config.json`` file, which itself is created by
-        :func:`skops.hub_utils.init`.
 
     template: "skops", dict, or None (default="skops")
         Whether to add default sections or not. The template can be a predefined
@@ -419,10 +330,6 @@ class Card:
     model: estimator object
         The scikit-learn compatible model that will be documented.
 
-    metadata: ModelCardData
-        Metadata to be stored at the beginning of the saved model card, as
-        metadata to be understood by the Hugging Face Hub.
-
     Examples
     --------
     >>> from sklearn.metrics import (
@@ -439,7 +346,6 @@ class Card:
     >>> X, y = load_iris(return_X_y=True)
     >>> model = LogisticRegression(solver="liblinear", random_state=0).fit(X, y)
     >>> model_card = Card(model)
-    >>> model_card.metadata.license = "mit"
     >>> y_pred = model.predict(X)
     >>> model_card.add_metrics(**{
     ...     "accuracy": accuracy_score(y, y_pred),
@@ -480,13 +386,13 @@ class Card:
     def __init__(
         self,
         model,
+        model_format: Literal["pickle", "skops"] | None = None,
         model_diagram: bool | Literal["auto"] | str = "auto",
-        metadata: ModelCardData | None = None,
         template: Literal["skops"] | dict[str, str] | None = "skops",
         trusted: Optional[List[str]] = None,
     ) -> None:
         self.model = model
-        self.metadata = metadata or ModelCardData()
+        self.model_format = model_format
         self.template = template
         self.trusted = trusted
 
@@ -524,7 +430,6 @@ class Card:
             self.add(folded=False, **SKOPS_TEMPLATE)
             # for the skops template, automatically add some default sections
             self.add_hyperparams()
-            self.add_get_started_code()
 
             if (model_diagram is True) or (model_diagram == "auto"):
                 self.add_model_plot()
@@ -915,101 +820,6 @@ class Card:
         )
         self._add_single(section_name, section)
 
-    def add_get_started_code(
-        self,
-        section: str = "How to Get Started with the Model",
-        description: str | None = None,
-        file_name: str | None = None,
-        model_format: Literal["pickle", "skops"] | None = None,
-    ) -> Self:
-        """Add getting started code
-
-        This code can be copied by users to load the model and make predictions
-        with it.
-
-        Parameters
-        ----------
-        section : str (default="How to Get Started with the Model")
-            The section that the code for loading the model should be added to.
-            By default, the section is set to fit the skops model card template.
-            If you're using a different template, you may have to choose a
-            different section name.
-
-        description : str or None, default=None
-            An optional description to be added before the code. If you're using
-            the default skops template, a standard text is used. Pass a string
-            here if you want to use your own text instead. Leave this empty to
-            not add any description.
-
-        file_name : str or None, default=None
-            The file name of the model. If no file name is indicated, there will
-            be an attempt to read the file name from the card's metadata. If
-            that fails, an error is raised and you have to pass this argument
-            explicitly.
-
-        model_format : "skops", "pickle", or None, default=None
-            The model format used to store the model.If format is indicated,
-            there will be an attempt to read the model format from the card's
-            metadata. If that fails, an error is raised and you have to pass
-            this argument explicitly.
-
-        Returns
-        -------
-        self : object
-            Card object.
-
-        """
-        if file_name is None:
-            file_name = self.metadata.to_dict().get("model_file")
-
-        if model_format is None:
-            model_format = (
-                self.metadata.to_dict().get("sklearn", {}).get("model_format")
-            )
-
-        if model_format and (model_format not in ("pickle", "skops")):
-            msg = (
-                f"Invalid model format '{model_format}', should be one of "
-                "'pickle' or 'skops'"
-            )
-            raise ValueError(msg)
-
-        if (not file_name) or (not model_format):
-            return self
-
-        self._add_get_started_code(
-            section,
-            file_name=file_name,
-            model_format=model_format,
-            description=description,
-        )
-
-        return self
-
-    def _add_get_started_code(
-        self,
-        section_name: str,
-        file_name: str,
-        model_format: Literal["pickle", "skops"],
-        description: str | None,
-        indent: str = "    ",
-    ) -> None:
-        """Add getting started code to the corresponding section"""
-        lines = _getting_started_code(
-            file_name, model_format=model_format, indent=indent
-        )
-        lines = ["```python"] + lines + ["```"]
-        code = "\n".join(lines)
-
-        if description:
-            content = f"{description}\n\n{code}"
-        else:
-            content = code
-
-        title = split_subsection_names(section_name)[-1]
-        section = Section(title=title, content=content)
-        self._add_single(section_name, section)
-
     def add_plot(
         self,
         *,
@@ -1309,16 +1119,6 @@ class Card:
         section = TableSection(title=title, content=description, table=table)
         self._add_single(section_name, section)
 
-    def _generate_metadata(self, metadata: ModelCardData) -> Iterator[str]:
-        """Yield metadata in yaml format"""
-        # Repr attributes can be used to control the behavior of repr
-        aRepr = Repr()
-        aRepr.maxother = 79
-        aRepr.maxstring = 79
-
-        for key, val in metadata.to_dict().items() if metadata else {}:
-            yield aRepr.repr(f"metadata.{key}={val},").strip('"').strip("'")
-
     def _generate_content(
         self,
         data: dict[str, Section],
@@ -1391,16 +1191,6 @@ class Card:
         else:
             model_repr = None
 
-        # repr for metadata
-        metadata_reprs = []
-        for key, val in self.metadata.to_dict().items() if self.metadata else {}:
-            if key == "widget":
-                metadata_reprs.append("metadata.widget=[{...}],")
-                continue
-
-            metadata_reprs.append(self._format_repr(f"metadata.{key}", repr(val)))
-        metadata_repr = "\n".join(metadata_reprs)
-
         # repr for contents
         content_reprs = []
         for title, section in self._iterate_content(self._data):
@@ -1417,18 +1207,13 @@ class Card:
         complete_repr = "Card(\n"
         if model_repr:
             complete_repr += textwrap.indent(model_repr, "  ") + "\n"
-        if metadata_reprs:
-            complete_repr += textwrap.indent(metadata_repr, "  ") + "\n"
         if content_reprs:
             complete_repr += textwrap.indent(content_repr, "  ") + "\n"
         complete_repr += ")"
         return complete_repr
 
     def _generate_card(self, destination_path: Path | None = None) -> Iterator[str]:
-        """Yield sections of the model card, including the metadata."""
-        if self.metadata.to_dict():
-            yield f"---\n{self.metadata.to_yaml()}\n---"
-
+        """Yield sections of the model card."""
         for line in self._generate_content(
             self._data, destination_path=destination_path
         ):
@@ -1454,11 +1239,6 @@ class Card:
             before creating the repository. Without this path the README will
             have an absolute path to the plot that won't exist in the
             repository.
-
-        Notes
-        -----
-        The keys in model card metadata can be seen `here
-        <https://huggingface.co/docs/hub/models-cards#model-card-metadata>`__.
         """
         with open(path, "w", encoding="utf-8") as f:
             if not isinstance(path, Path):
