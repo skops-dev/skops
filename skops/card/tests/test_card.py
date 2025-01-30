@@ -8,10 +8,9 @@ from unittest import mock
 
 import numpy as np
 import pytest
-import sklearn
+from sklearn.base import BaseEstimator, ClassifierMixin, RegressorMixin
 from sklearn.datasets import load_iris
 from sklearn.inspection import permutation_importance
-from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.metrics import f1_score, make_scorer
 from sklearn.neighbors import KNeighborsClassifier
 
@@ -28,10 +27,34 @@ from skops.io import dump, get_untrusted_types, load
 from skops.utils.importutils import import_or_raise
 
 
+class MyClassifier(ClassifierMixin, BaseEstimator):
+    def __init__(self, param_1=1, param_2="string", param_3=None):
+        self.param_1 = param_1
+        self.param_2 = param_2
+        self.param_3 = param_3
+
+    def fit(self, X, y):
+        self.classes_ = np.unique(y)
+        return self
+
+    def predict(self, X):
+        return np.ones(X.shape[0])
+
+
+class MyRegressor(RegressorMixin, BaseEstimator):
+    def __init__(self, param_1=1, param_2="value", param_3=None):
+        self.param_1 = param_1
+        self.param_2 = param_2
+        self.param_3 = param_3
+
+    def fit(self, X, y):
+        return self
+
+
 def fit_model():
     X = np.array([[1, 1], [1, 2], [2, 2], [2, 3]])
     y = np.dot(X, np.array([1, 2])) + 3
-    reg = LinearRegression().fit(X, y)
+    reg = MyRegressor().fit(X, y)
     return reg
 
 
@@ -55,7 +78,7 @@ def reprs_equal(repr1, repr2):
 
 @pytest.mark.parametrize("suffix", [".pkl", ".pickle", ".skops"])
 def test_load_model(suffix):
-    model0 = LinearRegression(n_jobs=123)
+    model0 = MyRegressor(param_1=10)
     _, save_file = save_model_to_file(model0, suffix)
     if suffix == ".skops":
         untrusted_types = get_untrusted_types(file=save_file)
@@ -66,9 +89,9 @@ def test_load_model(suffix):
     loaded_model_path = _load_model(save_file_path, trusted=untrusted_types)
     loaded_model_instance = _load_model(model0, trusted=untrusted_types)
 
-    assert loaded_model_str.n_jobs == 123
-    assert loaded_model_path.n_jobs == 123
-    assert loaded_model_instance.n_jobs == 123
+    assert loaded_model_str.param_1 == 10
+    assert loaded_model_path.param_1 == 10
+    assert loaded_model_instance.param_1 == 10
 
 
 @pytest.fixture
@@ -87,7 +110,7 @@ def iris_data():
 @pytest.fixture
 def iris_estimator(iris_data):
     X, y = iris_data
-    est = LogisticRegression(solver="liblinear").fit(X, y)
+    est = MyClassifier().fit(X, y)
     yield est
 
 
@@ -141,10 +164,10 @@ def test_save_model_card(destination_path, model_card):
 def test_model_caching(skops_model_card, iris_skops_file, destination_path):
     """Tests that the model card caches the model to avoid loading it multiple times"""
 
-    new_model = LogisticRegression(random_state=4321)
+    new_model = MyClassifier(param_1=10)
     # mock _load_model, it still loads the model but we can track call count
     mock_load_model = mock.Mock(side_effect=load)
-    card = Card(iris_skops_file)
+    card = Card(iris_skops_file, trusted=[MyClassifier])
     with mock.patch("skops.card._model_card._load_model", mock_load_model):
         model1 = card.get_model()
         model2 = card.get_model()
@@ -157,7 +180,7 @@ def test_model_caching(skops_model_card, iris_skops_file, destination_path):
 
         model3 = card.get_model()
         assert mock_load_model.call_count == 1
-        assert model3.random_state == 4321
+        assert model3.param_1 == 10
         model4 = card.get_model()
 
         assert model3 is model4
@@ -177,7 +200,7 @@ class TestAddModelPlot:
         # don't compare whole text, as it's quite long and non-deterministic
         assert result.startswith("<style>#sk-")
         assert "<style>" in result
-        assert "LinearRegression()" in result
+        assert "MyRegressor()" in result
 
     def test_no_overflow(self, model_card):
         result = model_card.select(
@@ -211,14 +234,14 @@ class TestAddModelPlot:
         result = model_card.select(other_section_name).format()
         assert result.startswith("<style>#sk-")
         assert "<style>" in result
-        assert "LinearRegression()" in result
+        assert "MyRegressor()" in result
 
     def test_other_section(self, model_card):
         model_card.add_model_plot(section="Other section")
         result = model_card.select("Other section").content
         assert result.startswith("<style>#sk-")
         assert "<style>" in result
-        assert "LinearRegression()" in result
+        assert "MyRegressor()" in result
 
     def test_with_description(self, model_card):
         model_card.add_model_plot(description="Awesome diagram below")
@@ -239,7 +262,7 @@ class TestAddModelPlot:
         # don't compare whole text, as it's quite long and non-deterministic
         assert result.startswith("<style>#sk-")
         assert "<style>" in result
-        assert "LinearRegression()" in result
+        assert "MyRegressor()" in result
 
     @pytest.mark.parametrize("template", CUSTOM_TEMPLATES)
     def test_custom_template_init_str_works(self, template):
@@ -250,7 +273,7 @@ class TestAddModelPlot:
         result = model_card.select(section_name).format()
         assert result.startswith("<style>#sk-")
         assert "<style>" in result
-        assert "LinearRegression()" in result
+        assert "MyRegressor()" in result
 
     def test_default_template_and_model_diagram_true(self, model_card):
         # setting model_diagram=True should not change anything vs auto with the
@@ -263,7 +286,7 @@ class TestAddModelPlot:
         # don't compare whole text, as it's quite long and non-deterministic
         assert result.startswith("<style>#sk-")
         assert "<style>" in result
-        assert "LinearRegression()" in result
+        assert "MyRegressor()" in result
 
     @pytest.mark.parametrize("template", CUSTOM_TEMPLATES)
     def test_custom_template_and_model_diagram_true_uses_default(
@@ -279,7 +302,7 @@ class TestAddModelPlot:
         # don't compare whole text, as it's quite long and non-deterministic
         assert result.startswith("<style>#sk-")
         assert "<style>" in result
-        assert "LinearRegression()" in result
+        assert "MyRegressor()" in result
 
     def test_add_twice(self, model_card):
         # it's possible to add the section twice, even if it doesn't make a lot
@@ -313,22 +336,14 @@ class TestAddHyperparams:
             "<details>",
             "<summary> Click to expand </summary>",
             "",
-            "| Hyperparameter   | Value       |",
-            "|------------------|-------------|",
-            "| copy_X           | True        |",
-            "| fit_intercept    | True        |",
-            "| n_jobs           |             |",
-            "| normalize        | deprecated  |",
-            "| positive         | False       |",
+            "| Hyperparameter | Value |",
+            "| :------------: | :---: |",
+            "|    param_1     |   1   |",
+            "|    param_2     | value |",
+            "|    param_3     |  None |",
             "",
             "</details>",
         ]
-        # TODO: After dropping sklearn < 1.2, when the "normalize" parameter is
-        # removed, remove it from the table above and remove the code below.
-        major, minor, *_ = sklearn.__version__.split(".")
-        major, minor = int(major), int(minor)
-        if (major >= 1) and (minor >= 2):
-            del lines[8]
 
         table = "\n".join(lines)
         # remove multiple whitespaces and dashes, as they're not important and may
@@ -341,7 +356,6 @@ class TestAddHyperparams:
         result = model_card.select(
             "Model description/Training Procedure/Hyperparameters"
         ).format()
-
         # remove multiple whitespaces and dashes, as they're not important and may
         # differ depending on OS
         result = _strip_multiple_chars(result, " ")
@@ -421,8 +435,8 @@ class TestAddMetrics:
         model_card.add_metrics()
         result = model_card.select("Model description/Evaluation Results").format()
         expected = (
-            "| Metric   | Value   |\n"  # fmt: skip
-            "|----------|---------|"
+            "| Metric | Value |\n"  # fmt: skip
+            "| :----: | :---: |"
         )
         assert result == expected
 
@@ -434,11 +448,11 @@ class TestAddMetrics:
         )
         result = model_card.select("Model description/Evaluation Results").format()
         expected = (
-            "| Metric      |   Value |\n"
-            "|-------------|---------|\n"
-            "| acc         |     0.1 |\n"
-            "| f1          |     0.1 |\n"
-            "| awesomeness |   123   |"
+            "|    Metric   | Value |\n"
+            "| :---------: | :---: |\n"
+            "|     acc     |  0.1  |\n"
+            "|      f1     |  0.1  |\n"
+            "| awesomeness |  123  |"
         )
         assert result == expected
 
@@ -447,9 +461,9 @@ class TestAddMetrics:
         result = model_card.select("Other section").format()
         # fmt: off
         expected = (
-            "| Metric   |   Value |\n"
-            "|----------|---------|\n"
-            "| accuracy |     0.9 |"
+            "|  Metric  | Value |\n"
+            "| :------: | :---: |\n"
+            "| accuracy |  0.9  |"
         )
         # fmt: on
         assert result == expected
@@ -457,7 +471,7 @@ class TestAddMetrics:
     def test_with_description(self, model_card):
         model_card.add_metrics(accuracy=0.9, description="Awesome metrics")
         result = model_card.select("Model description/Evaluation Results").format()
-        assert result.startswith("Awesome metrics\n\n| Metric ")
+        assert result.startswith("Awesome metrics\n\n|  Metric ")
 
     @pytest.mark.parametrize("template", CUSTOM_TEMPLATES)
     def test_custom_template_no_section_raises(self, template):
@@ -468,9 +482,9 @@ class TestAddMetrics:
         result = model_card.select("Model description/Evaluation Results").format()
         # fmt: off
         expected = (
-            "| Metric   |   Value |\n"
-            "|----------|---------|\n"
-            "| accuracy |     0.9 |"
+            "|  Metric  | Value |\n"
+            "| :------: | :---: |\n"
+            "| accuracy |  0.9  |"
         )
         # fmt: on
         assert result == expected
@@ -1030,7 +1044,7 @@ class TestCardRepr:
 
     @pytest.fixture
     def card(self):
-        model = LinearRegression(fit_intercept=False)
+        model = MyRegressor(param_1=10)
         card = Card(model=model)
         card.add(Figures="")
         card.add(
@@ -1052,8 +1066,8 @@ class TestCardRepr:
     def expected_lines(self):
         card_repr = """
         Card(
-          model=LinearRegression(fit_intercept=False),
-          Model description/Training Procedure/Hyperparameters=TableSection(4x2),
+          model=MyRegressor(param_1=10),
+          Model description/Training Procedure/Hyperparameters=TableSection(3x2),
           Model description/Training Procedure/Model Plot=<style>#sk-co...v></div></div>,
           Model Card Authors=Jane Doe,
           Figures/ROC=PlotSection(ROC.png),
@@ -1080,7 +1094,7 @@ class TestCardRepr:
         result = meth(card)
         expected = textwrap.dedent("""
         Card(
-          model=LinearRegression(),
+          model=MyRegressor(),
         )
         """).strip()
         assert result == expected
@@ -1127,31 +1141,31 @@ class TestCardModelAttributeIsPath:
         # the model argument is a path to a model file. First, we test that if
         # the model path changes, the Card changes. Then we test that if the
         # file on disk changes, the Card changes.
-        model = LinearRegression(fit_intercept=False)
+        model = MyRegressor(param_1=10)
         file_handle, file_name = save_model_to_file(model, suffix)
         os.close(file_handle)
         card_from_path = self.path_to_card(file_name, suffix=suffix)
 
         result0 = meth(card_from_path)
-        expected = "Card(\n  model=LinearRegression(fit_intercept=False),"
+        expected = "Card(\n  model=MyRegressor(param_1=10),"
         assert result0.startswith(expected)
 
         # change file name, same card should show different result
-        model = LinearRegression()
+        model = MyRegressor()
         file_handle, file_name = save_model_to_file(model, suffix)
         card_from_path.model = file_name
         result1 = meth(card_from_path)
-        expected = "Card(\n  model=LinearRegression(),"
+        expected = "Card(\n  model=MyRegressor(),"
         assert result1.startswith(expected)
 
         # change model on disk but keep same file name, should show different
         # result
-        model = LinearRegression(fit_intercept=None)
+        model = MyRegressor(param_2="new value")
         with open(file_name, "wb") as f:
             dump_fn = pickle.dump if suffix == ".pkl" else dump
             dump_fn(model, f)
         result2 = meth(card_from_path)
-        expected = "Card(\n  model=LinearRegression(fit_intercept=None),"
+        expected = "Card(\n  model=MyRegressor(param_2='new value'),"
         assert result2.startswith(expected)
 
     @pytest.mark.parametrize("suffix", [".pkl", ".skops"])
@@ -1236,22 +1250,26 @@ class TestTableSection:
 
     def test_table_is_dict(self, table_dict):
         section = TableSection(title="", content="", table=table_dict)
-        expected = """|   split |   score |
-|---------|---------|
-|       1 |       4 |
-|       2 |       5 |
-|       3 |       6 |"""
+        expected = (
+            "| split | score |\n"
+            "| :---: | :---: |\n"
+            "|   1   |   4   |\n"
+            "|   2   |   5   |\n"
+            "|   3   |   6   |"
+        )
         assert section.format() == expected
 
     def test_table_is_dataframe(self, table_dict):
         pd = pytest.importorskip("pandas")
         df = pd.DataFrame(table_dict)
         section = TableSection(title="", content="", table=df)
-        expected = """|   split |   score |
-|---------|---------|
-|       1 |       4 |
-|       2 |       5 |
-|       3 |       6 |"""
+        expected = (
+            "| split | score |\n"
+            "| :---: | :---: |\n"
+            "|   1   |   4   |\n"
+            "|   2   |   5   |\n"
+            "|   3   |   6   |"
+        )
         assert section.format() == expected
 
     @pytest.mark.parametrize("meth", [str, repr])
@@ -1328,11 +1346,13 @@ line breaks
 """,
         ]
         section = TableSection(title="", content="", table=table_dict)
-        expected = """| split | score | with break |
-|-|-|-|
-| 1 | 4 | obj<br />with lb |
-| 2 | 5 | hi<br />there |
-| 3 | 6 | entry with<br />line breaks |"""
+        expected = (
+            "| split | score | with break |\n"
+            "| :-: | :-: | :-: |\n"
+            "| 1 | 4 | obj<br />with lb |\n"
+            "| 2 | 5 | hi<br />there |\n"
+            "| 3 | 6 | <br />entry with<br />line breaks<br /> |"
+        )
 
         result = section.format()
         # remove multiple whitespaces and dashes, as they're not important
@@ -1344,13 +1364,14 @@ line breaks
         model_card.add_table(description="My fancy table", **{"The table": table_dict})
         section = model_card.select("The table")
         content = section.format()
-        expected = """My fancy table
-
-|   split |   score |
-|---------|---------|
-|       1 |       4 |
-|       2 |       5 |
-|       3 |       6 |"""
+        expected = (
+            "My fancy table\n\n"
+            "| split | score |\n"
+            "| :---: | :---: |\n"
+            "|   1   |   4   |\n"
+            "|   2   |   5   |\n"
+            "|   3   |   6   |"
+        )
         assert content == expected
 
 
@@ -1373,12 +1394,12 @@ class TestCustomTemplate:
     def test_add_model_plot(self, card):
         card.add_model_plot(section="Model/Model plot")
         content = card.select("Model/Model plot").format()
-        assert "LinearRegression" in content
+        assert "MyRegressor" in content
 
     def test_add_hyperparams(self, card):
         card.add_hyperparams(section="Model/Hyperparams")
         content = card.select("Model/Hyperparams").format()
-        assert "fit_intercept" in content
+        assert "param_1" in content
 
     def test_add_metrics(self, card):
         card.add_metrics(accuracy=0.1, section="Model/Metrics")
@@ -1500,7 +1521,7 @@ class TestRenderedCardVisibility:
 class TestAddFairlearnMetricFrame:
     @pytest.fixture
     def card(self):
-        model = LinearRegression()
+        model = MyRegressor()
         card = Card(model=model)
         return card
 
@@ -1531,16 +1552,28 @@ class TestAddFairlearnMetricFrame:
 
         if transpose is True:
             expected_table = (
-                "<details>\n<summary> Click to expand </summary>\n\n|   selection_rate"
-                " |\n|------------------|\n|              0.4 |\n|              0.8"
-                " |\n|              0.4 |\n|              0.5 |\n\n</details>"
+                "<details>\n"
+                "<summary> Click to expand </summary>\n"
+                "\n"
+                "| selection_rate |\n"
+                "| :------------: |\n"
+                "|      0.4       |\n"
+                "|      0.8       |\n"
+                "|      0.4       |\n"
+                "|      0.5       |\n"
+                "\n"
+                "</details>"
             )
         else:
             expected_table = (
-                "<details>\n<summary> Click to expand </summary>\n\n|   difference |  "
-                " group_max |   group_min |   ratio"
-                " |\n|--------------|-------------|-------------|---------|\n|         "
-                " 0.4 |         0.8 |         0.4 |     0.5 |\n\n</details>"
+                "<details>\n"
+                "<summary> Click to expand </summary>\n"
+                "\n"
+                "| difference | group_max | group_min | ratio |\n"
+                "| :--------: | :-------: | :-------: | :---: |\n"
+                "|    0.4     |    0.8    |    0.4    |  0.5  |\n"
+                "\n"
+                "</details>"
             )
 
         assert expected_table == actual_table
@@ -1555,17 +1588,25 @@ class TestAddFairlearnMetricFrame:
         actual_table = card.select("Metric Frame Table").format()
         expected_table = (
             "An awesome table\n\n"
-            "<details>\n<summary> Click to expand </summary>\n\n|   selection_rate"
-            " |\n|------------------|\n|              0.4 |\n|              0.8"
-            " |\n|              0.4 |\n|              0.5 |\n\n</details>"
+            "<details>\n"
+            "<summary> Click to expand </summary>\n\n"
+            "| selection_rate |\n"
+            "| :------------: |\n"
+            "|      0.4       |\n"
+            "|      0.8       |\n"
+            "|      0.4       |\n"
+            "|      0.5       |\n"
+            "\n"
+            "</details>"
         )
+
         assert expected_table == actual_table
 
 
 class TestCardTableOfContents:
     @pytest.fixture
     def card(self):
-        model = LinearRegression()
+        model = MyRegressor()
         card = Card(model=model)
         card.add_model_plot()
         card.add_hyperparams()
