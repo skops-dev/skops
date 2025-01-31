@@ -392,6 +392,8 @@ def object_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     # This method is for objects which can either be persisted with json, or
     # the ones for which we can get/set attributes through
     # __getstate__/__setstate__ or reading/writing to __dict__.
+
+    # We first check if the object can be serialized using json.
     try:
         # if we can simply use json, then we're done.
         obj_str = json.dumps(obj)
@@ -405,6 +407,23 @@ def object_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     except Exception:
         pass
 
+    # Then we check if the output of __reduce__ is of the form
+    # (constructor, (constructor_args,))
+    # If the constructor is the same as the object's type, then we consider it
+    # safe to call it with the specified arguments.
+
+    reduce_output = obj.__reduce__()
+    # note that we do "=="" to compare types instead of "is", since we only accept
+    # exact matches here.
+    if len(reduce_output) == 2 and reduce_output[0] == type(obj):
+        return {
+            "__class__": obj.__class__.__name__,
+            "__module__": get_module(type(obj)),
+            "__loader__": "ConstructorFromReduceNode",
+            "content": get_state(reduce_output[1], save_context),
+        }
+
+    # Otherwise we recover the object from the __dict__ or __getstate__
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": get_module(type(obj)),
@@ -425,6 +444,24 @@ def object_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     # only have str type keys
     res["content"] = content
     return res
+
+
+class ConstructorFromReduceNode(Node):
+    def __init__(
+        self,
+        state: dict[str, Any],
+        load_context: LoadContext,
+        trusted: Optional[Sequence[str]] = None,
+    ) -> None:
+        super().__init__(state, load_context, trusted)
+        self.children = {
+            "content": get_tree(state["content"], load_context, trusted=trusted)
+        }
+
+    def _construct(self):
+        return gettype(self.module_name, self.class_name)(
+            *self.children["content"].construct()
+        )
 
 
 class ObjectNode(Node):
@@ -670,6 +707,7 @@ NODE_TYPE_MAPPING = {
     ("MethodNode", PROTOCOL): MethodNode,
     ("PartialNode", PROTOCOL): PartialNode,
     ("TypeNode", PROTOCOL): TypeNode,
+    ("ConstructorFromReduceNode", PROTOCOL): ConstructorFromReduceNode,
     ("ObjectNode", PROTOCOL): ObjectNode,
     ("JsonNode", PROTOCOL): JsonNode,
     ("OperatorFuncNode", PROTOCOL): OperatorFuncNode,

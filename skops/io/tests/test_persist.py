@@ -6,6 +6,7 @@ import operator
 import sys
 import warnings
 from collections import Counter, OrderedDict, defaultdict
+from datetime import datetime
 from functools import partial, wraps
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
@@ -1119,3 +1120,17 @@ def test_dictionary(cls):
     loaded_obj = loads(dumps(obj))
     assert obj == loaded_obj
     assert type(obj) is cls
+
+
+def test_datetime():
+    obj = datetime.now()
+    loaded_obj = loads(dumps(obj), trusted=[datetime])
+    assert obj == loaded_obj
+    assert type(obj) is datetime
+
+
+def test_slice():
+    obj = slice(1, 2, 3)
+    loaded_obj = loads(dumps(obj))
+    assert obj == loaded_obj
+    assert type(obj) is slice

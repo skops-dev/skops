@@ -362,7 +362,8 @@ def get_tree(
             type_name = f"{state['__module__']}.{state['__class__']}"
             raise TypeError(
                 f" Can't find loader {state['__loader__']} for type {type_name} and "
-                f"protocol {protocol}."
+                f"protocol {protocol}. You might need to update skops to load this "
+                "file."
             )
 
     loaded_tree = node_cls(state, load_context, trusted=trusted)
