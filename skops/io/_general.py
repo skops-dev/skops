@@ -413,11 +413,9 @@ def object_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     # safe to call it with the specified arguments.
 
     reduce_output = obj.__reduce__()
-    # note that we do "=="" to compare types instead of "is", since we only accept
-    # exact matches here.
-    if len(reduce_output) == 2 and reduce_output[0] == type(obj):
+    if len(reduce_output) == 2 and reduce_output[0] is type(obj):
         return {
-            "__class__": obj.__class__.__name__,
+            "__class__": type(obj).__name__,
             "__module__": get_module(type(obj)),
             "__loader__": "ConstructorFromReduceNode",
             "content": get_state(reduce_output[1], save_context),
