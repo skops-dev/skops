@@ -28,6 +28,7 @@ classifiers = [
     "Operating System :: Unix",
     "Operating System :: MacOS",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -36,7 +37,9 @@ classifiers = [
 ]
 license = {file = "LICENSE"}
 dependencies = [
-    "scikit-learn>=1.3",
+    "numpy>=1.25.0",
+    "scipy>=1.10.0",
+    "scikit-learn>=1.2",
     "prettytable>=3.9",
     "packaging>=17.0",
 ]
@@ -153,6 +156,15 @@ pre-commit = "*"
 [tool.pixi.feature.dev.dependencies]
 ipython = "*"
 
+[tool.pixi.feature.sklearn12.dependencies]
+scikit-learn = "~=1.2.0"
+pandas = "~=2.0.0"
+numpy = "~=1.25.0"
+scipy = "~=1.10.0"
+fairlearn = "~=0.9.0"
+catboost = ">=1.0"
+python = "~=3.9.0"
+
 
 [tool.pixi.feature.sklearn13.dependencies]
 scikit-learn = "~=1.3.0"
@@ -226,6 +238,7 @@ tests = { cmd = "pytest -vsl --cov=skops --cov-report=xml --cov-report=term-miss
 default = ["docs", "tests", "lint", "rich", "dev", "sklearn17"]
 lint = ["lint"]
 docs = ["docs"]
+ci-sklearn12 = ["rich", "tests", "lint", "sklearn12"]
 ci-sklearn13 = ["rich", "tests", "lint", "sklearn13"]
 ci-sklearn14 = ["rich", "tests", "lint", "sklearn14"]
 ci-sklearn15 = ["rich", "tests", "lint", "sklearn15"]

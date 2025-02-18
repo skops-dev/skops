@@ -6,6 +6,7 @@ import operator
 import sys
 import warnings
 from collections import Counter, OrderedDict, defaultdict
+from datetime import datetime
 from functools import partial, wraps
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
@@ -1119,3 +1120,45 @@ def test_dictionary(cls):
     loaded_obj = loads(dumps(obj))
     assert obj == loaded_obj
     assert type(obj) is cls
+
+
+def test_datetime():
+    obj = datetime.now()
+    loaded_obj = loads(dumps(obj), trusted=[datetime])
+    assert obj == loaded_obj
+    assert type(obj) is datetime
+
+
+def test_slice():
+    obj = slice(1, 2, 3)
+    loaded_obj = loads(dumps(obj))
+    assert obj == loaded_obj
+    assert type(obj) is slice
+
+
+# This class is here as opposed to inside the test because it needs to be importable.
+reduce_calls = 0
+
+
+class CustomReduce:
+    def __init__(self, value):
+        self.value = value
+
+    def __reduce__(self):
+        global reduce_calls
+        reduce_calls += 1
+        return (type(self), (self.value,))
+
+
+def test_custom_reduce():
+    obj = CustomReduce(10)
+    dumped = dumps(obj)
+
+    # make sure __reduce__ is called, once.
+    assert reduce_calls == 1
+
+    with pytest.raises(TypeError, match="Untrusted types found"):
+        loads(dumped)
+
+    loaded_obj = loads(dumps(obj), trusted=[CustomReduce])
+    assert obj.value == loaded_obj.value

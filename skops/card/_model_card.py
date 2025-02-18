@@ -200,11 +200,6 @@ class TableSection(Section):
             raise ValueError("Trying to add table with no columns")
 
     def format(self) -> str:
-        if self._is_pandas_df:
-            pass  # type: ignore
-        else:
-            self.table.keys()
-
         table = PrettyTable()
         table.set_style(TableStyle.MARKDOWN)
         for key, values in self.table.items():
