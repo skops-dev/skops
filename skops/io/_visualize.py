@@ -165,8 +165,12 @@ def pretty_print_tree(nodes_iter, show, **kwargs):
                 print(f"{node.key}: {label}")
                 continue
 
-            # Update prefix based on level difference
             for _ in range(level_diff + 1):
+                # This loop is entered if the current node is at the same level as,
+                # or higher than, the previous node. This means the prefix has to be
+                # truncated according to the level difference. E.g. if the current
+                # level is 2 and previous level was 3, it means that we should move
+                # up 2 layers of nesting, therefore, we trunce 3-2+1 = 2 times.
                 prefix = prefix[:-4]
 
             print(prefix, end="")
