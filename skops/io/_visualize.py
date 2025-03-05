@@ -74,9 +74,9 @@ def _get_node_label(
     tag_unsafe: str = "[UNSAFE]",
     use_colors: bool = True,
     # use rich for coloring
-    color_safe: str = "green",
-    color_unsafe: str = "red",
-    color_child_unsafe: str = "yellow",
+    color_safe: str = "cyan",
+    color_unsafe: str = "orange1",
+    color_child_unsafe: str = "magenta",
 ):
     """Determine the label of a node.
 
@@ -101,40 +101,24 @@ def _get_node_label(
     # colorize if so desired and if rich is installed
     if use_colors:
         if node.is_safe:
-            color = color_safe
+            style = f"bold {color_safe}"
         elif node.is_self_safe:
-            color = color_child_unsafe
+            style = f"bold {color_child_unsafe}"
         else:
-            color = color_unsafe
-        node_val = f"[{color}]{node_val}"
+            style = f"bold {color_unsafe}"
+        node_val = f"[{style}]{node_val}[/{style}]"
 
     return node_val
 
 
-def pretty_print_tree(
-    nodes_iter: Iterator[NodeInfo],
-    show: Literal["all", "untrusted", "trusted"],
-    **kwargs,
-) -> None:
-    # This function loops through the flattened nodes of the tree and creates a
-    # tree visualization based on the node information. If rich is installed,
-    # nodes can be colored.
-
-    print_ = print
-    try:
-        import rich
-
-        # use rich for printing if available
-        print_ = rich.print  # type: ignore
-    except ImportError:
-        pass
-
+def _traverse_tree(nodes_iter, show, **kwargs):
+    """Common tree traversal logic used by both rich and fallback display methods."""
     # start with root node
     node = next(nodes_iter)
     label = _get_node_label(node, **kwargs)
-    print_(f"{node.key}: {label}")
+    yield node, label, 0, True  # node, label, level, is_first_node
+
     prev_level = node.level  # should be 0
-    prefix = ""
 
     for node in nodes_iter:
         visible = _check_visibility(node.is_self_safe, node.is_safe, show=show)
@@ -150,31 +134,50 @@ def pretty_print_tree(
                 "report the issue here: https://github.com/skops-dev/skops/issues"
             )
 
-        # Level diff of -1 means that this node is a child of the previous node.
-        # E.g. if the current level if 4 and the previous level was 3, the
-        # current node is a child node of the previous one. Since the prefix for
-        # a child node was already added, there is nothing more left to do.
-
-        for _ in range(level_diff + 1):
-            # This loop is entered if the current node is at the same level as,
-            # or higher than, the previous node. This means the prefix has to be
-            # truncated according to the level difference. E.g. if the current
-            # level is 2 and previous level was 3, it means that we should move
-            # up 2 layers of nesting, therefore, we trunce 3-2+1 = 2 times.
-            prefix = prefix[:-4]
-
-        print_(prefix, end="")
-        if node.is_last:
-            print_("└──", end="")
-            prefix += "    "
-        else:
-            print_("├──", end="")
-            prefix += "│   "
-
         label = _get_node_label(node, **kwargs)
-        print_(f" {node.key}: {label}")
-
+        yield node, label, level_diff, False
         prev_level = node.level
+
+
+def pretty_print_tree(nodes_iter, show, **kwargs):
+    try:
+        from rich.tree import Tree
+        from rich.console import Console
+        console = Console()
+
+        for node, label, level_diff, is_first_node in _traverse_tree(nodes_iter, show):
+            if is_first_node:
+                tree = Tree(f"{node.key}: {label}", guide_style="gray50")
+                trees = {0: tree}
+                continue
+
+            parent_level = node.level - 1
+            parent_tree = trees[parent_level]
+            current_tree = parent_tree.add(f"{node.key}: {label}")
+            trees[node.level] = current_tree
+
+        console.print(tree)
+
+    except ImportError:
+        prefix = ""
+        for node, label, level_diff, is_first_node in _traverse_tree(nodes_iter, show):
+            if is_first_node:
+                print(f"{node.key}: {label}")
+                continue
+
+            # Update prefix based on level difference
+            for _ in range(level_diff + 1):
+                prefix = prefix[:-4]
+
+            print(prefix, end="")
+            if node.is_last:
+                print("└──", end="")
+                prefix += "    "
+            else:
+                print("├──", end="")
+                prefix += "│   "
+
+            print(f" {node.key}: {label}")
 
 
 def walk_tree(
@@ -342,14 +345,14 @@ def visualize(
               (default="[UNSAFE]")
             - use_colors: Whether to colorize the nodes (default=True). Colors
               requires the ``rich`` package to be installed.
-            - color_safe: Color to use for trusted nodes (default="green")
-            - color_unsafe: Color to use for untrusted nodes (default="red")
+            - color_safe: Color to use for trusted nodes (default="orange1")
+            - color_unsafe: Color to use for untrusted nodes (default="cyan")
             - color_child_unsafe: Color to use for nodes that are trusted but
-              that have untrusted child ndoes (default="yellow")
+              that have untrusted child ndoes (default="magenta")
 
         So if you don't want to have colored output, just pass
         ``use_colors=False`` to ``visualize``. The colors themselves, such
-        as "red" and "green", refer to the standard colors used by ``rich``.
+        as "orange1" and "cyan", refer to the standard colors used by ``rich``.
 
     """
     if isinstance(file, bytes):
