@@ -165,6 +165,10 @@ def pretty_print_tree(nodes_iter, show, **kwargs):
                 print(f"{node.key}: {label}")
                 continue
 
+            # Level diff of -1 means that this node is a child of the previous node.
+            # E.g. if the current level if 4 and the previous level was 3, the
+            # current node is a child node of the previous one. Since the prefix for
+            # a child node was already added, there is nothing more left to do.
             for _ in range(level_diff + 1):
                 # This loop is entered if the current node is at the same level as,
                 # or higher than, the previous node. This means the prefix has to be
