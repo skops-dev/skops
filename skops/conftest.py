@@ -50,7 +50,7 @@ def rich_not_installed():
     orig_import = builtins.__import__
 
     def mock_import(name, *args, **kwargs):
-        if name == "rich":
+        if name == "rich" or name.startswith("rich."):
             raise ImportError
         return orig_import(name, *args, **kwargs)
 
