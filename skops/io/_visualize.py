@@ -141,8 +141,9 @@ def _traverse_tree(nodes_iter, show, **kwargs):
 
 def pretty_print_tree(nodes_iter, show, **kwargs):
     try:
-        from rich.tree import Tree
         from rich.console import Console
+        from rich.tree import Tree
+
         console = Console()
 
         for node, label, level_diff, is_first_node in _traverse_tree(nodes_iter, show):
