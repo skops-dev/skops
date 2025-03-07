@@ -20,15 +20,15 @@ from skops.io import get_untrusted_types
 
 
 def get_Tree_str(tree):
-    """Get the string representation of a tree."""
-    from io import StringIO
-
+    """Get the string representation of a tree in Rich's markup syntax."""
     from rich.console import Console
+    from rich.text import Text
 
-    with StringIO() as output:
-        console = Console(file=output)
+    console = Console()
+    with console.capture() as capture:
         console.print(tree)
-        return output.getvalue()
+    text = Text.from_ansi(capture.get())
+    return text.markup
 
 
 class TestVisualizeTree:
@@ -202,11 +202,14 @@ class TestVisualizeTree:
         calls = mock_print.call_args_list
         tree_repr = get_Tree_str(calls[0].args[0])
         # The root node is indirectly unsafe through child
-        assert "root: [orange3]sklearn.preprocessing._data.MinMaxScaler" in tree_repr
+        # orange3 is color(5)
+        assert "root: [color(5)]sklearn.preprocessing._data.MinMaxScaler" in tree_repr
         # 'feature_range' is safe
-        assert " feature_range: [black]builtins.tuple" in tree_repr
+        # black is color(6)
+        assert "feature_range: [color(6)]builtins.tuple" in tree_repr
         # 'copy' is unsafe
-        assert " copy: [cyan]test_visualize.UnsafeType [UNSAFE]" in tree_repr
+        # cyan is color(214)
+        assert "copy: [color(214)]test_visualize.UnsafeType [UNSAFE]" in tree_repr
 
     @pytest.mark.usefixtures("rich_not_installed")
     def test_no_colors_if_rich_not_installed(self, simple):
@@ -227,10 +230,9 @@ class TestVisualizeTree:
         mock_print.assert_called()
 
         # check that none of the colors are being used
-        colors = ("black", "cyan", "orange3")
         for call in mock_print.call_args_list:
-            for color in colors:
-                assert color not in call.args[0]
+            # check for the color markers
+            assert "[color(" not in call.args[0]
 
     def test_no_colors_if_use_colors_false(self, simple):
         # this test is similar to the previous one, except that we test that the

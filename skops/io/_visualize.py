@@ -101,11 +101,11 @@ def _get_node_label(
     # colorize if so desired and if rich is installed
     if use_colors:
         if node.is_safe:
-            style = f"bold {color_safe}"
+            style = f"{color_safe}"
         elif node.is_self_safe:
-            style = f"bold {color_child_unsafe}"
+            style = f"{color_child_unsafe}"
         else:
-            style = f"bold {color_unsafe}"
+            style = f"{color_unsafe}"
         node_val = f"[{style}]{node_val}[/{style}]"
 
     return node_val
@@ -146,7 +146,9 @@ def pretty_print_tree(nodes_iter, show, **kwargs):
 
         console = Console()
 
-        for node, label, level_diff, is_first_node in _traverse_tree(nodes_iter, show):
+        for node, label, level_diff, is_first_node in _traverse_tree(
+            nodes_iter, show, **kwargs
+        ):
             if is_first_node:
                 tree = Tree(f"{node.key}: {label}", guide_style="gray50")
                 trees = {0: tree}
@@ -161,7 +163,9 @@ def pretty_print_tree(nodes_iter, show, **kwargs):
 
     except ImportError:
         prefix = ""
-        for node, label, level_diff, is_first_node in _traverse_tree(nodes_iter, show):
+        for node, label, level_diff, is_first_node in _traverse_tree(
+            nodes_iter, show, **kwargs
+        ):
             if is_first_node:
                 print(f"{node.key}: {label}")
                 continue
