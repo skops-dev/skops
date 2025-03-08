@@ -19,6 +19,20 @@ import skops.io as sio
 from skops.io import get_untrusted_types
 
 
+def get_Tree_str(tree):
+    """Get the string representation of a tree in Rich's markup syntax."""
+    from rich.console import Console
+    from rich.text import Text
+
+    # force the color system to check that we have the right colors across
+    # platforms and terminals
+    console = Console(force_terminal=True, color_system="truecolor")
+    with console.capture() as capture:
+        console.print(tree)
+    text = Text.from_ansi(capture.get())
+    return text.markup
+
+
 class TestVisualizeTree:
     @pytest.fixture
     def simple(self):
@@ -177,7 +191,7 @@ class TestVisualizeTree:
         # Colors are not recorded by capsys, so we cannot use it and must mock
         # printing
         mock_print = Mock()
-        with patch("rich.print", mock_print):
+        with patch("rich.console.Console.print", mock_print):
             sio.visualize(
                 file,
                 color_safe="black",
@@ -188,15 +202,16 @@ class TestVisualizeTree:
         mock_print.assert_called()
 
         calls = mock_print.call_args_list
+        tree_repr = get_Tree_str(calls[0].args[0])
         # The root node is indirectly unsafe through child
-        assert (
-            calls[0].args[0]
-            == "root: [orange3]sklearn.preprocessing._data.MinMaxScaler"
-        )
+        # orange3 is color(172)
+        assert "root: [color(172)]sklearn.preprocessing._data.MinMaxScaler" in tree_repr
         # 'feature_range' is safe
-        assert calls[6].args[0] == " feature_range: [black]builtins.tuple"
+        # black is color(0)
+        assert "feature_range: [color(0)]builtins.tuple" in tree_repr
         # 'copy' is unsafe
-        assert calls[15].args[0] == " copy: [cyan]test_visualize.UnsafeType [UNSAFE]"
+        # cyan is color(6)
+        assert "copy: [color(6)]test_visualize.UnsafeType [UNSAFE]" in tree_repr
 
     @pytest.mark.usefixtures("rich_not_installed")
     def test_no_colors_if_rich_not_installed(self, simple):
@@ -217,10 +232,9 @@ class TestVisualizeTree:
         mock_print.assert_called()
 
         # check that none of the colors are being used
-        colors = ("black", "cyan", "orange3")
         for call in mock_print.call_args_list:
-            for color in colors:
-                assert color not in call.args[0]
+            # check for the color markers
+            assert "[color(" not in call.args[0]
 
     def test_no_colors_if_use_colors_false(self, simple):
         # this test is similar to the previous one, except that we test that the
@@ -231,7 +245,7 @@ class TestVisualizeTree:
         # don't use capsys, because it wouldn't capture the colors, thus need to
         # use mock
         mock_print = Mock()
-        with patch("rich.print", mock_print):
+        with patch("rich.console.Console.print", mock_print):
             sio.visualize(
                 file,
                 color_safe="black",
@@ -245,7 +259,7 @@ class TestVisualizeTree:
         colors = ("black", "cyan", "orange3")
         for call in mock_print.call_args_list:
             for color in colors:
-                assert color not in call.args[0]
+                assert color not in get_Tree_str(call.args[0])
 
     def test_from_file(self, simple, tmp_path, capsys):
         f_name = tmp_path / "estimator.skops"
