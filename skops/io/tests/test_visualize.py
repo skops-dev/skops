@@ -24,7 +24,9 @@ def get_Tree_str(tree):
     from rich.console import Console
     from rich.text import Text
 
-    console = Console()
+    # force the color system to check that we have the right colors across
+    # platforms and terminals
+    console = Console(force_terminal=True, color_system="truecolor")
     with console.capture() as capture:
         console.print(tree)
     text = Text.from_ansi(capture.get())
@@ -202,14 +204,14 @@ class TestVisualizeTree:
         calls = mock_print.call_args_list
         tree_repr = get_Tree_str(calls[0].args[0])
         # The root node is indirectly unsafe through child
-        # orange3 is color(5)
-        assert "root: [color(5)]sklearn.preprocessing._data.MinMaxScaler" in tree_repr
+        # orange3 is color(172)
+        assert "root: [color(172)]sklearn.preprocessing._data.MinMaxScaler" in tree_repr
         # 'feature_range' is safe
-        # black is color(6)
-        assert "feature_range: [color(6)]builtins.tuple" in tree_repr
+        # black is color(0)
+        assert "feature_range: [color(0)]builtins.tuple" in tree_repr
         # 'copy' is unsafe
-        # cyan is color(214)
-        assert "copy: [color(214)]test_visualize.UnsafeType [UNSAFE]" in tree_repr
+        # cyan is color(6)
+        assert "copy: [color(6)]test_visualize.UnsafeType [UNSAFE]" in tree_repr
 
     @pytest.mark.usefixtures("rich_not_installed")
     def test_no_colors_if_rich_not_installed(self, simple):

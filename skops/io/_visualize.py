@@ -139,7 +139,11 @@ def _traverse_tree(nodes_iter, show, **kwargs):
         prev_level = node.level
 
 
-def pretty_print_tree(nodes_iter, show, **kwargs):
+def pretty_print_tree(
+    nodes_iter: Iterator[NodeInfo],
+    show: Literal["all", "untrusted", "trusted"],
+    **kwargs: Any,
+) -> None:
     try:
         from rich.console import Console
         from rich.tree import Tree
