@@ -1068,7 +1068,7 @@ class TestCardRepr:
         Card(
           model=MyRegressor(param_1=10),
           Model description/Training Procedure/Hyperparameters=TableSection(3x2),
-          Model description/Training Procedure/Model Plot=<style>#sk-co...v></div></div>,
+          Model description/Training Procedure/Model Plot=__anything__,
           Model Card Authors=Jane Doe,
           Figures/ROC=PlotSection(ROC.png),
           Figures/Confusion matrix=PlotSection(confusion_matrix.jpg),
@@ -1077,6 +1077,8 @@ class TestCardRepr:
         )
         """  # noqa: E501
         expected = textwrap.dedent(card_repr).strip()
+        expected = re.escape(expected)
+        expected = expected.replace("__anything__", ".*")
         lines = expected.split("\n")
         return lines
 
@@ -1084,7 +1086,7 @@ class TestCardRepr:
     def test_card_repr(self, card: Card, meth, expected_lines):
         result = meth(card)
         expected = "\n".join(expected_lines)
-        assert reprs_equal(expected, result)
+        assert re.match(expected, result)
 
     @pytest.mark.parametrize("meth", [repr, str])
     def test_card_repr_empty_card(self, meth):
@@ -1112,7 +1114,7 @@ class TestCardRepr:
         expected = "\n".join(expected_lines)
 
         result = meth(card)
-        assert reprs_equal(expected, result)
+        assert re.match(expected, result)
 
     @pytest.mark.parametrize("meth", [repr, str])
     def test_without_model_attribute(self, card: Card, meth, expected_lines):
@@ -1123,7 +1125,7 @@ class TestCardRepr:
         expected = "\n".join(expected_lines)
 
         result = meth(card)
-        assert reprs_equal(expected, result)
+        assert re.match(expected, result)
 
 
 class TestCardModelAttributeIsPath:

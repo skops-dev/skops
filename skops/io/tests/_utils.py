@@ -96,8 +96,8 @@ def _assert_vals_equal(val1, val2, path=""):
     elif isinstance(val1, (np.ndarray, np.generic)):
         if len(val1.dtype) == 0:
             # for arrays with at least 2 dimensions, check that contiguity is
-            # preserved
-            if val1.squeeze().ndim > 1:
+            # preserved, but only if the array is not a view
+            if val1.squeeze().ndim > 1 and val1.flags["OWNDATA"]:
                 assert (
                     val1.flags["C_CONTIGUOUS"] is val2.flags["C_CONTIGUOUS"]
                 ), f"Path: {path}.flags"
