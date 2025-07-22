@@ -333,7 +333,7 @@ class Card:
     >>> from sklearn.linear_model import LogisticRegression
     >>> from skops.card import Card
     >>> X, y = load_iris(return_X_y=True)
-    >>> model = LogisticRegression(solver="liblinear", random_state=0).fit(X, y)
+    >>> model = LogisticRegression(solver="saga", random_state=0).fit(X, y)
     >>> model_card = Card(model)
     >>> y_pred = model.predict(X)
     >>> model_card.add_metrics(**{
@@ -364,7 +364,7 @@ class Card:
     >>> # add new subsection to an existing section by using "/"
     >>> model_card.add(**{"Model description/Model name": "This model is called Bob"})
     Card(
-      model=LogisticRegression(random_state=0, solver='liblinear'),
+      model=LogisticRegression(random_state=0, solver='saga'),
       ...
     )
     >>> # save the card to a README.md file
@@ -1022,7 +1022,7 @@ class Card:
             ax,
             x=permutation_importances.importances[sorted_importances_idx].T,
             tick_labels=columns[sorted_importances_idx],
-            vert=False,
+            vert="horizontal",
         )
         ax.set_title(plot_name)
         ax.set_xlabel("Decrease in Score")

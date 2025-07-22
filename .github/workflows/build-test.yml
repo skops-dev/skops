@@ -22,7 +22,8 @@ jobs:
           ci-sklearn14,
           ci-sklearn15,
           ci-sklearn16,
-          ci-sklearn17
+          ci-sklearn17,
+          ci-sklearn-nightly
         ]
 
     # Timeout: https://stackoverflow.com/a/59076067/4521646
