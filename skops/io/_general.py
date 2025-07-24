@@ -509,13 +509,15 @@ def method_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     # dependent on a specific instance of an object.
     # It stores the state of the object the method is bound to,
     # and prepares both to be persisted.
+    owner = obj.__self__
+    func_name = obj.__func__.__name__
     res = {
-        "__class__": obj.__class__.__name__,
+        "__class__": owner.__class__.__name__,
         "__module__": get_module(obj),
         "__loader__": "MethodNode",
         "content": {
-            "func": obj.__func__.__name__,
-            "obj": get_state(obj.__self__, save_context),
+            "func": func_name,
+            "obj": get_state(owner, save_context),
         },
     }
     return res
@@ -530,10 +532,10 @@ class MethodNode(Node):
     ) -> None:
         super().__init__(state, load_context, trusted)
         obj = get_tree(state["content"]["obj"], load_context, trusted=trusted)
-        if self.class_name != obj.class_name or self.module_name != obj.module_name:
+        if self.module_name != obj.module_name or self.class_name != obj.class_name:
             raise ValueError(
-                f"Expected object of type {self.class_name}.{self.module_name}, got"
-                f" {obj.class_name}.{obj.module_name}. This is probably due to a"
+                f"Expected object of type {self.module_name}.{self.class_name}, got"
+                f" {obj.module_name}.{obj.class_name}. This is probably due to a"
                 " corrupted or a malicious file."
             )
         self.children = {

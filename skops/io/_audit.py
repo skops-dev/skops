@@ -266,7 +266,7 @@ class Node:
                         " for us to fix the issue."
                     )
 
-        return res
+        return res - set(self.trusted)
 
     def format(self) -> str:
         """Representation of the node's content."""
