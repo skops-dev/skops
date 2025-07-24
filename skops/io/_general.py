@@ -529,12 +529,36 @@ class MethodNode(Node):
         trusted: Optional[Sequence[str]] = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
+        obj = get_tree(state["content"]["obj"], load_context, trusted=trusted)
+        if self.class_name != obj.class_name or self.module_name != obj.module_name:
+            raise ValueError(
+                f"Expected object of type {self.class_name}.{self.module_name}, got"
+                f" {obj.class_name}.{obj.module_name}. This is probably due to a"
+                " corrupted or a malicious file."
+            )
         self.children = {
-            "obj": get_tree(state["content"]["obj"], load_context, trusted=trusted),
+            "obj": obj,
             "func": state["content"]["func"],
         }
         # TODO: what do we trust?
         self.trusted = self._get_trusted(trusted, [])
+
+    def get_unsafe_set(self) -> set[str]:
+        res = super().get_unsafe_set()
+        obj_node = self.children["obj"]
+        if not hasattr(obj_node, "module_name") or not hasattr(obj_node, "class_name"):
+            raise ValueError(
+                "MethodNode must have an object node as child. This is probably due to"
+                " a corrupted or a malicious file."
+            )
+        res.add(
+            obj_node.module_name  # type: ignore
+            + "."
+            + obj_node.class_name  # type: ignore
+            + "."
+            + self.children["func"]
+        )
+        return res
 
     def _construct(self):
         loaded_obj = self.children["obj"].construct()
@@ -658,6 +682,11 @@ class OperatorFuncNode(Node):
         trusted: Optional[Sequence[str]] = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
+        if self.module_name != "operator":
+            raise ValueError(
+                f"Expected module 'operator', got {self.module_name}. This is probably"
+                " due to a corrupted or a malicious file."
+            )
         self.trusted = self._get_trusted(trusted, [])
         self.children["attrs"] = get_tree(state["attrs"], load_context, trusted=trusted)
 
