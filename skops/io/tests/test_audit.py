@@ -46,18 +46,18 @@ def test_audit_tree_untrusted():
             "Untrusted types found in the file: ['test_audit.CustomType']."
         ),
     ):
-        audit_tree(node)
+        audit_tree(node, None)
 
     # there shouldn't be an error with trusted=everything
     node = DictNode(state, LoadContext(None, -1), trusted=["test_audit.CustomType"])
-    audit_tree(node)
+    audit_tree(node, None)
 
     untrusted_list = get_untrusted_types(data=dumps(var))
     assert untrusted_list == ["test_audit.CustomType"]
 
     # passing the type would fix it.
     node = DictNode(state, LoadContext(None, -1), trusted=untrusted_list)
-    audit_tree(node)
+    audit_tree(node, None)
 
 
 def test_audit_tree_defaults():
@@ -65,7 +65,7 @@ def test_audit_tree_defaults():
     var = {"a": 1, 2: "b"}
     state = dict_get_state(var, SaveContext(None, 0, {}))
     node = DictNode(state, LoadContext(None, -1), trusted=None)
-    audit_tree(node)
+    audit_tree(node, None)
 
 
 @pytest.mark.parametrize(
