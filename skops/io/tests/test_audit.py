@@ -1,15 +1,26 @@
 import io
 import json
+import operator
 import re
 from contextlib import suppress
 from zipfile import ZipFile
 
 import pytest
 from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import FunctionTransformer
 
 from skops.io import dumps, get_untrusted_types
 from skops.io._audit import Node, audit_tree, check_type, get_tree, temp_setattr
-from skops.io._general import DictNode, JsonNode, ObjectNode, dict_get_state
+from skops.io._general import (
+    DictNode,
+    JsonNode,
+    MethodNode,
+    ObjectNode,
+    OperatorFuncNode,
+    dict_get_state,
+    method_get_state,
+    operator_func_get_state,
+)
 from skops.io._utils import LoadContext, SaveContext, get_state, gettype
 
 
@@ -170,3 +181,25 @@ def test_format_json_node(inp, expected):
     state = get_state(inp, SaveContext(None))
     node = JsonNode(state, LoadContext(None, -1))
     assert node.format() == expected
+
+
+def test_method_node_invalid_state():
+    # Test that MethodNode raises a ValueError if the state is invalid.
+    # The __class__ and __module__ should match what's inside the content.
+    var = FunctionTransformer().fit
+    state = method_get_state(var, SaveContext(None, 0, {}))
+    state["content"]["obj"]["__class__"] = "foo"
+    load_context = LoadContext(None, -1)
+
+    with pytest.raises(ValueError, match="Expected object of type"):
+        MethodNode(state, load_context, trusted=None)
+
+
+def test_operator_func_node_invalid_state():
+    var = operator.methodcaller("fit")
+    state = operator_func_get_state(var, SaveContext(None, 0, {}))
+    state["__module__"] = "foo"
+    load_context = LoadContext(None, -1)
+
+    with pytest.raises(ValueError, match="Expected module 'operator'"):
+        OperatorFuncNode(state, load_context, trusted=None)

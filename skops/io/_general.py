@@ -548,11 +548,6 @@ class MethodNode(Node):
     def get_unsafe_set(self) -> set[str]:
         res = super().get_unsafe_set()
         obj_node = self.children["obj"]
-        if not hasattr(obj_node, "module_name") or not hasattr(obj_node, "class_name"):
-            raise ValueError(
-                "MethodNode must have an object node as child. This is probably due to"
-                " a corrupted or a malicious file."
-            )
         res.add(
             obj_node.module_name  # type: ignore
             + "."
