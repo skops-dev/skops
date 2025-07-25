@@ -145,3 +145,5 @@ As a maintainer, follow these steps:
 12. Check that the new stable branch of documentation was built correctly on
     `readthedocs <https://readthedocs.org/projects/skops/builds/>`_, and make
     sure all relevant releases are *active*.
+13. If any dependency versions are changed, make sure it's reflected in the `conda-forge
+    feedstock <https://github.com/conda-forge/skops-feedstock>`_.
