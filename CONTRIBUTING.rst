@@ -119,13 +119,20 @@ As a maintainer, follow these steps:
 
 
 5. Create a PR with all the changes and have it reviewed and merged
-6. Create a tag with the format "v0.version", e.g. "v0.2", and push it to the
-   remote repository. Use this tag for releasing the package. If there is a
-   minor release under the same branch, it would be "v0.2.1" for example.
-7. Use the `GitHub action
+6. Use the `GitHub action
    <https://github.com/skops-dev/skops/actions/workflows/publish-pypi.yml>`__ to
    create a new release on **TestPyPI**. Check it for correctness `on test.pypi
    <https://test.pypi.org/project/skops/>`_.
+
+7. Create a tag with the format "v0.version", e.g. "v0.2", and push it to the
+   remote repository. Use this tag for releasing the package. If there is a
+   minor release under the same branch, it would be "v0.2.1" for example.
+
+   .. code:: bash
+
+      git tag v0.2
+      git push origin v0.2
+
 8. Use the `GitHub action
    <https://github.com/skops-dev/skops/actions/workflows/publish-pypi.yml>`__ to
    create a new release on **PyPI**. Check it for correctness `pypi
@@ -138,3 +145,5 @@ As a maintainer, follow these steps:
 12. Check that the new stable branch of documentation was built correctly on
     `readthedocs <https://readthedocs.org/projects/skops/builds/>`_, and make
     sure all relevant releases are *active*.
+13. If any dependency versions are changed, make sure it's reflected in the `conda-forge
+    feedstock <https://github.com/conda-forge/skops-feedstock>`_.
