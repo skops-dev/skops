@@ -231,7 +231,7 @@ mean you can just call `sio.load(<file>,
 trusted=get_untrusted_types(file=<file>))` on this object -- only pass the
 types you really trust to the ``trusted`` argument.
 
-Supported libraries
+Supported/Trusted libraries
 -------------------
 
 Skops intends to support all of **scikit-learn**, that is, not only its
