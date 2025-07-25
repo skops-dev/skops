@@ -90,6 +90,8 @@ filterwarnings = [
     "ignore:The ExtraTreesQuantileRegressor or classes from which it inherits use `_get_tags` and `_more_tags`:FutureWarning",
     # BaseEstimator._validate_data deprecation warning in sklearn 1.6 #TODO can be removed when a new release of quantile-forest is out
     "ignore:`BaseEstimator._validate_data` is deprecated in 1.6 and will be removed in 1.7:FutureWarning",
+    # This comes from matplotlib somehow
+    "ignore:'mode' parameter is deprecated and will be removed in Pillow 13:DeprecationWarning",
 ]
 addopts = "--cov=skops --cov-report=term-missing --doctest-modules"
 

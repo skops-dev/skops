@@ -148,7 +148,7 @@ def load(file: str | Path, trusted: Optional[Sequence[str]] = None) -> Any:
         schema = json.loads(input_zip.read("schema.json"))
         load_context = LoadContext(src=input_zip, protocol=schema["protocol"])
         tree = get_tree(schema, load_context, trusted=trusted)
-        audit_tree(tree)
+        audit_tree(tree, trusted=trusted)
         instance = tree.construct()
 
     return instance
@@ -188,7 +188,7 @@ def loads(data: bytes, trusted: Optional[Sequence[str]] = None) -> Any:
         schema = json.loads(zip_file.read("schema.json"))
         load_context = LoadContext(src=zip_file, protocol=schema["protocol"])
         tree = get_tree(schema, load_context, trusted=trusted)
-        audit_tree(tree)
+        audit_tree(tree, trusted=trusted)
         instance = tree.construct()
 
     return instance

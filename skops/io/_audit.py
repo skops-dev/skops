@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import io
 from contextlib import contextmanager
-from typing import Any, Dict, Generator, List, Optional, Sequence, Type, Union
+from typing import Any, Dict, Generator, Iterable, List, Optional, Sequence, Type, Union
 
 from ._protocol import PROTOCOL
 from ._utils import LoadContext, get_module, get_type_paths
@@ -39,7 +39,7 @@ def check_type(module_name: str, type_name: str, trusted: Sequence[str]) -> bool
     return module_name + "." + type_name in trusted
 
 
-def audit_tree(tree: Node) -> None:
+def audit_tree(tree: Node, trusted: Iterable[str] | None) -> None:
     """Audit a tree of nodes.
 
     A tree is safe if it only contains trusted types.
@@ -54,7 +54,8 @@ def audit_tree(tree: Node) -> None:
     UntrustedTypesFoundException
         If the tree contains an untrusted type.
     """
-    unsafe = tree.get_unsafe_set()
+    trusted = trusted or set()
+    unsafe = tree.get_unsafe_set() - set(trusted)
     if unsafe:
         raise UntrustedTypesFoundException(unsafe)
 

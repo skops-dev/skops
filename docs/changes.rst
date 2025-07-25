@@ -11,6 +11,12 @@ skops Changelog
 
 v0.12
 -----
+- `huggingface_hub` dependency is now optional. :pr:`462` by `Adrin Jalali`_.
+- Objects' `__reduce__` is used when the output of it is of the form
+  `(type, (constructor_args,)` where type is the same as the `type(obj)`.
+  :pr:`467` by `Adrin Jalali`_.
+- `MethodNode` and `OperatorNode` have a hardened audit now, removing certain security
+  vulnerabilities. :pr:`482` by `Adrin Jalali`_.
 
 v0.11
 -----
