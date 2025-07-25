@@ -9,6 +9,9 @@ skops Changelog
     :depth: 1
     :local:
 
+v0.13
+-----
+
 v0.12
 -----
 - `huggingface_hub` dependency is now optional. :pr:`462` by `Adrin Jalali`_.

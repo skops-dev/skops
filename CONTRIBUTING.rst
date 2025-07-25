@@ -119,13 +119,20 @@ As a maintainer, follow these steps:
 
 
 5. Create a PR with all the changes and have it reviewed and merged
-6. Create a tag with the format "v0.version", e.g. "v0.2", and push it to the
-   remote repository. Use this tag for releasing the package. If there is a
-   minor release under the same branch, it would be "v0.2.1" for example.
-7. Use the `GitHub action
+6. Use the `GitHub action
    <https://github.com/skops-dev/skops/actions/workflows/publish-pypi.yml>`__ to
    create a new release on **TestPyPI**. Check it for correctness `on test.pypi
    <https://test.pypi.org/project/skops/>`_.
+
+7. Create a tag with the format "v0.version", e.g. "v0.2", and push it to the
+   remote repository. Use this tag for releasing the package. If there is a
+   minor release under the same branch, it would be "v0.2.1" for example.
+
+   .. code:: bash
+
+      git tag v0.2
+      git push origin v0.2
+
 8. Use the `GitHub action
    <https://github.com/skops-dev/skops/actions/workflows/publish-pypi.yml>`__ to
    create a new release on **PyPI**. Check it for correctness `pypi
