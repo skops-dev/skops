@@ -227,7 +227,9 @@ class TableSection(Section):
         return f"{self.__class__.__name__}({nrows}x{ncols})"
 
 
-def _load_model(model: Any, trusted=False, allow_pickle: bool=False) -> Any:
+def _load_model(
+    model: Any, trusted: Optional[Sequence[str]] = None, allow_pickle: bool = False
+) -> Any:
     """Return a model instance.
 
     Loads the model if provided a file path, if already a model instance return
@@ -238,7 +240,7 @@ def _load_model(model: Any, trusted=False, allow_pickle: bool=False) -> Any:
     model : pathlib.Path, str, or sklearn estimator
         Path/str or the actual model instance. if a Path or str, loads the model.
 
-    trusted : bool, default=False
+    trusted: list of str, default=None
         Passed to :func:`skops.io.load` if the model is a file path and it's
         a `skops` file.
 
@@ -327,7 +329,7 @@ class Card:
         not work, e.g. :meth:`Card.add_metrics`, since it's not clear where to
         put the metrics when there is no template or a custom template.
 
-    trusted: bool, default=False
+    trusted: list of str, default=None
         Passed to :func:`skops.io.load` if the model is a file path and it's
         a `skops` file.
 
