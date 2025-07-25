@@ -227,7 +227,7 @@ class TableSection(Section):
         return f"{self.__class__.__name__}({nrows}x{ncols})"
 
 
-def _load_model(model: Any, trusted=False) -> Any:
+def _load_model(model: Any, trusted=False, allow_pickle: bool=False) -> Any:
     """Return a model instance.
 
     Loads the model if provided a file path, if already a model instance return
@@ -242,6 +242,10 @@ def _load_model(model: Any, trusted=False) -> Any:
         Passed to :func:`skops.io.load` if the model is a file path and it's
         a `skops` file.
 
+    allow_pickle : bool, default=False
+        If `True`, allows loading models using `joblib.load`. This may lead to
+        security issues if the model file is not trustworthy.
+
     Returns
     -------
     model : object
@@ -255,13 +259,26 @@ def _load_model(model: Any, trusted=False) -> Any:
     if not model_path.exists():
         raise FileNotFoundError(f"File is not present: {model_path}")
 
+    if trusted and allow_pickle:
+        raise ValueError(
+            "`allow_pickle` cannot be `True` if `trusted` is not empty. "
+            "Pickles cannot be trusted or checked for security issues."
+        )
+
     try:
         if zipfile.is_zipfile(model_path):
             model = load(model_path, trusted=trusted)
-        else:
+        elif allow_pickle:
             model = joblib.load(model_path)
+        else:
+            msg = (
+                "Model file is not a skops file, and allow_pickle is set to False. "
+                "Please set allow_pickle=True to load the model."
+                "This may lead to security issues if the model file is not trustworthy."
+            )
+            raise ValueError(msg)
     except Exception as ex:
-        msg = f'An "{type(ex).__name__}" occurred during model loading.'
+        msg = f'"{type(ex).__name__}" occurred during model loading.'
         raise RuntimeError(msg) from ex
 
     return model
@@ -313,6 +330,10 @@ class Card:
     trusted: bool, default=False
         Passed to :func:`skops.io.load` if the model is a file path and it's
         a `skops` file.
+
+    allow_pickle: bool, default=False
+        If `True`, allows loading models using `joblib.load`. This may lead to
+        security issues if the model file is not trustworthy.
 
     Attributes
     ----------
@@ -379,11 +400,13 @@ class Card:
         model_diagram: bool | Literal["auto"] | str = "auto",
         template: Literal["skops"] | dict[str, str] | None = "skops",
         trusted: Optional[List[str]] = None,
+        allow_pickle: bool = False,
     ) -> None:
         self.model = model
         self.model_format = model_format
         self.template = template
         self.trusted = trusted
+        self.allow_pickle = allow_pickle
 
         self._data: dict[str, Section] = {}
         self._metrics: dict[str, str | float | int] = {}
@@ -465,7 +488,7 @@ class Card:
 
     @cached_property
     def _model(self):
-        model = _load_model(self.model, self.trusted)
+        model = _load_model(self.model, self.trusted, self.allow_pickle)
         return model
 
     def add(self, folded: bool = False, **kwargs: str) -> Self:
