@@ -267,6 +267,7 @@ def _load_model(
             "Pickles cannot be trusted or checked for security issues."
         )
 
+    msg = ""
     try:
         if zipfile.is_zipfile(model_path):
             model = load(model_path, trusted=trusted)
@@ -278,9 +279,10 @@ def _load_model(
                 "Please set allow_pickle=True to load the model."
                 "This may lead to security issues if the model file is not trustworthy."
             )
-            raise ValueError(msg)
+            raise RuntimeError(msg)
     except Exception as ex:
-        msg = f'"{type(ex).__name__}" occurred during model loading.'
+        if not msg:
+            msg = f'"{type(ex).__name__}" occurred during model loading.'
         raise RuntimeError(msg) from ex
 
     return model
