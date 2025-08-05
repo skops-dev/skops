@@ -93,13 +93,36 @@ def test_load_model(suffix):
     loaded_model_path = _load_model(
         save_file_path, trusted=untrusted_types, allow_pickle=allow_pickle
     )
-    loaded_model_instance = _load_model(
-        model0, trusted=untrusted_types, allow_pickle=allow_pickle
-    )
+    loaded_model_instance = _load_model(model0, trusted=untrusted_types)
 
     assert loaded_model_str.param_1 == 10
     assert loaded_model_path.param_1 == 10
     assert loaded_model_instance.param_1 == 10
+
+
+@pytest.mark.parametrize("suffix", [".pkl", ".pickle"])
+def test_load_model_exception_allow_pickle(suffix):
+    model0 = MyRegressor(param_1=10)
+    _, save_file = save_model_to_file(model0, suffix)
+
+    with pytest.raises(
+        RuntimeError,
+        match=(
+            "Model file is not a skops file, and allow_pickle is set to False. "
+            "Please set allow_pickle=True to load the model."
+            "This may lead to security issues if the model file is not trustworthy."
+        ),
+    ):
+        _load_model(save_file, trusted=None, allow_pickle=False)
+
+    with pytest.raises(
+        ValueError,
+        match=(
+            "`allow_pickle` cannot be `True` if `trusted` is not empty. "
+            "Pickles cannot be trusted or checked for security issues."
+        ),
+    ):
+        _load_model(save_file, trusted=[""], allow_pickle=True)
 
 
 @pytest.fixture
@@ -1188,7 +1211,7 @@ class TestCardModelAttributeIsPath:
         os.close(file_handle)
 
         with pytest.raises(Exception, match="occurred during model loading."):
-            card = Card(file_name)
+            card = Card(file_name, allow_pickle=True)
             meth(card)
 
     @pytest.mark.parametrize("meth", [repr, str])
