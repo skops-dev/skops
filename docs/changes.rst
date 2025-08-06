@@ -11,6 +11,9 @@ skops Changelog
 
 v0.13
 -----
+- `Card` now requires a new parameter, `allow_pickle`, to call `get_model` with
+  models that are not `.skops` files. This change is to mitigate security risks
+  associated with pickles. :pr:`485` by `Io_no`_.
 
 v0.12
 -----

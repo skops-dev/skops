@@ -82,16 +82,47 @@ def test_load_model(suffix):
     _, save_file = save_model_to_file(model0, suffix)
     if suffix == ".skops":
         untrusted_types = get_untrusted_types(file=save_file)
+        allow_pickle = False
     else:
         untrusted_types = None
-    loaded_model_str = _load_model(save_file, trusted=untrusted_types)
+        allow_pickle = True
+    loaded_model_str = _load_model(
+        save_file, trusted=untrusted_types, allow_pickle=allow_pickle
+    )
     save_file_path = Path(save_file)
-    loaded_model_path = _load_model(save_file_path, trusted=untrusted_types)
+    loaded_model_path = _load_model(
+        save_file_path, trusted=untrusted_types, allow_pickle=allow_pickle
+    )
     loaded_model_instance = _load_model(model0, trusted=untrusted_types)
 
     assert loaded_model_str.param_1 == 10
     assert loaded_model_path.param_1 == 10
     assert loaded_model_instance.param_1 == 10
+
+
+@pytest.mark.parametrize("suffix", [".pkl", ".pickle"])
+def test_load_model_exception_allow_pickle(suffix):
+    model0 = MyRegressor(param_1=10)
+    _, save_file = save_model_to_file(model0, suffix)
+
+    with pytest.raises(
+        RuntimeError,
+        match=(
+            "Model file is not a skops file, and allow_pickle is set to False. "
+            "Please set allow_pickle=True to load the model."
+            "This may lead to security issues if the model file is not trustworthy."
+        ),
+    ):
+        _load_model(save_file, trusted=None, allow_pickle=False)
+
+    with pytest.raises(
+        ValueError,
+        match=(
+            "`allow_pickle` cannot be `True` if `trusted` is not empty. "
+            "Pickles cannot be trusted or checked for security issues."
+        ),
+    ):
+        _load_model(save_file, trusted=[""], allow_pickle=True)
 
 
 @pytest.fixture
@@ -166,7 +197,9 @@ def test_model_caching(skops_model_card, iris_skops_file, destination_path):
 
     new_model = MyClassifier(param_1=10)
     # mock _load_model, it still loads the model but we can track call count
-    mock_load_model = mock.Mock(side_effect=load)
+    mock_load_model = mock.Mock(
+        side_effect=lambda path, trusted, _: load(path, trusted=trusted)
+    )
     card = Card(iris_skops_file, trusted=[MyClassifier])
     with mock.patch("skops.card._model_card._load_model", mock_load_model):
         model1 = card.get_model()
@@ -1133,7 +1166,7 @@ class TestCardModelAttributeIsPath:
         if suffix == ".skops":
             card = Card(model=path, trusted=get_untrusted_types(file=path))
         else:
-            card = Card(model=path)
+            card = Card(model=path, allow_pickle=True)
         return card
 
     @pytest.mark.parametrize("meth", [repr, str])
@@ -1178,7 +1211,7 @@ class TestCardModelAttributeIsPath:
         os.close(file_handle)
 
         with pytest.raises(Exception, match="occurred during model loading."):
-            card = Card(file_name)
+            card = Card(file_name, allow_pickle=True)
             meth(card)
 
     @pytest.mark.parametrize("meth", [repr, str])
