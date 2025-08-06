@@ -9,6 +9,9 @@ skops Changelog
     :depth: 1
     :local:
 
+v0.14
+-----
+
 v0.13
 -----
 - `Card` now requires a new parameter, `allow_pickle`, to call `get_model` with
