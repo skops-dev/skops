@@ -34,7 +34,7 @@ jobs:
       # message and make it available in later steps. This is because we want to
       # check the content of the commit message, but on PRs, it's replaced by an
       # artificial commit message. See https://github.com/skops-dev/skops/pull/147
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
           ref: ${{github.event.after}}
