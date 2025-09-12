@@ -2,6 +2,9 @@
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatch.metadata]
+license-files = ["LICENSE"]
+
 [tool.hatch.version]
 path = "skops/__init__.py"
 
@@ -35,7 +38,6 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: Implementation :: CPython",
 ]
-license = {file = "LICENSE"}
 dependencies = [
     "numpy>=1.25.0",
     "scipy>=1.10.0",
