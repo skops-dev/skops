@@ -43,7 +43,7 @@ jobs:
           echo PR_COMMIT_MESSAGE=$(git log -1 --pretty=format:\"%s\") >> $GITHUB_ENV
         shell: bash
 
-      - uses: prefix-dev/setup-pixi@v0.9.0
+      - uses: prefix-dev/setup-pixi@v0.9.1
         with:
           pixi-version: v0.39.5
           environments: ${{ matrix.environment }}
