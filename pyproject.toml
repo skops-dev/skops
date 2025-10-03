@@ -72,6 +72,8 @@ filterwarnings = [
     "error::FutureWarning",
     # comes from fairlearn
     "ignore:DataFrameGroupBy.apply operated on the grouping columns.:DeprecationWarning",
+    # sklearn1.8 deprecates this class
+    "ignore:Class PassiveAggressiveClassifier is deprecated:FutureWarning",
 ]
 addopts = "--cov=skops --cov-report=term-missing --doctest-modules"
 
