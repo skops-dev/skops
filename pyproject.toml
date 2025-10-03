@@ -70,30 +70,8 @@ doctest_optionflags = "NORMALIZE_WHITESPACE ELLIPSIS"
 filterwarnings = [
     "error::DeprecationWarning",
     "error::FutureWarning",
-    # TODO: remove when no longer supporting sklearn v1.0
-    # numpy and scipy deprecation warnings in sklearn:
-    'ignore:\n\n  \`numpy.distutils\` is deprecated since NumPy:DeprecationWarning',
-    # https://github.com/scikit-learn/scikit-learn/issues/24080
-    "ignore:The \\'sym_pos\\' keyword is deprecated and should be replaced:DeprecationWarning",
-    # https://github.com/scikit-learn/scikit-learn/pull/23633
-    "ignore:Unlike other reduction functions:FutureWarning",
-    # https://github.com/scikit-learn/scikit-learn/pull/25157
-    "ignore:\\w+ is deprecated. Use files\\(\\) instead:DeprecationWarning",
     # comes from fairlearn
-    "ignore:DataFrame.applymap has been deprecated. Use DataFrame.map instead:FutureWarning",
     "ignore:DataFrameGroupBy.apply operated on the grouping columns.:DeprecationWarning",
-    # Ignore Pandas 2.2 warning on PyArrow. It might be reverted in a later release.
-    "ignore:\\s*Pyarrow will become a required dependency of pandas.*:DeprecationWarning",
-    # LightGBM sklearn 1.6 deprecation warning, fixed in the next release
-    "ignore:'force_all_finite' was renamed to 'ensure_all_finite' in 1.6 and will be removed in 1.8.:FutureWarning",
-    # RandomForestQuantileRegressor tags deprecation warning in sklearn 1.7
-    "ignore:The RandomForestQuantileRegressor or classes from which it inherits use `_get_tags` and `_more_tags`:FutureWarning",
-    # ExtraTreesQuantileRegressor tags deprecation warning in sklearn 1.7
-    "ignore:The ExtraTreesQuantileRegressor or classes from which it inherits use `_get_tags` and `_more_tags`:FutureWarning",
-    # BaseEstimator._validate_data deprecation warning in sklearn 1.6 #TODO can be removed when a new release of quantile-forest is out
-    "ignore:`BaseEstimator._validate_data` is deprecated in 1.6 and will be removed in 1.7:FutureWarning",
-    # This comes from matplotlib somehow
-    "ignore:'mode' parameter is deprecated and will be removed in Pillow 13:DeprecationWarning",
 ]
 addopts = "--cov=skops --cov-report=term-missing --doctest-modules"
 
