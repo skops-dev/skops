@@ -148,6 +148,16 @@ def _tested_estimators(type_filter=None):
                     # default solver will be "highs" from scikit-learn >= 1.4.0.
                     # https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.QuantileRegressor.html
                     estimators = construct_instances(partial(Estimator, solver="highs"))
+                elif name == "SparseCoder":
+                    dictionary = np.random.randint(-2, 3, size=(5, N_FEATURES)).astype(
+                        float
+                    )
+                    estimators = [
+                        SparseCoder(
+                            dictionary=dictionary,
+                            transform_algorithm="lasso_lars",
+                        )
+                    ]
                 else:
                     estimators = construct_instances(Estimator)
 
@@ -245,12 +255,6 @@ def _tested_estimators(type_filter=None):
         LogisticRegression(random_state=0, solver="liblinear"),
         {"C": [1, 2, 3, 4, 5]},
         n_iter=3,
-    )
-
-    dictionary = np.random.randint(-2, 3, size=(5, N_FEATURES)).astype(float)
-    yield SparseCoder(
-        dictionary=dictionary,
-        transform_algorithm="lasso_lars",
     )
 
 
