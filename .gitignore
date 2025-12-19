@@ -122,3 +122,6 @@ node_modules
 
 exports
 trash
+
+#spyder
+.spyproject
