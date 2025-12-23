@@ -11,7 +11,7 @@ concurrency:
 jobs:
   pytest:
     runs-on: ${{ matrix.os }}
-    if: github.repository == 'skops-dev/skops'
+    # if: github.repository == 'skops-dev/skops'
     strategy:
       fail-fast: false # need to see which ones fail
       matrix:
