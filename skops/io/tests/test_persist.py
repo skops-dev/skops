@@ -160,9 +160,7 @@ def _tested_estimators(type_filter=None):
                         )
                     ]
                 elif name == "QuadraticDiscriminantAnalysis":
-                    estimators = [
-                        QuadraticDiscriminantAnalysis(reg_param=1.0)
-                    ]
+                    estimators = [QuadraticDiscriminantAnalysis(reg_param=1.0)]
                 else:
                     estimators = construct_instances(Estimator)
 
