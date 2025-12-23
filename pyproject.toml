@@ -199,6 +199,16 @@ quantile-forest = "~=1.4.0"
 python = "~=3.13.0"
 
 
+[tool.pixi.feature.sklearn18.dependencies]
+scikit-learn = "~=1.8.0"
+fairlearn = "~=0.12.0"
+pandas = "~=2.3.0"
+numpy = "~=2.3.0"
+scipy = "~=1.16.0"
+catboost = ">=1.0"
+quantile-forest = "~=1.4.0"
+python = "~=3.13.0"
+
 # [tool.pixi.feature.sklearn17]
 # this can be used when sklearn=1.7 is in release candidate mode.
 # channels = [
@@ -235,4 +245,5 @@ ci-sklearn14 = ["rich", "tests", "lint", "sklearn14"]
 ci-sklearn15 = ["rich", "tests", "lint", "sklearn15"]
 ci-sklearn16 = ["rich", "tests", "lint", "sklearn16"]
 ci-sklearn17 = ["rich", "tests", "lint", "sklearn17"]
+ci-sklearn18 = ["rich", "tests", "lint", "sklearn18"]
 ci-sklearn-nightly = ["rich", "tests", "lint", "sklearn-nightly"]

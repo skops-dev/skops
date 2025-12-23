@@ -17,12 +17,13 @@ jobs:
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
         environment: [
-          ci-sklearn12,
-          ci-sklearn13,
-          ci-sklearn14,
-          ci-sklearn15,
-          ci-sklearn16,
-          ci-sklearn17,
+          # ci-sklearn12,
+          # ci-sklearn13,
+          # ci-sklearn14,
+          # ci-sklearn15,
+          # ci-sklearn16,
+          # ci-sklearn17,
+          ci-sklearn18,
           ci-sklearn-nightly
         ]
 
