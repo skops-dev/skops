@@ -207,7 +207,7 @@ numpy = "~=2.3.0"
 scipy = "~=1.16.0"
 catboost = ">=1.0"
 quantile-forest = "~=1.4.0"
-python = "~=3.13.0"
+python = "~=3.14.0"
 
 # [tool.pixi.feature.sklearn17]
 # this can be used when sklearn=1.7 is in release candidate mode.
