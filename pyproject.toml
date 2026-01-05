@@ -224,7 +224,7 @@ extra-index-urls = ["https://pypi.anaconda.org/scientific-python-nightly-wheels/
 
 [tool.pixi.feature.sklearn-nightly.pypi-dependencies]
 # The version value here needs to be exact, hence == instead of ~=
-scikit-learn = "==1.8.dev0"
+scikit-learn = "==1.9.dev0"
 fairlearn = "*"
 pandas = "*"
 numpy = "*"
