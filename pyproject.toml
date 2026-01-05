@@ -206,7 +206,7 @@ pandas = "~=2.3.0"
 numpy = "~=2.4.0"
 scipy = "~=1.16.0"
 # catboost = ">=1.0"
-# catboost does not support python 3.14 - issue https://github.com/catboost/catboost/issues/2989
+# TODO: catboost does not support python 3.14 - issue https://github.com/catboost/catboost/issues/2989
 quantile-forest = "~=1.4.0"
 python = "~=3.14.0"
 
