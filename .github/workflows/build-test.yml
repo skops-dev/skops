@@ -52,6 +52,9 @@ jobs:
           # latest version time to time.
           frozen: true
 
+      - name: Linters
+        run: pixi run -e lint lint
+
       - name: Run tests
         run: pixi run -e ${{ matrix.environment }} tests
 
