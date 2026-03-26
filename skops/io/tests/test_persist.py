@@ -19,6 +19,7 @@ from sklearn.base import BaseEstimator, is_regressor
 from sklearn.compose import ColumnTransformer
 from sklearn.datasets import load_sample_images, make_classification, make_regression
 from sklearn.decomposition import SparseCoder
+from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
 from sklearn.exceptions import SkipTestWarning
 from sklearn.experimental import enable_halving_search_cv  # noqa
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -148,6 +149,18 @@ def _tested_estimators(type_filter=None):
                     # default solver will be "highs" from scikit-learn >= 1.4.0.
                     # https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.QuantileRegressor.html
                     estimators = construct_instances(partial(Estimator, solver="highs"))
+                elif name == "SparseCoder":
+                    dictionary = np.random.randint(-2, 3, size=(5, N_FEATURES)).astype(
+                        float
+                    )
+                    estimators = [
+                        SparseCoder(
+                            dictionary=dictionary,
+                            transform_algorithm="lasso_lars",
+                        )
+                    ]
+                elif name == "QuadraticDiscriminantAnalysis":
+                    estimators = [QuadraticDiscriminantAnalysis(reg_param=1.0)]
                 else:
                     estimators = construct_instances(Estimator)
 
@@ -245,12 +258,6 @@ def _tested_estimators(type_filter=None):
         LogisticRegression(random_state=0, solver="liblinear"),
         {"C": [1, 2, 3, 4, 5]},
         n_iter=3,
-    )
-
-    dictionary = np.random.randint(-2, 3, size=(5, N_FEATURES)).astype(float)
-    yield SparseCoder(
-        dictionary=dictionary,
-        transform_algorithm="lasso_lars",
     )
 
 

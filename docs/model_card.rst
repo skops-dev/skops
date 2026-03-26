@@ -44,14 +44,13 @@ terms of information passed, which gives the user a lot of flexibility. The
 markdown part of the ``README.md`` file comes with a couple of defaults provided
 by ``skops``, which includes the following slots for free text sections:
 
-- ``"Mode description"``: A description of the model.
+- ``"Model description"``: A description of the model.
 - ``"Intended uses & limitations"``: Intended use for the model, limitations and
   potential biases. This section should also include risks of using models in
   certain domains if relevant.
 - ``"How to Get Started with the Model"``: Code the user can run to load and use
   the model.
-- ``"Model Card Authors"``: Authors of the model card. This section includes
-  authors of the model card
+- ``"Model Card Authors"``: Authors of the model card.
 - ``"Model Card Contact"``: Contact information of people whom can be reached
   out, in case of questions about the model or the model card.
 - ``"Citation"``: Bibtex style citations for the model or resources used to
@@ -149,7 +148,7 @@ if you used different column alignment than the default, this could change, as
 well as removing excess empty lines or trailing whitespace. However, the content
 itself should be exactly the same. All known deviations are documented in the
 `parse_modelcard docs
-<https://skops.readthedocs.io/en/stable/modules/classes.html#skops.card.parse_modelcard>`_
+<https://skops.readthedocs.io/en/stable/modules/classes.html#skops.card.parse_modelcard>`_.
 
 For the parsing part, we rely on `pandoc <https://pandoc.org/>`_. If you haven't
 installed it, please follow `these instructions

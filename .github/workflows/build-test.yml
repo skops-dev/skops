@@ -23,6 +23,7 @@ jobs:
           ci-sklearn15,
           ci-sklearn16,
           ci-sklearn17,
+          ci-sklearn18,
           ci-sklearn-nightly
         ]
 
@@ -34,7 +35,7 @@ jobs:
       # message and make it available in later steps. This is because we want to
       # check the content of the commit message, but on PRs, it's replaced by an
       # artificial commit message. See https://github.com/skops-dev/skops/pull/147
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
           ref: ${{github.event.after}}
@@ -43,7 +44,7 @@ jobs:
           echo PR_COMMIT_MESSAGE=$(git log -1 --pretty=format:\"%s\") >> $GITHUB_ENV
         shell: bash
 
-      - uses: prefix-dev/setup-pixi@v0.8.14
+      - uses: prefix-dev/setup-pixi@v0.9.3
         with:
           pixi-version: v0.39.5
           environments: ${{ matrix.environment }}
