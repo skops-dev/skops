@@ -2198,7 +2198,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/readline-8.3-h853b02a_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/rich-14.3.3-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/scikit-learn-1.4.2-py311he08f58d_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/scipy-1.11.4-py311h64a7726_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/scipy-1.13.1-py311h517d4fd_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/setuptools-82.0.1-pyh332efcf_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/six-1.17.0-pyhe01879c_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/threadpoolctl-3.6.0-pyhecae5ae_0.conda
@@ -2375,7 +2375,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-64/readline-8.3-h68b038d_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/rich-14.3.3-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-64/scikit-learn-1.4.2-py311h3c3ac6d_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-64/scipy-1.11.4-py311he0bea55_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-64/scipy-1.13.1-py311h40a1ab3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/setuptools-82.0.1-pyh332efcf_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/six-1.17.0-pyhe01879c_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/threadpoolctl-3.6.0-pyhecae5ae_0.conda
@@ -2528,7 +2528,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/readline-8.3-h46df422_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/rich-14.3.3-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/scikit-learn-1.4.2-py311hbfb48bc_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/scipy-1.11.4-py311h2b215a9_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/scipy-1.13.1-py311hceeca8c_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/setuptools-82.0.1-pyh332efcf_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/six-1.17.0-pyhe01879c_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/threadpoolctl-3.6.0-pyhecae5ae_0.conda
@@ -2680,7 +2680,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/win-64/qt6-main-6.10.2-pl5321hfcac499_6.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/rich-14.3.3-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/scikit-learn-1.4.2-py311hdcb8d17_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/win-64/scipy-1.11.4-py311h0b4df5a_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/win-64/scipy-1.13.1-py311hd4686c6_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/setuptools-82.0.1-pyh332efcf_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/six-1.17.0-pyhe01879c_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/tbb-2022.3.0-h3155e25_2.conda
@@ -22848,9 +22848,9 @@ packages:
   - pkg:pypi/scipy?source=hash-mapping
   size: 15108126
   timestamp: 1683901056877
-- conda: https://conda.anaconda.org/conda-forge/linux-64/scipy-1.11.4-py311h64a7726_0.conda
-  sha256: 29b2fd4ce8ed591df89b6a1c4f598a414322f94ea1a973b366267d43ecf40ffd
-  md5: 9ac5334f1b5ed072d3dbc342503d7868
+- conda: https://conda.anaconda.org/conda-forge/linux-64/scipy-1.13.1-py311h517d4fd_0.conda
+  sha256: f2312e5565f39308639f982729c151c2c75d5eaf86ac2863e19765f9797f7f3b
+  md5: 764b0e055f59dbd7d114d32b8c6e55e6
   depends:
   - libblas >=3.9.0,<4.0a0
   - libcblas >=3.9.0,<4.0a0
@@ -22859,18 +22859,16 @@ packages:
   - libgfortran5 >=12.3.0
   - liblapack >=3.9.0,<4.0a0
   - libstdcxx-ng >=12
-  - numpy >=1.23.5,<1.28
-  - numpy >=1.23.5,<2.0a0
+  - numpy >=1.22.4,<2.3
+  - numpy >=1.19,<3
   - python >=3.11,<3.12.0a0
   - python_abi 3.11.* *_cp311
-  constrains:
-  - libopenblas <0.3.26
   license: BSD-3-Clause
   license_family: BSD
   purls:
   - pkg:pypi/scipy?source=hash-mapping
-  size: 16045599
-  timestamp: 1700813453003
+  size: 17347738
+  timestamp: 1716471208504
 - conda: https://conda.anaconda.org/conda-forge/linux-64/scipy-1.13.1-py312hc2bc53b_0.conda
   sha256: 865fe2b3ed1aee0a42f6f275592f2571e68f2a60235c86bd9ababc681e30fbb5
   md5: 864b2399a9c998e17d1a9a4e0c601285
@@ -23007,30 +23005,28 @@ packages:
   - pkg:pypi/scipy?source=hash-mapping
   size: 15385325
   timestamp: 1683902699973
-- conda: https://conda.anaconda.org/conda-forge/osx-64/scipy-1.11.4-py311he0bea55_0.conda
-  sha256: f174683a50833c463ec1cf23198970294f4e3a12f5df8f3997a4d4cee640bc08
-  md5: baee74d27482a81394b088b3517e2143
+- conda: https://conda.anaconda.org/conda-forge/osx-64/scipy-1.13.1-py311h40a1ab3_0.conda
+  sha256: 058a04f1c13a6812884c1bcc9295b2b259ef48685ad30ce8c24e86226e7a43b4
+  md5: e7f86277ec9b453bdf2fc1ef54740033
   depends:
-  - __osx >=10.9
+  - __osx >=10.13
   - libblas >=3.9.0,<4.0a0
   - libcblas >=3.9.0,<4.0a0
-  - libcxx >=16.0.6
+  - libcxx >=16
   - libgfortran >=5
   - libgfortran5 >=12.3.0
   - libgfortran5 >=13.2.0
   - liblapack >=3.9.0,<4.0a0
-  - numpy >=1.23.5,<1.28
-  - numpy >=1.23.5,<2.0a0
+  - numpy >=1.22.4,<2.3
+  - numpy >=1.19,<3
   - python >=3.11,<3.12.0a0
   - python_abi 3.11.* *_cp311
-  constrains:
-  - libopenblas <0.3.26
   license: BSD-3-Clause
   license_family: BSD
   purls:
   - pkg:pypi/scipy?source=hash-mapping
-  size: 15934429
-  timestamp: 1700814198750
+  size: 16418198
+  timestamp: 1716471483674
 - conda: https://conda.anaconda.org/conda-forge/osx-64/scipy-1.13.1-py312hb9702fa_0.conda
   sha256: 2f65b1de8705f0518195d8baffb7990e9a334984ebdd92800f480e73cf84d594
   md5: 46cb49e67c33f8340a09e49e69adf195
@@ -23167,31 +23163,29 @@ packages:
   - pkg:pypi/scipy?source=hash-mapping
   size: 14090945
   timestamp: 1683902850695
-- conda: https://conda.anaconda.org/conda-forge/osx-arm64/scipy-1.11.4-py311h2b215a9_0.conda
-  sha256: a76f172fc8e76c319b9d93c81829fcb3b498ee057e82117a744b37e751e66569
-  md5: eeb78a4ed07acf5636a0cba7b16c8a89
+- conda: https://conda.anaconda.org/conda-forge/osx-arm64/scipy-1.13.1-py311hceeca8c_0.conda
+  sha256: 5fd68198ac99720a1cfc3d5e4f534909917ab02b5feb8bc6a70553f54ae65fb7
+  md5: af2deddee1cc1f11a8a5799a64ecfe3a
   depends:
-  - __osx >=10.9
+  - __osx >=11.0
   - libblas >=3.9.0,<4.0a0
   - libcblas >=3.9.0,<4.0a0
-  - libcxx >=16.0.6
+  - libcxx >=16
   - libgfortran >=5
   - libgfortran5 >=12.3.0
   - libgfortran5 >=13.2.0
   - liblapack >=3.9.0,<4.0a0
-  - numpy >=1.23.5,<1.28
-  - numpy >=1.23.5,<2.0a0
+  - numpy >=1.22.4,<2.3
+  - numpy >=1.19,<3
   - python >=3.11,<3.12.0a0
   - python >=3.11,<3.12.0a0 *_cpython
   - python_abi 3.11.* *_cp311
-  constrains:
-  - libopenblas <0.3.26
   license: BSD-3-Clause
   license_family: BSD
   purls:
   - pkg:pypi/scipy?source=hash-mapping
-  size: 14854215
-  timestamp: 1700814446442
+  size: 15597027
+  timestamp: 1716471638954
 - conda: https://conda.anaconda.org/conda-forge/osx-arm64/scipy-1.13.1-py312h14ffa8f_0.conda
   sha256: 5853122a2008077c20a33cabfdb30360f9b135237f336e5002ad88dfcd42fb48
   md5: 0ef7359585e53bb3ff4539cf204f9c62
@@ -23334,28 +23328,26 @@ packages:
   - pkg:pypi/scipy?source=hash-mapping
   size: 18249601
   timestamp: 1683902157779
-- conda: https://conda.anaconda.org/conda-forge/win-64/scipy-1.11.4-py311h0b4df5a_0.conda
-  sha256: a3ab79cf0c209b03b8cf95b9520d7a9afffaa9a803d9f33ede355ed98731239c
-  md5: 7e367331519517cc9ba4635ceba0414c
+- conda: https://conda.anaconda.org/conda-forge/win-64/scipy-1.13.1-py311hd4686c6_0.conda
+  sha256: d692402c159ab3c23a722d3d168b013f21193ab01ce1a913582e6db7fe2f0ecf
+  md5: 980070a1c48686998f8256d0c4d76cf2
   depends:
   - libblas >=3.9.0,<4.0a0
   - libcblas >=3.9.0,<4.0a0
   - liblapack >=3.9.0,<4.0a0
-  - numpy >=1.23.5,<1.28
-  - numpy >=1.23.5,<2.0a0
+  - numpy >=1.22.4,<2.3
+  - numpy >=1.19,<3
   - python >=3.11,<3.12.0a0
   - python_abi 3.11.* *_cp311
   - ucrt >=10.0.20348.0
   - vc >=14.2,<15
   - vc14_runtime >=14.29.30139
-  constrains:
-  - libopenblas <0.3.26
   license: BSD-3-Clause
   license_family: BSD
   purls:
   - pkg:pypi/scipy?source=hash-mapping
-  size: 14921421
-  timestamp: 1700815001090
+  size: 15555238
+  timestamp: 1716472827028
 - conda: https://conda.anaconda.org/conda-forge/win-64/scipy-1.13.1-py312h1f4e10d_0.conda
   sha256: 17bb2262a733a8c751cea2c446d010e8d6bebdeda12fc6e3cf857cc2a1fbb166
   md5: fbeaeb1f8d575d1ad2457d037c485b4e
@@ -23476,7 +23468,7 @@ packages:
 - pypi: ./
   name: skops
   version: 0.14.dev0
-  sha256: 6172d15d6302fd0604e8cffc4697f137791291b583bc3a6cd6a6c98a02ee3703
+  sha256: c7af1710e6fc5dcfab436d88167f56d249a1e67bead44a799e6bf44200f85c98
   requires_dist:
   - numpy>=1.25.0
   - packaging>=17.0
