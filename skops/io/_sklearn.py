@@ -166,7 +166,6 @@ class ReduceNode(Node):
                 {
                     "__class__": ctor_class,
                     "__module__": ctor_module,
-                    "__id__": id(ctor_module + "." + ctor_class),
                 },
                 load_context,
                 trusted=trusted,
