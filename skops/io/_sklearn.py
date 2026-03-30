@@ -172,6 +172,19 @@ def get_sklearn_internal_type_name(type_: type) -> str:
     )
 
 
+TRUSTED_SKLEARN_INTERNAL_TYPE_NAMES = [
+    get_sklearn_internal_type_name(type_) for type_ in SKLEARN_INTERNAL_OBJECTS
+]
+
+if not all(
+    type_name.startswith("sklearn.")
+    for type_name in TRUSTED_SKLEARN_INTERNAL_TYPE_NAMES
+):
+    raise RuntimeError(
+        "All trusted sklearn internal type names must start with 'sklearn.'."
+    )
+
+
 def reduce_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     # This method is for objects for which we have to use the __reduce__
     # method to get the state.
@@ -353,17 +366,9 @@ class SklearnInternalObjectNode(ObjectNode):
         trusted: Optional[Sequence[str]] = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
-        trusted_sklearn_internals = [
-            get_sklearn_internal_type_name(type_) for type_ in SKLEARN_INTERNAL_OBJECTS
-        ]
-        trusted_sklearn_internals = [
-            type_name
-            for type_name in trusted_sklearn_internals
-            if type_name.startswith("sklearn.")
-        ]
         self.trusted = self._get_trusted(
             trusted,
-            default=trusted_sklearn_internals,
+            default=TRUSTED_SKLEARN_INTERNAL_TYPE_NAMES,
         )
 
 
