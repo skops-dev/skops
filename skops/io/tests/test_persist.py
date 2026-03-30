@@ -20,6 +20,12 @@ from sklearn.compose import ColumnTransformer
 from sklearn.datasets import load_sample_images, make_classification, make_regression
 from sklearn.decomposition import SparseCoder
 from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
+from sklearn.ensemble import (
+    GradientBoostingClassifier,
+    GradientBoostingRegressor,
+    HistGradientBoostingClassifier,
+    HistGradientBoostingRegressor,
+)
 from sklearn.exceptions import SkipTestWarning
 from sklearn.experimental import enable_halving_search_cv  # noqa
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -436,6 +442,141 @@ def test_can_trust_types(type_):
     dumped = dumps(type_)
     untrusted_types = get_untrusted_types(data=dumped)
     assert len(untrusted_types) == 0
+
+
+@pytest.mark.parametrize(
+    ("estimator", "problem_type"),
+    [
+        pytest.param(
+            GradientBoostingClassifier(loss="log_loss", n_estimators=5),
+            "multiclass",
+            id="GradientBoostingClassifier-log_loss-multiclass",
+        ),
+        pytest.param(
+            GradientBoostingClassifier(loss="exponential", n_estimators=5),
+            "binary",
+            id="GradientBoostingClassifier-exponential",
+        ),
+        pytest.param(
+            GradientBoostingRegressor(loss="squared_error", n_estimators=5),
+            "regression",
+            id="GradientBoostingRegressor-squared_error",
+        ),
+        pytest.param(
+            GradientBoostingRegressor(loss="absolute_error", n_estimators=5),
+            "regression",
+            id="GradientBoostingRegressor-absolute_error",
+        ),
+        pytest.param(
+            GradientBoostingRegressor(loss="huber", n_estimators=5),
+            "regression",
+            id="GradientBoostingRegressor-huber",
+        ),
+        pytest.param(
+            GradientBoostingRegressor(loss="quantile", n_estimators=5, alpha=0.8),
+            "regression",
+            id="GradientBoostingRegressor-quantile",
+        ),
+        pytest.param(
+            HistGradientBoostingClassifier(loss="log_loss", max_iter=5),
+            "binary",
+            id="HistGradientBoostingClassifier-log_loss",
+        ),
+        pytest.param(
+            HistGradientBoostingRegressor(loss="gamma", max_iter=5),
+            "positive_regression",
+            id="HistGradientBoostingRegressor-gamma",
+        ),
+        pytest.param(
+            HistGradientBoostingRegressor(loss="poisson", max_iter=5),
+            "positive_regression",
+            id="HistGradientBoostingRegressor-poisson",
+        ),
+    ],
+)
+def test_gradient_boosting_estimators_have_no_untrusted_types(estimator, problem_type):
+    set_random_state(estimator, random_state=0)
+
+    if problem_type == "binary":
+        X, y = make_classification(
+            n_samples=N_SAMPLES,
+            n_features=N_FEATURES,
+            n_classes=2,
+            n_informative=5,
+            random_state=0,
+        )
+    elif problem_type == "multiclass":
+        X, y = make_classification(
+            n_samples=140,
+            n_features=N_FEATURES,
+            n_classes=3,
+            n_informative=8,
+            n_clusters_per_class=1,
+            random_state=0,
+        )
+    elif problem_type == "positive_regression":
+        X, y = make_regression(
+            n_samples=N_SAMPLES,
+            n_features=N_FEATURES,
+            random_state=0,
+        )
+        y = np.abs(y) + 1
+    else:
+        X, y = make_regression(
+            n_samples=N_SAMPLES,
+            n_features=N_FEATURES,
+            random_state=0,
+        )
+
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", module="sklearn")
+        estimator.fit(X, y)
+
+    dumped = dumps(estimator)
+
+    assert get_untrusted_types(data=dumped) == []
+
+    loaded = loads(dumped)
+    assert_method_outputs_equal(estimator, loaded, X)
+
+
+def test_cyhalfmultinomialloss_is_serialized_under_sklearn_module():
+    estimator = GradientBoostingClassifier(loss="log_loss", n_estimators=5)
+    set_random_state(estimator, random_state=0)
+    X, y = make_classification(
+        n_samples=140,
+        n_features=N_FEATURES,
+        n_classes=3,
+        n_informative=8,
+        n_clusters_per_class=1,
+        random_state=0,
+    )
+
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", module="sklearn")
+        estimator.fit(X, y)
+
+    dumped = dumps(estimator)
+    with ZipFile(io.BytesIO(dumped), "r") as zip_file:
+        schema = json.loads(zip_file.read("schema.json"))
+
+    found = []
+
+    def walk(obj):
+        if isinstance(obj, dict):
+            if obj.get("__class__") == "CyHalfMultinomialLoss":
+                found.append(obj)
+            for value in obj.values():
+                walk(value)
+        elif isinstance(obj, list):
+            for value in obj:
+                walk(value)
+
+    walk(schema)
+
+    assert len(found) == 1
+    assert found[0]["__module__"] == "sklearn._loss._loss"
+    assert found[0]["__loader__"] == "SklearnInternalObjectNode"
 
 
 @pytest.mark.parametrize(

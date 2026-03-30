@@ -6,7 +6,7 @@ from sklearn.cluster import Birch
 from sklearn.tree._tree import Tree
 
 from ._audit import Node, get_tree
-from ._general import TypeNode, unsupported_get_state
+from ._general import ObjectNode, TypeNode, object_get_state, unsupported_get_state
 from ._protocol import PROTOCOL
 from ._utils import LoadContext, SaveContext, get_module, get_state, gettype
 from .exceptions import UnsupportedTypeException
@@ -97,7 +97,79 @@ except ImportError:
     LossFunction = None
 
 
+SKLEARN_INTERNAL_OBJECTS: set[type] = set()
+SKLEARN_TYPE_NAME_OVERRIDES: dict[type, str] = {}
+
+try:
+    from sklearn._loss.link import (
+        HalfLogitLink,
+        IdentityLink,
+        Interval,
+        LogitLink,
+        LogLink,
+        MultinomialLogit,
+    )
+
+    SKLEARN_INTERNAL_OBJECTS |= {
+        HalfLogitLink,
+        IdentityLink,
+        Interval,
+        LogLink,
+        LogitLink,
+        MultinomialLogit,
+    }
+except ImportError:
+    pass
+
+try:
+    from sklearn._loss.loss import (
+        AbsoluteError,
+        ExponentialLoss,
+        HalfBinomialLoss,
+        HalfGammaLoss,
+        HalfMultinomialLoss,
+        HalfPoissonLoss,
+        HalfSquaredError,
+        HuberLoss,
+        PinballLoss,
+    )
+
+    SKLEARN_INTERNAL_OBJECTS |= {
+        AbsoluteError,
+        ExponentialLoss,
+        HalfBinomialLoss,
+        HalfGammaLoss,
+        HalfMultinomialLoss,
+        HalfPoissonLoss,
+        HalfSquaredError,
+        HuberLoss,
+        PinballLoss,
+    }
+except ImportError:
+    pass
+
+if "CyHalfMultinomialLoss" in globals():
+    SKLEARN_INTERNAL_OBJECTS.add(CyHalfMultinomialLoss)
+    SKLEARN_TYPE_NAME_OVERRIDES[CyHalfMultinomialLoss] = (
+        "sklearn._loss._loss.CyHalfMultinomialLoss"
+    )
+
+try:
+    from sklearn.ensemble._hist_gradient_boosting.binning import _BinMapper
+    from sklearn.ensemble._hist_gradient_boosting.predictor import TreePredictor
+
+    SKLEARN_INTERNAL_OBJECTS |= {_BinMapper, TreePredictor}
+except ImportError:
+    pass
+
+
 UNSUPPORTED_TYPES = {Birch}
+
+
+def get_sklearn_internal_type_name(type_: type) -> str:
+    return SKLEARN_TYPE_NAME_OVERRIDES.get(
+        type_, get_module(type_) + "." + type_.__name__
+    )
 
 
 def reduce_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
@@ -260,6 +332,41 @@ class LossNode(ReduceNode):
         )
 
 
+def sklearn_internal_object_get_state(
+    obj: Any, save_context: SaveContext
+) -> dict[str, Any]:
+    state = object_get_state(obj, save_context)
+    module_name, _, class_name = get_sklearn_internal_type_name(type(obj)).rpartition(
+        "."
+    )
+    state["__module__"] = module_name
+    state["__class__"] = class_name
+    state["__loader__"] = "SklearnInternalObjectNode"
+    return state
+
+
+class SklearnInternalObjectNode(ObjectNode):
+    def __init__(
+        self,
+        state: dict[str, Any],
+        load_context: LoadContext,
+        trusted: Optional[Sequence[str]] = None,
+    ) -> None:
+        super().__init__(state, load_context, trusted)
+        trusted_sklearn_internals = [
+            get_sklearn_internal_type_name(type_) for type_ in SKLEARN_INTERNAL_OBJECTS
+        ]
+        trusted_sklearn_internals = [
+            type_name
+            for type_name in trusted_sklearn_internals
+            if type_name.startswith("sklearn.")
+        ]
+        self.trusted = self._get_trusted(
+            trusted,
+            default=trusted_sklearn_internals,
+        )
+
+
 # TODO: remove once support for sklearn<1.2 is dropped.
 def _DictWithDeprecatedKeys_get_state(
     obj: Any, save_context: SaveContext
@@ -321,12 +428,16 @@ if LossFunction is not None:
 if CyLossFunction is not None:
     GET_STATE_DISPATCH_FUNCTIONS.append((CyLossFunction, loss_get_state))
 
+for type_ in SKLEARN_INTERNAL_OBJECTS:
+    GET_STATE_DISPATCH_FUNCTIONS.append((type_, sklearn_internal_object_get_state))
+
 for type_ in UNSUPPORTED_TYPES:
     GET_STATE_DISPATCH_FUNCTIONS.append((type_, unsupported_get_state))
 
 # tuples of type and function that creates the instance of that type
 NODE_TYPE_MAPPING: dict[tuple[str, int], Any] = {
     ("LossNode", PROTOCOL): LossNode,
+    ("SklearnInternalObjectNode", PROTOCOL): SklearnInternalObjectNode,
     ("TreeNode", PROTOCOL): TreeNode,
 }
 
