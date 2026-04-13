@@ -1324,3 +1324,35 @@ def test_custom_reduce():
 
     loaded_obj = loads(dumps(obj), trusted=[CustomReduce])
     assert obj.value == loaded_obj.value
+
+
+def test_loss_node_does_not_import_before_audit(monkeypatch):
+    """Regression test for https://github.com/skops-dev/skops/pull/506"""
+    try:
+        from sklearn._loss._loss import CyAbsoluteError
+    except ImportError:
+        pytest.skip("sklearn version does not have CyAbsoluteError")
+
+    dumped = dumps(CyAbsoluteError())
+    buffer = io.BytesIO()
+
+    with ZipFile(io.BytesIO(dumped), "r") as src, ZipFile(buffer, "w") as dst:
+        schema = json.loads(src.read("schema.json"))
+        schema["__module__"] = "malicious_mod"
+        schema["__class__"] = "Payload"
+
+        for info in src.infolist():
+            if info.filename == "schema.json":
+                dst.writestr("schema.json", json.dumps(schema))
+            else:
+                dst.writestr(info, src.read(info.filename))
+
+    dumped = buffer.getvalue()
+
+    def fail_gettype(*args, **kwargs):
+        raise AssertionError("gettype() should not be called before audit")
+
+    monkeypatch.setattr("skops.io._sklearn.gettype", fail_gettype)
+
+    with pytest.raises(UntrustedTypesFoundException, match="malicious_mod.Payload"):
+        loads(dumped)

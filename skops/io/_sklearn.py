@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Optional, Sequence, Type
+from typing import Any, Optional, Sequence
 
 from sklearn.cluster import Birch
 from sklearn.tree._tree import Tree
@@ -238,19 +238,19 @@ class ReduceNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        constructor: Type[Any],
+        constructor: tuple[str, str],
         trusted: Optional[Sequence[str]] = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         reduce = state["__reduce__"]
+        ctor_module, ctor_class = constructor
         self.children = {
             "attrs": get_tree(state["content"], load_context, trusted=trusted),
             "args": get_tree(reduce["args"], load_context, trusted=trusted),
             "constructor": TypeNode(
                 {
-                    "__class__": constructor.__name__,
-                    "__module__": get_module(constructor),
-                    "__id__": id(constructor),
+                    "__class__": ctor_class,
+                    "__module__": ctor_module,
                 },
                 load_context,
                 trusted=trusted,
@@ -301,7 +301,12 @@ class TreeNode(ReduceNode):
         trusted: Optional[Sequence[str]] = None,
     ) -> None:
         self.trusted = self._get_trusted(trusted, [get_module(Tree) + ".Tree"])
-        super().__init__(state, load_context, constructor=Tree, trusted=self.trusted)
+        super().__init__(
+            state,
+            load_context,
+            constructor=(get_module(Tree), "Tree"),
+            trusted=self.trusted,
+        )
 
 
 def loss_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
@@ -340,7 +345,7 @@ class LossNode(ReduceNode):
         super().__init__(
             state,
             load_context,
-            constructor=gettype(state["__module__"], state["__class__"]),
+            constructor=(state["__module__"], state["__class__"]),
             trusted=self.trusted,
         )
 

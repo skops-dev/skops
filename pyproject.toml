@@ -25,7 +25,7 @@ classifiers = [
     "Programming Language :: Python",
     "Topic :: Software Development",
     "Topic :: Scientific/Engineering",
-    "Development Status :: 1 - Planning",
+    "Development Status :: 4 - Beta",
     "Operating System :: Microsoft :: Windows",
     "Operating System :: POSIX",
     "Operating System :: Unix",
@@ -36,6 +36,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Programming Language :: Python :: Implementation :: CPython",
 ]
 dependencies = [
@@ -90,7 +91,7 @@ exclude = "(\\w+/)*test_\\w+\\.py$|spaces/skops_model_card_creator|old"
 ignore_missing_imports = true
 no_implicit_optional = true
 
-[tool.pixi.project]
+[tool.pixi.workspace]
 channels = ["conda-forge"]
 platforms = ["linux-64", "osx-arm64", "osx-64", "win-64"]
 
@@ -164,7 +165,7 @@ python = "~=3.10.0"
 scikit-learn = "~=1.4.0"
 pandas = "~=2.1.0"
 numpy = "~=1.26.0"
-scipy = "~=1.11.0"
+scipy = "~=1.13.0"
 fairlearn = "~=0.10.0"
 catboost = ">=1.0"
 python = "~=3.11.0"
