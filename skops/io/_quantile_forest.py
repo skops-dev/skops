@@ -4,7 +4,7 @@ from typing import Any, Optional, Sequence
 
 from ._protocol import PROTOCOL
 from ._sklearn import ReduceNode, reduce_get_state
-from ._utils import LoadContext, SaveContext
+from ._utils import LoadContext, SaveContext, get_module
 
 try:
     from quantile_forest._quantile_forest_fast import QuantileForest
@@ -40,7 +40,7 @@ class QuantileForestNode(ReduceNode):
         super().__init__(
             state,
             load_context,
-            constructor=QuantileForest,
+            constructor=(get_module(QuantileForest), "QuantileForest"),
             trusted=trusted,
         )
         self.trusted = self._get_trusted(trusted, [])

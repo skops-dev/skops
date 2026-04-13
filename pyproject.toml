@@ -36,6 +36,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Programming Language :: Python :: Implementation :: CPython",
 ]
 dependencies = [
@@ -90,7 +91,7 @@ exclude = "(\\w+/)*test_\\w+\\.py$|spaces/skops_model_card_creator|old"
 ignore_missing_imports = true
 no_implicit_optional = true
 
-[tool.pixi.project]
+[tool.pixi.workspace]
 channels = ["conda-forge"]
 platforms = ["linux-64", "osx-arm64", "osx-64", "win-64"]
 
@@ -164,7 +165,7 @@ python = "~=3.10.0"
 scikit-learn = "~=1.4.0"
 pandas = "~=2.1.0"
 numpy = "~=1.26.0"
-scipy = "~=1.11.0"
+scipy = "~=1.13.0"
 fairlearn = "~=0.10.0"
 catboost = ">=1.0"
 python = "~=3.11.0"
@@ -199,6 +200,17 @@ quantile-forest = "~=1.4.0"
 python = "~=3.13.0"
 
 
+[tool.pixi.feature.sklearn18.dependencies]
+scikit-learn = "~=1.8.0"
+fairlearn = "~=0.12.0"
+pandas = "~=2.3.0"
+numpy = "~=2.4.0"
+scipy = "~=1.16.0"
+# catboost = ">=1.0"
+# TODO: catboost does not support python 3.14 - issue https://github.com/catboost/catboost/issues/2989
+quantile-forest = "~=1.4.0"
+python = "~=3.14.0"
+
 # [tool.pixi.feature.sklearn17]
 # this can be used when sklearn=1.7 is in release candidate mode.
 # channels = [
@@ -213,7 +225,7 @@ extra-index-urls = ["https://pypi.anaconda.org/scientific-python-nightly-wheels/
 
 [tool.pixi.feature.sklearn-nightly.pypi-dependencies]
 # The version value here needs to be exact, hence == instead of ~=
-scikit-learn = "==1.8.dev0"
+scikit-learn = "==1.9.dev0"
 fairlearn = "*"
 pandas = "*"
 numpy = "*"
@@ -235,4 +247,5 @@ ci-sklearn14 = ["rich", "tests", "lint", "sklearn14"]
 ci-sklearn15 = ["rich", "tests", "lint", "sklearn15"]
 ci-sklearn16 = ["rich", "tests", "lint", "sklearn16"]
 ci-sklearn17 = ["rich", "tests", "lint", "sklearn17"]
+ci-sklearn18 = ["rich", "tests", "lint", "sklearn18"]
 ci-sklearn-nightly = ["rich", "tests", "lint", "sklearn-nightly"]
