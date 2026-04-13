@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import io
 from contextlib import contextmanager
-from typing import Any, Generator, Iterable, Type, Union
+from typing import Any, Generator, Iterable, Sequence, Type, Union
 
 from ._protocol import PROTOCOL
 from ._utils import LoadContext, get_module, get_type_paths
@@ -135,7 +135,8 @@ class Node:
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: list[str | type[Any]] | None = None,
+        trusted: Sequence[str] | None = None,
+        memoize: bool = True,
     ) -> None:
         self.class_name, self.module_name = state["__class__"], state["__module__"]
         self._is_safe = None
@@ -172,8 +173,8 @@ class Node:
 
     @staticmethod
     def _get_trusted(
-        trusted: list[str | Type] | None,
-        default: list[str | Type],
+        trusted: Sequence[str] | None,
+        default: Sequence[str | type[Any]],
     ) -> list[str]:
         """Return a trusted list, or True.
 
@@ -278,7 +279,7 @@ class CachedNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: list[str | type[Any]] | None = None,
+        trusted: Sequence[str] | None = None,
     ):
         # we pass memoize as False because we don't want to memoize the cached
         # node.
@@ -302,7 +303,7 @@ NODE_TYPE_MAPPING[("CachedNode", PROTOCOL)] = CachedNode
 def get_tree(
     state: dict[str, Any],
     load_context: LoadContext,
-    trusted: list[str | type[Any]] | None,
+    trusted: Sequence[str] | None,
 ) -> Node:
     """Get the tree of nodes.
 

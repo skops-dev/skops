@@ -113,7 +113,7 @@ def dumps(
     return buffer.getbuffer().tobytes()
 
 
-def load(file: str | Path, trusted: list[str | type[Any]] | None = None) -> Any:
+def load(file: str | Path, trusted: list[str] | None = None) -> Any:
     """Load an object saved with the skops persistence format.
 
     Skops aims at providing a secure persistence feature that does not rely on
@@ -154,7 +154,7 @@ def load(file: str | Path, trusted: list[str | type[Any]] | None = None) -> Any:
     return instance
 
 
-def loads(data: bytes, trusted: list[str | type[Any]] | None = None) -> Any:
+def loads(data: bytes, trusted: list[str] | None = None) -> Any:
     """Load an object saved with the skops persistence format from a bytes
     object.
 

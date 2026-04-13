@@ -14,7 +14,7 @@ class FunctionNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: list[str | type[Any]] | None = None,
+        trusted: list[str] | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         # TODO: what do we trust?
