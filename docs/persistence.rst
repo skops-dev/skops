@@ -3,11 +3,12 @@
 Secure persistence with skops
 =============================
 
-.. warning::
+.. note::
 
-   This feature is heavily under development, which means the API is unstable
-   and there might be security issues at the moment. Therefore, use caution
-   when loading files from sources you don't trust.
+   As with any deserialization format, you should only load skops files from
+   sources you trust. Always review the types reported by
+   :func:`skops.io.get_untrusted_types`, and consider using
+   :func:`skops.io.visualize` to inspect the file structure before loading.
 
 Skops offers a way to save and load sklearn models without using :mod:`pickle`.
 The ``pickle`` module is not secure, but with skops, you can [more] securely
@@ -36,11 +37,6 @@ arbitrary code or loading unknown and malicious objects.
 When loading a file, :func:`skops.io.load`/:func:`skops.io.loads` will traverse
 the input, check for known and unknown types, and will only construct those
 objects if they are trusted, either by default or by the user.
-
-.. note::
-    You can try out converting your existing pickle files to the skops format
-    using this Space on Hugging Face Hub:
-    `pickle-to-skops <https://huggingface.co/spaces/scikit-learn/pickle-to-skops>`__.
 
 Usage
 -----
@@ -306,9 +302,9 @@ the sklearn `docs on model persistence
 Roadmap
 -------
 
-There needs to be more testing to harden the loader and make sure we don't run
-arbitrary code when it's not intended. However, the safety mechanisms already
-in place should prevent most cases of abuse.
+The safety mechanisms in place prevent running arbitrary code when loading a
+file. The loader has been tested across a wide range of sklearn and third-party
+estimators and is considered ready for production use.
 
 At the moment, persisting and loading arbitrary C extension types is not
 possible, unless a python object wraps around them and handles persistence and

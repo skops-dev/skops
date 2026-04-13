@@ -5,36 +5,8 @@ Model Cards for scikit-learn
 
 This library allows you to automatically create model cards for your models,
 which are a short documentation explaining what the model does, how it's
-trained, and its limitations. `Hugging Face Hub <https://huggingface.co/>`__
-expects a ``README.md`` file containing a certain set of metadata at the
-beginning of it, following with the content of the model card in markdown
+trained, and its limitations. A model card is a ``README.md`` file in markdown
 format.
-
-Metadata
---------
-
-The metadata part of the file needs to follow the specifications `here
-<https://huggingface.co/docs/hub/models-cards#model-card-metadata>`__. It
-includes simple attributes of your models such as the task you're solving,
-dataset you trained the model with, evaluation results and more.
-
-Here's an example of the metadata section of the ``README.md`` file:
-
-.. code-block:: yaml
-
-    ---
-    library_name: sklearn
-    tags:
-    - tabular-classification
-    license: mit
-    datasets:
-    - breast-cancer
-    metrics:
-    - accuracy
-    ---
-
-``skops`` creates this section of the file for you, and you almost never need
-to touch it yourself.
 
 Model Card Content
 ------------------
@@ -129,7 +101,7 @@ using the :meth:`.Card.save` method:
     card.save("README.md")
 
 This renders the content of the model card to markdown format and stores it in
-the indicated file. It is now ready to be uploaded to Hugging Face Hub.
+the indicated file.
 
 If you have a finished model card but want to load to make some modifications,
 you can use the function :func:`skops.card.parse_modelcard`. This function

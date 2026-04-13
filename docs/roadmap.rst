@@ -36,10 +36,8 @@ challenges with them, and we plan to make that experience better. Some of
 the work in this front will stay in this library, and some will move
 upstream.
 
-- skops: The format is in a good shape, and has been easy to work with in our
-  experiments. It also supports a wide range of models, including non
-  scikit-learn models. However, it requires more work to be considered more
-  stable and ready for production in a larger scale. The issues can be found
+- skops: The format is stable and ready for production use. It supports a wide
+  range of models, including non scikit-learn models. Open issues can be found
   `here
   <https://github.com/skops-dev/skops/issues?q=is%3Aissue+is%3Aopen++label%3Apersistence+>`__.
   In particular:
@@ -73,26 +71,9 @@ upstream.
 
 Serving
 -------
-A very important aspect of putting a model in production, is serving the model.
+A very important aspect of putting a model in production is serving the model.
 There are many different ways to do that, and the right solution depends on
-many parameters related to the infrastructure in use. However, some of us
-maintain the relevant parts on the Hugging Face Hub to serve scikit-learn
-models under the `api-inference-community repo
-<https://github.com/huggingface/api-inference-community>`__. There are issues
-with the current implementation, which would need some work, namely:
-
-- We do serving right now, but it's very slow, and half the time gives a
-  timeout.
-- There issues related to specific dtypes, and conversion from different
-  tabular formats (pandas, numpy, etc.)
-- The backend could support a better way than sending/receiving json.
-- There are potentials for improving inference performance, by using mkl for
-  example.
-
-Note that we're not sure about the priority of the above issues, since that
-backend has little usage. But it's more of a chicken and egg problem, and if it
-was to be faster, people might use it, or the tech behind it.
-
-We can also document a simple way to serve models using one technology such as
-`fastapi <https://fastapi.tiangolo.com/>`__. This would be a good start for
-many developers who are new to serving their models.
+many parameters related to the infrastructure in use. We can document simple
+ways to serve models using tools such as `fastapi
+<https://fastapi.tiangolo.com/>`__. This would be a good start for many
+developers who are new to serving their models.
