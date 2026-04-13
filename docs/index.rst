@@ -18,15 +18,13 @@ The following examples are good starting points:
 - Improve your data science workflow with skops:
   :ref:`sphx_glr_auto_examples_plot_california_housing.py`
 - How to create a model card for your scikit-learn based model:
-  :ref:`sphx_glr_auto_examples_plot_model_card.py`
-- A text classification example, and its integration with the hub:
+  :ref:`sphx_glr_auto_examples_plot_custom_model_card.py`
+- A text classification example:
   :ref:`sphx_glr_auto_examples_plot_text_classification.py`
 - More examples :ref:`here <examples>`
 
-In order to better understand the role of each file and their content when
-uploaded to Hugging Face Hub, refer to this :ref:`user guide <hf_hub>`. You can
-refer to :ref:`user guide <model_card>` to see how you can leverage model cards
-for documenting your scikit-learn models and enabling reproducibility.
+Refer to the :ref:`user guide <model_card>` to see how you can leverage model
+cards for documenting your scikit-learn models and enabling reproducibility.
 
 User Guide / API Reference
 ==========================
@@ -35,7 +33,6 @@ User Guide / API Reference
    :maxdepth: 2
 
    installation
-   hf_hub
    model_card
    persistence
    modules/classes
