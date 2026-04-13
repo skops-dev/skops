@@ -2,19 +2,19 @@ from __future__ import annotations
 
 import io
 from contextlib import contextmanager
-from typing import Any, Dict, Generator, Iterable, List, Optional, Sequence, Type, Union
+from typing import Any, Generator, Iterable, Type, Union
 
 from ._protocol import PROTOCOL
 from ._utils import LoadContext, get_module, get_type_paths
 from .exceptions import UntrustedTypesFoundException
 
 NODE_TYPE_MAPPING: dict[tuple[str, int], Type[Node]] = {}
-VALID_NODE_CHILD_TYPES = Optional[
-    Union["Node", List["Node"], Dict[str, "Node"], Type, str, io.BytesIO]
+VALID_NODE_CHILD_TYPES = Union[
+    "Node", list["Node"], dict[str, "Node"], Type, str, io.BytesIO, None
 ]
 
 
-def check_type(module_name: str, type_name: str, trusted: Sequence[str]) -> bool:
+def check_type(module_name: str, type_name: str, trusted: list[str]) -> bool:
     """Check if a type is safe to load.
 
     A type is safe to load only if it's present in the trusted list.
@@ -135,8 +135,7 @@ class Node:
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: Optional[Sequence[str]] = None,
-        memoize: bool = True,
+        trusted: list[str | type[Any]] | None = None,
     ) -> None:
         self.class_name, self.module_name = state["__class__"], state["__module__"]
         self._is_safe = None
@@ -173,8 +172,8 @@ class Node:
 
     @staticmethod
     def _get_trusted(
-        trusted: Optional[Sequence[Union[str, Type]]],
-        default: Sequence[Union[str, Type]],
+        trusted: list[str | Type] | None,
+        default: list[str | Type],
     ) -> list[str]:
         """Return a trusted list, or True.
 
@@ -279,7 +278,7 @@ class CachedNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: Optional[List[str]] = None,
+        trusted: list[str | type[Any]] | None = None,
     ):
         # we pass memoize as False because we don't want to memoize the cached
         # node.
@@ -303,7 +302,7 @@ NODE_TYPE_MAPPING[("CachedNode", PROTOCOL)] = CachedNode
 def get_tree(
     state: dict[str, Any],
     load_context: LoadContext,
-    trusted: Optional[Sequence[str]],
+    trusted: list[str | type[Any]] | None,
 ) -> Node:
     """Get the tree of nodes.
 
