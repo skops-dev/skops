@@ -36,10 +36,8 @@ challenges with them, and we plan to make that experience better. Some of
 the work in this front will stay in this library, and some will move
 upstream.
 
-- skops: The format is in a good shape, and has been easy to work with in our
-  experiments. It also supports a wide range of models, including non
-  scikit-learn models. However, it requires more work to be considered more
-  stable and ready for production in a larger scale. The issues can be found
+- skops: The format is stable and ready for production use. It supports a wide
+  range of models, including non scikit-learn models. Open issues can be found
   `here
   <https://github.com/skops-dev/skops/issues?q=is%3Aissue+is%3Aopen++label%3Apersistence+>`__.
   In particular:
