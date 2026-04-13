@@ -14,6 +14,7 @@ from zipfile import ZIP_DEFLATED, ZipFile
 import joblib
 import numpy as np
 import pytest
+import sklearn
 from scipy import sparse, special
 from sklearn.base import BaseEstimator, is_regressor
 from sklearn.compose import ColumnTransformer
@@ -78,6 +79,7 @@ from skops.utils._fixes import construct_instances, get_tags
 # Default settings for X
 N_SAMPLES = 120
 N_FEATURES = 20
+SKLEARN_VERSION = parse_version(sklearn.__version__)
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -444,6 +446,14 @@ def test_can_trust_types(type_):
     assert len(untrusted_types) == 0
 
 
+@pytest.mark.skipif(
+    SKLEARN_VERSION < parse_version("1.4"),
+    reason=(
+        "Before scikit-learn 1.4, GradientBoosting uses different internal loss "
+        "objects (`sklearn.ensemble._gb_losses`), which we don't try to support "
+        "as trusted types."
+    ),
+)
 @pytest.mark.parametrize(
     ("estimator", "problem_type"),
     [
@@ -540,6 +550,10 @@ def test_gradient_boosting_estimators_have_no_untrusted_types(estimator, problem
     assert_method_outputs_equal(estimator, loaded, X)
 
 
+@pytest.mark.skipif(
+    SKLEARN_VERSION < parse_version("1.4"),
+    reason="CyHalfMultinomialLoss is not used by GradientBoosting before sklearn 1.4.",
+)
 def test_cyhalfmultinomialloss_is_serialized_under_sklearn_module():
     estimator = GradientBoostingClassifier(loss="log_loss", n_estimators=5)
     set_random_state(estimator, random_state=0)
