@@ -231,8 +231,8 @@ class TestAddModelPlot:
             "Model description/Training Procedure/Model Plot"
         ).format()
         # don't compare whole text, as it's quite long and non-deterministic
-        assert result.startswith("<style>#sk-")
-        assert "<style>" in result
+        # regex matches both old (#sk-) and new (.sk-) sklearn CSS selector formats
+        assert re.match(r"<style>[#.]sk-", result)
         assert "MyRegressor()" in result
 
     def test_no_overflow(self, model_card):
@@ -264,16 +264,16 @@ class TestAddModelPlot:
         assert result == CONTENT_PLACEHOLDER
 
         # now check that the actual model diagram is in the other section
+        # regex matches both old (#sk-) and new (.sk-) sklearn CSS selector formats
         result = model_card.select(other_section_name).format()
-        assert result.startswith("<style>#sk-")
-        assert "<style>" in result
+        assert re.match(r"<style>[#.]sk-", result)
         assert "MyRegressor()" in result
 
     def test_other_section(self, model_card):
         model_card.add_model_plot(section="Other section")
         result = model_card.select("Other section").content
-        assert result.startswith("<style>#sk-")
-        assert "<style>" in result
+        # regex matches both old (#sk-) and new (.sk-) sklearn CSS selector formats
+        assert re.match(r"<style>[#.]sk-", result)
         assert "MyRegressor()" in result
 
     def test_with_description(self, model_card):
@@ -281,7 +281,8 @@ class TestAddModelPlot:
         result = model_card.select(
             "Model description/Training Procedure/Model Plot"
         ).format()
-        assert result.startswith("Awesome diagram below\n\n<style>#sk-")
+        # regex matches both old (#sk-) and new (.sk-) sklearn CSS selector formats
+        assert re.match(r"Awesome diagram below\n\n<style>[#.]sk-", result)
 
     @pytest.mark.parametrize("template", CUSTOM_TEMPLATES)
     def test_custom_template_no_section_uses_default(self, template):
@@ -293,8 +294,8 @@ class TestAddModelPlot:
         ).format()
 
         # don't compare whole text, as it's quite long and non-deterministic
-        assert result.startswith("<style>#sk-")
-        assert "<style>" in result
+        # regex matches both old (#sk-) and new (.sk-) sklearn CSS selector formats
+        assert re.match(r"<style>[#.]sk-", result)
         assert "MyRegressor()" in result
 
     @pytest.mark.parametrize("template", CUSTOM_TEMPLATES)
@@ -304,8 +305,8 @@ class TestAddModelPlot:
         model_card = Card(model, template=template, model_diagram=section_name)
 
         result = model_card.select(section_name).format()
-        assert result.startswith("<style>#sk-")
-        assert "<style>" in result
+        # regex matches both old (#sk-) and new (.sk-) sklearn CSS selector formats
+        assert re.match(r"<style>[#.]sk-", result)
         assert "MyRegressor()" in result
 
     def test_default_template_and_model_diagram_true(self, model_card):
@@ -317,8 +318,8 @@ class TestAddModelPlot:
             "Model description/Training Procedure/Model Plot"
         ).format()
         # don't compare whole text, as it's quite long and non-deterministic
-        assert result.startswith("<style>#sk-")
-        assert "<style>" in result
+        # regex matches both old (#sk-) and new (.sk-) sklearn CSS selector formats
+        assert re.match(r"<style>[#.]sk-", result)
         assert "MyRegressor()" in result
 
     @pytest.mark.parametrize("template", CUSTOM_TEMPLATES)
@@ -333,8 +334,8 @@ class TestAddModelPlot:
             "Model description/Training Procedure/Model Plot"
         ).format()
         # don't compare whole text, as it's quite long and non-deterministic
-        assert result.startswith("<style>#sk-")
-        assert "<style>" in result
+        # regex matches both old (#sk-) and new (.sk-) sklearn CSS selector formats
+        assert re.match(r"<style>[#.]sk-", result)
         assert "MyRegressor()" in result
 
     def test_add_twice(self, model_card):
