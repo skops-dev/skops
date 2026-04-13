@@ -5,7 +5,7 @@ from __future__ import annotations
 import sys
 from collections.abc import Mapping
 from contextlib import contextmanager
-from typing import Any, Sequence
+from typing import Any
 
 from skops.card._model_card import TableSection
 
@@ -258,13 +258,13 @@ class Markdown:
             # pandoc < 2.5
             columns, body = self._table_old(item)
 
-        table: Mapping[str, Sequence[Any]]
+        table: Mapping[str, list[Any]]
         if not body:
             table = {key: [] for key in columns}
         else:
             # body is row oriented, transpose to column oriented
             data_transposed = zip(*body)
-            table = {key: val for key, val in zip(columns, data_transposed)}
+            table = {key: list(val) for key, val in zip(columns, data_transposed)}
 
         res = TableSection(title="", content="", table=table).format()
         return res
