@@ -534,7 +534,7 @@ def test_gradient_boosting_estimators_have_no_untrusted_types(estimator, problem
     dumped = dumps(estimator)
     untrusted_types = get_untrusted_types(data=dumped)
 
-    # All untrusted types should be explicitly passed to loads for the round-trip.
+    # Pass any remaining untrusted types to loads for the round-trip.
     loaded = loads(dumped, trusted=untrusted_types)
     assert_params_equal(estimator.__dict__, loaded.__dict__)
     assert_method_outputs_equal(estimator, loaded, X)
