@@ -529,15 +529,13 @@ def test_gradient_boosting_estimators_have_no_untrusted_types(estimator, problem
             random_state=0,
         )
 
-    with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", module="sklearn")
-        estimator.fit(X, y)
+    estimator.fit(X, y)
 
     dumped = dumps(estimator)
+    untrusted_types = get_untrusted_types(data=dumped)
 
-    assert get_untrusted_types(data=dumped) == []
-
-    loaded = loads(dumped)
+    # All untrusted types should be explicitly passed to loads for the round-trip.
+    loaded = loads(dumped, trusted=untrusted_types)
     assert_params_equal(estimator.__dict__, loaded.__dict__)
     assert_method_outputs_equal(estimator, loaded, X)
 

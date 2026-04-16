@@ -71,13 +71,6 @@ except ImportError:
     pass
 
 try:
-    from sklearn._loss._loss import CyHalfMultinomialLoss
-
-    _SKLEARN_INTERNAL_TYPES.append(CyHalfMultinomialLoss)
-except ImportError:
-    pass
-
-try:
     from sklearn.ensemble._hist_gradient_boosting.binning import _BinMapper
     from sklearn.ensemble._hist_gradient_boosting.predictor import TreePredictor
 
@@ -85,7 +78,21 @@ try:
 except ImportError:
     pass
 
-SKLEARN_INTERNAL_TYPE_NAMES = [get_type_name(t) for t in _SKLEARN_INTERNAL_TYPES]
+# NOTE: CyHalfMultinomialLoss (from sklearn._loss._loss) is intentionally excluded.
+# It's a Cython extension type whose __module__ reports '_loss' instead of the fully
+# qualified 'sklearn._loss._loss'. This is a bug in sklearn's Cython build — the .pyx
+# source doesn't set the module name to the full package path. Until sklearn fixes this
+# (e.g. by setting __module__ = 'sklearn._loss._loss' in the Cython source), we cannot
+# safely auto-trust it since we filter all trusted types to start with 'sklearn.' to
+# prevent accidentally trusting monkey-patched types from other packages.
+# Multiclass GradientBoostingClassifier will surface CyHalfMultinomialLoss as an
+# untrusted type that users need to explicitly trust via get_untrusted_types().
+
+SKLEARN_INTERNAL_TYPE_NAMES = [
+    get_type_name(t)
+    for t in _SKLEARN_INTERNAL_TYPES
+    if get_type_name(t).startswith("sklearn.")
+]
 
 with warnings.catch_warnings():
     # This is to suppress deprecation warning coming from the fact that scipy reports
