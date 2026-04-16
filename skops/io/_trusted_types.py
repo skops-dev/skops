@@ -21,7 +21,8 @@ SKLEARN_ESTIMATOR_TYPE_NAMES = [
 ]
 
 # Internal sklearn types used by GradientBoosting and HistGradientBoosting models.
-# These are not public estimators but are needed for serialization of fitted models.
+# These are not public estimators but are safe internal types (loss functions, link
+# functions, binning, and predictor objects) needed for serialization of fitted models.
 _SKLEARN_INTERNAL_TYPES: list[type] = []
 
 try:

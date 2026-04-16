@@ -506,6 +506,7 @@ def test_gradient_boosting_estimators_have_no_untrusted_types(estimator, problem
             random_state=0,
         )
     elif problem_type == "multiclass":
+        # n_samples must be > n_classes * n_clusters_per_class to avoid errors
         X, y = make_classification(
             n_samples=140,
             n_features=N_FEATURES,
