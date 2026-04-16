@@ -539,17 +539,17 @@ def test_gradient_boosting_estimators_have_no_untrusted_types(estimator, problem
     # fail the startswith("sklearn.") safety filter and are not auto-trusted.
     # See https://github.com/scikit-learn/scikit-learn/pull/33770 for the fix.
     # Once that fix lands, all GB/HGB models should have zero untrusted types.
-    _cy_module_is_correct = True
+    cy_module_is_correct = True
     try:
         from sklearn._loss._loss import CyHalfMultinomialLoss
 
-        _cy_module_is_correct = CyHalfMultinomialLoss.__module__.startswith(
+        cy_module_is_correct = CyHalfMultinomialLoss.__module__.startswith(
             "sklearn."
         )
     except ImportError:
         pass
 
-    if problem_type == "multiclass" and not _cy_module_is_correct:
+    if problem_type == "multiclass" and not cy_module_is_correct:
         # Multiclass GBC uses CyHalfMultinomialLoss which has a wrong
         # __module__, so it surfaces as untrusted until sklearn fixes it.
         assert untrusted_types == ["_loss.CyHalfMultinomialLoss"]
