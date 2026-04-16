@@ -23489,10 +23489,10 @@ packages:
   - pkg:pypi/six?source=hash-mapping
   size: 18455
   timestamp: 1753199211006
-- pypi: ./
+- pypi: .
   name: skops
   version: 0.14.dev0
-  sha256: c7af1710e6fc5dcfab436d88167f56d249a1e67bead44a799e6bf44200f85c98
+  sha256: 3bdc721e7411a4dbcb71fb5e8fbbfe44e7016362a512b78718a8442f61cd67bd
   requires_dist:
   - numpy>=1.25.0
   - packaging>=17.0
@@ -23501,6 +23501,7 @@ packages:
   - scipy>=1.10.0
   - rich>=12 ; extra == 'rich'
   requires_python: '>=3.9'
+  editable: true
 - conda: https://conda.anaconda.org/conda-forge/noarch/snowballstemmer-3.0.1-pyhd8ed1ab_0.conda
   sha256: 17007a4cfbc564dc3e7310dcbe4932c6ecb21593d4fec3c68610720f19e73fb2
   md5: 755cf22df8693aa0d1aec1c123fa5863

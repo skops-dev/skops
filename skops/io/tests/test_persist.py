@@ -543,9 +543,7 @@ def test_gradient_boosting_estimators_have_no_untrusted_types(estimator, problem
     try:
         from sklearn._loss._loss import CyHalfMultinomialLoss
 
-        cy_module_is_correct = CyHalfMultinomialLoss.__module__.startswith(
-            "sklearn."
-        )
+        cy_module_is_correct = CyHalfMultinomialLoss.__module__.startswith("sklearn.")
     except ImportError:
         pass
 
