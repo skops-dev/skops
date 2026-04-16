@@ -78,15 +78,46 @@ try:
 except ImportError:
     pass
 
-# NOTE: CyHalfMultinomialLoss (from sklearn._loss._loss) is intentionally excluded.
-# It's a Cython extension type whose __module__ reports '_loss' instead of the fully
-# qualified 'sklearn._loss._loss'. This is a bug in sklearn's Cython build — the .pyx
-# source doesn't set the module name to the full package path. Until sklearn fixes this
-# (e.g. by setting __module__ = 'sklearn._loss._loss' in the Cython source), we cannot
-# safely auto-trust it since we filter all trusted types to start with 'sklearn.' to
-# prevent accidentally trusting monkey-patched types from other packages.
-# Multiclass GradientBoostingClassifier will surface CyHalfMultinomialLoss as an
-# untrusted type that users need to explicitly trust via get_untrusted_types().
+# Cython loss classes from sklearn._loss._loss. These are internal Cython extension
+# types used by GradientBoosting models. Currently their __module__ incorrectly reports
+# '_loss' instead of 'sklearn._loss._loss' due to a bug in sklearn's Cython build
+# (see https://github.com/scikit-learn/scikit-learn/pull/33770). The startswith
+# ("sklearn.") filter below will automatically exclude them while __module__ is wrong,
+# and automatically include them once sklearn fixes the issue.
+try:
+    from sklearn._loss._loss import (
+        CyAbsoluteError,
+        CyExponentialLoss,
+        CyHalfBinomialLoss,
+        CyHalfGammaLoss,
+        CyHalfMultinomialLoss,
+        CyHalfPoissonLoss,
+        CyHalfSquaredError,
+        CyHalfTweedieLoss,
+        CyHalfTweedieLossIdentity,
+        CyHuberLoss,
+        CyLossFunction,
+        CyPinballLoss,
+    )
+
+    _SKLEARN_INTERNAL_TYPES.extend(
+        [
+            CyAbsoluteError,
+            CyExponentialLoss,
+            CyHalfBinomialLoss,
+            CyHalfGammaLoss,
+            CyHalfMultinomialLoss,
+            CyHalfPoissonLoss,
+            CyHalfSquaredError,
+            CyHalfTweedieLoss,
+            CyHalfTweedieLossIdentity,
+            CyHuberLoss,
+            CyLossFunction,
+            CyPinballLoss,
+        ]
+    )
+except ImportError:
+    pass
 
 SKLEARN_INTERNAL_TYPE_NAMES = [
     get_type_name(t)
