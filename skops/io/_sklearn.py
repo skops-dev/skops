@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Optional, Sequence
 
 from sklearn.cluster import Birch
 from sklearn.tree._tree import Tree
@@ -79,7 +79,7 @@ try:
         CyPinballLoss,
     }
 except ImportError:
-    pass
+    CyHalfMultinomialLoss = None
 
 # This import is for the parent class of all loss functions, which is used to
 # set the dispatch function for all loss functions.
@@ -154,7 +154,7 @@ class ReduceNode(Node):
         state: dict[str, Any],
         load_context: LoadContext,
         constructor: tuple[str, str],
-        trusted: list[str] | None = None,
+        trusted: Optional[Sequence[str]] = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         reduce = state["__reduce__"]
@@ -213,7 +213,7 @@ class TreeNode(ReduceNode):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: list[str] | None = None,
+        trusted: Optional[Sequence[str]] = None,
     ) -> None:
         self.trusted = self._get_trusted(trusted, [get_module(Tree) + ".Tree"])
         super().__init__(
@@ -251,7 +251,7 @@ class LossNode(ReduceNode):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: list[str] | None = None,
+        trusted: Optional[Sequence[str]] = None,
     ) -> None:
         # TODO: make sure trusted here makes sense and used.
         self.trusted = self._get_trusted(
@@ -292,7 +292,7 @@ class _DictWithDeprecatedKeysNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: list[str] | None = None,
+        trusted: Optional[Sequence[str]] = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.trusted = [
@@ -325,6 +325,11 @@ if LossFunction is not None:
 
 if CyLossFunction is not None:
     GET_STATE_DISPATCH_FUNCTIONS.append((CyLossFunction, loss_get_state))
+
+# CyHalfMultinomialLoss is not a subclass of CyLossFunction, so it needs its
+# own dispatch entry. It's already in ALLOWED_LOSSES so LossNode will trust it.
+if CyHalfMultinomialLoss is not None:
+    GET_STATE_DISPATCH_FUNCTIONS.append((CyHalfMultinomialLoss, loss_get_state))
 
 for type_ in UNSUPPORTED_TYPES:
     GET_STATE_DISPATCH_FUNCTIONS.append((type_, unsupported_get_state))

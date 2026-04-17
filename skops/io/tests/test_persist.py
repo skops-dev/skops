@@ -533,28 +533,9 @@ def test_gradient_boosting_estimators_have_no_untrusted_types(estimator, problem
 
     dumped = dumps(estimator)
     untrusted_types = get_untrusted_types(data=dumped)
+    assert untrusted_types == []
 
-    # Cy* Cython extension types in sklearn._loss._loss currently report their
-    # __module__ as '_loss' instead of 'sklearn._loss._loss', which means they
-    # fail the startswith("sklearn.") safety filter and are not auto-trusted.
-    # See https://github.com/scikit-learn/scikit-learn/pull/33770 for the fix.
-    # Once that fix lands, all GB/HGB models should have zero untrusted types.
-    cy_module_is_correct = True
-    try:
-        from sklearn._loss._loss import CyHalfMultinomialLoss
-
-        cy_module_is_correct = CyHalfMultinomialLoss.__module__.startswith("sklearn.")
-    except ImportError:
-        pass
-
-    if problem_type == "multiclass" and not cy_module_is_correct:
-        # Multiclass GBC uses CyHalfMultinomialLoss which has a wrong
-        # __module__, so it surfaces as untrusted until sklearn fixes it.
-        assert untrusted_types == ["_loss.CyHalfMultinomialLoss"]
-    else:
-        assert untrusted_types == []
-
-    loaded = loads(dumped, trusted=untrusted_types)
+    loaded = loads(dumped)
     assert_params_equal(estimator.__dict__, loaded.__dict__)
     assert_method_outputs_equal(estimator, loaded, X)
 

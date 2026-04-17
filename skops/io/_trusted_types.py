@@ -78,47 +78,6 @@ try:
 except ImportError:
     pass
 
-# Cython loss classes from sklearn._loss._loss. These are internal Cython extension
-# types used by GradientBoosting models. Currently their __module__ incorrectly reports
-# '_loss' instead of 'sklearn._loss._loss' due to a bug in sklearn's Cython build
-# (see https://github.com/scikit-learn/scikit-learn/pull/33770). The startswith
-# ("sklearn.") filter below will automatically exclude them while __module__ is wrong,
-# and automatically include them once sklearn fixes the issue.
-try:
-    from sklearn._loss._loss import (
-        CyAbsoluteError,
-        CyExponentialLoss,
-        CyHalfBinomialLoss,
-        CyHalfGammaLoss,
-        CyHalfMultinomialLoss,
-        CyHalfPoissonLoss,
-        CyHalfSquaredError,
-        CyHalfTweedieLoss,
-        CyHalfTweedieLossIdentity,
-        CyHuberLoss,
-        CyLossFunction,
-        CyPinballLoss,
-    )
-
-    _SKLEARN_INTERNAL_TYPES.extend(
-        [
-            CyAbsoluteError,
-            CyExponentialLoss,
-            CyHalfBinomialLoss,
-            CyHalfGammaLoss,
-            CyHalfMultinomialLoss,
-            CyHalfPoissonLoss,
-            CyHalfSquaredError,
-            CyHalfTweedieLoss,
-            CyHalfTweedieLossIdentity,
-            CyHuberLoss,
-            CyLossFunction,
-            CyPinballLoss,
-        ]
-    )
-except ImportError:
-    pass
-
 SKLEARN_INTERNAL_TYPE_NAMES = [
     get_type_name(t)
     for t in _SKLEARN_INTERNAL_TYPES

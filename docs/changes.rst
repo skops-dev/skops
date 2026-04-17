@@ -11,6 +11,9 @@ skops Changelog
 
 v0.14
 -----
+- Trust internal scikit-learn types needed by GradientBoosting and
+  HistGradientBoosting models, so they no longer surface as untrusted types.
+  :pr:`513` by :user:`cakedev0 <cakedev0>` and `Adrin Jalali`_.
 
 v0.13
 -----
