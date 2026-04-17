@@ -11,7 +11,7 @@ from functools import cached_property
 from hashlib import sha256
 from pathlib import Path
 from reprlib import Repr
-from typing import Any, Iterator, List, Literal, Optional, Sequence
+from typing import Any, Iterator, Literal
 
 import joblib
 from prettytable import PrettyTable, TableStyle
@@ -178,7 +178,7 @@ class PlotSection(Section):
 class TableSection(Section):
     """Adds a table to the model card"""
 
-    table: Mapping[str, Sequence[Any]] = field(default_factory=dict)
+    table: Mapping[str, list[Any]] = field(default_factory=dict)
     folded: bool = False
 
     def __post_init__(self) -> None:
@@ -228,7 +228,7 @@ class TableSection(Section):
 
 
 def _load_model(
-    model: Any, trusted: Optional[Sequence[str]] = None, allow_pickle: bool = False
+    model: Any, trusted: list[str] | None = None, allow_pickle: bool = False
 ) -> Any:
     """Return a model instance.
 
@@ -403,7 +403,7 @@ class Card:
         model_format: Literal["pickle", "skops"] | None = None,
         model_diagram: bool | Literal["auto"] | str = "auto",
         template: Literal["skops"] | dict[str, str] | None = "skops",
-        trusted: Optional[List[str]] = None,
+        trusted: list[str] | None = None,
         allow_pickle: bool = False,
     ) -> None:
         self.model = model
@@ -535,7 +535,7 @@ class Card:
         return self
 
     def _select(
-        self, subsection_names: Sequence[str], create: bool = True
+        self, subsection_names: list[str], create: bool = True
     ) -> dict[str, Section]:
         """Select a single section from the data.
 
@@ -629,7 +629,7 @@ class Card:
         parent_section = self._select(subsection_names, create=False)
         return parent_section[leaf_node_name]
 
-    def delete(self, key: str | Sequence[str]) -> None:
+    def delete(self, key: str | list[str]) -> None:
         """Delete a section from the model card.
 
         To delete a subsection of an existing section, use a ``"/"`` in the
@@ -1002,7 +1002,7 @@ class Card:
     def add_permutation_importances(
         self,
         permutation_importances,
-        columns: Sequence[str],
+        columns: list[str],
         plot_file: str | Path = "permutation_importances.png",
         plot_name: str = "Permutation Importances",
         overwrite: bool = False,

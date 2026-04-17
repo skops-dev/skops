@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Optional, Sequence
+from typing import Any
 
 from sklearn.cluster import Birch
 from sklearn.tree._tree import Tree
@@ -154,7 +154,7 @@ class ReduceNode(Node):
         state: dict[str, Any],
         load_context: LoadContext,
         constructor: tuple[str, str],
-        trusted: Optional[Sequence[str]] = None,
+        trusted: list[str] | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         reduce = state["__reduce__"]
@@ -213,7 +213,7 @@ class TreeNode(ReduceNode):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: Optional[Sequence[str]] = None,
+        trusted: list[str] | None = None,
     ) -> None:
         self.trusted = self._get_trusted(trusted, [get_module(Tree) + ".Tree"])
         super().__init__(
@@ -251,7 +251,7 @@ class LossNode(ReduceNode):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: Optional[Sequence[str]] = None,
+        trusted: list[str] | None = None,
     ) -> None:
         # TODO: make sure trusted here makes sense and used.
         self.trusted = self._get_trusted(
@@ -292,7 +292,7 @@ class _DictWithDeprecatedKeysNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: Optional[Sequence[str]] = None,
+        trusted: list[str] | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.trusted = [

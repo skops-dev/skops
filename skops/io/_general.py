@@ -8,7 +8,7 @@ from collections import defaultdict
 from functools import partial
 from reprlib import Repr
 from types import FunctionType, MethodType
-from typing import Any, Optional, Sequence
+from typing import Any
 
 import numpy as np
 
@@ -63,7 +63,7 @@ class DictNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: Optional[Sequence[str]] = None,
+        trusted: list[str] | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.trusted = self._get_trusted(trusted, [dict, "collections.OrderedDict"])
@@ -103,7 +103,7 @@ class DefaultDictNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: Optional[Sequence[str]] = None,
+        trusted: list[str] | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.trusted = ["collections.defaultdict"]
@@ -139,7 +139,7 @@ class ListNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: Optional[Sequence[str]] = None,
+        trusted: list[str] | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.trusted = self._get_trusted(trusted, [list])
@@ -171,7 +171,7 @@ class SetNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: Optional[Sequence[str]] = None,
+        trusted: list[str] | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.trusted = self._get_trusted(trusted, [set])
@@ -203,7 +203,7 @@ class TupleNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: Optional[Sequence[str]] = None,
+        trusted: list[str] | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.trusted = self._get_trusted(trusted, [tuple])
@@ -250,7 +250,7 @@ class FunctionNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: Optional[Sequence[str]] = None,
+        trusted: list[str] | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         # TODO: what do we trust?
@@ -294,7 +294,7 @@ class PartialNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: Optional[Sequence[str]] = None,
+        trusted: list[str] | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         # TODO: should we trust anything?
@@ -335,7 +335,7 @@ class TypeNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: Optional[Sequence[str]] = None,
+        trusted: list[str] | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         # TODO: what do we trust?
@@ -370,7 +370,7 @@ class SliceNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: Optional[Sequence[str]] = None,
+        trusted: list[str] | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.trusted = self._get_trusted(trusted, [slice])
@@ -450,7 +450,7 @@ class ConstructorFromReduceNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: Optional[Sequence[str]] = None,
+        trusted: list[str] | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.children = {
@@ -468,7 +468,7 @@ class ObjectNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: Optional[Sequence[str]] = None,
+        trusted: list[str] | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
 
@@ -532,7 +532,7 @@ class MethodNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: Optional[Sequence[str]] = None,
+        trusted: list[str] | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         obj = get_tree(state["content"]["obj"], load_context, trusted=trusted)
@@ -576,7 +576,7 @@ class JsonNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: Optional[Sequence[str]] = None,
+        trusted: list[str] | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.content = state["content"]
@@ -629,7 +629,7 @@ class BytesNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: Optional[Sequence[str]] = None,
+        trusted: list[str] | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.trusted = self._get_trusted(trusted, [bytes])
@@ -650,7 +650,7 @@ class BytearrayNode(BytesNode):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: Optional[Sequence[str]] = None,
+        trusted: list[str] | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.trusted = self._get_trusted(trusted, [bytearray])
@@ -680,7 +680,7 @@ class OperatorFuncNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: Optional[Sequence[str]] = None,
+        trusted: list[str] | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         if self.module_name != "operator":
