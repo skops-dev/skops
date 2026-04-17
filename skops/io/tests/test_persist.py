@@ -14,6 +14,7 @@ from zipfile import ZIP_DEFLATED, ZipFile
 import joblib
 import numpy as np
 import pytest
+import sklearn
 from scipy import sparse, special
 from sklearn.base import BaseEstimator, is_regressor
 from sklearn.compose import ColumnTransformer
@@ -444,6 +445,13 @@ def test_can_trust_types(type_):
     assert len(untrusted_types) == 0
 
 
+@pytest.mark.skipif(
+    parse_version(sklearn.__version__) < parse_version("1.4"),
+    reason=(
+        "Before scikit-learn 1.4, GradientBoosting uses different internal loss "
+        "objects (sklearn.ensemble._gb_losses) that are not supported as trusted types."
+    ),
+)
 @pytest.mark.parametrize(
     ("estimator", "problem_type"),
     [

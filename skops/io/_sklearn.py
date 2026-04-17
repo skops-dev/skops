@@ -230,18 +230,30 @@ def loss_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
         state = reduce_get_state(obj, save_context)
         state["__loader__"] = "LossNode"
     elif type(obj) == reduce[1][0]:
-        # the output is of the form:
+        # The output is commonly of the form:
         # >>> CyPinballLoss(1).__reduce__()
         # (<cyfunction __pyx_unpickle_CyPinballLoss at 0x7b1d00099ff0>,
         #             (<class '_loss.CyPinballLoss'>, 232784418, (1.0,)))
+        #
+        # CyHalfMultinomialLoss differs slightly and may return a 3-tuple:
+        # >>> CyHalfMultinomialLoss().__reduce__()
+        # (<cyfunction __pyx_unpickle_CyHalfMultinomialLoss at 0x...>,
+        #  (<class '_loss.CyHalfMultinomialLoss'>, 238750788, None), ())
+        #
+        # In that case, the constructor takes no args and the state lives
+        # in reduce[2].
         state = {
             "__class__": obj.__class__.__name__,
             "__module__": get_module(type(obj)),
             "__loader__": "LossNode",
         }
         state["__reduce__"] = {}
-        state["__reduce__"]["args"] = get_state(reduce[1][2], save_context)
-        state["content"] = get_state({}, save_context)
+        if len(reduce) == 3:
+            state["__reduce__"]["args"] = get_state((), save_context)
+            state["content"] = get_state(reduce[2], save_context)
+        else:
+            state["__reduce__"]["args"] = get_state(reduce[1][2], save_context)
+            state["content"] = get_state({}, save_context)
 
     return state
 
