@@ -122,3 +122,7 @@ node_modules
 
 exports
 trash
+
+# Claude
+CLAUDE.md
+.claude/
