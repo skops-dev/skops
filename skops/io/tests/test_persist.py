@@ -503,6 +503,9 @@ def test_can_trust_types(type_):
     ],
 )
 def test_gradient_boosting_estimators_have_no_untrusted_types(estimator, problem_type):
+    """Fitted GB/HGB models should save and load without any untrusted types,
+    even though they contain non-public sklearn internals (loss functions, link
+    functions, Cython loss classes, _BinMapper, TreePredictor)."""
     set_random_state(estimator, random_state=0)
 
     if problem_type == "binary":
