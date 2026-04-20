@@ -9,6 +9,9 @@ skops Changelog
     :depth: 1
     :local:
 
+v0.15
+-----
+
 v0.14
 -----
 - Trust internal scikit-learn types needed by GradientBoosting and
