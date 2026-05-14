@@ -48,7 +48,9 @@ class SparseMatrixNode(Node):
                 f"Cannot load object of type {self.module_name}.{self.class_name}"
             )
 
-        self.children = {"content": io.BytesIO(load_context.src.read(state["file"]))}
+        self.children = {
+            "content": io.BytesIO(load_context.read_zip_member(state["file"]))
+        }
 
     def _construct(self):
         # scipy load_npz uses numpy.save with allow_pickle=False under the

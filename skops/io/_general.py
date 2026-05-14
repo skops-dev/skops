@@ -633,7 +633,9 @@ class BytesNode(Node):
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.trusted = self._get_trusted(trusted, [bytes])
-        self.children = {"content": io.BytesIO(load_context.src.read(state["file"]))}
+        self.children = {
+            "content": io.BytesIO(load_context.read_zip_member(state["file"]))
+        }
 
     def _construct(self):
         content = self.children["content"].getvalue()

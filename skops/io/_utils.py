@@ -11,6 +11,10 @@ from zipfile import ZipFile
 
 from ._protocol import PROTOCOL
 
+MAX_ZIP_MEMBER_SIZE = 1024 * 1024 * 1024
+MIN_ZIP_MEMBER_SIZE_FOR_RATIO_CHECK = 10 * 1024 * 1024
+MAX_ZIP_COMPRESSION_RATIO = 100
+
 
 # The following two functions are copied from cpython's pickle.py file.
 # ---------------------------------------------------------------------
@@ -140,6 +144,33 @@ class LoadContext:
     src: ZipFile
     protocol: int
     memo: dict[int, Any] = field(default_factory=dict)
+
+    def read_zip_member(self, name: str) -> bytes:
+        info = self.src.getinfo(name)
+        if info.file_size > MAX_ZIP_MEMBER_SIZE:
+            raise ValueError(
+                f"Zip member {name!r} is too large to load safely: "
+                f"{info.file_size} bytes"
+            )
+
+        if info.compress_size == 0:
+            if info.file_size == 0:
+                return self.src.read(name)
+            raise ValueError(
+                f"Zip member {name!r} has an invalid compressed size"
+            )
+
+        compression_ratio = info.file_size / info.compress_size
+        if (
+            info.file_size > MIN_ZIP_MEMBER_SIZE_FOR_RATIO_CHECK
+            and compression_ratio > MAX_ZIP_COMPRESSION_RATIO
+        ):
+            raise ValueError(
+                f"Zip member {name!r} has a suspicious compression ratio: "
+                f"{compression_ratio:.1f}"
+            )
+
+        return self.src.read(name)
 
     def memoize(self, obj: Any, id: int) -> None:
         self.memo[id] = obj

@@ -70,7 +70,7 @@ class NdArrayNode(Node):
         )
         if self.type == "numpy":
             self.children = {
-                "content": io.BytesIO(load_context.src.read(state["file"]))
+                "content": io.BytesIO(load_context.read_zip_member(state["file"]))
             }
         elif self.type == "json":
             self.children = {

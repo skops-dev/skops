@@ -71,7 +71,15 @@ from skops.io._trusted_types import (
     SCIPY_UFUNC_TYPE_NAMES,
     SKLEARN_ESTIMATOR_TYPE_NAMES,
 )
-from skops.io._utils import LoadContext, SaveContext, _get_state, get_state, gettype
+from skops.io._utils import (
+    MAX_ZIP_COMPRESSION_RATIO,
+    MIN_ZIP_MEMBER_SIZE_FOR_RATIO_CHECK,
+    LoadContext,
+    SaveContext,
+    _get_state,
+    get_state,
+    gettype,
+)
 from skops.io.exceptions import UnsupportedTypeException, UntrustedTypesFoundException
 from skops.io.tests._utils import assert_method_outputs_equal, assert_params_equal
 from skops.utils._fixes import construct_instances, get_tags
@@ -1194,6 +1202,36 @@ def test_compression_level():
     dumped_compressed = dumps(model, compression=ZIP_DEFLATED, compresslevel=9)
     # This reduces the size substantially
     assert len(dumped_raw) > 5 * len(dumped_compressed)
+
+
+def test_rejects_suspicious_zip_member_compression_ratio():
+    dumped = dumps(np.array([1], dtype=np.int64))
+    buffer = io.BytesIO()
+
+    with ZipFile(io.BytesIO(dumped), "r") as src, ZipFile(buffer, "w") as dst:
+        schema = json.loads(src.read("schema.json"))
+        npy_name = schema["file"]
+
+        dst.writestr("schema.json", json.dumps(schema))
+        dst.writestr(
+            npy_name,
+            b"\x00" * (MIN_ZIP_MEMBER_SIZE_FOR_RATIO_CHECK + 1),
+            compress_type=ZIP_DEFLATED,
+            compresslevel=9,
+        )
+
+    dumped = buffer.getvalue()
+    message = "suspicious compression ratio"
+
+    with ZipFile(io.BytesIO(dumped), "r") as zip_file:
+        info = zip_file.getinfo(npy_name)
+        assert info.file_size / info.compress_size > MAX_ZIP_COMPRESSION_RATIO
+
+    with pytest.raises(ValueError, match=message):
+        loads(dumped)
+
+    with pytest.raises(ValueError, match=message):
+        get_untrusted_types(data=dumped)
 
 
 @pytest.mark.parametrize("call_has_canonical_format", [False, True])
