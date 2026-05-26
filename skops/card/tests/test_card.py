@@ -240,7 +240,6 @@ class TestAddModelPlot:
             "Model description/Training Procedure/Model Plot"
         ).format()
         # test if the model doesn't overflow the huggingface models page
-        assert result.count("sk-top-container") == 1
         assert 'style="overflow: auto;' in result
 
     def test_model_diagram_false(self):

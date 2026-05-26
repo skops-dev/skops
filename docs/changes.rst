@@ -11,6 +11,9 @@ skops Changelog
 
 v0.15
 -----
+- Fix model plot overflow handling so it works with the updated sklearn HTML
+  representation (sklearn 1.9+), where ``sk-top-container`` also appears in
+  CSS selectors. :pr:`517` by `Adrin Jalali`_.
 
 v0.14
 -----
