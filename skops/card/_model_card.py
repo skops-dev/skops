@@ -771,10 +771,6 @@ class Card:
 
         """
         model_plot_div = re.sub(r"\n\s+", "", str(estimator_html_repr(model)))
-        if model_plot_div.count("sk-top-container") == 1:
-            model_plot_div = model_plot_div.replace(
-                "sk-top-container", 'sk-top-container" style="overflow: auto;'
-            )
 
         if description:
             content = f"{description}\n\n{model_plot_div}"
