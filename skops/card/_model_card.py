@@ -771,16 +771,6 @@ class Card:
 
         """
         model_plot_div = re.sub(r"\n\s+", "", str(estimator_html_repr(model)))
-        # Add inline overflow style to the top container div to prevent it from
-        # overflowing on the HF model page. Target the class attribute via regex
-        # rather than a naive string replace, since newer sklearn versions
-        # mention `sk-top-container` in CSS selectors too.
-        model_plot_div = re.sub(
-            r'(<div\b[^>]*\bclass="[^"]*\bsk-top-container\b[^"]*")',
-            r'\1 style="overflow: auto;"',
-            model_plot_div,
-            count=1,
-        )
 
         if description:
             content = f"{description}\n\n{model_plot_div}"

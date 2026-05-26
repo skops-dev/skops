@@ -235,13 +235,6 @@ class TestAddModelPlot:
         assert re.match(r"<style>[#.]sk-", result)
         assert "MyRegressor()" in result
 
-    def test_no_overflow(self, model_card):
-        result = model_card.select(
-            "Model description/Training Procedure/Model Plot"
-        ).format()
-        # test if the model doesn't overflow the huggingface models page
-        assert 'style="overflow: auto;' in result
-
     def test_model_diagram_false(self):
         model = fit_model()
         model_card = Card(model, model_diagram=False)

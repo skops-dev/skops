@@ -11,9 +11,10 @@ skops Changelog
 
 v0.15
 -----
-- Fix model plot overflow handling so it works with the updated sklearn HTML
-  representation (sklearn 1.9+), where ``sk-top-container`` also appears in
-  CSS selectors. :pr:`517` by `Adrin Jalali`_.
+- Remove the HuggingFace Hub specific overflow style injection from the model
+  plot section. skops no longer targets HF Hub, so the inline style is
+  unnecessary and was incompatible with the sklearn 1.9+ HTML representation.
+  :pr:`517` by `Adrin Jalali`_.
 
 v0.14
 -----
