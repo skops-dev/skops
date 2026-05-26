@@ -11,10 +11,6 @@ skops Changelog
 
 v0.15
 -----
-- Remove the HuggingFace Hub specific overflow style injection from the model
-  plot section. skops no longer targets HF Hub, so the inline style is
-  unnecessary and was incompatible with the sklearn 1.9+ HTML representation.
-  :pr:`517` by `Adrin Jalali`_.
 
 v0.14
 -----
