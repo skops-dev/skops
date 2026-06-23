@@ -206,8 +206,7 @@ fairlearn = "~=0.14.0"
 pandas = "~=2.3.0"
 numpy = "~=2.4.0"
 scipy = "~=1.17.0"
-# catboost = ">=1.0"
-# TODO: catboost does not support python 3.14 - issue https://github.com/catboost/catboost/issues/2989
+catboost = ">=1.0"
 quantile-forest = "~=1.4.0"
 python = "~=3.14.0"
 
@@ -217,8 +216,7 @@ fairlearn = "~=0.14.0"
 pandas = "~=3.0.0"
 numpy = "~=2.5.0"
 scipy = "~=1.18.0"
-# catboost = ">=1.0"
-# TODO: catboost does not support python 3.14 - issue https://github.com/catboost/catboost/issues/2989
+catboost = ">=1.0"
 quantile-forest = "~=1.4.0"
 python = "~=3.14.0"
 
