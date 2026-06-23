@@ -1045,7 +1045,7 @@ class Card:
             ax,
             x=permutation_importances.importances[sorted_importances_idx].T,
             tick_labels=columns[sorted_importances_idx],
-            vert="horizontal",
+            orientation="horizontal",
         )
         ax.set_title(plot_name)
         ax.set_xlabel("Decrease in Score")

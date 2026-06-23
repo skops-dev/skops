@@ -1732,7 +1732,7 @@ class TestCardSaveWithPlots:
             model_card = model_card.add_plot(fig1=fig_1_path)
 
             plt.plot([7, 6, 5, 4])
-            fig_2_path = "fig2.png"
+            fig_2_path = Path(plot_path) / "fig2.png"
             plt.savefig(fig_2_path)
             model_card = model_card.add_plot(fig2=fig_2_path)
 
