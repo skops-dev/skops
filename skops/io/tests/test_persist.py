@@ -314,7 +314,7 @@ def _unsupported_estimators(type_filter=None):
 
 
 @pytest.mark.parametrize(
-    "estimator", _tested_estimators(), ids=_get_check_estimator_ids
+    "estimator", list(_tested_estimators()), ids=_get_check_estimator_ids
 )
 def test_can_persist_non_fitted(estimator):
     """Check that non-fitted estimators can be persisted."""
@@ -394,7 +394,7 @@ def get_input(estimator):
 
 
 @pytest.mark.parametrize(
-    "estimator", _tested_estimators(), ids=_get_check_estimator_ids
+    "estimator", list(_tested_estimators()), ids=_get_check_estimator_ids
 )
 def test_can_persist_fitted(estimator):
     """Check that fitted estimators can be persisted and return the right results."""
@@ -426,7 +426,9 @@ def test_can_persist_fitted(estimator):
 
 
 @pytest.mark.parametrize(
-    "ufunc", _tested_ufuncs(), ids=SCIPY_UFUNC_TYPE_NAMES + NUMPY_UFUNC_TYPE_NAMES
+    "ufunc",
+    list(_tested_ufuncs()),
+    ids=SCIPY_UFUNC_TYPE_NAMES + NUMPY_UFUNC_TYPE_NAMES,
 )
 def test_can_trust_ufuncs(ufunc):
     dumped = dumps(ufunc)
@@ -436,7 +438,7 @@ def test_can_trust_ufuncs(ufunc):
 
 @pytest.mark.parametrize(
     "type_",
-    _tested_types(),
+    list(_tested_types()),
     ids=PRIMITIVE_TYPE_NAMES + NUMPY_DTYPE_TYPE_NAMES + CONTAINER_TYPE_NAMES,
 )
 def test_can_trust_types(type_):
@@ -552,7 +554,7 @@ def test_gradient_boosting_estimators_have_no_untrusted_types(estimator, problem
 
 
 @pytest.mark.parametrize(
-    "estimator", _unsupported_estimators(), ids=_get_check_estimator_ids
+    "estimator", list(_unsupported_estimators()), ids=_get_check_estimator_ids
 )
 def test_unsupported_type_raises(estimator):
     """Estimators that are known to fail should raise an error"""
