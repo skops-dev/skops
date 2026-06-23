@@ -4,10 +4,22 @@ import sys
 from dataclasses import dataclass, field
 
 
-def boxplot(ax, *, tick_labels, **kwargs):
-    """A function to handle labels->tick_labels deprecation.
-    labels is deprecated in 3.9 and removed in 3.11.
+def boxplot(ax, *, tick_labels, orientation="vertical", **kwargs):
+    """A function to handle matplotlib deprecations across supported versions.
+
+    - ``labels`` -> ``tick_labels``: ``labels`` is deprecated in 3.9 and removed
+      in 3.11.
+    - ``vert`` (bool) -> ``orientation`` (str): ``orientation`` was added in 3.10
+      and ``vert`` was deprecated in 3.11 and removed in 3.13.
     """
+    from matplotlib import __version__ as mpl_version
+    from packaging.version import parse
+
+    if parse(mpl_version) >= parse("3.10"):
+        kwargs["orientation"] = orientation
+    else:
+        kwargs["vert"] = orientation == "vertical"
+
     try:
         return ax.boxplot(tick_labels=tick_labels, **kwargs)
     except TypeError:
