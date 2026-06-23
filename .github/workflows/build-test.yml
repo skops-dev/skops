@@ -24,6 +24,7 @@ jobs:
           ci-sklearn16,
           ci-sklearn17,
           ci-sklearn18,
+          ci-sklearn19,
           ci-sklearn-nightly
         ]
 
