@@ -78,6 +78,14 @@ try:
 except ImportError:
     pass
 
+try:
+    from sklearn.metrics._dist_metrics import EuclideanDistance64
+    from sklearn.neighbors._kd_tree import KDTree
+
+    _SKLEARN_INTERNAL_TYPES.extend([EuclideanDistance64, KDTree])
+except ImportError:
+    pass
+
 SKLEARN_INTERNAL_TYPE_NAMES = [
     get_type_name(t)
     for t in _SKLEARN_INTERNAL_TYPES

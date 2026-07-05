@@ -553,6 +553,29 @@ def test_gradient_boosting_estimators_have_no_untrusted_types(estimator, problem
     assert_method_outputs_equal(estimator, loaded, X)
 
 
+def test_kneighbors_has_no_untrusted_types():
+    """KNeighborsClassifier with kd_tree should not require manual trusted types."""
+    from sklearn.neighbors import KNeighborsClassifier
+
+    X, y = make_classification(
+        n_samples=N_SAMPLES, n_features=N_FEATURES, random_state=0
+    )
+    clf = KNeighborsClassifier(algorithm="kd_tree").fit(X, y)
+
+    dumped = dumps(clf)
+    untrusted = get_untrusted_types(data=dumped)
+    knn_types = {
+        "sklearn.metrics._dist_metrics.EuclideanDistance64",
+        "sklearn.neighbors._kd_tree.KDTree",
+    }
+    assert not knn_types.intersection(untrusted), (
+        f"KNN internal types still untrusted: {knn_types & set(untrusted)}"
+    )
+
+    loaded = loads(dumped)
+    assert_method_outputs_equal(clf, loaded, X)
+
+
 @pytest.mark.parametrize(
     "estimator", list(_unsupported_estimators()), ids=_get_check_estimator_ids
 )
