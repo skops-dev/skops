@@ -52,7 +52,7 @@ def whichmodule(obj: Any, name: str) -> str:
                 warnings.simplefilter("ignore", DeprecationWarning)
                 if _getattribute(module, name)[0] is obj:
                     return module_name
-        except AttributeError:
+        except (AttributeError, ImportError):
             pass
     return "__main__"
 

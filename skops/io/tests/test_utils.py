@@ -1,9 +1,12 @@
+import sys
+from types import ModuleType
+
 import numpy as np
 import pytest
 import scipy
 import sklearn.tree
 
-from skops.io._utils import get_type_name, get_type_paths
+from skops.io._utils import get_type_name, get_type_paths, whichmodule
 
 
 class UserDefinedClass:
@@ -74,3 +77,16 @@ class TestConvertTypesToStrings:
     )
     def test_for_normal_input_lists_returns_as_expected(self, input_list, output_list):
         assert get_type_paths(input_list) == output_list
+
+
+def test_whichmodule_ignores_import_errors_from_lazy_modules(monkeypatch):
+    module = ModuleType("lazy_module_for_skops_tests")
+
+    def _getattr(name):
+        raise ModuleNotFoundError("No module named 'torchvision'")
+
+    module.__getattr__ = _getattr
+    monkeypatch.setitem(sys.modules, module.__name__, module)
+
+    obj = type("T", (), {"__module__": None, "__name__": "target"})()
+    assert whichmodule(obj, obj.__name__) == "__main__"
