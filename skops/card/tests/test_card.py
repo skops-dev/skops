@@ -525,6 +525,9 @@ class TestAddMetrics:
         assert text1 == text2
 
 
+@pytest.mark.filterwarnings(
+    "ignore:.*vert.*deprecated.*:matplotlib._api.deprecation.MatplotlibDeprecationWarning"
+)
 class TestAddPermutationImportance:
     @pytest.fixture
     def importances(self, iris_estimator, iris_data):

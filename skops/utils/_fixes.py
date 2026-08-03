@@ -15,10 +15,6 @@ def boxplot(ax, *, tick_labels, orientation="vertical", **kwargs):
     from matplotlib import __version__ as mpl_version
     from packaging.version import parse
 
-    vert = kwargs.pop("vert", None)
-    if vert is not None and orientation == "vertical":
-        orientation = "vertical" if vert else "horizontal"
-
     if parse(mpl_version) >= parse("3.10"):
         kwargs["orientation"] = orientation
     else:
