@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import json
 from typing import Any
 
 import numpy as np
@@ -8,7 +9,10 @@ import numpy as np
 from ._audit import Node, get_tree
 from ._general import function_get_state
 from ._protocol import PROTOCOL
-from ._trusted_types import NUMPY_DTYPE_TYPE_NAMES
+from ._trusted_types import (
+    NUMPY_DTYPE_TYPE_NAMES,
+    NUMPY_RANDOM_BIT_GENERATOR_TYPE_NAMES,
+)
 from ._utils import LoadContext, SaveContext, get_module, get_state, gettype
 from .exceptions import UnsupportedTypeException
 
@@ -203,6 +207,65 @@ class RandomGeneratorNode(Node):
             ),
         }
         self.trusted = self._get_trusted(trusted, [np.random.Generator])
+        # Security note. To rebuild a Generator we need its bit generator, and
+        # numpy identifies that by class name: the name (e.g. "PCG64") is stored
+        # by numpy as a plain string inside ``bit_generator.state``. At load
+        # time ``_construct`` turns that string back into a class via
+        # ``getattr(numpy.random, <name>)`` and *calls* it.
+        #
+        # skops' safety check works by having every node declare, through
+        # ``get_unsafe_set``, which types it will materialise; the user reviews
+        # that list (``get_untrusted_types``) before trusting a file. The
+        # problem is that this class name is not declared anywhere: it rides
+        # along as an ordinary ``str`` inside a ``dict``, both trusted by
+        # default, so the audit never sees it. A hand-crafted file can put *any*
+        # ``numpy.random`` attribute name there (``seed``, ``set_bit_generator``,
+        # ...) and have it called on load, while ``get_untrusted_types`` still
+        # reports the file as containing nothing untrusted.
+        #
+        # We close that gap by pulling the name out here and declaring it in
+        # ``get_unsafe_set`` as ``numpy.random.<name>``, so it goes through the
+        # same trust review as every other type we load.
+        self.bit_generator_name = self._get_bit_generator_name(
+            state["content"]["bit_generator"]
+        )
+        if self.bit_generator_name is None:
+            # A genuine file always stores the name where we expect it, so not
+            # finding it means the file is corrupted or has been tampered with.
+            # We can't build the object and there is no meaningful type to put
+            # in front of the user, so we refuse the file outright rather than
+            # reporting a fake untrusted type. This mirrors how ``MethodNode``
+            # and ``OperatorFuncNode`` reject a malformed state.
+            raise ValueError(
+                "Could not find the bit generator name in the "
+                "numpy.random.Generator state. This is probably due to a "
+                "corrupted or a malicious file."
+            )
+
+    @staticmethod
+    def _get_bit_generator_name(bit_generator_state: dict[str, Any]) -> str | None:
+        # Read the class name out of the raw (not-yet-constructed) state. numpy
+        # stores it under the ``bit_generator`` key of the state dict, which we
+        # serialise as a ``DictNode`` whose values are ``JsonNode``s -- hence
+        # the ``["content"]["bit_generator"]["content"]`` path and ``json.loads``
+        # of the stored literal. Return ``None`` if the file doesn't have that
+        # exact shape; the caller turns that into an error.
+        try:
+            name_state = bit_generator_state["content"]["bit_generator"]
+            name = json.loads(name_state["content"])
+        except (KeyError, TypeError, ValueError):
+            return None
+        return name if isinstance(name, str) else None
+
+    def get_unsafe_set(self) -> set[str]:
+        res = super().get_unsafe_set()
+        # Declare the bit generator as a type to be reviewed. Real bit
+        # generators are trusted by default, so genuine files stay clean;
+        # anything else shows up in ``get_untrusted_types``.
+        full_name = f"numpy.random.{self.bit_generator_name}"
+        if full_name not in NUMPY_RANDOM_BIT_GENERATOR_TYPE_NAMES:
+            res.add(full_name)
+        return res
 
     def _construct(self):
         # first restore the state of the bit generator
@@ -214,9 +277,22 @@ class RandomGeneratorNode(Node):
         seed_seq = seed_seq_cls(**seed_seq_state)
 
         bit_generator_state = self.children["bit_generator_state"].construct()
-        bit_generator_cls = gettype(
-            "numpy.random", bit_generator_state["bit_generator"]
-        )
+        bit_generator_name = bit_generator_state["bit_generator"]
+        bit_generator_cls = gettype("numpy.random", bit_generator_name)
+        # Second line of defence, independent of the audit above. ``gettype`` is
+        # just ``getattr(numpy.random, name)``; retrieving the attribute is
+        # harmless, but the next line *calls* it, and that is the only dangerous
+        # step. So even if the audit was satisfied (for instance the user
+        # explicitly trusted the name) we refuse to call anything that isn't an
+        # actual bit generator, rather than invoking an arbitrary callable.
+        if not (
+            isinstance(bit_generator_cls, type)
+            and issubclass(bit_generator_cls, np.random.BitGenerator)
+        ):
+            raise ValueError(
+                f"Expected a numpy.random bit generator, got {bit_generator_name!r}."
+                " This is probably due to a corrupted or a malicious file."
+            )
         bit_generator = bit_generator_cls(seed_seq)
         bit_generator.state = bit_generator_state
 

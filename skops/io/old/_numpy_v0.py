@@ -23,9 +23,22 @@ class RandomGeneratorNode(Node):
 
     def _construct(self):
         # first restore the state of the bit generator
-        bit_generator = gettype(
-            "numpy.random", self.children["bit_generator_state"]["bit_generator"]
-        )()
+        bit_generator_name = self.children["bit_generator_state"]["bit_generator"]
+        bit_generator_cls = gettype("numpy.random", bit_generator_name)
+        # The bit generator's class name comes from the file and is used to look
+        # up and call a ``numpy.random`` attribute (see ``RandomGeneratorNode``
+        # in ``skops.io._numpy`` for the full explanation). Retrieving the
+        # attribute is harmless, calling it is not, so refuse to call anything
+        # that isn't a genuine bit generator.
+        if not (
+            isinstance(bit_generator_cls, type)
+            and issubclass(bit_generator_cls, np.random.BitGenerator)
+        ):
+            raise ValueError(
+                f"Expected a numpy.random bit generator, got {bit_generator_name!r}."
+                " This is probably due to a corrupted or a malicious file."
+            )
+        bit_generator = bit_generator_cls()
         bit_generator.state = self.children["bit_generator_state"]
 
         # next create the generator instance
