@@ -18,7 +18,7 @@ v0.15
   unchecked node indices that scikit-learn can dereference out of bounds
   during ``.predict()``, crashing the process. The raised
   ``UntrustedTypesFoundException`` now explains the risk for these types.
-  :pr:`TBD` by `Adrin Jalali`_.
+  :pr:`535` by `Adrin Jalali`_.
 - Support persisting scipy sparse *arrays* (e.g. ``csr_array``) through the same
   efficient ``npz`` format used for sparse matrices, and handle the
   ``scipy.special`` ufunc wrappers introduced in scipy 2.0. This adds
