@@ -15,7 +15,7 @@ v0.15
   and call a ``numpy.random`` attribute whose name was taken from the file,
   even though ``get_untrusted_types`` reported nothing untrusted for that file.
   The bit generator type is now surfaced to the audit, and only genuine bit
-  generators are instantiated when loading. :pr:`535` by `Adrin Jalali`_.
+  generators are instantiated when loading. :pr:`536` by `Adrin Jalali`_.
 - Fix a security issue where ``skops update`` (:mod:`skops.cli`) would load a
   file while blindly trusting every type declared in it, allowing a malicious
   ``.skops`` file to execute arbitrary code. ``skops update`` now refuses to
