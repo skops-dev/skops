@@ -11,6 +11,12 @@ skops Changelog
 
 v0.15
 -----
+- Fix a security issue where ``skops update`` (:mod:`skops.cli`) would load a
+  file while blindly trusting every type declared in it, allowing a malicious
+  ``.skops`` file to execute arbitrary code. ``skops update`` now refuses to
+  load types that are not trusted by default; use the new ``--trusted`` option
+  to explicitly allow types you have reviewed.
+  :pr:`533` by `Adrin Jalali`_.
 - Support persisting scipy sparse *arrays* (e.g. ``csr_array``) through the same
   efficient ``npz`` format used for sparse matrices, and handle the
   ``scipy.special`` ufunc wrappers introduced in scipy 2.0. This adds

@@ -57,5 +57,6 @@ class TestEntrypoint:
             input_file=pathlib.Path("abc.skops"),
             output_file=pathlib.Path("abc-new.skops"),
             inplace=False,
+            trusted=[],
             logger=mock.ANY,
         )
