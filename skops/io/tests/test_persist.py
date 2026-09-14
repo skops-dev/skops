@@ -74,11 +74,35 @@ from skops.io._trusted_types import (
 from skops.io._utils import LoadContext, SaveContext, _get_state, get_state, gettype
 from skops.io.exceptions import UnsupportedTypeException, UntrustedTypesFoundException
 from skops.io.tests._utils import assert_method_outputs_equal, assert_params_equal
-from skops.utils._fixes import construct_instances, get_tags
+from skops.utils._fixes import (
+    construct_instances,
+    get_sparray_type,
+    get_sparse_container,
+    get_tags,
+    sklearn_forces_sparray,
+    sklearn_sparse_output,
+    suppress_spmatrix_deprecation,
+)
+
+# Preferred scipy sparse container: a sparse *array* on scipy versions that
+# provide the sparray API (avoids scipy 2.0's spmatrix deprecation), else a
+# sparse matrix. Used wherever a test just needs some sparse data.
+SPARSE_CONTAINER = get_sparse_container("csr")
 
 # Default settings for X
 N_SAMPLES = 120
 N_FEATURES = 20
+
+
+@pytest.fixture(autouse=True)
+def sklearn_sparse_arrays():
+    # On scipy 2.0, constructing scipy sparse *matrices* emits a
+    # DeprecationWarning (which the test suite turns into an error). scikit-learn
+    # 1.9+ can emit sparse *arrays* instead via the ``sparse_interface`` config;
+    # enable it for every test so sklearn-produced sparse data doesn't trip the
+    # deprecation. This is a no-op on older scikit-learn.
+    with sklearn_sparse_output():
+        yield
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -388,7 +412,7 @@ def get_input(estimator):
 
     if tags.input_tags.sparse:
         # TfidfTransformer in sklearn 0.24 needs this
-        return sparse.csr_matrix(X), y
+        return SPARSE_CONTAINER(X), y
 
     raise ValueError(f"Unsupported X type for estimator: {tags.input_tags}")
 
@@ -398,6 +422,16 @@ def get_input(estimator):
 )
 def test_can_persist_fitted(estimator):
     """Check that fitted estimators can be persisted and return the right results."""
+    if type(estimator).__name__ == "SpectralEmbedding" and sklearn_forces_sparray():
+        # Upstream scikit-learn bug: with ``sparse_interface="sparray"``,
+        # SpectralEmbedding builds a sparse array with int64 indices which
+        # scikit-learn's own ``_check_large_sparse`` then rejects. Reproducible
+        # with plain scikit-learn (no skops). Remove once fixed upstream.
+        pytest.xfail(
+            "SpectralEmbedding + sparse_interface='sparray' produces int64-index "
+            "sparse arrays rejected by sklearn's own validation (upstream bug)"
+        )
+
     set_random_state(estimator, random_state=0)
 
     X, y = get_input(estimator)
@@ -700,7 +734,7 @@ def test_metainfo():
             self.builtin_ = [1, 2, 3]
             self.stdlib_ = Counter([10, 20, 20, 30, 30, 30])
             self.numpy_ = np.arange(5)
-            self.sparse_ = sparse.csr_matrix([[0, 1], [1, 0]])
+            self.sparse_ = SPARSE_CONTAINER([[0, 1], [1, 0]])
             self.sklearn_ = LogisticRegression()
             # create a nested data structure to check if that works too
             self.nested_ = {
@@ -736,7 +770,7 @@ def test_metainfo():
             "__module__": "numpy",
         },
         "sparse_": {
-            "__class__": "csr_matrix",
+            "__class__": SPARSE_CONTAINER.__name__,
             "__module__": "scipy.sparse",
         },
         "sklearn_": {
@@ -790,8 +824,8 @@ class EstimatorIdenticalArrays(BaseEstimator):
 
         self.scalar_2 = X[0, 0]
 
-        # deduplication should work on sparse matrices
-        X_sparse = sparse.csr_matrix(X)
+        # deduplication should work on sparse containers
+        X_sparse = SPARSE_CONTAINER(X)
         self.X_sparse = X_sparse
         self.X_sparse2 = X_sparse
 
@@ -962,12 +996,12 @@ class TestPersistingBoundMethods:
 
 
 class CustomEstimator(BaseEstimator):
-    """Estimator with np array, np scalar, and sparse matrix attribute"""
+    """Estimator with np array, np scalar, and sparse container attribute"""
 
     def fit(self, X, y=None):
         self.numpy_array = np.zeros(3)
         self.numpy_scalar = np.ones(1)[0]
-        self.sparse_matrix = sparse.csr_matrix(np.arange(3))
+        self.sparse_matrix = SPARSE_CONTAINER(np.arange(3))
         return self
 
 
@@ -985,7 +1019,7 @@ def test_dump_to_and_load_from_disk(tmp_path):
     with ZipFile(f_name, "r") as input_zip:
         files = input_zip.namelist()
 
-    # there should be 4 files in total, schema.json, 2 np arrays, and 1 sparse matrix
+    # there should be 4 files total, schema.json, 2 np arrays, 1 sparse container
     assert len(files) == 4
     assert "schema.json" in files
 
@@ -1204,15 +1238,42 @@ def test_sparse_matrix(call_has_canonical_format):
 
     # note: this behavior is already implicitly tested by sklearn estimators
     # that use sparse matrices under the hood (tfidf) but it is better to check
-    # the behavior explicitly
-    x = sparse.csr_matrix((3, 4))
+    # the behavior explicitly. We deliberately exercise the legacy sparse
+    # *matrix* type here, so silence scipy 2.0's spmatrix deprecation, which is
+    # also emitted when the matrix is reconstructed on load.
+    with suppress_spmatrix_deprecation():
+        x = sparse.csr_matrix((3, 4))
+        if call_has_canonical_format:
+            x.has_canonical_format
+
+        dumped = dumps(x)
+        untrusted_types = get_untrusted_types(data=dumped)
+        y = loads(dumped, trusted=untrusted_types)
+
+        assert_params_equal(x.__dict__, y.__dict__)
+
+
+@pytest.mark.parametrize("call_has_canonical_format", [False, True])
+def test_sparse_array(call_has_canonical_format):
+    # scipy sparse *arrays* (the modern, NumPy-compatible replacement for sparse
+    # matrices) should round-trip through the same efficient npz node.
+    sparray_type = get_sparray_type()
+    if sparray_type is None:
+        pytest.skip("scipy sparse arrays are not available")
+
+    x = sparse.csr_array((3, 4))
     if call_has_canonical_format:
         x.has_canonical_format
 
     dumped = dumps(x)
+    # it should be stored as a single npz file, not decomposed as a plain object
+    with ZipFile(io.BytesIO(dumped), "r") as input_zip:
+        assert sum(1 for f in input_zip.namelist() if f.endswith(".npz")) == 1
+
     untrusted_types = get_untrusted_types(data=dumped)
     y = loads(dumped, trusted=untrusted_types)
 
+    assert isinstance(y, sparray_type)
     assert_params_equal(x.__dict__, y.__dict__)
 
 
