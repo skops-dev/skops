@@ -4,6 +4,8 @@ import numpy as np
 import scipy
 from sklearn.utils import all_estimators
 
+from skops.utils._fixes import get_scipy_ufunc_wrapper_type
+
 from ._utils import get_public_type_names, get_type_name
 
 PRIMITIVES_TYPES = [int, float, str, bool]
@@ -99,6 +101,16 @@ with warnings.catch_warnings():
     SCIPY_UFUNC_TYPE_NAMES = get_public_type_names(
         module=scipy.special, oftype=np.ufunc
     )
+    # As of scipy 2.0, some scipy.special ufuncs are wrapper objects that are no
+    # longer numpy.ufunc instances, so they need to be discovered separately.
+    _scipy_ufunc_wrapper = get_scipy_ufunc_wrapper_type()
+    if _scipy_ufunc_wrapper is not None:
+        SCIPY_UFUNC_TYPE_NAMES = sorted(
+            set(SCIPY_UFUNC_TYPE_NAMES)
+            | set(
+                get_public_type_names(module=scipy.special, oftype=_scipy_ufunc_wrapper)
+            )
+        )
 
 NUMPY_UFUNC_TYPE_NAMES = get_public_type_names(module=np, oftype=np.ufunc)
 

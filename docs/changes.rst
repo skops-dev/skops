@@ -19,6 +19,11 @@ v0.15
   during ``.predict()``, crashing the process. The raised
   ``UntrustedTypesFoundException`` now explains the risk for these types.
   :pr:`TBD` by `Adrin Jalali`_.
+- Support persisting scipy sparse *arrays* (e.g. ``csr_array``) through the same
+  efficient ``npz`` format used for sparse matrices, and handle the
+  ``scipy.special`` ufunc wrappers introduced in scipy 2.0. This adds
+  compatibility with scipy 2.0 and scikit-learn 1.9. :pr:`534` by
+  `Adrin Jalali`_.
 
 v0.14
 -----
