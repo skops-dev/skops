@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import contextlib
 import sys
+import warnings
 from dataclasses import dataclass, field
 
 
@@ -24,6 +26,138 @@ def boxplot(ax, *, tick_labels, orientation="vertical", **kwargs):
         return ax.boxplot(tick_labels=tick_labels, **kwargs)
     except TypeError:
         return ax.boxplot(labels=tick_labels, **kwargs)
+
+
+def get_sparray_type():
+    """Return scipy's ``sparray`` base type, or ``None`` if it is unavailable.
+
+    scipy sparse *arrays* (e.g. ``csr_array``) are the NumPy-compatible
+    replacement for the deprecated sparse *matrix* classes. They share the
+    ``scipy.sparse.sparray`` base, which is what skops dispatches and trusts on.
+    """
+    try:
+        from scipy.sparse import sparray
+
+        return sparray
+    except ImportError:  # pragma: no cover
+        return None
+
+
+def get_scipy_ufunc_wrapper_type():
+    """Return the base type of scipy's ``ufunc_wrapper`` objects, or ``None``.
+
+    As of scipy 2.0 some ``scipy.special`` ufuncs are no longer
+    :class:`numpy.ufunc` instances but thin wrappers that share the common base
+    ``scipy.special._ufunc_tools._UFuncWrapper``. skops needs to treat these
+    like ufuncs when persisting them. Returns ``None`` on scipy versions that
+    still expose plain ``numpy.ufunc`` objects (nothing to do there).
+    """
+    import numpy as np
+    from scipy import special
+
+    # ``exp10`` is one of the functions wrapped as of scipy 2.0; use it as a
+    # probe to discover the wrapper base type at runtime.
+    probe = getattr(special, "exp10", None)
+    if probe is None or isinstance(probe, np.ufunc):
+        return None
+
+    for base in type(probe).__mro__:
+        if base.__name__ == "_UFuncWrapper":
+            return base
+    return None  # pragma: no cover
+
+
+def sklearn_forces_sparray():
+    """Whether :func:`sklearn_sparse_output` actually switches sklearn's output.
+
+    This is ``True`` only when *both* conditions hold:
+
+    - scipy is 2.0 or newer, i.e. constructing a sparse *matrix* emits a
+      ``DeprecationWarning`` that the test suite turns into an error, and
+    - scikit-learn exposes the ``sparse_interface`` config option (added in 1.9)
+      so it can emit sparse *arrays* instead.
+
+    On older scipy there is no deprecation to avoid, and forcing sparse arrays
+    there only risks tripping unrelated upstream issues, so the switch stays off.
+    """
+    import scipy
+    from packaging.version import parse
+    from sklearn import get_config
+
+    return parse(scipy.__version__).major >= 2 and "sparse_interface" in get_config()
+
+
+def sklearn_sparse_output():
+    """Context manager making scikit-learn emit scipy sparse *arrays*.
+
+    See :func:`sklearn_forces_sparray` for when this takes effect; otherwise it
+    is a no-op.
+    """
+    from sklearn import config_context
+
+    if sklearn_forces_sparray():
+        return config_context(sparse_interface="sparray")
+    return contextlib.nullcontext()
+
+
+def get_sparse_container(kind="csr"):
+    """Return the preferred scipy sparse container class of the given ``kind``.
+
+    Returns the sparse *array* class (e.g. ``csr_array``) when scipy exposes the
+    ``sparray`` API, otherwise the legacy sparse *matrix* class (e.g.
+    ``csr_matrix``). Constructing the array avoids scipy 2.0's spmatrix
+    ``DeprecationWarning`` while keeping the object routed through skops' npz
+    node (see ``skops.io._scipy``).
+    """
+    from scipy import sparse
+
+    suffix = "array" if get_sparray_type() is not None else "matrix"
+    return getattr(sparse, f"{kind}_{suffix}")
+
+
+@contextlib.contextmanager
+def suppress_spmatrix_deprecation():
+    """Silence scipy 2.0's ``DeprecationWarning`` about sparse *matrix* classes.
+
+    Only used where a test *deliberately* exercises the legacy sparse *matrix*
+    type, which skops keeps supporting for as long as scipy ships it. Everywhere
+    else, tests should build sparse data via :func:`get_sparse_container` so no
+    deprecation is emitted in the first place.
+    """
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message=r"\w+_matrix is being replaced",
+            category=DeprecationWarning,
+        )
+        yield
+
+
+def make_xgboost_random_forest(xgboost, *, classifier, **kwargs):
+    """Build an xgboost random-forest-style estimator, forward-compatibly.
+
+    xgboost deprecated ``XGBRFClassifier``/``XGBRFRegressor`` in favour of the
+    boosting estimators configured with ``num_parallel_tree`` and
+    ``n_estimators=1``. On versions where the RF wrappers are deprecated this
+    returns that recommended replacement; on older versions it returns the RF
+    wrapper. Either way the resulting estimator is a valid target for exercising
+    skops' round-trip of xgboost's forest configuration.
+    """
+    rf_cls = xgboost.XGBRFClassifier if classifier else xgboost.XGBRFRegressor
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always", FutureWarning)
+        rf_cls()
+    deprecated = any(
+        issubclass(w.category, FutureWarning) and "deprecated" in str(w.message).lower()
+        for w in caught
+    )
+
+    if not deprecated:
+        return rf_cls(**kwargs)
+
+    boost_cls = xgboost.XGBClassifier if classifier else xgboost.XGBRegressor
+    return boost_cls(n_estimators=1, num_parallel_tree=100, **kwargs)
 
 
 def construct_instances(estimator):

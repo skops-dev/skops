@@ -76,6 +76,8 @@ filterwarnings = [
     # sklearn1.8 deprecates this class
     "ignore:Class PassiveAggressiveClassifier is deprecated:FutureWarning",
     "ignore:Class PassiveAggressiveRegressor is deprecated:FutureWarning",
+    # sklearn nightly still imports the deprecated scipy.stats.mstats (scipy 2.0)
+    "ignore:`scipy.stats.mstats` is deprecated:DeprecationWarning",
 ]
 addopts = "--cov=skops --cov-report=term-missing --doctest-modules"
 
