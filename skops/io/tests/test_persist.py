@@ -1001,7 +1001,9 @@ class CustomEstimator(BaseEstimator):
     def fit(self, X, y=None):
         self.numpy_array = np.zeros(3)
         self.numpy_scalar = np.ones(1)[0]
-        self.sparse_matrix = SPARSE_CONTAINER(np.arange(3))
+        # 2D input: sparse *arrays* (unlike matrices) don't accept 1D on all
+        # supported scipy versions.
+        self.sparse_matrix = SPARSE_CONTAINER(np.arange(3).reshape(1, -1))
         return self
 
 
