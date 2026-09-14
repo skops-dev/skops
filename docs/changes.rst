@@ -11,6 +11,14 @@ skops Changelog
 
 v0.15
 -----
+- ``sklearn.tree._tree.Tree`` and
+  ``sklearn.ensemble._hist_gradient_boosting.predictor.TreePredictor`` are no
+  longer trusted by default: skops validates that a loaded object is of a
+  trusted type, but not the contents of its raw state, and these types store
+  unchecked node indices that scikit-learn can dereference out of bounds
+  during ``.predict()``, crashing the process. The raised
+  ``UntrustedTypesFoundException`` now explains the risk for these types.
+  :pr:`TBD` by `Adrin Jalali`_.
 
 v0.14
 -----

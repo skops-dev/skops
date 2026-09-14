@@ -72,11 +72,19 @@ except ImportError:
 
 try:
     from sklearn.ensemble._hist_gradient_boosting.binning import _BinMapper
-    from sklearn.ensemble._hist_gradient_boosting.predictor import TreePredictor
 
-    _SKLEARN_INTERNAL_TYPES.extend([_BinMapper, TreePredictor])
+    _SKLEARN_INTERNAL_TYPES.extend([_BinMapper])
 except ImportError:
     pass
+
+# NOTE: sklearn.ensemble._hist_gradient_boosting.predictor.TreePredictor is
+# deliberately *not* added to `_SKLEARN_INTERNAL_TYPES`. skops can only check
+# that a loaded object is of a trusted type, not that its content is safe.
+# TreePredictor's ``nodes`` array holds raw child/feature indices that
+# scikit-learn indexes into without bounds checks, so a crafted file can
+# crash the process the first time the model runs inference.
+# See https://github.com/scikit-learn/scikit-learn/pull/34558 and
+# `UNTRUSTED_TYPE_REASONS` in `exceptions.py`.
 
 SKLEARN_INTERNAL_TYPE_NAMES = [
     get_type_name(t)

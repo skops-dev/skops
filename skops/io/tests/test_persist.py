@@ -50,6 +50,7 @@ from sklearn.preprocessing import (
     PolynomialFeatures,
     StandardScaler,
 )
+from sklearn.tree import DecisionTreeClassifier
 from sklearn.utils import all_estimators, check_random_state
 from sklearn.utils._testing import SkipTest, set_random_state
 from sklearn.utils.estimator_checks import (
@@ -504,10 +505,16 @@ def test_can_trust_types(type_):
         ),
     ],
 )
-def test_gradient_boosting_estimators_have_no_untrusted_types(estimator, problem_type):
-    """Fitted GB/HGB models should save and load without any untrusted types,
-    even though they contain non-public sklearn internals (loss functions, link
-    functions, Cython loss classes, _BinMapper, TreePredictor)."""
+def test_gradient_boosting_estimators_trust_internals_except_tree_types(
+    estimator, problem_type
+):
+    """Fitted GB/HGB models save and load with the non-public sklearn
+    internals they rely on (loss functions, link functions, Cython loss
+    classes, _BinMapper) trusted by default, but not their raw tree storage
+    (``sklearn.tree._tree.Tree`` / ``TreePredictor``): loading their content is
+    not validated, so a crafted file can crash the process at predict time.
+    These remain loadable by explicitly trusting that one type, e.g.
+    ``trusted=["sklearn.tree._tree.Tree"]``."""
     set_random_state(estimator, random_state=0)
 
     if problem_type == "binary":
@@ -545,12 +552,56 @@ def test_gradient_boosting_estimators_have_no_untrusted_types(estimator, problem
     estimator.fit(X, y)
 
     dumped = dumps(estimator)
-    untrusted_types = get_untrusted_types(data=dumped)
-    assert untrusted_types == []
 
-    loaded = loads(dumped)
+    # GB models embed their trees via sklearn.tree._tree.Tree, HGB models via
+    # their own TreePredictor; neither is trusted by default.
+    expected_type = (
+        "sklearn.ensemble._hist_gradient_boosting.predictor.TreePredictor"
+        if type(estimator).__name__.startswith("HistGradientBoosting")
+        else "sklearn.tree._tree.Tree"
+    )
+    assert get_untrusted_types(data=dumped) == [expected_type]
+
+    with pytest.raises(UntrustedTypesFoundException, match=expected_type):
+        loads(dumped)
+
+    # Trust exactly (and only) the one type known to be needed here, rather
+    # than blindly trusting everything `get_untrusted_types` reports.
+    loaded = loads(dumped, trusted=[expected_type])
     assert_params_equal(estimator.__dict__, loaded.__dict__)
     assert_method_outputs_equal(estimator, loaded, X)
+
+
+@pytest.mark.parametrize(
+    ("estimator", "expected_type"),
+    [
+        (
+            DecisionTreeClassifier(random_state=0),
+            "sklearn.tree._tree.Tree",
+        ),
+        (
+            HistGradientBoostingClassifier(max_iter=5, random_state=0),
+            "sklearn.ensemble._hist_gradient_boosting.predictor.TreePredictor",
+        ),
+    ],
+)
+def test_untrusted_tree_types_explain_the_risk(estimator, expected_type):
+    """The error raised for these types should explain *why* they're not
+    trusted, since loading them is otherwise indistinguishable from any other
+    untrusted type."""
+    X, y = make_classification(
+        n_samples=N_SAMPLES, n_features=N_FEATURES, random_state=0
+    )
+    estimator.fit(X, y)
+    dumped = dumps(estimator)
+
+    with pytest.raises(UntrustedTypesFoundException) as exc_info:
+        loads(dumped)
+
+    msg = str(exc_info.value)
+    assert expected_type in msg
+    assert "predict" in msg
+    assert "segfault" in msg or "crash" in msg
 
 
 @pytest.mark.parametrize(

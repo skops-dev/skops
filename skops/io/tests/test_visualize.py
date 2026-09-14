@@ -321,10 +321,12 @@ class TestVisualizeTree:
         )
 
         # the Tree (ReduceNode) block; ``tree_`` is always followed by
-        # ``_sklearn_version``, so it renders with a ``├──`` connector
+        # ``_sklearn_version``, so it renders with a ``├──`` connector.
+        # ``sklearn.tree._tree.Tree`` is not trusted by default, so both the
+        # node itself and its ``constructor`` child are marked unsafe.
         expected_tree_block = "\n".join(
             [
-                "    ├── tree_: sklearn.tree._tree.Tree",
+                "    ├── tree_: sklearn.tree._tree.Tree [UNSAFE]",
                 "    │   ├── attrs: builtins.dict",
                 "    │   │   ├── max_depth: json-type(2)",
                 "    │   │   ├── node_count: json-type(5)",
@@ -334,5 +336,5 @@ class TestVisualizeTree:
             ]
         )
         assert expected_tree_block in stdout
-        assert "    │   └── constructor: sklearn.tree._tree.Tree" in stdout
+        assert "    │   └── constructor: sklearn.tree._tree.Tree [UNSAFE]" in stdout
         assert '_sklearn_version: json-type("{}")'.format(sklearn.__version__) in stdout

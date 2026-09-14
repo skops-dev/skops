@@ -215,7 +215,15 @@ class TreeNode(ReduceNode):
         load_context: LoadContext,
         trusted: list[str] | None = None,
     ) -> None:
-        self.trusted = self._get_trusted(trusted, [get_module(Tree) + ".Tree"])
+        # NOTE: sklearn.tree._tree.Tree is deliberately *not* trusted by
+        # default. skops can only check that a loaded object is of a trusted
+        # type, not that its content is safe. Tree's ``nodes`` array holds raw
+        # child/feature indices that scikit-learn indexes into without bounds
+        # checks, so a crafted file can crash the process the first time the
+        # model runs inference.
+        # See https://github.com/scikit-learn/scikit-learn/pull/34558 and
+        # `UNTRUSTED_TYPE_REASONS` in `exceptions.py`.
+        self.trusted = self._get_trusted(trusted, [])
         super().__init__(
             state,
             load_context,
