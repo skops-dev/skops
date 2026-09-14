@@ -16,6 +16,11 @@ v0.15
   ``.skops`` file to execute arbitrary code. ``skops update`` now refuses to
   load types that are not trusted by default; use the new ``--trusted`` option
   to explicitly allow types you have reviewed.
+- Support persisting scipy sparse *arrays* (e.g. ``csr_array``) through the same
+  efficient ``npz`` format used for sparse matrices, and handle the
+  ``scipy.special`` ufunc wrappers introduced in scipy 2.0. This adds
+  compatibility with scipy 2.0 and scikit-learn 1.9. :pr:`534` by
+  `Adrin Jalali`_.
 
 v0.14
 -----

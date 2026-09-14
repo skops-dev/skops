@@ -25,7 +25,7 @@ jobs:
       with:
         ref: ${{ github.event.inputs.version }}
 
-    - uses: actions/setup-python@v6
+    - uses: actions/setup-python@v7
       with:
         python-version: '3.x'
 
@@ -39,11 +39,11 @@ jobs:
         python -m build
 
     - name: Publish package to TestPyPI
-      uses: pypa/gh-action-pypi-publish@v1.14.1
+      uses: pypa/gh-action-pypi-publish@v1.14.2
       with:
         repository-url: https://test.pypi.org/legacy/
       if: ${{ github.event.inputs.pypi_repo == 'testpypi' }}
 
     - name: Publish package to PyPI
-      uses: pypa/gh-action-pypi-publish@v1.14.1
+      uses: pypa/gh-action-pypi-publish@v1.14.2
       if: ${{ github.event.inputs.pypi_repo == 'pypi' }}
