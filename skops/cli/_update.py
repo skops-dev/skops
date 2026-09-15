@@ -58,6 +58,18 @@ def _update_file(
                 " file."
             )
 
+    with zipfile.ZipFile(input_file, "r") as zip_file:
+        input_file_schema = json.loads(zip_file.read("schema.json"))
+
+    # Checked before loading: skops.io refuses to load files with a protocol
+    # newer than its own, so this has to be reported here.
+    if input_file_schema["protocol"] > PROTOCOL:
+        logger.warning(
+            "File cannot be updated because its protocol is more recent than the "
+            f"current protocol: {PROTOCOL}"
+        )
+        return None
+
     trusted = list(trusted) if trusted is not None else []
     unreviewed = [t for t in get_untrusted_types(file=input_file) if t not in trusted]
     if unreviewed:
@@ -70,20 +82,11 @@ def _update_file(
         raise UntrustedTypesFoundException(unreviewed)
 
     input_model = load(input_file, trusted=trusted)
-    with zipfile.ZipFile(input_file, "r") as zip_file:
-        input_file_schema = json.loads(zip_file.read("schema.json"))
 
     if input_file_schema["protocol"] == PROTOCOL:
         logger.warning(
             "File was not updated because already up to date with the current protocol:"
             f" {PROTOCOL}"
-        )
-        return None
-
-    if input_file_schema["protocol"] > PROTOCOL:
-        logger.warning(
-            "File cannot be updated because its protocol is more recent than the "
-            f"current protocol: {PROTOCOL}"
         )
         return None
 
