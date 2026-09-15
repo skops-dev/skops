@@ -220,7 +220,7 @@ def test_model_caching(skops_model_card, iris_skops_file, destination_path):
         assert mock_load_model.call_count == 1  # cached call
 
 
-CUSTOM_TEMPLATES = [None, {}, {"A Title", "Another Title", "A Title/A Section"}]  # type: ignore
+CUSTOM_TEMPLATES = [None, {}, {"A Title", "Another Title", "A Title/A Section"}]
 
 
 class TestAddModelPlot:

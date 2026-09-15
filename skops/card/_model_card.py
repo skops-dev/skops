@@ -193,7 +193,7 @@ class TableSection(Section):
             self._is_pandas_df = False
 
         if self._is_pandas_df:
-            ncols = len(self.table.columns)  # type: ignore
+            ncols = len(self.table.columns)  # pyrefly: ignore[missing-attribute]
         else:
             ncols = len(self.table)
         if ncols == 0:
@@ -218,7 +218,7 @@ class TableSection(Section):
 
     def __repr__(self) -> str:
         if self._is_pandas_df:
-            nrows, ncols = self.table.shape  # type: ignore
+            nrows, ncols = self.table.shape  # pyrefly: ignore[missing-attribute]
         else:
             # table cannot be empty, so no checks needed here
             ncols = len(self.table)

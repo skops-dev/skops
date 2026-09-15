@@ -57,14 +57,24 @@ Repository = "http://github.com/skops-dev/skops"
 Issues = "http://github.com/skops-dev/skops/issues"
 Changelog = "https://skops.readthedocs.io/en/stable/changes.html"
 
-[tool.black]
-line-length = 88
-target_version = ['py310', 'py311', 'py312']
-preview = true
-
 [tool.ruff]
-# all rules can be found here: https://beta.ruff.rs/docs/rules/
+line-length = 88
+extend-exclude = [
+    # locally installed pixi environments
+    ".pixi",
+    # These markdown files are data (model card template and test fixtures) and
+    # must be kept verbatim; ruff would otherwise format the python code blocks in
+    # them.
+    "skops/card/default_template.md",
+    "skops/card/tests/examples",
+]
+
+[tool.ruff.lint]
+# all rules can be found here: https://docs.astral.sh/ruff/rules/
 select = ["E", "F", "W", "I"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["skops"]
 
 [tool.pytest.ini_options]
 doctest_optionflags = "NORMALIZE_WHITESPACE ELLIPSIS"
@@ -88,10 +98,13 @@ omit = [
     "skops/conftest.py",
 ]
 
-[tool.mypy]
-exclude = "(\\w+/)*test_\\w+\\.py$|spaces/skops_model_card_creator|old"
-ignore_missing_imports = true
-no_implicit_optional = true
+[tool.pyrefly]
+project-includes = ["skops", "examples", "scripts", "docs/conf.py"]
+# Replace imports that cannot be resolved (e.g. numpy, scikit-learn, which are not
+# installed in the pre-commit environment) with `Any` instead of erroring.
+ignore-missing-imports = ["*"]
+# The `legacy` preset is the one pyrefly recommends for projects migrating from mypy.
+preset = "legacy"
 
 [tool.pixi.workspace]
 channels = ["conda-forge"]
@@ -124,8 +137,6 @@ fairlearn = ">=0.7.0"
 [tool.pixi.feature.tests.dependencies]
 pytest = ">=7"
 pytest-cov = ">=2.9.0"
-flake8 = ">=3.8.2"
-types-requests = ">=2.28.5"
 flaky = ">=3.7.0"
 rich = ">=12"
 matplotlib = ">=3.3"

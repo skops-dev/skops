@@ -23,4 +23,5 @@ node types, if there is no loader for version X, skops will automatically use
 version Y instead.
 
 """
+
 PROTOCOL = 2

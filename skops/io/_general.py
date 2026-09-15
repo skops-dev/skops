@@ -51,7 +51,7 @@ def dict_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
             continue
         if np.isscalar(key) and hasattr(key, "item"):
             # convert numpy value to python object
-            key = key.item()  # type: ignore
+            key = key.item()
         content[key] = get_state(value, save_context)
     res["content"] = content
     res["key_types"] = key_types
@@ -228,7 +228,7 @@ class TupleNode(Node):
         # This is needed since namedtuples need to have the args when
         # initialized.
         b = t.__bases__
-        if len(b) != 1 or b[0] != tuple:
+        if len(b) != 1 or b[0] is not tuple:
             return False
         f = getattr(t, "_fields", None)
         if not isinstance(f, tuple):
@@ -315,7 +315,7 @@ class PartialNode(Node):
         namespace = self.children["namespace"].construct()
         instance = partial(func, *args, **kwds)  # always use partial, not a subclass
         # partial always has __setstate__
-        instance.__setstate__((func, args, kwds, namespace))  # type: ignore
+        instance.__setstate__((func, args, kwds, namespace))
         return instance
 
 
@@ -492,7 +492,7 @@ class ObjectNode(Node):
         # bypasses the __init__, and then we set the attributes. This solves the
         # issue of required init arguments. Note that the instance created here
         # might not be valid until all its attributes have been set below.
-        instance = cls.__new__(cls)  # type: ignore
+        instance = cls.__new__(cls)
 
         if not self.children["attrs"]:
             # nothing more to do
@@ -553,9 +553,9 @@ class MethodNode(Node):
         res = super().get_unsafe_set()
         obj_node = self.children["obj"]
         res.add(
-            obj_node.module_name  # type: ignore
+            obj_node.module_name  # pyrefly: ignore[missing-attribute]
             + "."
-            + obj_node.class_name  # type: ignore
+            + obj_node.class_name  # pyrefly: ignore[missing-attribute]
             + "."
             + self.children["func"]
         )

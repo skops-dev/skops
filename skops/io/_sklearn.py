@@ -234,10 +234,10 @@ class TreeNode(ReduceNode):
 
 def loss_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     reduce = obj.__reduce__()
-    if type(obj) == reduce[0]:
+    if type(obj) is reduce[0]:
         state = reduce_get_state(obj, save_context)
         state["__loader__"] = "LossNode"
-    elif type(obj) == reduce[1][0]:
+    elif type(obj) is reduce[1][0]:
         # The output is commonly of the form:
         # >>> CyPinballLoss(1).__reduce__()
         # (<cyfunction __pyx_unpickle_CyPinballLoss at 0x7b1d00099ff0>,
@@ -367,6 +367,6 @@ if _DictWithDeprecatedKeys is not None:
     GET_STATE_DISPATCH_FUNCTIONS.append(
         (_DictWithDeprecatedKeys, _DictWithDeprecatedKeys_get_state)
     )
-    NODE_TYPE_MAPPING[
-        ("_DictWithDeprecatedKeysNode", PROTOCOL)
-    ] = _DictWithDeprecatedKeysNode  # type: ignore
+    NODE_TYPE_MAPPING[("_DictWithDeprecatedKeysNode", PROTOCOL)] = (
+        _DictWithDeprecatedKeysNode
+    )

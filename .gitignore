@@ -4,6 +4,11 @@ hub/
 __pycache__/
 .pytest_cache/
 .mypy_cache/
+.ruff_cache/
+
+# pixi environments
+.pixi/*
+!.pixi/config.toml
 *.py[cod]
 *$py.class
 py36-64/

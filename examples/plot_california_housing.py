@@ -1010,8 +1010,8 @@ df_cv.sort_values("rank_test_score")[
 # %%
 
 fig, ax = plt.subplots()
-for weight in params["weights"]:  # type: ignore
-    for p in params["p"]:  # type: ignore
+for weight in params["weights"]:
+    for p in params["p"]:
         query = f"param_weights=='{weight}' & param_p=={p}"
         df_subset = df_cv.query(query)
         df_subset.plot(

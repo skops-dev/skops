@@ -1,6 +1,6 @@
 .. -*- mode: rst -*-
 
-|readthedocs| |github-actions| |Codecov| |PyPI| |Black|
+|readthedocs| |github-actions| |Codecov| |PyPI| |Ruff|
 
 .. |readthedocs| image:: https://readthedocs.org/projects/skops/badge/?version=latest&style=flat
     :target: https://skops.readthedocs.io/en/latest/
@@ -18,9 +18,9 @@
     :target: https://pypi.org/project/skops
     :alt: PyPi
 
-.. |Black| image:: https://img.shields.io/badge/code%20style-black-000000.svg
-    :target: https://github.com/psf/black
-    :alt: Black
+.. |Ruff| image:: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json
+    :target: https://github.com/astral-sh/ruff
+    :alt: Ruff
 
 .. image:: https://raw.githubusercontent.com/skops-dev/skops/main/docs/images/logo.png
   :width: 500

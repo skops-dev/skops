@@ -225,8 +225,8 @@ def get_untrusted_types(
     if data:
         content = io.BytesIO(data)
     else:
-        # mypy doesn't understand that file cannot be None here, thus ignore
-        content = file  # type: ignore
+        # the type checker doesn't understand that file cannot be None here
+        content = file  # pyrefly: ignore[bad-assignment]
 
     with ZipFile(content, "r") as zip_file:
         schema = json.loads(zip_file.read("schema.json"))

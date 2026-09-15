@@ -1335,10 +1335,10 @@ def test_trusted_bool_raises(tmp_path):
     f_name = tmp_path / "file.skops"
     dump(10, f_name)
     with pytest.raises(TypeError, match="trusted must be a list of strings"):
-        load(f_name, trusted=True)  # type: ignore
+        load(f_name, trusted=True)
 
     with pytest.raises(TypeError, match="trusted must be a list of strings"):
-        loads(dumps(10), trusted=True)  # type: ignore
+        loads(dumps(10), trusted=True)
 
 
 def test_defaultdict():

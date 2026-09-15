@@ -3,6 +3,7 @@
 Tasks are used to implement "undo" and "redo" functionality.
 
 """
+
 from __future__ import annotations
 
 import shutil

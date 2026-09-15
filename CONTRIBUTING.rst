@@ -72,8 +72,11 @@ And you can choose an environment to run the tests with:
 
    pixi run -e ci-sklearn15 tests
 
-In order to setup ``pre-commit`` hooks, you'd need to run the linter once, ignoring
-the outputs:
+We use `ruff <https://docs.astral.sh/ruff/>`_ for formatting and linting, and
+`pyrefly <https://pyrefly.org/>`_ for type checking. Both are run through
+``pre-commit``, with their versions pinned in ``.pre-commit-config.yaml``. In order
+to setup the ``pre-commit`` hooks, you'd need to run the linter once, ignoring the
+outputs:
 
 .. code:: bash
 

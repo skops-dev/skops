@@ -287,8 +287,8 @@ class CachedNode(Node):
         self.trusted = self._get_trusted(trusted, default=[])
         # TODO: deal with case that __id__ is unknown or prevent it from
         # happening
-        self.cached = load_context.get_object(state.get("__id__"))  # type: ignore
-        self.children = {}  # type: ignore
+        self.cached = load_context.get_object(state.get("__id__"))  # pyrefly: ignore[bad-argument-type]
+        self.children = {}
 
     def _construct(self):
         # TODO: FIXME This causes a recursion error when loading a cached
