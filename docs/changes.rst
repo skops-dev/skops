@@ -11,6 +11,14 @@ skops Changelog
 
 v0.15
 -----
+- The protocol number stored in a ``.skops`` file is now validated before any
+  of its content is inspected: it must be an integer between 0 and the protocol
+  of the installed skops version. Files saved with a newer protocol used to be
+  silently loaded with the current loaders and now raise an error asking to
+  update skops. The protocol selects which loaders audit and construct the
+  file, so the developer notes in ``skops.io._protocol`` now also require that
+  audit fixes to a loader are mirrored to all of its older versions.
+  by `Adrin Jalali`_.
 - ``sklearn.tree._tree.Tree`` and
   ``sklearn.ensemble._hist_gradient_boosting.predictor.TreePredictor`` are no
   longer trusted by default: skops validates that a loaded object is of a

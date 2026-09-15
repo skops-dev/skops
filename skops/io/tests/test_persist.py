@@ -61,8 +61,9 @@ from sklearn.utils.estimator_checks import (
 from sklearn.utils.fixes import parse_version, sp_version
 
 import skops
-from skops.io import dump, dumps, get_untrusted_types, load, loads
+from skops.io import dump, dumps, get_untrusted_types, load, loads, visualize
 from skops.io._audit import NODE_TYPE_MAPPING, get_tree
+from skops.io._protocol import PROTOCOL
 from skops.io._sklearn import UNSUPPORTED_TYPES
 from skops.io._trusted_types import (
     CONTAINER_TYPE_NAMES,
@@ -939,6 +940,55 @@ def test_get_tree_unknown_type_error_msg():
     msg = "Can't find loader this_get_tree_does_not_exist for type builtins.tuple."
     with pytest.raises(TypeError, match=msg):
         get_tree(state, LoadContext(None, -1), trusted=False)
+
+
+def _set_protocol(data: bytes, protocol: object) -> bytes:
+    """Return a copy of a skops dump with the protocol in schema.json replaced."""
+    out = io.BytesIO()
+    with ZipFile(io.BytesIO(data), "r") as src, ZipFile(out, "w") as dst:
+        for name in src.namelist():
+            content = src.read(name)
+            if name == "schema.json":
+                schema = json.loads(content)
+                schema["protocol"] = protocol
+                content = json.dumps(schema).encode()
+            dst.writestr(name, content)
+    return out.getvalue()
+
+
+@pytest.mark.parametrize(
+    "protocol, err",
+    [
+        (PROTOCOL + 1, ValueError),
+        (-1, ValueError),
+        ("0", TypeError),
+        (1.0, TypeError),
+        # bool is an int subclass; True would otherwise be treated as protocol 1
+        (True, TypeError),
+        (None, TypeError),
+    ],
+)
+def test_invalid_protocol_is_rejected(protocol, err, tmp_path):
+    # The protocol in schema.json selects which Node classes audit and construct
+    # the file, so every entry point must validate it before building the tree.
+    data = _set_protocol(dumps(LogisticRegression()), protocol)
+    path = tmp_path / "model.skops"
+    path.write_bytes(data)
+
+    with pytest.raises(err, match="protocol"):
+        loads(data, trusted=[])
+    with pytest.raises(err, match="protocol"):
+        load(path, trusted=[])
+    with pytest.raises(err, match="protocol"):
+        get_untrusted_types(data=data)
+    with pytest.raises(err, match="protocol"):
+        visualize(data)
+
+
+def test_newer_protocol_error_suggests_updating_skops():
+    data = _set_protocol(dumps(LogisticRegression()), PROTOCOL + 1)
+    with pytest.raises(ValueError, match="update skops"):
+        loads(data, trusted=[])
 
 
 class _BoundMethodHolder:

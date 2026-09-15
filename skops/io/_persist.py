@@ -10,7 +10,7 @@ from zipfile import ZIP_STORED, ZipFile
 import skops
 
 from ._audit import NODE_TYPE_MAPPING, audit_tree, get_tree
-from ._utils import LoadContext, SaveContext, _get_state, get_state
+from ._utils import SaveContext, _get_state, get_state, read_schema
 
 # We load the dispatch functions from the corresponding modules and register
 # them. Old protocols are found in the 'old/' directory, with the protocol
@@ -145,8 +145,7 @@ def load(file: str | Path, trusted: list[str] | None = None) -> Any:
         )
 
     with ZipFile(file, "r") as input_zip:
-        schema = json.loads(input_zip.read("schema.json"))
-        load_context = LoadContext(src=input_zip, protocol=schema["protocol"])
+        schema, load_context = read_schema(input_zip)
         tree = get_tree(schema, load_context, trusted=trusted)
         audit_tree(tree, trusted=trusted)
         instance = tree.construct()
@@ -185,8 +184,7 @@ def loads(data: bytes, trusted: list[str] | None = None) -> Any:
         )
 
     with ZipFile(io.BytesIO(data), "r") as zip_file:
-        schema = json.loads(zip_file.read("schema.json"))
-        load_context = LoadContext(src=zip_file, protocol=schema["protocol"])
+        schema, load_context = read_schema(zip_file)
         tree = get_tree(schema, load_context, trusted=trusted)
         audit_tree(tree, trusted=trusted)
         instance = tree.construct()
@@ -229,8 +227,7 @@ def get_untrusted_types(
         content = file  # type: ignore
 
     with ZipFile(content, "r") as zip_file:
-        schema = json.loads(zip_file.read("schema.json"))
-        load_context = LoadContext(src=zip_file, protocol=schema["protocol"])
+        schema, load_context = read_schema(zip_file)
         tree = get_tree(schema, load_context=load_context, trusted=None)
         untrusted_types = tree.get_unsafe_set()
 
