@@ -202,7 +202,9 @@ def assert_method_outputs_equal(estimator, loaded, X):
             assert_allclose_dense_sparse(X_out1, X_out2, err_msg=err_msg, atol=ATOL)
 
 
-def downgrade_state(*, data: bytes, keys: list[str], old_state: dict, protocol: int):
+def downgrade_state(
+    *, data: bytes, keys: list[str] | None, old_state: dict, protocol: int
+):
     """Function to downgrade the persisted state of a skops object.
 
     This function is important for testing upgrades to the skops persistence

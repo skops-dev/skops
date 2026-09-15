@@ -22,7 +22,14 @@ class RandomGeneratorNode(Node):
         self.trusted = self._get_trusted(trusted, [np.random.Generator])
 
     def _construct(self):
-        # first restore the state of the bit generator
+        # NOTE: this reads a class name from the file and calls the matching
+        # numpy.random attribute, which would be the same audit-bypass fixed in
+        # the current ``RandomGeneratorNode`` (skops.io._numpy). It is safe here
+        # only because a protocol-0 Generator can never reach construction: its
+        # bit generator state is kept as a raw dict, so ``get_unsafe_set`` raises
+        # while auditing it (see ``test_random_generator_v0``) and the object is
+        # never built. Protocol 0 is effectively unloadable and kept only for
+        # completeness; there is nothing to harden on a path that never runs.
         bit_generator = gettype(
             "numpy.random", self.children["bit_generator_state"]["bit_generator"]
         )()

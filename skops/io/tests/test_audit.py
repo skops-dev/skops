@@ -203,3 +203,91 @@ def test_operator_func_node_invalid_state():
 
     with pytest.raises(ValueError, match="Expected module 'operator'"):
         OperatorFuncNode(state, load_context, trusted=None)
+
+
+def _tamper_bit_generator_name(data: bytes, new_name: str) -> bytes:
+    """Rewrite the bit generator class name inside a dumped Generator file."""
+    src = ZipFile(io.BytesIO(data))
+    schema = json.loads(src.read("schema.json"))
+    schema["content"]["bit_generator"]["content"]["bit_generator"]["content"] = (
+        json.dumps(new_name)
+    )
+    buffer = io.BytesIO()
+    with ZipFile(buffer, "w") as out:
+        for name in src.namelist():
+            if name == "schema.json":
+                out.writestr(name, json.dumps(schema))
+            else:
+                out.writestr(name, src.read(name))
+    return buffer.getvalue()
+
+
+def test_random_generator_smuggled_bit_generator_is_surfaced():
+    # Non-regression test: a Generator's bit generator is identified in the file
+    # by a class name that gets resolved to a numpy.random attribute and called
+    # at load time. That name must be surfaced to the audit, otherwise
+    # get_untrusted_types() reports [] for a file that would have skops call an
+    # attacker-chosen numpy.random attribute.
+    np = pytest.importorskip("numpy")
+
+    data = dumps(np.random.default_rng(42))
+    # sanity check: a genuine Generator is fully trusted by default
+    assert get_untrusted_types(data=data) == []
+
+    evil = _tamper_bit_generator_name(data, "set_bit_generator")
+    assert get_untrusted_types(data=evil) == ["numpy.random.set_bit_generator"]
+
+    # loading without trusting it must fail before the callable is invoked, so
+    # the process-global numpy RNG must be left untouched.
+    state_before = np.random.get_state()
+    from skops.io import loads
+    from skops.io.exceptions import UntrustedTypesFoundException
+
+    with pytest.raises(UntrustedTypesFoundException):
+        loads(evil)
+    assert np.random.get_state()[0] == state_before[0]
+
+
+def test_random_generator_missing_name_is_rejected():
+    # If the bit generator name can't be found where a genuine file always puts
+    # it, the file is corrupted/tampered: we refuse it with a clear error rather
+    # than reporting a non-actionable "unknown" untrusted type.
+    np = pytest.importorskip("numpy")
+
+    from skops.io import loads
+
+    data = dumps(np.random.default_rng(42))
+    # drop the bit generator name from the serialized state
+    src = ZipFile(io.BytesIO(data))
+    schema = json.loads(src.read("schema.json"))
+    del schema["content"]["bit_generator"]["content"]["bit_generator"]
+    buffer = io.BytesIO()
+    with ZipFile(buffer, "w") as out:
+        for name in src.namelist():
+            if name == "schema.json":
+                out.writestr(name, json.dumps(schema))
+            else:
+                out.writestr(name, src.read(name))
+    broken = buffer.getvalue()
+
+    with pytest.raises(ValueError, match="Could not find the bit generator name"):
+        get_untrusted_types(data=broken)
+    with pytest.raises(ValueError, match="Could not find the bit generator name"):
+        loads(broken)
+
+
+def test_random_generator_construct_rejects_non_bit_generator():
+    # Defense in depth: even if the smuggled name is explicitly trusted, the
+    # node must refuse to instantiate anything that is not a real bit generator
+    # instead of calling an arbitrary numpy.random attribute.
+    np = pytest.importorskip("numpy")
+
+    from skops.io import loads
+
+    data = dumps(np.random.default_rng(42))
+    evil = _tamper_bit_generator_name(data, "set_bit_generator")
+
+    state_before = np.random.get_state()
+    with pytest.raises(ValueError, match="Expected a numpy.random bit generator"):
+        loads(evil, trusted=["numpy.random.set_bit_generator"])
+    assert np.random.get_state()[0] == state_before[0]

@@ -114,6 +114,20 @@ with warnings.catch_warnings():
 
 NUMPY_UFUNC_TYPE_NAMES = get_public_type_names(module=np, oftype=np.ufunc)
 
+# Concrete bit generators exposed under ``numpy.random`` (e.g. PCG64, MT19937,
+# Philox, ...). These are the only types ``RandomGeneratorNode`` is allowed to
+# resolve and instantiate from a file, so they are trusted by default. Discovered
+# dynamically so that bit generators added by future numpy versions are covered.
+# The names use the ``numpy.random.<name>`` access path (rather than the private
+# defining module) because that is how they are resolved when loading.
+NUMPY_RANDOM_BIT_GENERATOR_TYPE_NAMES = sorted(
+    f"numpy.random.{attr}"
+    for attr in dir(np.random)
+    if isinstance(obj := getattr(np.random, attr), type)
+    and issubclass(obj, np.random.BitGenerator)
+    and obj is not np.random.BitGenerator
+)
+
 NUMPY_DTYPE_TYPE_NAMES = sorted(
     {
         type_name

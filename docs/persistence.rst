@@ -164,6 +164,19 @@ The below command is an example on how to create an updated version of a file
 
     skops update my_model.skops -o my_model-updated.skops
 
+Updating a file requires loading it, and loading is only safe for trusted types.
+By default ``skops update`` only loads types that skops trusts, and refuses to
+proceed if the file contains other types, printing the offending types. If, after
+reviewing them, you trust those types, pass them explicitly with ``--trusted``:
+
+.. code-block:: console
+
+    skops update my_model.skops -o my_model-updated.skops --trusted a.Type b.OtherType
+
+Never pass types to ``--trusted`` without reviewing them first: a malicious file
+can declare arbitrary types, and trusting them can lead to arbitrary code
+execution on load.
+
 Further help for the different supported options can be found by calling
 ``skops update --help`` in a terminal.
 
