@@ -415,6 +415,9 @@ class TestQuantileForest:
             "quantile_forest._quantile_forest.RandomForestQuantileRegressor",
             "quantile_forest._quantile_forest.ExtraTreesQuantileRegressor",
             "quantile_forest._quantile_forest_fast.QuantileForest",
+            # each tree in the forest is a regular sklearn tree, which is not
+            # trusted by default
+            "sklearn.tree._tree.Tree",
         ]
 
     tree_methods = [

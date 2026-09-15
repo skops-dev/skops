@@ -11,6 +11,14 @@ skops Changelog
 
 v0.15
 -----
+- ``sklearn.tree._tree.Tree`` and
+  ``sklearn.ensemble._hist_gradient_boosting.predictor.TreePredictor`` are no
+  longer trusted by default: skops validates that a loaded object is of a
+  trusted type, but not the contents of its raw state, and these types store
+  unchecked node indices that scikit-learn can dereference out of bounds
+  during ``.predict()``, crashing the process. The raised
+  ``UntrustedTypesFoundException`` now explains the risk for these types.
+  :pr:`535` by `Adrin Jalali`_.
 - Fix a security issue where loading a ``numpy.random.Generator`` would resolve
   and call a ``numpy.random`` attribute whose name was taken from the file,
   even though ``get_untrusted_types`` reported nothing untrusted for that file.
