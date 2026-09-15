@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
-import yaml  # type: ignore
+import yaml
 
 from skops.card import parse_modelcard
 from skops.card._parser import PandocParser, check_pandoc_installed

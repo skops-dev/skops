@@ -69,9 +69,7 @@ class NdArrayNode(Node):
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.type = state["type"]
-        self.trusted = self._get_trusted(
-            trusted, [np.ndarray] + NUMPY_DTYPE_TYPE_NAMES  # type: ignore
-        )
+        self.trusted = self._get_trusted(trusted, [np.ndarray] + NUMPY_DTYPE_TYPE_NAMES)
         if self.type == "numpy":
             self.children = {
                 "content": io.BytesIO(load_context.src.read(state["file"]))
@@ -349,11 +347,11 @@ try:
     # a C wrapper: https://github.com/numpy/numpy/pull/23020
     try:
         # numpy>=2
-        from numpy._core._multiarray_umath import (  # type: ignore
+        from numpy._core._multiarray_umath import (
             _ArrayFunctionDispatcher,
         )
     except ImportError:
-        from numpy.core._multiarray_umath import (  # type: ignore
+        from numpy.core._multiarray_umath import (
             _ArrayFunctionDispatcher,
         )
 

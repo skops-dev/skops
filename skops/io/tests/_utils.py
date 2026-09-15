@@ -55,7 +55,7 @@ def _assert_generic_objects_equal(val1, val2, path=""):
             _assert_generic_objects_equal(subval1, subval2, path=f"{path}[]")
             return
 
-    assert type(val1) == type(val2), f"Path: type({path})"
+    assert type(val1) is type(val2), f"Path: type({path})"
     if hasattr(val1, "__dict__"):
         assert_params_equal(val1.__dict__, val2.__dict__, path=f"{path}.__dict__")
     elif _is_builtin(val1):
@@ -84,7 +84,7 @@ def _assert_vals_equal(val1, val2, path=""):
         # Some objects return a tuple of parameters, others a dict.
         state1 = val1.__getstate__()
         state2 = val2.__getstate__()
-        assert type(state1) == type(state2), f"Path: {path}"
+        assert type(state1) is type(state2), f"Path: {path}"
         if isinstance(state1, tuple):
             _assert_tuples_equal(state1, state2, path=path)
         else:
@@ -98,12 +98,12 @@ def _assert_vals_equal(val1, val2, path=""):
             # for arrays with at least 2 dimensions, check that contiguity is
             # preserved, but only if the array is not a view
             if val1.squeeze().ndim > 1 and val1.flags["OWNDATA"]:
-                assert (
-                    val1.flags["C_CONTIGUOUS"] is val2.flags["C_CONTIGUOUS"]
-                ), f"Path: {path}.flags"
-                assert (
-                    val1.flags["F_CONTIGUOUS"] is val2.flags["F_CONTIGUOUS"]
-                ), f"Path: {path}.flags"
+                assert val1.flags["C_CONTIGUOUS"] is val2.flags["C_CONTIGUOUS"], (
+                    f"Path: {path}.flags"
+                )
+                assert val1.flags["F_CONTIGUOUS"] is val2.flags["F_CONTIGUOUS"], (
+                    f"Path: {path}.flags"
+                )
             if val1.dtype == object:
                 assert val2.dtype == object, f"Path: {path}.dtype"
                 assert val1.shape == val2.shape, f"Path: {path}.shape"
@@ -166,7 +166,7 @@ def assert_params_equal(params1, params2, path=""):
             warnings.filterwarnings("ignore", category=FutureWarning, module="sklearn")
             val1, val2 = params1[key], params2[key]
             subpath = f"{path}[{key}]"
-        assert type(val1) == type(val2), f"Path: type({subpath})"
+        assert type(val1) is type(val2), f"Path: type({subpath})"
 
         if _is_steps_like(val1):
             # Deal with Pipeline.steps, FeatureUnion.transformer_list, etc.

@@ -37,4 +37,5 @@ every old version of that Node in ``old/`` and add the same test case for it.
 Otherwise the fix can be bypassed by lowering the protocol number in the file.
 
 """
+
 PROTOCOL = 2

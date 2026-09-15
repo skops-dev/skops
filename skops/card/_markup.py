@@ -287,7 +287,7 @@ class Markdown:
                     kvparts.append(k)
                 else:
                     kvparts.append(f'{k}="{v}"')
-            tags.append(f' {" ".join(kvparts)}')
+            tags.append(f" {' '.join(kvparts)}")
         tags.append(">")
 
         start = "".join(tags)
