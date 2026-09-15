@@ -1,15 +1,3 @@
----
-language: en
-thumbnail: "https://camo.githubusercontent.com/7d080b7a769f7fdf64ac0ebeb47b039cb50be35287e3071f9d633f0fe33e7596/68747470733a2f2f692e6962622e636f2f33544331576d472f737065637465722d6c6f676f2d63726f707065642e706e67"
-license: apache-2.0
-datasets:
-- SciDocs
-metrics:
-- F1
-- accuracy
-- map
-- ndcg
----
 
 ## SPECTER
 
