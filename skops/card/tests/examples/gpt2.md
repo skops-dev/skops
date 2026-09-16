@@ -1,10 +1,3 @@
----
-language: en
-tags:
-- exbert
-
-license: mit
----
 
 # GPT-2
 

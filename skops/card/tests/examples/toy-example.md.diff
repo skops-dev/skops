@@ -2,9 +2,6 @@
 +++ 
 @@ -0,0 +1 @@
 +
-@@ -17 +18 @@
--Parser doesn’t ‘preserve’ other “quotation” marks.
-+Parser doesn’t 'preserve' other "quotation" marks.
 @@ -22 +23 @@
 -Another *way* of doing it.
 +Another _way_ of doing it.
@@ -28,6 +25,18 @@
 @@ -109,2 +109,0 @@
 -
 -[1]: https://skops.readthedocs.io/
+@@ -129,3 +128,3 @@
+-| Header 0     | Header 1       |
+-|--------------|----------------|
+-| Some content | More content   |
++|   Header 0   |    Header 1    |
++| :----------: | :------------: |
++| Some content |  More content  |
+@@ -136,2 +135,2 @@
+-| What now?   |
+-|-------------|
++| What now? |
++| :-------: |
 @@ -164 +163,6 @@
 -<p hidden>Cryptids of Revachol:</p>
 +
