@@ -18,7 +18,7 @@ v0.15
   update skops. The protocol selects which loaders audit and construct the
   file, so the developer notes in ``skops.io._protocol`` now also require that
   audit fixes to a loader are mirrored to all of its older versions.
-  by `Adrin Jalali`_.
+  :pr:`537` by `Adrin Jalali`_.
 - ``sklearn.tree._tree.Tree`` and
   ``sklearn.ensemble._hist_gradient_boosting.predictor.TreePredictor`` are no
   longer trusted by default: skops validates that a loaded object is of a
@@ -43,6 +43,11 @@ v0.15
   ``scipy.special`` ufunc wrappers introduced in scipy 2.0. This adds
   compatibility with scipy 2.0 and scikit-learn 1.9. :pr:`534` by
   `Adrin Jalali`_.
+- Fix importing :mod:`skops.io` raising ``ModuleNotFoundError`` when an
+  already imported package exposes lazily loaded attributes whose optional
+  dependencies are missing, for example ``transformers`` without
+  ``torchvision``. Trusted type discovery now skips such attributes.
+  :pr:`528` by `Adrin Jalali`_.
 
 v0.14
 -----
@@ -54,7 +59,7 @@ v0.13
 -----
 - `Card` now requires a new parameter, `allow_pickle`, to call `get_model` with
   models that are not `.skops` files. This change is to mitigate security risks
-  associated with pickles. :pr:`485` by `Io_no`_.
+  associated with pickles. :pr:`485` by :user:`Io_no <io-no>`.
 
 v0.12
 -----
@@ -78,7 +83,7 @@ v0.10
 -----
 - Removes Pythn 3.8 support and adds Python 3.12 Support :pr:`418` by :user:`Thomas Lazarus <lazarust>`.
 - Removes a shortcut to add `sklearn-intelex` as a not dependency.
-  :pr:`420` by :user:`Thomas Lazarus < lazarust > `.
+  :pr:`420` by :user:`Thomas Lazarus <lazarust>`.
 - ``trusted=True`` is now removed from ``skops.io.load`` and ``skops.io.loads``.
   This is to further encourage users to inspect the input data before loading
   it. :func:`skops.io.get_untrusted_types` can be used to get the untrusted types

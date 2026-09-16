@@ -40,9 +40,7 @@ card explaining what the model does and how it should be used.
   <https://skops.readthedocs.io/en/latest/persistence.html>`__ for more
   information.
 - ``skops.card``: tools to create a model card explaining what the model does
-  and how it should be used. The model card can then be stored as the
-  ``README.md`` file on the Hugging Face Hub, with pre-populated metadata to
-  help Hub understand the model. More information can be found `here
+  and how it should be used. More information can be found `here
   <https://skops.readthedocs.io/en/stable/model_card.html>`__.
 
 Please refer to our `documentation <https://skops.readthedocs.io/en/latest/>`_

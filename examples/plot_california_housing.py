@@ -18,9 +18,8 @@ Improve your data science workflow with skops
 # - Explain how the feature engineering informs the *choice of machine
 #   learning model* and vice versa
 # - Show how to make use of a couple of *advanced scikit-learn* features
-#   and explain why we use them - Create a *model card* that provides
-#   useful information about the model
-# - Share the model by uploading it to the *Hugging Face Hub*
+#   and explain why we use them
+# - Create a *model card* that provides useful information about the model
 
 # %%
 # Imports
