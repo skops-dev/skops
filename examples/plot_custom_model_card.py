@@ -172,11 +172,5 @@ model_card.save(card_file_name)
 # The model card created in this example is very bare bones, missing a lot of
 # important information. It should only be used as a starting point and not be
 # considered a complete example. If you would like to know more about model
-# cards, `the model card documentation
-# <https://huggingface.co/docs/hub/model-cards>`_ on the Hugging Face Hub could
-# be a good starting point.
-#
-# Furthermore, this model card lacks metadata, which can be very useful if you
-# plan to upload the model on Hugging Face Hub. If you want to add metadata,
-# instantiate it using :class:`huggingface_hub.ModelCardData` and pass it to the
-# :class:`skops.card.Card` class.
+# cards, `Model Cards for Model Reporting <https://arxiv.org/abs/1810.03993>`_
+# by Mitchell et al. is a good starting point.

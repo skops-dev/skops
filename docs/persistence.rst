@@ -75,7 +75,7 @@ The code snippet below illustrates how to use :func:`skops.io.dump` and
 
 Note that the ``get_untrusted_types`` function is used to check which types are
 not trusted by default. The user can then decide whether to trust them or not.
-In previous before version 0.10, users could pass ``trusted=True`` to skip the
+Before version 0.10, users could pass ``trusted=True`` to skip the
 audit phase, which is now removed to encourage users to validate the input
 before loading.
 
@@ -118,7 +118,7 @@ Check the documentation of these two arguments under :class:`zipfile.ZipFile`
 for more details.
 
 Command Line Interface
-######################
+----------------------
 
 Skops has a command line interface to:
 
@@ -142,7 +142,7 @@ Below is an example call to convert a file ``my_model.pkl`` to ``my_model.skops`
     skops convert my_model.pkl
 
 To convert multiple files, you can use bash commands to iterate the above call.
-For example, to convert all ``.pkl`` flies in the current directory:
+For example, to convert all ``.pkl`` files in the current directory:
 
 .. code:: console
 
@@ -181,7 +181,7 @@ Further help for the different supported options can be found by calling
 ``skops update --help`` in a terminal.
 
 Visualization
-#############
+-------------
 
 Skops files can be visualized using :func:`skops.io.visualize`. If you have
 a skops file called ``my-model.skops``, you can visualize it like this:
@@ -269,7 +269,7 @@ Backwards compatibility
 -----------------------
 
 Compatibility across skops versions
-###################################
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The skops persistence format is in flux, as we steadily work on improving it,
 making it more secure and supporting more types. When we make a change that is
@@ -291,7 +291,7 @@ non-release version of skops for creating skops files intended to be loaded with
 future skops versions.
 
 Compatibility across sklearn versions
-#####################################
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Using skops to load a model saved in one sklearn version and loading it with
 another sklearn version is not recommended, because the behavior of the model
