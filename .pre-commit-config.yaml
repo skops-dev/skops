@@ -23,3 +23,5 @@ repos:
     hooks:
     -   id: pyrefly-check
         name: pyrefly (type checking)
+        # pytest is installed so that pyrefly knows e.g. `pytest.skip` never returns.
+        additional_dependencies: [pytest==9.1.1]

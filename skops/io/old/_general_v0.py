@@ -4,7 +4,7 @@ from typing import Any
 
 from skops.io._audit import Node
 from skops.io._trusted_types import SCIPY_UFUNC_TYPE_NAMES
-from skops.io._utils import LoadContext, _import_obj
+from skops.io._utils import LoadContext, TrustedTypes, _import_obj
 
 PROTOCOL = 0
 
@@ -14,7 +14,7 @@ class FunctionNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: list[str] | None = None,
+        trusted: TrustedTypes | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         # TODO: what do we trust?

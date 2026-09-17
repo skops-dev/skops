@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import io
 from contextlib import contextmanager
-from typing import Any, Generator, Iterable, Sequence, Type, Union
+from typing import Any, Generator, Type, Union
 
 from ._protocol import PROTOCOL
-from ._utils import LoadContext, get_module, get_type_paths
+from ._utils import LoadContext, TrustedTypes, get_module, get_type_paths
 from .exceptions import UntrustedTypesFoundException
 
 NODE_TYPE_MAPPING: dict[tuple[str, int], Type[Node]] = {}
@@ -39,7 +39,7 @@ def check_type(module_name: str, type_name: str, trusted: list[str]) -> bool:
     return module_name + "." + type_name in trusted
 
 
-def audit_tree(tree: Node, trusted: Iterable[str] | None) -> None:
+def audit_tree(tree: Node, trusted: TrustedTypes | None) -> None:
     """Audit a tree of nodes.
 
     A tree is safe if it only contains trusted types.
@@ -49,13 +49,16 @@ def audit_tree(tree: Node, trusted: Iterable[str] | None) -> None:
     tree : skops.io._dispatch.Node
         The tree to audit.
 
+    trusted : list of str or type, or None
+        The types trusted in addition to the ones trusted by default, given by
+        their fully qualified name or as the type itself.
+
     Raises
     ------
     UntrustedTypesFoundException
         If the tree contains an untrusted type.
     """
-    trusted = trusted or set()
-    unsafe = tree.get_unsafe_set() - set(trusted)
+    unsafe = tree.get_unsafe_set() - set(get_type_paths(trusted))
     if unsafe:
         raise UntrustedTypesFoundException(unsafe)
 
@@ -94,10 +97,11 @@ class Node:
     ``__init__`` takes care of traversing the state tree and to create the
     corresponding ``Node`` objects. It has access to the ``load_context`` which
     in turn has access to the source zip file. The child class's ``__init__``
-    must load attributes into the ``children`` attribute, which is a
-    dictionary of ``{child_name: unloaded_value/Node/list/etc}``. The
-    ``get_unsafe_set`` should be able to parse and validate the values set
-    under the ``children`` attribute. Note that primitives are persisted as a
+    must store each child (an unloaded value, a ``Node``, a list of nodes,
+    etc.) in a typed attribute, and mirror them in the ``children`` attribute,
+    which is a dictionary of ``{child_name: child}``. ``_construct`` reads the
+    typed attributes, while ``get_unsafe_set`` parses and validates the values
+    set under ``children``. Note that primitives are persisted as a
     ``JsonNode``.
 
     ``_construct`` takes care of constructing the object. It is only called
@@ -118,12 +122,10 @@ class Node:
     load_context : LoadContext
         The context of the loading process.
 
-    trusted : bool or list of str, default=False
-        If ``True``, the object will be loaded without any security checks. If
-        ``False``, the object will be loaded only if there are only trusted
-        objects in the dumped file. If a list of strings, the object will be
-        loaded only if all of its required types are listed in ``trusted``
-        or are trusted by default.
+    trusted : list of str or type, default=None
+        The object will be loaded only if all of its required types are listed
+        in ``trusted`` or are trusted by default. Types can be given by their
+        fully qualified name or as the type itself.
 
     memoize : bool, default=True
         If ``True``, the object will be memoized in the load context, if it has
@@ -135,12 +137,13 @@ class Node:
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: Sequence[str] | None = None,
+        trusted: TrustedTypes | None = None,
         memoize: bool = True,
     ) -> None:
         self.class_name, self.module_name = state["__class__"], state["__module__"]
         self._is_safe = None
-        self._constructed = UNINITIALIZED
+        # the constructed object can be anything, hence ``Any``
+        self._constructed: Any = UNINITIALIZED
         saved_id = state.get("__id__")
         if saved_id and memoize:
             # hold reference to obj in case same instance encountered again in
@@ -151,12 +154,15 @@ class Node:
         # 1. call super().__init__()
         # 2. set self.trusted = self._get_trusted(trusted, ...) where ... is a
         #    list of appropriate trusted types
-        # 3. set self.children, where children are states of child nodes; do not
-        #    construct the children objects yet
+        # 3. store each child in a typed attribute and mirror them in
+        #    self.children; do not construct the children objects yet
         self.trusted = self._get_trusted(trusted, [])
+        # ``children`` is the generic view of the node's children, used to audit
+        # and visualize the tree. Subclasses read their children through the
+        # typed attributes they set in ``__init__`` instead.
         self.children: dict[str, VALID_NODE_CHILD_TYPES] = {}
 
-    def construct(self):
+    def construct(self) -> Any:
         """Construct the object.
 
         We only construct the object once, and then cache the result.
@@ -166,15 +172,15 @@ class Node:
         self._constructed = self._construct()
         return self._constructed
 
-    def _construct(self):
+    def _construct(self) -> Any:
         raise NotImplementedError(
             f"{self.__class__.__name__} should implement a '_construct' method"
         )
 
     @staticmethod
     def _get_trusted(
-        trusted: Sequence[str] | None,
-        default: Sequence[str | type[Any]],
+        trusted: TrustedTypes | None,
+        default: TrustedTypes,
     ) -> list[str]:
         """Return a trusted list, or True.
 
@@ -279,15 +285,22 @@ class CachedNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: Sequence[str] | None = None,
+        trusted: TrustedTypes | None = None,
     ):
         # we pass memoize as False because we don't want to memoize the cached
         # node.
         super().__init__(state, load_context, trusted, memoize=False)
         self.trusted = self._get_trusted(trusted, default=[])
-        # TODO: deal with case that __id__ is unknown or prevent it from
-        # happening
-        self.cached = load_context.get_object(state.get("__id__"))  # pyrefly: ignore[bad-argument-type]
+        # A cached node refers to a node which was loaded earlier in the same
+        # context, so its ``__id__`` must be known already.
+        saved_id = state.get("__id__")
+        cached = None if saved_id is None else load_context.get_object(saved_id)
+        if cached is None:
+            raise ValueError(
+                f"A cached node refers to an unknown object id {saved_id!r}. This "
+                "is probably due to a corrupted or a malicious file."
+            )
+        self.cached = cached
         self.children = {}
 
     def _construct(self):
@@ -303,7 +316,7 @@ NODE_TYPE_MAPPING[("CachedNode", PROTOCOL)] = CachedNode
 def get_tree(
     state: dict[str, Any],
     load_context: LoadContext,
-    trusted: Sequence[str] | None,
+    trusted: TrustedTypes | None,
 ) -> Node:
     """Get the tree of nodes.
 
@@ -323,12 +336,10 @@ def get_tree(
     load_context : LoadContext
         The context of the loading process.
 
-    trusted : bool, or list of str
-        If ``True``, the object will be loaded without any security checks. If
-        ``False``, the object will be loaded only if there are only trusted
-        objects in the dumped file. If a list of strings, the object will be
-        loaded only if there are only trusted objects and objects of types
-        listed in ``trusted`` in the dumped file.
+    trusted : list of str or type, or None
+        The object will be loaded only if there are only trusted objects and
+        objects of types listed in ``trusted`` in the dumped file. Types can be
+        given by their fully qualified name or as the type itself.
 
     Returns
     -------

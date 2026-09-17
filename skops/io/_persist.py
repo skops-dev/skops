@@ -10,7 +10,7 @@ from zipfile import ZIP_STORED, ZipFile
 import skops
 
 from ._audit import NODE_TYPE_MAPPING, audit_tree, get_tree
-from ._utils import SaveContext, _get_state, get_state, read_schema
+from ._utils import SaveContext, TrustedTypes, _get_state, get_state, read_schema
 
 # We load the dispatch functions from the corresponding modules and register
 # them. Old protocols are found in the 'old/' directory, with the protocol
@@ -113,7 +113,7 @@ def dumps(
     return buffer.getbuffer().tobytes()
 
 
-def load(file: str | Path, trusted: list[str] | None = None) -> Any:
+def load(file: str | Path | BinaryIO, trusted: TrustedTypes | None = None) -> Any:
     """Load an object saved with the skops persistence format.
 
     Skops aims at providing a secure persistence feature that does not rely on
@@ -122,12 +122,14 @@ def load(file: str | Path, trusted: list[str] | None = None) -> Any:
 
     Parameters
     ----------
-    file: str or pathlib.Path
-        The file name of the object to be loaded.
+    file: str, path, or file-like object
+        The file name or a binary file object of the dumped object to load.
 
-    trusted: list of str, default=None
+    trusted: list of str or type, default=None
         The object will be loaded only if there are only trusted objects and
-        objects of types listed in ``trusted`` in the dumped file.
+        objects of types listed in ``trusted`` in the dumped file. Types can be
+        given by their fully qualified name, as returned by
+        :func:`~skops.io.get_untrusted_types`, or as the type itself.
 
     Returns
     -------
@@ -137,11 +139,11 @@ def load(file: str | Path, trusted: list[str] | None = None) -> Any:
     """
     if trusted is True:
         raise TypeError(
-            "trusted must be a list of strings. Before version 0.10 trusted could "
-            "be a boolean, but this is no longer supported, due to a reported "
-            "CVE-2024-37065. You can pass the output of `get_untrusted_types` as "
-            "trusted to load the data. Be sure to review the output of the function "
-            "before passing it as trusted."
+            "trusted must be a list of strings or types. Before version 0.10 "
+            "trusted could be a boolean, but this is no longer supported, due to "
+            "a reported CVE-2024-37065. You can pass the output of "
+            "`get_untrusted_types` as trusted to load the data. Be sure to review "
+            "the output of the function before passing it as trusted."
         )
 
     with ZipFile(file, "r") as input_zip:
@@ -153,7 +155,7 @@ def load(file: str | Path, trusted: list[str] | None = None) -> Any:
     return instance
 
 
-def loads(data: bytes, trusted: list[str] | None = None) -> Any:
+def loads(data: bytes, trusted: TrustedTypes | None = None) -> Any:
     """Load an object saved with the skops persistence format from a bytes
     object.
 
@@ -162,9 +164,11 @@ def loads(data: bytes, trusted: list[str] | None = None) -> Any:
     data: bytes
         The dumped data to be loaded in bytes format.
 
-    trusted: bool, or list of str, default=False
+    trusted: list of str or type, default=None
         The object will be loaded only if there are only trusted objects and
-        objects of types listed in ``trusted`` in the dumped file.
+        objects of types listed in ``trusted`` in the dumped file. Types can be
+        given by their fully qualified name, as returned by
+        :func:`~skops.io.get_untrusted_types`, or as the type itself.
 
     Returns
     -------
@@ -176,11 +180,11 @@ def loads(data: bytes, trusted: list[str] | None = None) -> Any:
 
     if trusted is True:
         raise TypeError(
-            "trusted must be a list of strings. Before version 0.10 trusted could "
-            "be a boolean, but this is no longer supported, due to a reported "
-            "CVE-2024-37065. You can pass the output of `get_untrusted_types` as "
-            "trusted to load the data. Be sure to review the output of the function "
-            "before passing it as trusted."
+            "trusted must be a list of strings or types. Before version 0.10 "
+            "trusted could be a boolean, but this is no longer supported, due to "
+            "a reported CVE-2024-37065. You can pass the output of "
+            "`get_untrusted_types` as trusted to load the data. Be sure to review "
+            "the output of the function before passing it as trusted."
         )
 
     with ZipFile(io.BytesIO(data), "r") as zip_file:
@@ -214,17 +218,15 @@ def get_untrusted_types(
     -----
     Only one of data or file should be passed.
     """
-    if data and file:
-        raise ValueError("Only one of data or file should be passed.")
-    if not data and not file:
-        raise ValueError("Exactly one of data or file should be passed.")
-
     content: io.BytesIO | str | Path
     if data:
+        if file:
+            raise ValueError("Only one of data or file should be passed.")
         content = io.BytesIO(data)
+    elif file:
+        content = file
     else:
-        # the type checker doesn't understand that file cannot be None here
-        content = file  # pyrefly: ignore[bad-assignment]
+        raise ValueError("Exactly one of data or file should be passed.")
 
     with ZipFile(content, "r") as zip_file:
         schema, load_context = read_schema(zip_file)

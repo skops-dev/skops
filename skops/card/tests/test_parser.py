@@ -133,7 +133,7 @@ def test_content_without_section_raises():
 def test_unsupported_markup_raises():
     match = re.escape("Markup of type does-not-exist is not supported (yet)")
     with pytest.raises(ValueError, match=match):
-        PandocParser(source="", markup_type="does-not-exist")
+        PandocParser(source="", markup_type="does-not-exist")  # pyrefly: ignore[bad-argument-type]
 
 
 def test_check_pandoc_installed_no_min_version_works():

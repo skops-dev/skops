@@ -17,7 +17,8 @@ else:
 
 class PandocItem(TypedDict):
     t: str
-    c: dict
+    # the shape of the content depends on the item type, see ``Markdown.mapping``
+    c: Any
 
 
 class Markdown:

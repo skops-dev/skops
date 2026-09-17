@@ -11,6 +11,9 @@ from scipy import sparse
 from sklearn.base import BaseEstimator
 from sklearn.utils._testing import assert_allclose_dense_sparse
 
+from skops.io._protocol import PROTOCOL
+from skops.io._utils import LoadContext, SaveContext
+
 # TODO: Investigate why that seems to be an issue on MacOS (only observed with
 # Python 3.8)
 ATOL = 1e-6 if sys.platform == "darwin" else 1e-7
@@ -287,3 +290,20 @@ def downgrade_state(
     with ZipFile(buffer, "w") as zip_file:
         zip_file.writestr("schema.json", json.dumps(schema, indent=2))
     return buffer.getbuffer().tobytes()
+
+
+def make_save_context() -> SaveContext:
+    """Return a ``SaveContext`` backed by a throwaway in-memory zip file."""
+    return SaveContext(zip_file=ZipFile(io.BytesIO(), "w"))
+
+
+def make_load_context() -> LoadContext:
+    """Return a ``LoadContext`` backed by an empty in-memory zip file.
+
+    Each call returns a new context, and hence a new memo, so that the nodes
+    of one tree are not reused when building another one.
+    """
+    buffer = io.BytesIO()
+    with ZipFile(buffer, "w"):
+        pass
+    return LoadContext(src=ZipFile(buffer, "r"), protocol=PROTOCOL)

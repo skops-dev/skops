@@ -62,9 +62,9 @@ from sklearn.utils.fixes import parse_version, sp_version
 
 import skops
 from skops.io import dump, dumps, get_untrusted_types, load, loads, visualize
-from skops.io._audit import NODE_TYPE_MAPPING, get_tree
+from skops.io._audit import NODE_TYPE_MAPPING, Node, get_tree
 from skops.io._protocol import PROTOCOL
-from skops.io._sklearn import UNSUPPORTED_TYPES
+from skops.io._sklearn import UNSUPPORTED_TYPES, loss_get_state
 from skops.io._trusted_types import (
     CONTAINER_TYPE_NAMES,
     NUMPY_DTYPE_TYPE_NAMES,
@@ -73,9 +73,14 @@ from skops.io._trusted_types import (
     SCIPY_UFUNC_TYPE_NAMES,
     SKLEARN_ESTIMATOR_TYPE_NAMES,
 )
-from skops.io._utils import LoadContext, SaveContext, _get_state, get_state, gettype
+from skops.io._utils import LoadContext, _get_state, get_state, gettype
 from skops.io.exceptions import UnsupportedTypeException, UntrustedTypesFoundException
-from skops.io.tests._utils import assert_method_outputs_equal, assert_params_equal
+from skops.io.tests._utils import (
+    assert_method_outputs_equal,
+    assert_params_equal,
+    make_load_context,
+    make_save_context,
+)
 from skops.utils._fixes import (
     construct_instances,
     get_sparray_type,
@@ -133,23 +138,26 @@ def debug_dispatch_functions():
 
         return wrapper
 
-    def debug_get_tree(func):
+    def debug_get_tree(node_cls: type[Node]) -> type[Node]:
         # check consistency of argument names and input type
-        signature = inspect.signature(func)
+        signature = inspect.signature(node_cls)
         assert list(signature.parameters.keys()) == ["state", "load_context", "trusted"]
 
-        @wraps(func)
-        def wrapper(state, load_context, trusted):
-            assert "__class__" in state
-            assert "__module__" in state
-            assert "__loader__" in state
-            assert "__id__" in state
-            assert isinstance(load_context, LoadContext)
+        class DebugNode(node_cls):
+            def __init__(self, state, load_context, trusted=None):
+                assert "__class__" in state
+                assert "__module__" in state
+                assert "__loader__" in state
+                assert "__id__" in state
+                assert isinstance(load_context, LoadContext)
 
-            result = func(state, load_context, trusted)
-            return result
+                super().__init__(state, load_context, trusted)
 
-        return wrapper
+        # keep the identity of the wrapped node class, like ``wraps`` would
+        DebugNode.__name__ = node_cls.__name__
+        DebugNode.__qualname__ = node_cls.__qualname__
+        DebugNode.__module__ = node_cls.__module__
+        return DebugNode
 
     modules = ["._general", "._numpy", "._scipy", "._sklearn"]
     for module_name in modules:
@@ -931,15 +939,15 @@ def test_loads_from_str():
     # loads expects bytes, not str
     msg = "Can't load skops format from string, pass bytes"
     with pytest.raises(TypeError, match=msg):
-        loads("this is a string")
+        loads("this is a string")  # pyrefly: ignore[bad-argument-type]
 
 
 def test_get_tree_unknown_type_error_msg():
-    state = get_state(("hi", [123]), SaveContext(None))
+    state = get_state(("hi", [123]), make_save_context())
     state["__loader__"] = "this_get_tree_does_not_exist"
     msg = "Can't find loader this_get_tree_does_not_exist for type builtins.tuple."
     with pytest.raises(TypeError, match=msg):
-        get_tree(state, LoadContext(None, -1), trusted=False)
+        get_tree(state, make_load_context(), trusted=None)
 
 
 def _set_protocol(data: bytes, protocol: object) -> bytes:
@@ -1385,16 +1393,16 @@ def test_trusted_bool_raises(tmp_path):
     f_name = tmp_path / "file.skops"
     dump(10, f_name)
     with pytest.raises(TypeError, match="trusted must be a list of strings"):
-        load(f_name, trusted=True)
+        load(f_name, trusted=True)  # pyrefly: ignore[bad-argument-type]
 
     with pytest.raises(TypeError, match="trusted must be a list of strings"):
-        loads(dumps(10), trusted=True)
+        loads(dumps(10), trusted=True)  # pyrefly: ignore[bad-argument-type]
 
 
 def test_defaultdict():
     """Test that we correctly restore a defaultdict."""
     obj = defaultdict(set)
-    obj["foo"] = "bar"
+    obj["foo"].add("bar")
     obj_loaded = loads(dumps(obj))
     assert obj_loaded == obj
     assert obj_loaded.default_factory == obj.default_factory
@@ -1420,6 +1428,17 @@ def test_slice():
     loaded_obj = loads(dumps(obj))
     assert obj == loaded_obj
     assert type(obj) is slice
+
+
+def test_partial_with_attributes():
+    # partial objects can carry attributes in their __dict__, which have to be
+    # restored alongside the function and its arguments.
+    obj = partial(np.add, 10)
+    obj.__dict__["name"] = "add-ten"
+    dumped = dumps(obj)
+    loaded_obj = loads(dumped, trusted=get_untrusted_types(data=dumped))
+    assert loaded_obj(5) == 15
+    assert loaded_obj.__dict__ == {"name": "add-ten"}
 
 
 # This class is here as opposed to inside the test because it needs to be importable.
@@ -1448,6 +1467,17 @@ def test_custom_reduce():
 
     loaded_obj = loads(dumps(obj), trusted=[CustomReduce])
     assert obj.value == loaded_obj.value
+
+
+def test_loss_get_state_unsupported_reduce():
+    # loss_get_state understands the two shapes of __reduce__ output produced by
+    # scikit-learn's loss classes, and refuses anything else.
+    class NotALoss:
+        def __reduce__(self):
+            return (str, ("not a loss",))
+
+    with pytest.raises(ValueError, match="Unsupported __reduce__ output"):
+        loss_get_state(NotALoss(), make_save_context())
 
 
 def test_loss_node_does_not_import_before_audit(monkeypatch):

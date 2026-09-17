@@ -9,6 +9,14 @@ skops Changelog
     :depth: 1
     :local:
 
+v0.16
+-----
+- The ``trusted`` argument of :func:`skops.io.load`, :func:`skops.io.loads`,
+  :func:`skops.io.visualize` and :class:`skops.card.Card` now officially accepts
+  types in addition to their fully qualified names, and :func:`skops.io.load`
+  accepts a binary file object in addition to a path. :pr:`541` by
+  `Adrin Jalali`_.
+
 v0.15
 -----
 - The protocol number stored in a ``.skops`` file is now validated before any

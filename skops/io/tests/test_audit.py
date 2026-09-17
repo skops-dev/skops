@@ -28,7 +28,8 @@ from skops.io._general import (
     method_get_state,
     operator_func_get_state,
 )
-from skops.io._utils import LoadContext, SaveContext, get_state, gettype
+from skops.io._utils import LoadContext, get_state, gettype
+from skops.io.tests._utils import make_load_context, make_save_context
 
 
 class CustomType:
@@ -54,8 +55,8 @@ def test_check_type(module_name, type_name, trusted, expected):
 
 def test_audit_tree_untrusted():
     var = {"a": CustomType(1), 2: CustomType(2)}
-    state = dict_get_state(var, SaveContext(None, 0, {}))
-    load_context = LoadContext(None, -1)
+    state = dict_get_state(var, make_save_context())
+    load_context = make_load_context()
 
     node = DictNode(state, load_context, trusted=None)
     with pytest.raises(
@@ -67,22 +68,26 @@ def test_audit_tree_untrusted():
         audit_tree(node, None)
 
     # there shouldn't be an error with trusted=everything
-    node = DictNode(state, LoadContext(None, -1), trusted=["test_audit.CustomType"])
+    node = DictNode(state, make_load_context(), trusted=["test_audit.CustomType"])
     audit_tree(node, None)
 
     untrusted_list = get_untrusted_types(data=dumps(var))
     assert untrusted_list == ["test_audit.CustomType"]
 
     # passing the type would fix it.
-    node = DictNode(state, LoadContext(None, -1), trusted=untrusted_list)
+    node = DictNode(state, make_load_context(), trusted=untrusted_list)
     audit_tree(node, None)
+
+    # the type itself can be passed instead of its name
+    node = DictNode(state, make_load_context(), trusted=[CustomType])
+    audit_tree(node, [CustomType])
 
 
 def test_audit_tree_defaults():
     # test that the default types are trusted
     var = {"a": 1, 2: "b"}
-    state = dict_get_state(var, SaveContext(None, 0, {}))
-    node = DictNode(state, LoadContext(None, -1), trusted=None)
+    state = dict_get_state(var, make_save_context())
+    node = DictNode(state, make_load_context(), trusted=None)
     audit_tree(node, None)
 
 
@@ -115,19 +120,21 @@ def test_list_safety(values, is_safe):
     with ZipFile(io.BytesIO(content), "r") as zip_file:
         schema = json.loads(zip_file.read("schema.json"))
         tree = get_tree(
-            schema, load_context=LoadContext(src=zip_file, protocol=-1), trusted=False
+            schema,
+            load_context=LoadContext(src=zip_file, protocol=-1),
+            trusted=None,
         )
         assert tree.is_safe() == is_safe
 
 
 def test_gettype_error():
-    msg = "Object None of module test is unknown"
+    msg = re.escape("Object '' of module 'test' is unknown")
     with pytest.raises(ValueError, match=msg):
-        gettype(module_name="test", cls_or_func=None)
+        gettype(module_name="test", cls_or_func="")
 
-    msg = "Object test of module None is unknown"
+    msg = re.escape("Object 'test' of module '' is unknown")
     with pytest.raises(ValueError, match=msg):
-        gettype(module_name=None, cls_or_func="test")
+        gettype(module_name="", cls_or_func="test")
 
     # ImportError if the module cannot be imported
     with pytest.raises(ImportError):
@@ -158,7 +165,7 @@ def test_temp_setattr():
     with suppress(ValueError):
         with temp_setattr(temp, a=2, b=3):
             assert temp.a == 2
-            assert temp.b == 3
+            assert getattr(temp, "b") == 3
             raise ValueError  # to make sure context manager handles exceptions
 
     assert temp.a == 1
@@ -167,8 +174,8 @@ def test_temp_setattr():
 
 def test_format_object_node():
     estimator = LogisticRegression(random_state=0, solver="liblinear")
-    state = get_state(estimator, SaveContext(None))
-    node = ObjectNode(state, LoadContext(None, -1))
+    state = get_state(estimator, make_save_context())
+    node = ObjectNode(state, make_load_context())
     expected = "sklearn.linear_model._logistic.LogisticRegression"
     assert node.format() == expected
 
@@ -185,8 +192,8 @@ def test_format_object_node():
     ],
 )
 def test_format_json_node(inp, expected):
-    state = get_state(inp, SaveContext(None))
-    node = JsonNode(state, LoadContext(None, -1))
+    state = get_state(inp, make_save_context())
+    node = JsonNode(state, make_load_context())
     assert node.format() == expected
 
 
@@ -194,9 +201,9 @@ def test_method_node_invalid_state():
     # Test that MethodNode raises a ValueError if the state is invalid.
     # The __class__ and __module__ should match what's inside the content.
     var = FunctionTransformer().fit
-    state = method_get_state(var, SaveContext(None, 0, {}))
+    state = method_get_state(var, make_save_context())
     state["content"]["obj"]["__class__"] = "foo"
-    load_context = LoadContext(None, -1)
+    load_context = make_load_context()
 
     with pytest.raises(ValueError, match="Expected object of type"):
         MethodNode(state, load_context, trusted=None)
@@ -204,12 +211,28 @@ def test_method_node_invalid_state():
 
 def test_operator_func_node_invalid_state():
     var = operator.methodcaller("fit")
-    state = operator_func_get_state(var, SaveContext(None, 0, {}))
+    state = operator_func_get_state(var, make_save_context())
     state["__module__"] = "foo"
-    load_context = LoadContext(None, -1)
+    load_context = make_load_context()
 
     with pytest.raises(ValueError, match="Expected module 'operator'"):
         OperatorFuncNode(state, load_context, trusted=None)
+
+
+def test_cached_node_unknown_id_raises():
+    # A CachedNode refers, through __id__, to a node loaded earlier in the same
+    # context; a missing or unknown __id__ means the file is corrupted.
+    cached_state = {
+        "__class__": "list",
+        "__module__": "builtins",
+        "__loader__": "CachedNode",
+    }
+    msg = "A cached node refers to an unknown object id"
+    with pytest.raises(ValueError, match=msg):
+        get_tree(cached_state, make_load_context(), trusted=None)
+
+    with pytest.raises(ValueError, match=msg):
+        get_tree({**cached_state, "__id__": 123}, make_load_context(), trusted=None)
 
 
 def _tamper_bit_generator_name(data: bytes, new_name: str) -> bytes:
@@ -303,8 +326,8 @@ def test_random_generator_construct_rejects_non_bit_generator():
 def test_cached_node_resolves_to_memoized_node():
     # A "CachedNode" state refers, through __id__, to a node that was already
     # loaded in the same LoadContext. Constructing it yields the cached object.
-    load_context = LoadContext(None, -1)
-    state = get_state([1, 2], SaveContext(None))
+    load_context = make_load_context()
+    state = get_state([1, 2], make_save_context())
     node = get_tree(state, load_context, trusted=None)
 
     cached_state = {

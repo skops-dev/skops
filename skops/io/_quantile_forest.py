@@ -4,7 +4,7 @@ from typing import Any
 
 from ._protocol import PROTOCOL
 from ._sklearn import ReduceNode, reduce_get_state
-from ._utils import LoadContext, SaveContext, get_module
+from ._utils import LoadContext, SaveContext, TrustedTypes, get_module
 
 try:
     from quantile_forest._quantile_forest_fast import QuantileForest
@@ -29,7 +29,7 @@ class QuantileForestNode(ReduceNode):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: list[str] | None = None,
+        trusted: TrustedTypes | None = None,
     ) -> None:
         if QuantileForest is None:
             raise ImportError(

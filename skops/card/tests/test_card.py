@@ -128,7 +128,7 @@ def test_load_model_exception_allow_pickle(suffix):
 @pytest.fixture
 def model_card(model_diagram=True):
     model = fit_model()
-    card = Card(model, model_diagram)
+    card = Card(model, model_diagram=model_diagram)
     yield card
 
 
@@ -744,7 +744,7 @@ class TestSelect:
     def test_invalid_template_name_raises(self):
         msg = "Unknown template 'does-not-exist', template must be one of the following"
         with pytest.raises(ValueError, match=msg):
-            Card(model=None, template="does-not-exist")
+            Card(model=None, template="does-not-exist")  # pyrefly: ignore[bad-argument-type]
 
 
 class TestAdd:

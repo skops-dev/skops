@@ -7,7 +7,7 @@ import numpy as np
 
 from skops.io._audit import Node, get_tree
 from skops.io._trusted_types import NUMPY_RANDOM_BIT_GENERATOR_TYPE_NAMES
-from skops.io._utils import LoadContext, gettype
+from skops.io._utils import LoadContext, TrustedTypes, gettype
 
 PROTOCOL = 1
 
@@ -17,14 +17,13 @@ class RandomGeneratorNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: list[str] | None = None,
+        trusted: TrustedTypes | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
-        self.children = {
-            "bit_generator_state": get_tree(
-                state["content"]["bit_generator"], load_context, trusted=trusted
-            )
-        }
+        self.bit_generator_state = get_tree(
+            state["content"]["bit_generator"], load_context, trusted=trusted
+        )
+        self.children = {"bit_generator_state": self.bit_generator_state}
         self.trusted = self._get_trusted(trusted, [np.random.Generator])
         # Old-protocol reader for the same file shape as the current
         # ``RandomGeneratorNode`` in ``skops.io._numpy``, and it carries the same
@@ -64,7 +63,7 @@ class RandomGeneratorNode(Node):
 
     def _construct(self):
         # first restore the state of the bit generator
-        bit_generator_state = self.children["bit_generator_state"].construct()
+        bit_generator_state = self.bit_generator_state.construct()
         bit_generator_name = bit_generator_state["bit_generator"]
         bit_generator_cls = gettype("numpy.random", bit_generator_name)
         # As in the current node: retrieving the attribute is harmless, calling
