@@ -23,7 +23,7 @@ class RandomGeneratorNode(Node):
         self.children = {"bit_generator_state": self.bit_generator_state}
         self.trusted = self._get_trusted(trusted, [np.random.Generator])
 
-    def _construct(self):
+    def _construct(self):  # pragma: no cover
         # NOTE: this reads a class name from the file and calls the matching
         # numpy.random attribute, which would be the same audit-bypass fixed in
         # the current ``RandomGeneratorNode`` (skops.io._numpy). It is safe here

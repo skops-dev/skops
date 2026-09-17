@@ -314,7 +314,8 @@ def _DictWithDeprecatedKeys_get_state(
 
 
 # TODO: remove once support for sklearn<1.2 is dropped.
-class _DictWithDeprecatedKeysNode(Node):
+# skops requires scikit-learn>=1.2, so this node is never used in the test matrix.
+class _DictWithDeprecatedKeysNode(Node):  # pragma: no cover
     # _DictWithDeprecatedKeys is just a wrapper for dict
     def __init__(
         self,

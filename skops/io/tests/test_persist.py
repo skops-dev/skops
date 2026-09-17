@@ -64,7 +64,7 @@ import skops
 from skops.io import dump, dumps, get_untrusted_types, load, loads, visualize
 from skops.io._audit import NODE_TYPE_MAPPING, Node, get_tree
 from skops.io._protocol import PROTOCOL
-from skops.io._sklearn import UNSUPPORTED_TYPES
+from skops.io._sklearn import UNSUPPORTED_TYPES, loss_get_state
 from skops.io._trusted_types import (
     CONTAINER_TYPE_NAMES,
     NUMPY_DTYPE_TYPE_NAMES,
@@ -1430,6 +1430,17 @@ def test_slice():
     assert type(obj) is slice
 
 
+def test_partial_with_attributes():
+    # partial objects can carry attributes in their __dict__, which have to be
+    # restored alongside the function and its arguments.
+    obj = partial(np.add, 10)
+    obj.__dict__["name"] = "add-ten"
+    dumped = dumps(obj)
+    loaded_obj = loads(dumped, trusted=get_untrusted_types(data=dumped))
+    assert loaded_obj(5) == 15
+    assert loaded_obj.__dict__ == {"name": "add-ten"}
+
+
 # This class is here as opposed to inside the test because it needs to be importable.
 reduce_calls = 0
 
@@ -1456,6 +1467,17 @@ def test_custom_reduce():
 
     loaded_obj = loads(dumps(obj), trusted=[CustomReduce])
     assert obj.value == loaded_obj.value
+
+
+def test_loss_get_state_unsupported_reduce():
+    # loss_get_state understands the two shapes of __reduce__ output produced by
+    # scikit-learn's loss classes, and refuses anything else.
+    class NotALoss:
+        def __reduce__(self):
+            return (str, ("not a loss",))
+
+    with pytest.raises(ValueError, match="Unsupported __reduce__ output"):
+        loss_get_state(NotALoss(), make_save_context())
 
 
 def test_loss_node_does_not_import_before_audit(monkeypatch):
