@@ -75,7 +75,8 @@ using :meth:`.Card.select`, and you can delete sections using
 
 
 To see how you can use the API in ``skops`` to create a model card, please
-refer to :ref:`sphx_glr_auto_examples_plot_model_card.py`.
+refer to :ref:`sphx_glr_auto_examples_plot_tabular_regression.py` and
+:ref:`sphx_glr_auto_examples_plot_custom_model_card.py`.
 
 You can also fold sections after adding them to the model card. This is useful
 if you have a lot of content in a section that you don't want to show by

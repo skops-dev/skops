@@ -1,12 +1,3 @@
----
-language: en
-tags:
-- exbert
-license: apache-2.0
-datasets:
-- bookcorpus
-- wikipedia
----
 
 # BERT base model (uncased)
 

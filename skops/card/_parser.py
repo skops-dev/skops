@@ -249,15 +249,13 @@ def parse_modelcard(path: str | Path) -> Card:
       should, however, be the same.
     - Table alignment may be different. At the moment, skops does not make use
       of column alignment information in tables, so that may differ.
-    - Quote symbols may differ, e.g. ``it’s`` becoming ``it's``.
+    - Quote symbols may differ, e.g. ``it's`` becoming ``it’s``.
     - The number of empty lines may differ, e.g. two empty lines being
       transformed into one empty line.
     - The optional title of links is not preserved, as e.g. in
       `[text](https://example.com "this disappears")`
     - Trailing whitespace is removed.
     - Tab indentation may be removed, e.g. in raw html.
-    - The yaml part of the model card can have some non-semantic differences,
-      like omitting optional quotation marks.
 
     For these reasons, please don't expect the output of a parsed card to be
     100% identical to the original input. However, none of the listed changes

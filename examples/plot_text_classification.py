@@ -2,9 +2,9 @@
 Text Classification with scikit-learn
 -------------------------------------
 
-This example shows how you can create a Hugging Face Hub compatible repo for a
-text classification task using scikit-learn. We also show how you can generate
-a model card for the model and the task at hand.
+This example shows how you can train a text classification model with
+scikit-learn, save it, and generate a model card for the model and the task at
+hand.
 """
 
 # %%
@@ -76,15 +76,16 @@ predicted = model.predict(docs_new)
 print(twenty_train.target[predicted[0]])
 
 # %%
-# Initialize a repository to save our files in
-# ============================================
-# We will now initialize a repository and save our model
+# Save the model
+# ==============
+# We will now save our model to a file and create a directory to put the model
+# card and its figures in.
 _, pkl_name = mkstemp(prefix="skops-", suffix=".pkl")
 
 with open(pkl_name, mode="bw") as f:
     pickle.dump(model, file=f)
 
-local_repo = mkdtemp(prefix="skops-")
+output_dir = mkdtemp(prefix="skops-")
 
 # %%
 # Create a model card
@@ -139,7 +140,7 @@ cm = confusion_matrix(y_test, y_pred, labels=model.classes_)
 disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=model.classes_)
 disp.plot()
 
-disp.figure_.savefig(Path(local_repo) / "confusion_matrix.png")
+disp.figure_.savefig(Path(output_dir) / "confusion_matrix.png")
 model_card.add_plot(**{"Confusion matrix": "confusion_matrix.png"})
 
 clf_report = classification_report(
@@ -161,8 +162,5 @@ model_card.add_table(
 # Save model card
 # ================
 # We can simply save our model card by providing a path to :meth:`.Card.save`.
-# The model hasn't been pushed to Hugging Face Hub yet, if you want to see how
-# to push your models please refer to
-# :ref:`this example <sphx_glr_auto_examples_plot_hf_hub.py>`.
 
-model_card.save(Path(local_repo) / "README.md")
+model_card.save(Path(output_dir) / "README.md")

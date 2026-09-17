@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import io
-import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Iterator, Literal
@@ -11,7 +10,7 @@ from ._audit import VALID_NODE_CHILD_TYPES, Node, get_tree
 from ._general import BytearrayNode, BytesNode, FunctionNode, JsonNode, ListNode
 from ._numpy import NdArrayNode
 from ._scipy import SparseMatrixNode
-from ._utils import LoadContext, TrustedTypes
+from ._utils import TrustedTypes, read_schema
 
 # The children of these types are not visualized
 SKIPPED_TYPES = (
@@ -382,8 +381,7 @@ def visualize(
         zf = ZipFile(file, "r")
 
     with zf as zip_file:
-        schema = json.loads(zip_file.read("schema.json"))
-        load_context = LoadContext(src=zip_file, protocol=schema["protocol"])
+        schema, load_context = read_schema(zip_file)
         tree = get_tree(schema, load_context=load_context, trusted=trusted)
 
     nodes = walk_tree(tree)

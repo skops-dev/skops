@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib
+import json
 import sys
 import warnings
 from dataclasses import dataclass, field
@@ -141,6 +142,10 @@ class LoadContext:
     ----------
     src: zipfile.ZipFile
         The zip file the target object is saved in
+
+    protocol: int
+        The protocol the file was saved with. Use :func:`read_schema` to build
+        a ``LoadContext`` from a file, which validates this value.
     """
 
     src: ZipFile
@@ -152,6 +157,49 @@ class LoadContext:
 
     def get_object(self, id: int) -> Any:
         return self.memo.get(id)
+
+
+def read_schema(zip_file: ZipFile) -> tuple[dict[str, Any], LoadContext]:
+    """Read and validate ``schema.json`` of a skops file.
+
+    The protocol number stored in the file decides which ``Node`` classes are
+    used to audit and construct its content, and it is fully under the control
+    of whoever produced the file. It is therefore validated here, before any
+    node is created: it must be an integer between 0 and the protocol of the
+    running skops version.
+
+    Parameters
+    ----------
+    zip_file: zipfile.ZipFile
+        The skops file, opened for reading.
+
+    Returns
+    -------
+    schema: dict
+        The parsed ``schema.json``.
+
+    load_context: LoadContext
+        The context to pass to ``get_tree``.
+    """
+    schema = json.loads(zip_file.read("schema.json"))
+    protocol = schema.get("protocol")
+    # bool is a subclass of int, and True would silently act as protocol 1
+    if isinstance(protocol, bool) or not isinstance(protocol, int):
+        raise TypeError(
+            f"Invalid skops protocol {protocol!r} in schema.json, expected an integer."
+        )
+    if protocol > PROTOCOL:
+        raise ValueError(
+            f"The file was saved with skops protocol {protocol}, but this version "
+            f"of skops only supports protocols up to {PROTOCOL}. You might need to "
+            "update skops to load this file."
+        )
+    if protocol < 0:
+        raise ValueError(
+            f"Invalid skops protocol {protocol} in schema.json, expected a value "
+            f"between 0 and {PROTOCOL}."
+        )
+    return schema, LoadContext(src=zip_file, protocol=protocol)
 
 
 @singledispatch

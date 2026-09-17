@@ -20,7 +20,21 @@ old state, should be preserved, registered, and tested. Let's give an example:
 Now, if a user loads a FunctionNode state with version X using skops with
 version Y>X, the old code will be used instead of the new one. For all other
 node types, if there is no loader for version X, skops will automatically use
-version Y instead.
+version Y instead. Files with a protocol newer than Y are refused, see
+``skops.io._utils.read_schema``.
+
+Security note on old nodes:
+
+The protocol number is read from ``schema.json`` and is therefore controlled
+by whoever produced the file. It decides which Node class audits and
+constructs each part of the content, so a file can always opt into any
+registered old Node simply by claiming an older protocol. This means an old
+Node in ``old/`` must never be less strict than its current counterpart.
+Whenever the audit logic of a current Node is fixed or tightened
+(``get_unsafe_set``, the default trusted types passed to ``_get_trusted``,
+``_construct`` only using what was audited, ...), apply the same change to
+every old version of that Node in ``old/`` and add the same test case for it.
+Otherwise the fix can be bypassed by lowering the protocol number in the file.
 
 """
 

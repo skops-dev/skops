@@ -2,9 +2,9 @@
 Tabular Regression with scikit-learn
 -------------------------------------
 
-This example shows how you can create a Hugging Face Hub compatible repo for a
-tabular regression task using scikit-learn. We also show how you can generate
-a model card for the model and the task at hand.
+This example shows how you can train a tabular regression model with
+scikit-learn, save it, and generate a model card for the model and the task at
+hand.
 """
 
 # %%
@@ -59,15 +59,16 @@ y_pred = model.predict(X_test[:5])
 print(y_pred)
 
 # %%
-# Initialize a repository to save our files in
-# ============================================
-# We will now initialize a repository and save our model
+# Save the model
+# ==============
+# We will now save our model to a file and create a directory to put the model
+# card and its figures in.
 _, pkl_name = mkstemp(prefix="skops-", suffix=".pkl")
 
 with open(pkl_name, mode="bw") as f:
     sio.dump(model, file=f)
 
-local_repo = mkdtemp(prefix="skops-")
+output_dir = mkdtemp(prefix="skops-")
 
 # %%
 # Create a model card
@@ -91,7 +92,7 @@ limitations = (
 model_description = (
     "This is a Linear Regression model trained on diabetes dataset. This model could be"
     " used to predict the progression of diabetes. This model is pretty limited and"
-    " should just be used as an example of how to user `skops` and Hugging Face Hub."
+    " should just be used as an example of how to use `skops`."
 )
 model_card_authors = "skops_user, lazarust"
 citation_bibtex = "bibtex\n@inproceedings{...,year={2022}}"
@@ -117,7 +118,7 @@ y_pred = model.predict(X_test)
 plt.scatter(y_test, y_pred)
 plt.xlabel("True values")
 plt.ylabel("Predicted values")
-plt.savefig(Path(local_repo) / "prediction_scatter.png")
+plt.savefig(Path(output_dir) / "prediction_scatter.png")
 model_card.add_plot(**{"Prediction Scatter": "prediction_scatter.png"})
 
 mae = mean_absolute_error(y_test, y_pred)
@@ -131,8 +132,5 @@ model_card.add_metrics(
 # Save model card
 # ================
 # We can simply save our model card by providing a path to :meth:`.Card.save`.
-# The model hasn't been pushed to Hugging Face Hub yet, if you want to see how
-# to push your models please refer to
-# :ref:`this example <sphx_glr_auto_examples_plot_hf_hub.py>`.
 
-model_card.save(Path(local_repo) / "README.md")
+model_card.save(Path(output_dir) / "README.md")

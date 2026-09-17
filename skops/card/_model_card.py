@@ -1078,7 +1078,7 @@ class Card:
     ) -> Self:
         """
         Add a :class:`fairlearn.metrics.MetricFrame` table to the model card.
-        The table contains the difference, group_ma, group_min, and ratio for
+        The table contains the difference, group_max, group_min, and ratio for
         each metric.
 
         Parameters
@@ -1092,7 +1092,6 @@ class Card:
         transpose: bool, default=True
             Whether to transpose the table or not.
 
-
         description : str | None (default=None)
             An optional description to be added before the table.
 
@@ -1102,10 +1101,10 @@ class Card:
             The model card with the metric frame added.
 
         Notes
-        --------
+        -----
         You can check `fairlearn's documentation
-        <https://fairlearn.org/v0.8/user_guide/assessment/index.html>`__ on how to
-        work with `MetricFrame`s.
+        <https://fairlearn.org/v0.14/user_guide/assessment/index.html>`__ on how to
+        work with :class:`~fairlearn.metrics.MetricFrame` objects.
 
         """
         frame_dict = {
@@ -1323,8 +1322,9 @@ class Card:
         Returns
         -------
         toc : str
-            The table of contents for the model card formatted as a markdown string.
-            Example:
+            The table of contents for the model card formatted as a markdown
+            string, for example::
+
                 - Model description
                     - Intended uses & limitations
                     - Training Procedure

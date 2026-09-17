@@ -378,7 +378,8 @@ NODE_TYPE_MAPPING: dict[tuple[str, int], Any] = {
 # TODO: remove once support for sklearn<1.2 is dropped.
 # Starting from sklearn 1.2, _DictWithDeprecatedKeys is removed as it's no
 # longer needed for GraphicalLassoCV, see #187.
-if _DictWithDeprecatedKeys is not None:
+# skops requires scikit-learn>=1.2, so this block never runs in the test matrix.
+if _DictWithDeprecatedKeys is not None:  # pragma: no cover
     GET_STATE_DISPATCH_FUNCTIONS.append(
         (_DictWithDeprecatedKeys, _DictWithDeprecatedKeys_get_state)
     )

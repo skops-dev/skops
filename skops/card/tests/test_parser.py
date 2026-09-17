@@ -6,15 +6,15 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
-import yaml
 
 from skops.card import parse_modelcard
 from skops.card._parser import PandocParser, check_pandoc_installed
 
 try:
-    check_pandoc_installed()
-except FileNotFoundError:
-    # not installed, skip
+    # the expected outputs in ./examples are generated with a recent pandoc
+    check_pandoc_installed(min_version="3.6.4")
+except (FileNotFoundError, ValueError):
+    # not installed or too old, skip
     pytest.skip(reason="These tests require a recent pandoc", allow_module_level=True)
 
 
@@ -30,32 +30,15 @@ EXAMPLE_CARDS = [
 ]
 
 
-def _assert_meta_equal(meta0, meta1):
-    # we cannot guarantee the order of metadata items, so we compare parsed
-    # dicts, but not strings directly
-    assert yaml.safe_load("".join(meta0)) == yaml.safe_load("".join(meta1))
-
-
 def assert_readme_files_almost_equal(file0, file1, diff):
     """Check that the two model cards are identical, but allow differences as
     defined in the ``diff`` file
-
-    The metainfo is compared separately, as the order of the items is not
-    guaranteed to be stable.
     """
-    with open(file0, "r") as f:
+    with open(file0, encoding="utf-8") as f:
         readme0 = f.readlines()
 
-    with open(file1, "r") as f:
+    with open(file1, encoding="utf-8") as f:
         readme1 = f.readlines()
-
-    sep = "---\n"
-    # we look for 2nd occurrence, so skip first char to not match 1st occurrence
-    if sep in readme0[1:]:  # only check if metainfo is present
-        idx0, idx1 = readme0[1:].index(sep) + 1, readme1[1:].index(sep) + 1
-        meta0, meta1 = readme0[1:idx0], readme1[1:idx1]
-        readme0, readme1 = readme0[idx0:], readme1[idx1:]
-        _assert_meta_equal(meta0, meta1)
 
     # exclude trivial case of both being empty
     assert readme0
@@ -63,7 +46,7 @@ def assert_readme_files_almost_equal(file0, file1, diff):
 
     diff_actual = list(difflib.unified_diff(readme0, readme1, n=0))
 
-    with open(diff, "r") as f:
+    with open(diff, encoding="utf-8") as f:
         diff_expected = f.readlines()
 
     assert diff_actual == diff_expected
@@ -85,6 +68,12 @@ def test_example_model_cards(tmp_path, file_name):
 
     So e.g. for "specter.md", we expect that the diff will be the same diff as
     in "specter.md.diff".
+
+    If the output changes on purpose (e.g. because model cards are rendered
+    differently or because of a new pandoc version), regenerate the
+    ``.md.diff`` files the same way they are compared here, i.e. as a
+    ``difflib.unified_diff`` with ``n=0`` between the original card and the
+    saved parsed card.
 
     """
     path = Path(os.getcwd()) / "skops" / "card" / "tests" / "examples"
