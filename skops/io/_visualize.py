@@ -11,7 +11,7 @@ from ._audit import VALID_NODE_CHILD_TYPES, Node, get_tree
 from ._general import BytearrayNode, BytesNode, FunctionNode, JsonNode, ListNode
 from ._numpy import NdArrayNode
 from ._scipy import SparseMatrixNode
-from ._utils import LoadContext
+from ._utils import LoadContext, TrustedTypes
 
 # The children of these types are not visualized
 SKIPPED_TYPES = (
@@ -149,6 +149,8 @@ def pretty_print_tree(
         from rich.tree import Tree
 
         console = Console()
+        tree = None
+        trees: dict[int, Tree] = {}
 
         for node, label, level_diff, is_first_node in _traverse_tree(
             nodes_iter, show, **kwargs
@@ -310,7 +312,7 @@ def visualize(
     file: Path | str | bytes,
     *,
     show: Literal["all", "untrusted", "trusted"] = "all",
-    trusted: list[str] | None = None,
+    trusted: TrustedTypes | None = None,
     sink: Callable[..., None] = pretty_print_tree,
     **kwargs: Any,
 ) -> None:
@@ -336,9 +338,11 @@ def visualize(
     show: "all" or "untrusted" or "trusted"
         Whether to print all nodes, only untrusted nodes, or only trusted nodes.
 
-    trusted: bool, or list of str, default=False
+    trusted: list of str or type, default=None
         The object will be loaded only if there are only trusted objects and
-        objects of types listed in ``trusted`` in the dumped file.
+        objects of types listed in ``trusted`` in the dumped file. Types can be
+        given by their fully qualified name, as returned by
+        :func:`~skops.io.get_untrusted_types`, or as the type itself.
 
     sink: function (default=:func:`~pretty_print_tree`)
         This function should take at least two arguments, an iterator of

@@ -10,7 +10,7 @@ from skops.utils._fixes import get_scipy_ufunc_wrapper_type, get_sparray_type
 from ._audit import Node
 from ._general import function_get_state
 from ._protocol import PROTOCOL
-from ._utils import LoadContext, SaveContext, get_module
+from ._utils import LoadContext, SaveContext, TrustedTypes, get_module
 
 _SPARRAY = get_sparray_type()
 _SCIPY_UFUNC_WRAPPER = get_scipy_ufunc_wrapper_type()
@@ -44,7 +44,7 @@ class SparseMatrixNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: list[str] | None = None,
+        trusted: TrustedTypes | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.type = state["type"]
@@ -57,12 +57,13 @@ class SparseMatrixNode(Node):
                 f"Cannot load object of type {self.module_name}.{self.class_name}"
             )
 
-        self.children = {"content": io.BytesIO(load_context.src.read(state["file"]))}
+        self.content = io.BytesIO(load_context.src.read(state["file"]))
+        self.children = {"content": self.content}
 
     def _construct(self):
         # scipy load_npz uses numpy.save with allow_pickle=False under the
         # hood, so we're safe using it
-        return load_npz(self.children["content"])
+        return load_npz(self.content)
 
 
 # tuples of type and function that gets the state of that type

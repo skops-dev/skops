@@ -6,15 +6,21 @@ import warnings
 from dataclasses import dataclass, field
 from functools import singledispatch
 from types import ModuleType
-from typing import Any, Type
+from typing import Any, Sequence, Type, Union
 from zipfile import ZipFile
 
 from ._protocol import PROTOCOL
+
+# Types the user trusts to be loaded, given either by their fully qualified
+# name, e.g. "sklearn.linear_model._logistic.LogisticRegression" as returned by
+# ``get_untrusted_types``, or as the type object itself.
+TrustedTypes = Sequence[Union[str, Type[Any]]]
 
 
 # The following two functions are copied from cpython's pickle.py file.
 # ---------------------------------------------------------------------
 def _getattribute(obj, name):
+    parent = obj
     for subpath in name.split("."):
         if subpath == "<locals>":
             raise AttributeError(
@@ -68,7 +74,7 @@ def gettype(module_name: str, cls_or_func: str) -> Type[Any]:
     if module_name and cls_or_func:
         return _import_obj(module_name, cls_or_func)
 
-    raise ValueError(f"Object {cls_or_func} of module {module_name} is unknown")
+    raise ValueError(f"Object {cls_or_func!r} of module {module_name!r} is unknown")
 
 
 def get_module(obj: Any) -> str:
@@ -183,13 +189,13 @@ def get_type_name(t: Any) -> str:
     return f"{get_module(t)}.{t.__name__}"
 
 
-def get_type_paths(types: Any) -> list[str]:
+def get_type_paths(types: str | type[Any] | TrustedTypes | None) -> list[str]:
     """Helper function that takes in a types,
     and converts any the types found to a list of strings.
 
     Parameters
     ----------
-    types: Any
+    types: str, type, list of str and types, or None
         Types to get. Can be either a string, a single type, or a list of strings
         and types.
 
@@ -201,10 +207,8 @@ def get_type_paths(types: Any) -> list[str]:
     """
     if not types:
         return []
-    if not isinstance(types, (list, tuple)):
-        types = [types]
-
-    return [get_type_name(t) if not isinstance(t, str) else t for t in types]
+    items: TrustedTypes = [types] if isinstance(types, (str, type)) else types
+    return [t if isinstance(t, str) else get_type_name(t) for t in items]
 
 
 def get_public_type_names(module: ModuleType, oftype: Type) -> list[str]:

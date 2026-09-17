@@ -103,8 +103,6 @@ project-includes = ["skops", "examples", "scripts", "docs/conf.py"]
 # Replace imports that cannot be resolved (e.g. numpy, scikit-learn, which are not
 # installed in the pre-commit environment) with `Any` instead of erroring.
 ignore-missing-imports = ["*"]
-# The `legacy` preset is the one pyrefly recommends for projects migrating from mypy.
-preset = "legacy"
 
 [tool.pixi.workspace]
 channels = ["conda-forge"]

@@ -8,7 +8,14 @@ from sklearn.tree._tree import Tree
 from ._audit import Node, get_tree
 from ._general import TypeNode, unsupported_get_state
 from ._protocol import PROTOCOL
-from ._utils import LoadContext, SaveContext, get_module, get_state, gettype
+from ._utils import (
+    LoadContext,
+    SaveContext,
+    TrustedTypes,
+    get_module,
+    get_state,
+    gettype,
+)
 from .exceptions import UnsupportedTypeException
 
 try:
@@ -154,32 +161,29 @@ class ReduceNode(Node):
         state: dict[str, Any],
         load_context: LoadContext,
         constructor: tuple[str, str],
-        trusted: list[str] | None = None,
+        trusted: TrustedTypes | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         reduce = state["__reduce__"]
         ctor_module, ctor_class = constructor
+        self.attrs = get_tree(state["content"], load_context, trusted=trusted)
+        self.args = get_tree(reduce["args"], load_context, trusted=trusted)
+        self.constructor = TypeNode(
+            {"__class__": ctor_class, "__module__": ctor_module},
+            load_context,
+            trusted=trusted,
+        )
         self.children = {
-            "attrs": get_tree(state["content"], load_context, trusted=trusted),
-            "args": get_tree(reduce["args"], load_context, trusted=trusted),
-            "constructor": TypeNode(
-                {
-                    "__class__": ctor_class,
-                    "__module__": ctor_module,
-                },
-                load_context,
-                trusted=trusted,
-            ),
+            "attrs": self.attrs,
+            "args": self.args,
+            "constructor": self.constructor,
         }
 
     def _construct(self):
-        args = self.children["args"].construct()
-        constructor = gettype(
-            self.children["constructor"].module_name,
-            self.children["constructor"].class_name,
-        )
+        args = self.args.construct()
+        constructor = gettype(self.constructor.module_name, self.constructor.class_name)
         instance = constructor(*args)
-        attrs = self.children["attrs"].construct()
+        attrs = self.attrs.construct()
         if not attrs:
             # nothing more to do
             return instance
@@ -213,7 +217,7 @@ class TreeNode(ReduceNode):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: list[str] | None = None,
+        trusted: TrustedTypes | None = None,
     ) -> None:
         # NOTE: sklearn.tree._tree.Tree is deliberately *not* trusted by
         # default. skops can only check that a loaded object is of a trusted
@@ -262,6 +266,10 @@ def loss_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
         else:
             state["__reduce__"]["args"] = get_state(reduce[1][2], save_context)
             state["content"] = get_state({}, save_context)
+    else:
+        raise ValueError(
+            f"Unsupported __reduce__ output for loss of type {type(obj)}: {reduce!r}"
+        )
 
     return state
 
@@ -271,7 +279,7 @@ class LossNode(ReduceNode):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: list[str] | None = None,
+        trusted: TrustedTypes | None = None,
     ) -> None:
         # TODO: make sure trusted here makes sense and used.
         self.trusted = self._get_trusted(
@@ -312,26 +320,33 @@ class _DictWithDeprecatedKeysNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: list[str] | None = None,
+        trusted: TrustedTypes | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.trusted = [
             get_module(_DictWithDeprecatedKeysNode) + "._DictWithDeprecatedKeys"
         ]
+        self.main = get_tree(state["content"]["main"], load_context, trusted=trusted)
+        self.deprecated_key_to_new_key = get_tree(
+            state["content"]["_deprecated_key_to_new_key"],
+            load_context,
+            trusted=trusted,
+        )
         self.children = {
-            "main": get_tree(state["content"]["main"], load_context, trusted=trusted),
-            "_deprecated_key_to_new_key": get_tree(
-                state["content"]["_deprecated_key_to_new_key"],
-                load_context,
-                trusted=trusted,
-            ),
+            "main": self.main,
+            "_deprecated_key_to_new_key": self.deprecated_key_to_new_key,
         }
 
     def _construct(self):
-        instance = _DictWithDeprecatedKeys(**self.children["main"].construct())
-        instance._deprecated_key_to_new_key = self.children[
-            "_deprecated_key_to_new_key"
-        ].construct()
+        if _DictWithDeprecatedKeys is None:  # pragma: no cover
+            # This node is only registered when the class can be imported, see
+            # NODE_TYPE_MAPPING below.
+            raise TypeError(
+                "_DictWithDeprecatedKeys is not available in the installed "
+                "scikit-learn version."
+            )
+        instance = _DictWithDeprecatedKeys(**self.main.construct())
+        instance._deprecated_key_to_new_key = self.deprecated_key_to_new_key.construct()
         return instance
 
 

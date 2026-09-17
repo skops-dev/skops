@@ -13,7 +13,14 @@ from ._trusted_types import (
     NUMPY_DTYPE_TYPE_NAMES,
     NUMPY_RANDOM_BIT_GENERATOR_TYPE_NAMES,
 )
-from ._utils import LoadContext, SaveContext, get_module, get_state, gettype
+from ._utils import (
+    LoadContext,
+    SaveContext,
+    TrustedTypes,
+    get_module,
+    get_state,
+    gettype,
+)
 from .exceptions import UnsupportedTypeException
 
 
@@ -65,29 +72,29 @@ class NdArrayNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: list[str] | None = None,
+        trusted: TrustedTypes | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.type = state["type"]
         self.trusted = self._get_trusted(trusted, [np.ndarray] + NUMPY_DTYPE_TYPE_NAMES)
         if self.type == "numpy":
-            self.children = {
-                "content": io.BytesIO(load_context.src.read(state["file"]))
-            }
+            # the array is stored in the zip file in numpy's own format
+            self.buffer = io.BytesIO(load_context.src.read(state["file"]))
+            self.children = {"content": self.buffer}
         elif self.type == "json":
-            self.children = {
-                "content": [
-                    get_tree(o, load_context, trusted=trusted) for o in state["content"]
-                ],
-                "shape": get_tree(state["shape"], load_context, trusted=trusted),
-            }
+            # object arrays are stored as a list of their items
+            self.items = [
+                get_tree(o, load_context, trusted=trusted) for o in state["content"]
+            ]
+            self.shape = get_tree(state["shape"], load_context, trusted=trusted)
+            self.children = {"content": self.items, "shape": self.shape}
         else:
             raise ValueError(f"Unknown type {self.type}.")
 
     def _construct(self):
         # Dealing with a regular numpy array, where dtype != object
         if self.type == "numpy":
-            content = np.load(self.children["content"], allow_pickle=False)
+            content = np.load(self.buffer, allow_pickle=False)
             if f"{self.module_name}.{self.class_name}" != "numpy.ndarray":
                 content = gettype(self.module_name, self.class_name)(content)
             return content
@@ -95,8 +102,8 @@ class NdArrayNode(Node):
         if self.type == "json":
             # We explicitly set the dtype to "O" since we only save object
             # arrays in json.
-            shape = self.children["shape"].construct()
-            tmp = [o.construct() for o in self.children["content"]]
+            shape = self.shape.construct()
+            tmp = [o.construct() for o in self.items]
 
             # TODO: this is a hack to get the correct shape of the array. We
             # should find _a better way_ to do this.
@@ -130,18 +137,17 @@ class MaskedArrayNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: list[str] | None = None,
+        trusted: TrustedTypes | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.trusted = self._get_trusted(trusted, [np.ma.MaskedArray])
-        self.children = {
-            "data": get_tree(state["content"]["data"], load_context, trusted=trusted),
-            "mask": get_tree(state["content"]["mask"], load_context, trusted=trusted),
-        }
+        self.data = get_tree(state["content"]["data"], load_context, trusted=trusted)
+        self.mask = get_tree(state["content"]["mask"], load_context, trusted=trusted)
+        self.children = {"data": self.data, "mask": self.mask}
 
     def _construct(self):
-        data = self.children["data"].construct()
-        mask = self.children["mask"].construct()
+        data = self.data.construct()
+        mask = self.mask.construct()
         return np.ma.MaskedArray(data, mask)
 
 
@@ -161,18 +167,17 @@ class RandomStateNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: list[str] | None = None,
+        trusted: TrustedTypes | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         # TODO
-        self.children = {
-            "content": get_tree(state["content"], load_context, trusted=trusted)
-        }
+        self.content = get_tree(state["content"], load_context, trusted=trusted)
+        self.children = {"content": self.content}
         self.trusted = self._get_trusted(trusted, [np.random.RandomState])
 
     def _construct(self):
         random_state = gettype(self.module_name, self.class_name)()
-        random_state.set_state(self.children["content"].construct())
+        random_state.set_state(self.content.construct())
         return random_state
 
 
@@ -193,16 +198,18 @@ class RandomGeneratorNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: list[str] | None = None,
+        trusted: TrustedTypes | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
+        self.bit_generator_state = get_tree(
+            state["content"]["bit_generator"], load_context, trusted=trusted
+        )
+        self.seed_seq_state = get_tree(
+            state["content"]["seed_seq"], load_context, trusted=trusted
+        )
         self.children = {
-            "bit_generator_state": get_tree(
-                state["content"]["bit_generator"], load_context, trusted=trusted
-            ),
-            "seed_seq_state": get_tree(
-                state["content"]["seed_seq"], load_context, trusted=trusted
-            ),
+            "bit_generator_state": self.bit_generator_state,
+            "seed_seq_state": self.seed_seq_state,
         }
         self.trusted = self._get_trusted(trusted, [np.random.Generator])
         # Security note. To rebuild a Generator we need its bit generator, and
@@ -271,10 +278,10 @@ class RandomGeneratorNode(Node):
             "numpy.random.bit_generator",
             "SeedSequence",
         )
-        seed_seq_state = self.children["seed_seq_state"].construct()
+        seed_seq_state = self.seed_seq_state.construct()
         seed_seq = seed_seq_cls(**seed_seq_state)
 
-        bit_generator_state = self.children["bit_generator_state"].construct()
+        bit_generator_state = self.bit_generator_state.construct()
         bit_generator_name = bit_generator_state["bit_generator"]
         bit_generator_cls = gettype("numpy.random", bit_generator_name)
         # Second line of defence, independent of the audit above. ``gettype`` is
@@ -316,19 +323,18 @@ class DTypeNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: list[str] | None = None,
+        trusted: TrustedTypes | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
-        self.children = {
-            "content": get_tree(state["content"], load_context, trusted=trusted)
-        }
+        self.content = get_tree(state["content"], load_context, trusted=trusted)
+        self.children = {"content": self.content}
         # TODO: what should we trust?
         self.trusted = self._get_trusted(trusted, [])
 
     def _construct(self):
         # we use numpy's internal save mechanism to store the dtype by
         # saving/loading an empty array with that dtype.
-        return self.children["content"].construct().dtype
+        return self.content.construct().dtype
 
 
 # tuples of type and function that gets the state of that type

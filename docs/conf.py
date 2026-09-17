@@ -111,7 +111,10 @@ def linkcode_resolve(domain, info):
     if not fn:
         return None
     package = "skops"
-    fn = os.path.relpath(fn, start=os.path.dirname(__import__(package).__file__))
+    package_file = __import__(package).__file__
+    if package_file is None:
+        return None
+    fn = os.path.relpath(fn, start=os.path.dirname(package_file))
     try:
         lineno = inspect.getsourcelines(obj)[1]
     except Exception:

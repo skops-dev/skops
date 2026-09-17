@@ -26,6 +26,7 @@ from ._trusted_types import (
 from ._utils import (
     LoadContext,
     SaveContext,
+    TrustedTypes,
     _import_obj,
     get_module,
     get_state,
@@ -63,22 +64,21 @@ class DictNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: list[str] | None = None,
+        trusted: TrustedTypes | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.trusted = self._get_trusted(trusted, [dict, "collections.OrderedDict"])
-        self.children = {
-            "key_types": get_tree(state["key_types"], load_context, trusted=trusted),
-            "content": {
-                key: get_tree(value, load_context, trusted=trusted)
-                for key, value in state["content"].items()
-            },
+        self.key_types = get_tree(state["key_types"], load_context, trusted=trusted)
+        self.content = {
+            key: get_tree(value, load_context, trusted=trusted)
+            for key, value in state["content"].items()
         }
+        self.children = {"key_types": self.key_types, "content": self.content}
 
     def _construct(self):
         content = gettype(self.module_name, self.class_name)()
-        key_types = self.children["key_types"].construct()
-        for k_type, (key, val) in zip(key_types, self.children["content"].items()):
+        key_types = self.key_types.construct()
+        for k_type, (key, val) in zip(key_types, self.content.items()):
             content[k_type(key)] = val.construct()
         return content
 
@@ -103,22 +103,19 @@ class DefaultDictNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: list[str] | None = None,
+        trusted: TrustedTypes | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.trusted = ["collections.defaultdict"]
-        self.children = {
-            "main": get_tree(state["content"]["main"], load_context, trusted=trusted),
-            "default_factory": get_tree(
-                state["content"]["default_factory"],
-                load_context,
-                trusted=trusted,
-            ),
-        }
+        self.main = get_tree(state["content"]["main"], load_context, trusted=trusted)
+        self.default_factory = get_tree(
+            state["content"]["default_factory"], load_context, trusted=trusted
+        )
+        self.children = {"main": self.main, "default_factory": self.default_factory}
 
     def _construct(self):
-        instance = defaultdict(**self.children["main"].construct())
-        instance.default_factory = self.children["default_factory"].construct()
+        instance = defaultdict(**self.main.construct())
+        instance.default_factory = self.default_factory.construct()
         return instance
 
 
@@ -139,20 +136,18 @@ class ListNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: list[str] | None = None,
+        trusted: TrustedTypes | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.trusted = self._get_trusted(trusted, [list])
-        self.children = {
-            "content": [
-                get_tree(value, load_context, trusted=trusted)
-                for value in state["content"]
-            ]
-        }
+        self.content = [
+            get_tree(value, load_context, trusted=trusted) for value in state["content"]
+        ]
+        self.children = {"content": self.content}
 
     def _construct(self):
         content_type = gettype(self.module_name, self.class_name)
-        return content_type([item.construct() for item in self.children["content"]])
+        return content_type([item.construct() for item in self.content])
 
 
 def set_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
@@ -171,20 +166,18 @@ class SetNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: list[str] | None = None,
+        trusted: TrustedTypes | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.trusted = self._get_trusted(trusted, [set])
-        self.children = {
-            "content": [
-                get_tree(value, load_context, trusted=trusted)
-                for value in state["content"]
-            ]
-        }
+        self.content = [
+            get_tree(value, load_context, trusted=trusted) for value in state["content"]
+        ]
+        self.children = {"content": self.content}
 
     def _construct(self):
         content_type = gettype(self.module_name, self.class_name)
-        return content_type([item.construct() for item in self.children["content"]])
+        return content_type([item.construct() for item in self.content])
 
 
 def tuple_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
@@ -203,22 +196,20 @@ class TupleNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: list[str] | None = None,
+        trusted: TrustedTypes | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.trusted = self._get_trusted(trusted, [tuple])
-        self.children = {
-            "content": [
-                get_tree(value, load_context, trusted=trusted)
-                for value in state["content"]
-            ]
-        }
+        self.content = [
+            get_tree(value, load_context, trusted=trusted) for value in state["content"]
+        ]
+        self.children = {"content": self.content}
 
     def _construct(self):
         # Returns a tuple or a namedtuple instance.
 
         cls = gettype(self.module_name, self.class_name)
-        content = tuple(value.construct() for value in self.children["content"])
+        content = tuple(value.construct() for value in self.content)
 
         if self.isnamedtuple(cls):
             return cls(*content)
@@ -250,7 +241,7 @@ class FunctionNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: list[str] | None = None,
+        trusted: TrustedTypes | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         # TODO: what do we trust?
@@ -294,28 +285,33 @@ class PartialNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: list[str] | None = None,
+        trusted: TrustedTypes | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         # TODO: should we trust anything?
         self.trusted = self._get_trusted(trusted, [])
+        content = state["content"]
+        self.func = get_tree(content["func"], load_context, trusted=trusted)
+        self.args = get_tree(content["args"], load_context, trusted=trusted)
+        self.kwds = get_tree(content["kwds"], load_context, trusted=trusted)
+        self.namespace = get_tree(content["namespace"], load_context, trusted=trusted)
         self.children = {
-            "func": get_tree(state["content"]["func"], load_context, trusted=trusted),
-            "args": get_tree(state["content"]["args"], load_context, trusted=trusted),
-            "kwds": get_tree(state["content"]["kwds"], load_context, trusted=trusted),
-            "namespace": get_tree(
-                state["content"]["namespace"], load_context, trusted=trusted
-            ),
+            "func": self.func,
+            "args": self.args,
+            "kwds": self.kwds,
+            "namespace": self.namespace,
         }
 
     def _construct(self):
-        func = self.children["func"].construct()
-        args = self.children["args"].construct()
-        kwds = self.children["kwds"].construct()
-        namespace = self.children["namespace"].construct()
+        func = self.func.construct()
+        args = self.args.construct()
+        kwds = self.kwds.construct()
+        namespace = self.namespace.construct()
         instance = partial(func, *args, **kwds)  # always use partial, not a subclass
-        # partial always has __setstate__
-        instance.__setstate__((func, args, kwds, namespace))
+        # ``namespace`` is the ``__dict__`` of the original partial object, or
+        # None if it had none; this is what ``partial.__setstate__`` restores.
+        if namespace:
+            instance.__dict__.update(namespace)
         return instance
 
 
@@ -335,7 +331,7 @@ class TypeNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: list[str] | None = None,
+        trusted: TrustedTypes | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         # TODO: what do we trust?
@@ -370,20 +366,17 @@ class SliceNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: list[str] | None = None,
+        trusted: TrustedTypes | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.trusted = self._get_trusted(trusted, [slice])
-        self.children = {
-            "start": state["content"]["start"],
-            "stop": state["content"]["stop"],
-            "step": state["content"]["step"],
-        }
+        self.start = state["content"]["start"]
+        self.stop = state["content"]["stop"]
+        self.step = state["content"]["step"]
+        self.children = {"start": self.start, "stop": self.stop, "step": self.step}
 
     def _construct(self):
-        return slice(
-            self.children["start"], self.children["stop"], self.children["step"]
-        )
+        return slice(self.start, self.stop, self.step)
 
     def get_unsafe_set(self):
         return set()
@@ -450,17 +443,14 @@ class ConstructorFromReduceNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: list[str] | None = None,
+        trusted: TrustedTypes | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
-        self.children = {
-            "content": get_tree(state["content"], load_context, trusted=trusted)
-        }
+        self.content = get_tree(state["content"], load_context, trusted=trusted)
+        self.children = {"content": self.content}
 
     def _construct(self):
-        return gettype(self.module_name, self.class_name)(
-            *self.children["content"].construct()
-        )
+        return gettype(self.module_name, self.class_name)(*self.content.construct())
 
 
 class ObjectNode(Node):
@@ -468,17 +458,16 @@ class ObjectNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: list[str] | None = None,
+        trusted: TrustedTypes | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
 
         content = state.get("content")
+        self.attrs: Node | None = None
         if content is not None:
-            attrs = get_tree(content, load_context, trusted=trusted)
-        else:
-            attrs = None
+            self.attrs = get_tree(content, load_context, trusted=trusted)
 
-        self.children = {"attrs": attrs}
+        self.children = {"attrs": self.attrs}
         # TODO: what do we trust?
         self.trusted = self._get_trusted(
             trusted,
@@ -486,7 +475,7 @@ class ObjectNode(Node):
         )
 
     def _construct(self):
-        cls = gettype(self.module_name, self.class_name)
+        cls: type[object] = gettype(self.module_name, self.class_name)
 
         # Instead of simply constructing the instance, we use __new__, which
         # bypasses the __init__, and then we set the attributes. This solves the
@@ -494,11 +483,12 @@ class ObjectNode(Node):
         # might not be valid until all its attributes have been set below.
         instance = cls.__new__(cls)
 
-        if not self.children["attrs"]:
+        attrs_node = self.attrs
+        if attrs_node is None:
             # nothing more to do
             return instance
 
-        attrs = self.children["attrs"].construct()
+        attrs = attrs_node.construct()
         if attrs is not None:
             if hasattr(instance, "__setstate__"):
                 instance.__setstate__(attrs)
@@ -532,7 +522,7 @@ class MethodNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: list[str] | None = None,
+        trusted: TrustedTypes | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         obj = get_tree(state["content"]["obj"], load_context, trusted=trusted)
@@ -542,28 +532,20 @@ class MethodNode(Node):
                 f" {obj.module_name}.{obj.class_name}. This is probably due to a"
                 " corrupted or a malicious file."
             )
-        self.children = {
-            "obj": obj,
-            "func": state["content"]["func"],
-        }
+        self.obj = obj
+        self.func: str = state["content"]["func"]
+        self.children = {"obj": self.obj, "func": self.func}
         # TODO: what do we trust?
         self.trusted = self._get_trusted(trusted, [])
 
     def get_unsafe_set(self) -> set[str]:
         res = super().get_unsafe_set()
-        obj_node = self.children["obj"]
-        res.add(
-            obj_node.module_name  # pyrefly: ignore[missing-attribute]
-            + "."
-            + obj_node.class_name  # pyrefly: ignore[missing-attribute]
-            + "."
-            + self.children["func"]
-        )
+        res.add(f"{self.obj.module_name}.{self.obj.class_name}.{self.func}")
         return res
 
     def _construct(self):
-        loaded_obj = self.children["obj"].construct()
-        method = getattr(loaded_obj, self.children["func"])
+        loaded_obj = self.obj.construct()
+        method = getattr(loaded_obj, self.func)
         return method
 
 
@@ -576,7 +558,7 @@ class JsonNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: list[str] | None = None,
+        trusted: TrustedTypes | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.content = state["content"]
@@ -629,18 +611,20 @@ class BytesNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: list[str] | None = None,
+        trusted: TrustedTypes | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.trusted = self._get_trusted(trusted, [bytes])
-        self.children = {"content": io.BytesIO(load_context.src.read(state["file"]))}
+        self.content = io.BytesIO(load_context.src.read(state["file"]))
+        self.children = {"content": self.content}
 
-    def _construct(self):
-        content = self.children["content"].getvalue()
+    def _construct(self) -> Any:
+        # ``Any`` since ``BytearrayNode`` overrides this to return a bytearray
+        content = self.content.getvalue()
         return content
 
     def format(self):
-        content = self.children["content"].getvalue()
+        content = self.content.getvalue()
         byte_repr = arepr.repr(content)
         return byte_repr
 
@@ -650,7 +634,7 @@ class BytearrayNode(BytesNode):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: list[str] | None = None,
+        trusted: TrustedTypes | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.trusted = self._get_trusted(trusted, [bytearray])
@@ -680,7 +664,7 @@ class OperatorFuncNode(Node):
         self,
         state: dict[str, Any],
         load_context: LoadContext,
-        trusted: list[str] | None = None,
+        trusted: TrustedTypes | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
         if self.module_name != "operator":
@@ -689,11 +673,12 @@ class OperatorFuncNode(Node):
                 " due to a corrupted or a malicious file."
             )
         self.trusted = self._get_trusted(trusted, [])
-        self.children["attrs"] = get_tree(state["attrs"], load_context, trusted=trusted)
+        self.attrs = get_tree(state["attrs"], load_context, trusted=trusted)
+        self.children = {"attrs": self.attrs}
 
     def _construct(self):
         op = getattr(operator, self.class_name)
-        attrs = self.children["attrs"].construct()
+        attrs = self.attrs.construct()
         return op(*attrs)
 
 

@@ -11,7 +11,7 @@ from functools import cached_property
 from hashlib import sha256
 from pathlib import Path
 from reprlib import Repr
-from typing import Any, Iterator, Literal
+from typing import TYPE_CHECKING, Any, Iterator, Literal
 
 import joblib
 from prettytable import PrettyTable, TableStyle
@@ -19,13 +19,22 @@ from sklearn.utils import estimator_html_repr
 
 from skops.card._templates import CONTENT_PLACEHOLDER, SKOPS_TEMPLATE, Templates
 from skops.io import load
+from skops.io._utils import TrustedTypes
 from skops.utils._fixes import boxplot
 from skops.utils.importutils import import_or_raise
+
+if sys.version_info >= (3, 10):
+    from typing import TypeGuard
+else:
+    from typing_extensions import TypeGuard
 
 if sys.version_info >= (3, 11):
     from typing import Self
 else:
     from typing_extensions import Self
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 VALID_TEMPLATES = {item.value for item in Templates}
 NEED_SECTION_ERR_MSG = (
@@ -174,28 +183,33 @@ class PlotSection(Section):
         return f"{self.__class__.__name__}({self.path})"
 
 
+def _is_pandas_dataframe(table: object) -> TypeGuard[pd.DataFrame]:
+    """Check whether ``table`` is a pandas DataFrame, without requiring pandas."""
+    try:
+        import pandas as pd
+    except ImportError:
+        return False
+    return isinstance(table, pd.DataFrame)
+
+
 @dataclass
 class TableSection(Section):
     """Adds a table to the model card"""
 
-    table: Mapping[str, list[Any]] = field(default_factory=dict)
+    table: Mapping[str, list[Any]] | pd.DataFrame = field(default_factory=dict)
     folded: bool = False
 
     def __post_init__(self) -> None:
         self._check_table()
 
     def _check_table(self) -> None:
-        try:
-            import pandas as pd
-
-            self._is_pandas_df = isinstance(self.table, pd.DataFrame)
-        except ImportError:
-            self._is_pandas_df = False
-
-        if self._is_pandas_df:
-            ncols = len(self.table.columns)  # pyrefly: ignore[missing-attribute]
+        table = self.table
+        if _is_pandas_dataframe(table):
+            self._is_pandas_df = True
+            ncols = len(table.columns)
         else:
-            ncols = len(self.table)
+            self._is_pandas_df = False
+            ncols = len(table)
         if ncols == 0:
             raise ValueError("Trying to add table with no columns")
 
@@ -206,7 +220,7 @@ class TableSection(Section):
             # replace \n with <br /> (html new line tag) so that line breaks are
             # not converted into new rows with PrettyTable.
             values = [str(value).replace("\n", "<br />") for value in values]
-            table.add_column(key, values)
+            table.add_column(str(key), values)
 
         table = table.get_string()
 
@@ -217,18 +231,19 @@ class TableSection(Section):
         return val
 
     def __repr__(self) -> str:
-        if self._is_pandas_df:
-            nrows, ncols = self.table.shape  # pyrefly: ignore[missing-attribute]
+        table = self.table
+        if _is_pandas_dataframe(table):
+            nrows, ncols = table.shape
         else:
             # table cannot be empty, so no checks needed here
-            ncols = len(self.table)
-            key = next(iter(self.table.keys()))
-            nrows = len(self.table[key])
+            ncols = len(table)
+            key = next(iter(table.keys()))
+            nrows = len(table[key])
         return f"{self.__class__.__name__}({nrows}x{ncols})"
 
 
 def _load_model(
-    model: Any, trusted: list[str] | None = None, allow_pickle: bool = False
+    model: Any, trusted: TrustedTypes | None = None, allow_pickle: bool = False
 ) -> Any:
     """Return a model instance.
 
@@ -240,7 +255,7 @@ def _load_model(
     model : pathlib.Path, str, or sklearn estimator
         Path/str or the actual model instance. if a Path or str, loads the model.
 
-    trusted: list of str, default=None
+    trusted: list of str or type, default=None
         Passed to :func:`skops.io.load` if the model is a file path and it's
         a `skops` file.
 
@@ -331,7 +346,7 @@ class Card:
         not work, e.g. :meth:`Card.add_metrics`, since it's not clear where to
         put the metrics when there is no template or a custom template.
 
-    trusted: list of str, default=None
+    trusted: list of str or type, default=None
         Passed to :func:`skops.io.load` if the model is a file path and it's
         a `skops` file.
 
@@ -403,7 +418,7 @@ class Card:
         model_format: Literal["pickle", "skops"] | None = None,
         model_diagram: bool | Literal["auto"] | str = "auto",
         template: Literal["skops"] | dict[str, str] | None = "skops",
-        trusted: list[str] | None = None,
+        trusted: TrustedTypes | None = None,
         allow_pickle: bool = False,
     ) -> None:
         self.model = model
@@ -899,7 +914,7 @@ class Card:
         *,
         description: str | None = None,
         folded: bool = False,
-        **kwargs: dict["str", list[Any]],
+        **kwargs: Mapping[str, list[Any]] | pd.DataFrame,
     ) -> Self:
         """Add a table to the model card.
 
