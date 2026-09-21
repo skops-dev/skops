@@ -20,7 +20,7 @@ TrustedTypes = Sequence[Union[str, Type[Any]]]
 
 # The following two functions are copied from cpython's pickle.py file.
 # ---------------------------------------------------------------------
-def _getattribute(obj, name):
+def _getattribute(obj, name):  # pragma: no cover
     parent = obj
     for subpath in name.split("."):
         if subpath == "<locals>":
@@ -49,7 +49,7 @@ def whichmodule(obj: Any, name: str) -> str:
     # with a default avoids raising and catching an exception for every module
     # that lacks the attribute, which keeps this loop cheap in processes with
     # many loaded modules. Dotted names keep going through ``_getattribute``
-    # for its ``<locals>`` handling.
+    # for its ``<locals>`` handling; skops itself only passes ``__name__``.
     with warnings.catch_warnings():
         # this is to silence numpy.core import warnings
         warnings.simplefilter("ignore", DeprecationWarning)
@@ -64,7 +64,7 @@ def whichmodule(obj: Any, name: str) -> str:
             ):
                 continue
             try:
-                if "." in name:
+                if "." in name:  # pragma: no cover
                     found = _getattribute(module, name)[0]
                 else:
                     found = getattr(module, name, None)
