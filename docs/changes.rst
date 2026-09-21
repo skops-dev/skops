@@ -11,6 +11,10 @@ skops Changelog
 
 v0.16
 -----
+- Importing ``skops.io`` is faster: resolving the module of objects without
+  ``__module__``, such as scipy ufuncs, no longer raises and catches an
+  exception for every loaded module that lacks the attribute. :pr:`543` by
+  `Adrin Jalali`_.
 - The ``trusted`` argument of :func:`skops.io.load`, :func:`skops.io.loads`,
   :func:`skops.io.visualize` and :class:`skops.card.Card` now officially accepts
   types in addition to their fully qualified names, and :func:`skops.io.load`
