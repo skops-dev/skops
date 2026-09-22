@@ -1,5 +1,6 @@
 import sys
-from types import ModuleType
+from types import FrameType, ModuleType
+from typing import Any
 
 import numpy as np
 import pytest
@@ -90,3 +91,33 @@ def test_whichmodule_ignores_import_errors_from_lazy_modules(monkeypatch):
 
     obj = type("T", (), {"__module__": None, "__name__": "target"})()
     assert whichmodule(obj, obj.__name__) == "__main__"
+
+
+def test_whichmodule_does_not_raise_for_every_module(monkeypatch):
+    # Objects without ``__module__`` (e.g. scipy ufuncs) make ``whichmodule``
+    # scan ``sys.modules``. Raising and catching an exception for every module
+    # lacking the attribute makes that scan slow. Plant plain modules and check
+    # that the scan raises far fewer exceptions than there are modules.
+    n_modules = 500
+    for i in range(n_modules):
+        name = f"plain_module_for_skops_tests_{i}"
+        monkeypatch.setitem(sys.modules, name, ModuleType(name))
+    obj = type("T", (), {"__module__": None, "__name__": "target"})()
+
+    n_raised = 0
+
+    def tracer(frame: FrameType, event: str, arg: Any) -> Any:
+        nonlocal n_raised
+        if event == "exception":
+            n_raised += 1
+        return tracer
+
+    previous = sys.gettrace()
+    sys.settrace(tracer)
+    try:
+        result = whichmodule(obj, obj.__name__)
+    finally:
+        sys.settrace(previous)
+
+    assert result == "__main__"
+    assert n_raised < n_modules

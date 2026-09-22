@@ -20,7 +20,7 @@ TrustedTypes = Sequence[Union[str, Type[Any]]]
 
 # The following two functions are copied from cpython's pickle.py file.
 # ---------------------------------------------------------------------
-def _getattribute(obj, name):
+def _getattribute(obj, name):  # pragma: no cover
     parent = obj
     for subpath in name.split("."):
         if subpath == "<locals>":
@@ -44,23 +44,34 @@ def whichmodule(obj: Any, name: str) -> str:
     module_name = getattr(obj, "__module__", None)
     if module_name is not None:
         return module_name
-    # Protect the iteration by using a list copy of sys.modules against dynamic
-    # modules that trigger imports of other modules upon calls to getattr.
-    for module_name, module in sys.modules.copy().items():
-        if (
-            module_name == "__main__"
-            or module_name == "__mp_main__"  # bpo-42406
-            or module is None
-        ):
-            continue
-        try:
-            with warnings.catch_warnings():
-                # this is to silence numpy.core import warnings
-                warnings.simplefilter("ignore", DeprecationWarning)
-                if _getattribute(module, name)[0] is obj:
-                    return module_name
-        except (AttributeError, ImportError):
-            pass
+    # Objects without ``__module__`` (e.g. scipy ufuncs) are searched for in
+    # every loaded module, in import order, until the first match. A ``getattr``
+    # with a default avoids raising and catching an exception for every module
+    # that lacks the attribute, which keeps this loop cheap in processes with
+    # many loaded modules. Dotted names keep going through ``_getattribute``
+    # for its ``<locals>`` handling; skops itself only passes ``__name__``.
+    with warnings.catch_warnings():
+        # this is to silence numpy.core import warnings
+        warnings.simplefilter("ignore", DeprecationWarning)
+        # Protect the iteration by using a list copy of sys.modules against
+        # dynamic modules that trigger imports of other modules upon calls to
+        # getattr.
+        for module_name, module in sys.modules.copy().items():
+            if (
+                module_name == "__main__"
+                or module_name == "__mp_main__"  # bpo-42406
+                or module is None
+            ):
+                continue
+            try:
+                if "." in name:  # pragma: no cover
+                    found = _getattribute(module, name)[0]
+                else:
+                    found = getattr(module, name, None)
+            except (AttributeError, ImportError):
+                continue
+            if found is obj:
+                return module_name
     return "__main__"
 
 
