@@ -150,8 +150,8 @@ steps:
 The ``dry_run`` option of the workflow runs everything up to and including the
 build without pushing, publishing, tagging or opening a pull request, which is
 useful to try changes to the workflow, also on a fork; it is also the only way
-to start the workflow for a new minor release from a branch other than
-``main``. A failed run can be started again with the same version: the release
+to start the workflow from a branch other than ``main``. A failed run can be
+started again with the same version: the release
 branch and a TestPyPI upload from the earlier run are reused, after checking
 that the files on TestPyPI are the ones the new run built. If the release
 branch changed in between, the check fails, and since file names can never be

@@ -210,6 +210,19 @@ def test_verify_upload_rejects_missing_files(dist: list[Path]) -> None:
         release.verify_upload("https://pypi.org", "0.16.0", dist, fetch=fetch)
 
 
+def test_verify_upload_rejects_extra_files(dist: list[Path]) -> None:
+    def fetch(index_url: str, version: str) -> dict[str, str]:
+        digests = {path.name: sha256(path.read_bytes()) for path in dist}
+        digests["skops-0.16.0-py3-none-win_amd64.whl"] = sha256(b"an earlier build")
+        return digests
+
+    with pytest.raises(
+        SystemExit,
+        match="has files this run did not build: skops-0.16.0-py3-none-win_amd64.whl",
+    ):
+        release.verify_upload("https://pypi.org", "0.16.0", dist, fetch=fetch)
+
+
 def test_main_meta(capsys: pytest.CaptureFixture[str]) -> None:
     release.main(["meta", "0.16.1"])
     assert capsys.readouterr().out == (

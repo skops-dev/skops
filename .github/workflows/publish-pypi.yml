@@ -92,11 +92,12 @@ jobs:
           IS_PATCH: ${{ steps.meta.outputs.is_patch }}
           DRY_RUN: ${{ inputs.dry_run }}
         run: |
-          # A new minor release is cut from main; a dry run may come from anywhere
-          # (e.g. a branch that changes this workflow) since it pushes nothing.
-          if [ "$IS_PATCH" != "true" ] && [ "$DRY_RUN" != "true" ] \
-              && [ "$GITHUB_REF_NAME" != "main" ]; then
-            echo "::error::A new minor release must be started from main, not from $GITHUB_REF_NAME."
+          # A release is started from main, so that this workflow and the release
+          # script come from main and a new minor release is cut from main. Only a
+          # dry run may come from anywhere (e.g. a branch that changes this
+          # workflow) since it pushes nothing.
+          if [ "$DRY_RUN" != "true" ] && [ "$GITHUB_REF_NAME" != "main" ]; then
+            echo "::error::A release must be started from main, not from $GITHUB_REF_NAME."
             exit 1
           fi
           if git ls-remote --exit-code --heads origin "$BRANCH" > /dev/null; then
@@ -199,23 +200,25 @@ jobs:
         run: |
           python -m venv "$RUNNER_TEMP/smoke"
           python="$RUNNER_TEMP/smoke/bin/python"
-          # Dependencies come from PyPI; skops itself can only come from TestPyPI
-          # since this version is not on PyPI yet. The index needs a moment to
-          # pick up a new release, so retry for a few minutes.
+          # Only the skops wheel comes from TestPyPI, without dependencies: anyone
+          # can upload anything there, so TestPyPI must never be an index for
+          # resolving dependencies. The index needs a moment to pick up a new
+          # release, so retry for a few minutes.
           for attempt in $(seq 1 10); do
-            if "$python" -m pip install --quiet \
+            if "$python" -m pip download --quiet --no-deps --only-binary :all: \
                 --index-url https://test.pypi.org/simple/ \
-                --extra-index-url https://pypi.org/simple/ \
-                "skops==$VERSION"; then
+                --dest "$RUNNER_TEMP/testpypi" "skops==$VERSION"; then
               break
             fi
             if [ "$attempt" = 10 ]; then
-              echo "::error::Could not install skops==$VERSION from TestPyPI."
+              echo "::error::Could not download skops==$VERSION from TestPyPI."
               exit 1
             fi
             echo "skops $VERSION is not on TestPyPI yet, retrying in 30 seconds"
             sleep 30
           done
+          # Dependencies are resolved from PyPI only, the default index.
+          "$python" -m pip install --quiet "$RUNNER_TEMP"/testpypi/skops-*.whl
           "$python" - <<'EOF'
           import os
 
@@ -302,9 +305,9 @@ jobs:
       - name: Bump the version and add a changelog section on a new branch
         id: bump
         run: |
-          # Branch off the current tip of the branch the release was cut from,
-          # which may have moved on while the release waited for approvals.
-          git fetch origin "$GITHUB_REF_NAME"
+          # Branch off the current tip of main, which may have moved on while the
+          # release waited for approvals.
+          git fetch origin main
           git switch --create "start-$NEXT_MINOR.dev0" FETCH_HEAD
           python scripts/release.py start-dev "$NEXT_MINOR" | tee -a "$GITHUB_OUTPUT"
           git diff
@@ -319,14 +322,14 @@ jobs:
           branch="start-$NEXT_DEV"
           git commit --all --message "MNT start new version $NEXT_DEV"
           git push origin "HEAD:refs/heads/$branch"
-          body="Follow-up to the $VERSION release: set the version on \`$GITHUB_REF_NAME\` to"
+          body="Follow-up to the $VERSION release: set the version on \`main\` to"
           body="$body \`$NEXT_DEV\` and add an empty \`$NEXT_SECTION\` section to the changelog."
-          if ! gh pr create --base "$GITHUB_REF_NAME" --head "$branch" \
+          if ! gh pr create --base main --head "$branch" \
               --title "MNT start new version $NEXT_DEV" --body "$body"; then
             echo "::error::Could not open the pull request. Is 'Allow GitHub Actions" \
               "to create and approve pull requests' enabled in the repository" \
               "settings, or does a pull request for $branch exist already? The" \
               "branch is pushed, so the pull request can be opened by hand:" \
-              "https://github.com/$GITHUB_REPOSITORY/compare/$GITHUB_REF_NAME...$branch"
+              "https://github.com/$GITHUB_REPOSITORY/compare/main...$branch"
             exit 1
           fi

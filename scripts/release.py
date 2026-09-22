@@ -251,6 +251,15 @@ def verify_upload(
             )
         print(f"{path.name} matches the file on {index_url}")
 
+    unexpected = sorted(set(digests) - {path.name for path in files})
+    if unexpected:
+        raise SystemExit(
+            f"skops {version} on {index_url} has files this run did not build:"
+            f" {', '.join(unexpected)}. An earlier run uploaded a different skops"
+            f" {version}. File names cannot be reused on a PyPI index, so release a"
+            " new version instead."
+        )
+
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
