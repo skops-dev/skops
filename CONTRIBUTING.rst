@@ -105,48 +105,52 @@ scikit-learn and all other required dependencies with:
 Releases
 ========
 
-Releases are created using `manual GitHub workflows
-<https://docs.github.com/en/actions/managing-workflow-runs/manually-running-a-workflow>`_.
-As a maintainer, follow these steps:
+A release is one run of the `Release workflow
+<https://github.com/skops-dev/skops/actions/workflows/publish-pypi.yml>`__.
+Given a version, it cuts the release branch, sets the version, builds and
+checks the package, publishes it to TestPyPI and then to PyPI, tags the
+release, creates the GitHub release, and opens a pull request that moves
+``main`` on to the next development version. As a maintainer, follow these
+steps:
 
-1. Check and update the ``docs/changes.rst``
-2. For a major release, create a new branch with the name "0.version.X", e.g.
-   "0.2.X". This branch will have all tags for all releases under 0.2.
-3. Bump the version defined in ``skops/__init__.py``
-4. Git grep for any TODO's that need fixing before the release (e.g.
-   deprecations). You can do this, for example by:
+1. Make sure ``docs/changes.rst`` has a complete section for the release. The
+   section is named like the tag: ``v0.16`` for version ``0.16.0`` and
+   ``v0.16.1`` for a bug fix release ``0.16.1``. The workflow refuses to release
+   a version whose section is missing or empty.
+2. Git grep for any TODO's that need fixing before the release (e.g.
+   deprecations):
 
    .. code:: bash
 
       git grep -n TODO
 
+3. Start the `Release workflow
+   <https://github.com/skops-dev/skops/actions/workflows/publish-pypi.yml>`__
+   from the ``main`` branch and enter the version to release, e.g. ``0.16.0``.
+   This cuts the ``0.16.X`` branch from ``main``. For a bug fix release, e.g.
+   ``0.16.1``, the ``0.16.X`` branch must already contain the backported fixes;
+   the workflow then releases from that branch and leaves ``main`` alone.
+4. The workflow builds and checks the package, then pauses for a maintainer to
+   approve the ``publish-pypi`` environment before publishing to **TestPyPI**.
+   Check the release `on TestPyPI <https://test.pypi.org/project/skops/>`_, then
+   approve the environment a second time to publish to **PyPI**. After that
+   the workflow pushes the tag, creates the `GitHub release
+   <https://github.com/skops-dev/skops/releases>`_ with generated notes, and,
+   for a new minor release, opens a pull request against ``main`` that bumps
+   the version to the next development version and adds an empty changelog
+   section for it.
+5. Merge that pull request, and the pull request that the conda-forge bot opens
+   on the `feedstock <https://github.com/conda-forge/skops-feedstock>`_. If any
+   dependency versions changed, make sure they are reflected in the feedstock
+   recipe.
+6. Check that the documentation for the new version was built correctly on
+   `readthedocs <https://readthedocs.org/projects/skops/builds/>`_, and make
+   sure all relevant releases are *active*.
 
-5. Create a PR with all the changes and have it reviewed and merged
-6. Use the `GitHub action
-   <https://github.com/skops-dev/skops/actions/workflows/publish-pypi.yml>`__ to
-   create a new release on **TestPyPI**. Check it for correctness `on test.pypi
-   <https://test.pypi.org/project/skops/>`_.
-
-7. Create a tag with the format "v0.version", e.g. "v0.2", and push it to the
-   remote repository. Use this tag for releasing the package. If there is a
-   minor release under the same branch, it would be "v0.2.1" for example.
-
-   .. code:: bash
-
-      git tag v0.2
-      git push origin v0.2
-
-8. Use the `GitHub action
-   <https://github.com/skops-dev/skops/actions/workflows/publish-pypi.yml>`__ to
-   create a new release on **PyPI**. Check it for correctness `pypi
-   <https://pypi.org/project/skops/>`_.
-9. Create a `new release <https://github.com/skops-dev/skops/releases>`_ on
-   GitHub
-10. Update the patch version of the package to a new dev version, e.g. from
-   ``v0.3.dev0`` to ``v0.4.dev0``
-11. Add a section for the new release in the ``docs/changes.rst`` file.
-12. Check that the new stable branch of documentation was built correctly on
-    `readthedocs <https://readthedocs.org/projects/skops/builds/>`_, and make
-    sure all relevant releases are *active*.
-13. If any dependency versions are changed, make sure it's reflected in the `conda-forge
-    feedstock <https://github.com/conda-forge/skops-feedstock>`_.
+The ``dry_run`` option of the workflow runs everything up to and including the
+build without pushing, publishing, tagging or opening a pull request, which is
+useful to try changes to the workflow, also on a fork. Should the workflow fail
+after the package was published, the remaining steps are small enough to do by
+hand: the tag points at the ``REL set version to ...`` commit on the release
+branch, and the version bump on ``main`` is ``python scripts/release.py
+start-dev 0.17``.

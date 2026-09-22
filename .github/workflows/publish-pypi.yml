@@ -1,49 +1,303 @@
-name: Publish to (Test)PyPI
+# Releases skops end to end. Start it from the "Actions" tab, on the main branch,
+# with the version to release: "0.16.0" for a new minor release, "0.16.1" for a
+# bug fix release from the existing 0.16.X branch. See the "Releases" section of
+# CONTRIBUTING.rst for the whole procedure.
+#
+# The jobs that publish use the "publish-pypi" environment, which requires a
+# maintainer to approve them, so the run pauses before publishing to TestPyPI and
+# again before publishing to PyPI.
+#
+# This file keeps the name publish-pypi.yml because the trusted publishers
+# configured on PyPI and TestPyPI are bound to the workflow file name and to the
+# "publish-pypi" environment. Renaming either of them breaks publishing.
+name: Release
+
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to upload to pypi'
+        description: 'Version to release, e.g. "0.16.0" (new minor) or "0.16.1" (bug fix)'
         required: true
-      pypi_repo:
-        description: 'Repo to upload to ("testpypi" or "pypi")'
-        default: 'testpypi'
-        required: true
+        type: string
+      dry_run:
+        description: "Only build and check: don't push, publish, tag or open a PR"
+        required: false
+        default: false
+        type: boolean
+
+# Never run two releases at the same time.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+defaults:
+  run:
+    # An explicit bash enables `pipefail`, so a failing command before `| tee`
+    # fails the step.
+    shell: bash
+
+env:
+  VERSION: ${{ inputs.version }}
+  GIT_AUTHOR_NAME: github-actions[bot]
+  GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+  GIT_COMMITTER_NAME: github-actions[bot]
+  GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+
+permissions: {}
 
 jobs:
-  publish:
-
+  prepare:
+    name: Cut the release branch and build
     runs-on: ubuntu-latest
-    # Specifying a GitHub environment is optional, but strongly encouraged
-    environment: publish-pypi
     permissions:
-      # IMPORTANT: this permission is mandatory for trusted publishing
+      contents: write
+    outputs:
+      branch: ${{ steps.meta.outputs.branch }}
+      tag: ${{ steps.meta.outputs.tag }}
+      is_patch: ${{ steps.meta.outputs.is_patch }}
+      next_minor: ${{ steps.meta.outputs.next_minor }}
+      sha: ${{ steps.commit.outputs.sha }}
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # All branches, to find an existing release branch.
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.x"
+
+      - name: Derive the branch, tag and changelog section from the version
+        id: meta
+        run: python scripts/release.py meta "$VERSION" | tee -a "$GITHUB_OUTPUT"
+
+      - name: Check that the version is not on PyPI yet
+        run: |
+          status=$(curl --silent --output /dev/null --write-out '%{http_code}' \
+            "https://pypi.org/pypi/skops/$VERSION/json")
+          if [ "$status" != "404" ]; then
+            echo "::error::skops $VERSION is already on PyPI (HTTP $status)."
+            exit 1
+          fi
+
+      - name: Check out the release branch
+        env:
+          BRANCH: ${{ steps.meta.outputs.branch }}
+          IS_PATCH: ${{ steps.meta.outputs.is_patch }}
+        run: |
+          if git ls-remote --exit-code --heads origin "$BRANCH" > /dev/null; then
+            echo "Releasing from the existing branch $BRANCH"
+            git switch "$BRANCH"
+          elif [ "$IS_PATCH" = "true" ]; then
+            echo "::error::A bug fix release $VERSION needs an existing $BRANCH branch."
+            exit 1
+          else
+            echo "Cutting $BRANCH from $GITHUB_REF_NAME ($GITHUB_SHA)"
+            git switch --create "$BRANCH"
+          fi
+
+      - name: Check that the changelog has a section for this release
+        run: python scripts/release.py check-changelog "$VERSION"
+
+      - name: Set the version and commit
+        id: commit
+        run: |
+          python scripts/release.py set-version "$VERSION"
+          # Nothing to commit when re-running a release whose branch was pushed.
+          if ! git diff --quiet; then
+            git commit --all --message "REL set version to $VERSION"
+          fi
+          git log --oneline -1
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Build the sdist and wheel
+        run: |
+          python -m pip install --upgrade pip build twine
+          python -m build
+          python -m twine check --strict dist/*
+
+      - name: Smoke test the wheel
+        run: |
+          python -m venv "$RUNNER_TEMP/smoke"
+          "$RUNNER_TEMP/smoke/bin/python" -m pip install --quiet dist/*.whl
+          "$RUNNER_TEMP/smoke/bin/python" - <<'EOF'
+          import os
+
+          import skops
+          import skops.io
+
+          assert skops.__version__ == os.environ["VERSION"], skops.__version__
+          assert skops.io.loads(skops.io.dumps([1, 2, 3])) == [1, 2, 3]
+          print("skops", skops.__version__, "works")
+          EOF
+
+      - name: Push the release branch
+        if: ${{ !inputs.dry_run }}
+        env:
+          BRANCH: ${{ steps.meta.outputs.branch }}
+        run: git push origin "HEAD:refs/heads/$BRANCH"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+
+  testpypi:
+    name: Publish to TestPyPI
+    needs: prepare
+    if: ${{ !inputs.dry_run && github.repository == 'skops-dev/skops' }}
+    runs-on: ubuntu-latest
+    environment:
+      name: publish-pypi
+      url: https://test.pypi.org/project/skops/${{ inputs.version }}/
+    permissions:
+      # Mandatory for trusted publishing.
       id-token: write
 
     steps:
-    - uses: actions/checkout@v7
-      with:
-        ref: ${{ github.event.inputs.version }}
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
 
-    - uses: actions/setup-python@v7
-      with:
-        python-version: '3.x'
+      - name: Publish to TestPyPI
+        uses: pypa/gh-action-pypi-publish@v1.14.2
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          # A re-run after a failure further down must not fail here.
+          skip-existing: true
 
-    - name: Install dependencies
-      run: |
-        python -m pip install -U pip
-        python -m pip install -U setuptools wheel twine build
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.x"
 
-    - name: Generate distribution archives
-      run: |
-        python -m build
+      - name: Smoke test the TestPyPI release
+        run: |
+          python -m venv "$RUNNER_TEMP/smoke"
+          python="$RUNNER_TEMP/smoke/bin/python"
+          # Dependencies come from PyPI; skops itself can only come from TestPyPI
+          # since this version is not on PyPI yet. The index needs a moment to
+          # pick up a new release, so retry for a few minutes.
+          for attempt in $(seq 1 10); do
+            if "$python" -m pip install --quiet \
+                --index-url https://test.pypi.org/simple/ \
+                --extra-index-url https://pypi.org/simple/ \
+                "skops==$VERSION"; then
+              break
+            fi
+            if [ "$attempt" = 10 ]; then
+              echo "::error::Could not install skops==$VERSION from TestPyPI."
+              exit 1
+            fi
+            echo "skops $VERSION is not on TestPyPI yet, retrying in 30 seconds"
+            sleep 30
+          done
+          "$python" - <<'EOF'
+          import os
 
-    - name: Publish package to TestPyPI
-      uses: pypa/gh-action-pypi-publish@v1.14.2
-      with:
-        repository-url: https://test.pypi.org/legacy/
-      if: ${{ github.event.inputs.pypi_repo == 'testpypi' }}
+          import skops
+          import skops.io
 
-    - name: Publish package to PyPI
-      uses: pypa/gh-action-pypi-publish@v1.14.2
-      if: ${{ github.event.inputs.pypi_repo == 'pypi' }}
+          assert skops.__version__ == os.environ["VERSION"], skops.__version__
+          assert skops.io.loads(skops.io.dumps([1, 2, 3])) == [1, 2, 3]
+          print("skops", skops.__version__, "from TestPyPI works")
+          EOF
+
+  pypi:
+    name: Publish to PyPI, tag and create the GitHub release
+    needs: [prepare, testpypi]
+    runs-on: ubuntu-latest
+    environment:
+      name: publish-pypi
+      url: https://pypi.org/project/skops/${{ inputs.version }}/
+    permissions:
+      # Mandatory for trusted publishing.
+      id-token: write
+      # To push the tag and create the release.
+      contents: write
+
+    steps:
+      # Before the artifact download: checking out cleans the workspace.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@v1.14.2
+
+      # Tagging after publishing means a failed upload never leaves a tag behind.
+      - name: Tag the release
+        env:
+          TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          git tag "$TAG"
+          git push origin "refs/tags/$TAG"
+
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          gh release create "$TAG" dist/* \
+            --verify-tag \
+            --title "$TAG" \
+            --generate-notes \
+            --notes "Changelog: https://skops.readthedocs.io/en/$TAG/changes.html"
+
+  post-release:
+    name: Start the next development version
+    needs: [prepare, pypi]
+    # A bug fix release comes from an existing release branch and leaves main alone.
+    if: ${{ needs.prepare.outputs.is_patch == 'false' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      NEXT_MINOR: ${{ needs.prepare.outputs.next_minor }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.x"
+
+      - name: Bump the version and add a changelog section on a new branch
+        id: bump
+        run: |
+          # Branch off the current tip of the branch the release was cut from,
+          # which may have moved on while the release waited for approvals.
+          git fetch origin "$GITHUB_REF_NAME"
+          git switch --create "start-$NEXT_MINOR.dev0" FETCH_HEAD
+          python scripts/release.py start-dev "$NEXT_MINOR" | tee -a "$GITHUB_OUTPUT"
+          git diff
+
+      - name: Open a pull request
+        if: ${{ steps.bump.outputs.changed == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NEXT_DEV: ${{ steps.bump.outputs.version }}
+          NEXT_SECTION: ${{ steps.bump.outputs.section }}
+        run: |
+          branch="start-$NEXT_DEV"
+          git commit --all --message "MNT start new version $NEXT_DEV"
+          git push origin "HEAD:refs/heads/$branch"
+          body="Follow-up to the $VERSION release: set the version on \`$GITHUB_REF_NAME\` to"
+          body="$body \`$NEXT_DEV\` and add an empty \`$NEXT_SECTION\` section to the changelog."
+          if ! gh pr create --base "$GITHUB_REF_NAME" --head "$branch" \
+              --title "MNT start new version $NEXT_DEV" --body "$body"; then
+            echo "::error::Could not open the pull request. Is 'Allow GitHub Actions" \
+              "to create and approve pull requests' enabled in the repository" \
+              "settings, or does a pull request for $branch exist already? The" \
+              "branch is pushed, so the pull request can be opened by hand:" \
+              "https://github.com/$GITHUB_REPOSITORY/compare/$GITHUB_REF_NAME...$branch"
+            exit 1
+          fi
