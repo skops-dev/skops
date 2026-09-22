@@ -130,8 +130,9 @@ steps:
    This cuts the ``0.16.X`` branch from ``main``. For a bug fix release, e.g.
    ``0.16.1``, the ``0.16.X`` branch must already contain the backported fixes;
    the workflow then releases from that branch and leaves ``main`` alone.
-4. The workflow builds and checks the package, then pauses for a maintainer to
-   approve the ``publish-pypi`` environment before publishing to **TestPyPI**.
+4. The workflow builds and checks the package, pushes the release branch, then
+   pauses for a maintainer to approve the ``publish-pypi`` environment before
+   publishing to **TestPyPI**.
    Check the release `on TestPyPI <https://test.pypi.org/project/skops/>`_, then
    approve the environment a second time to publish to **PyPI**. After that
    the workflow pushes the tag, creates the `GitHub release
@@ -151,12 +152,11 @@ The ``dry_run`` option of the workflow runs everything up to and including the
 build without pushing, publishing, tagging or opening a pull request, which is
 useful to try changes to the workflow; it is also the only kind of run possible
 on a fork or from a branch other than ``main``. A failed run can be started
-again with the same version: the release
-branch and a TestPyPI upload from the earlier run are reused, after checking
-that the files on TestPyPI are the ones the new run built. If the release
-branch changed in between, the check fails, and since file names can never be
-reused on PyPI or TestPyPI, the release needs a new version. Should the
-workflow fail after the package was published, the remaining steps are small
-enough to do by hand: the tag points at the ``REL set version to ...`` commit
-on the release branch, and the version bump on ``main`` is ``python
-scripts/release.py start-dev 0.17``.
+again with the same version: the release branch and a TestPyPI upload from the
+earlier run are reused, after checking that the files on TestPyPI are the ones
+the new run built. If the release branch changed in between, the check fails,
+and since file names can never be reused on PyPI or TestPyPI, the release needs
+a new version. Should the workflow fail after the package was published, the
+remaining steps are small enough to do by hand: the tag points at the ``REL set
+version to ...`` commit on the release branch, and the version bump on ``main``
+is ``python scripts/release.py start-dev 0.17``.

@@ -3,9 +3,12 @@
 # bug fix release from the existing 0.16.X branch. See the "Releases" section of
 # CONTRIBUTING.rst for the whole procedure.
 #
-# The jobs that publish use the "publish-pypi" environment, which requires a
-# maintainer to approve them, so the run pauses before publishing to TestPyPI and
-# again before publishing to PyPI.
+# The build job is read-only and also runs for dry runs, from any branch or
+# fork. Everything that writes (pushing the release branch, publishing, tagging,
+# opening the follow-up pull request) happens in later jobs that never run for a
+# dry run. The jobs that publish use the "publish-pypi" environment, which
+# requires a maintainer to approve them, so the run pauses before publishing to
+# TestPyPI and again before publishing to PyPI.
 #
 # This file keeps the name publish-pypi.yml because the trusted publishers
 # configured on PyPI and TestPyPI are bound to the workflow file name and to the
@@ -46,18 +49,18 @@ env:
 permissions: {}
 
 jobs:
-  prepare:
-    name: Cut the release branch and build
+  build:
+    name: Check and build the release
     runs-on: ubuntu-latest
     permissions:
-      # To push the release branch.
-      contents: write
+      # Read-only: this job runs for dry runs too.
+      contents: read
     outputs:
       branch: ${{ steps.meta.outputs.branch }}
       tag: ${{ steps.meta.outputs.tag }}
       is_patch: ${{ steps.meta.outputs.is_patch }}
       next_minor: ${{ steps.meta.outputs.next_minor }}
-      sha: ${{ steps.commit.outputs.sha }}
+      base: ${{ steps.branch.outputs.base }}
 
     steps:
       - name: Check that this run may release
@@ -67,7 +70,7 @@ jobs:
           # A release is started from main in skops-dev/skops, so that this
           # workflow and the release script come from main and a new minor release
           # is cut from main. Only a dry run may come from anywhere, e.g. a fork or
-          # a branch that changes this workflow, since it pushes nothing.
+          # a branch that changes this workflow, since it writes nothing.
           if [ "$DRY_RUN" = "true" ]; then
             echo "Dry run: nothing is pushed or published."
           elif [ "$GITHUB_REPOSITORY" != "skops-dev/skops" ]; then
@@ -82,6 +85,8 @@ jobs:
         with:
           # All branches, to find an existing release branch.
           fetch-depth: 0
+          # This job pushes nothing, so the token has no business in .git/config.
+          persist-credentials: false
 
       - uses: actions/setup-python@v7
         with:
@@ -114,6 +119,7 @@ jobs:
           fi
 
       - name: Check out the release branch
+        id: branch
         env:
           BRANCH: ${{ steps.meta.outputs.branch }}
           IS_PATCH: ${{ steps.meta.outputs.is_patch }}
@@ -125,23 +131,18 @@ jobs:
             echo "::error::A bug fix release $VERSION needs an existing $BRANCH branch."
             exit 1
           else
-            echo "Cutting $BRANCH from $GITHUB_REF_NAME ($GITHUB_SHA)"
-            git switch --create "$BRANCH"
+            echo "Releasing from $GITHUB_REF_NAME; the push job cuts $BRANCH from it"
           fi
+          # The push job makes sure that it starts from this same commit.
+          echo "base=$(git rev-parse HEAD)" | tee -a "$GITHUB_OUTPUT"
 
       - name: Check that the changelog has a section for this release
         run: python "$RUNNER_TEMP/release.py" check-changelog "$VERSION"
 
-      - name: Set the version and commit
-        id: commit
+      - name: Set the version
         run: |
           python "$RUNNER_TEMP/release.py" set-version "$VERSION"
-          # Nothing to commit when re-running a release whose branch was pushed.
-          if ! git diff --quiet; then
-            git commit --all --message "REL set version to $VERSION"
-          fi
-          git log --oneline -1
-          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          git diff
 
       - name: Build the sdist and wheel
         run: |
@@ -164,29 +165,85 @@ jobs:
           print("skops", skops.__version__, "works")
           EOF
 
-      - name: Push the release branch
-        if: ${{ !inputs.dry_run }}
-        env:
-          BRANCH: ${{ steps.meta.outputs.branch }}
-        run: git push origin "HEAD:refs/heads/$BRANCH"
-
       - uses: actions/upload-artifact@v7
         with:
           name: dist
           path: dist/
           if-no-files-found: error
 
+  push:
+    name: Push the release branch
+    needs: build
+    # The same conditions as the first step of the build job, so that the write
+    # token is only ever available to a release started from main.
+    if: >-
+      ${{ !inputs.dry_run
+          && github.repository == 'skops-dev/skops'
+          && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    permissions:
+      # To push the release branch.
+      contents: write
+    outputs:
+      sha: ${{ steps.commit.outputs.sha }}
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-script
+          path: ${{ runner.temp }}
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.x"
+
+      - name: Check out or cut the release branch
+        env:
+          BRANCH: ${{ needs.build.outputs.branch }}
+          BASE: ${{ needs.build.outputs.base }}
+        run: |
+          if git ls-remote --exit-code --heads origin "$BRANCH" > /dev/null; then
+            git switch "$BRANCH"
+          else
+            echo "Cutting $BRANCH from $GITHUB_REF_NAME ($GITHUB_SHA)"
+            git switch --create "$BRANCH"
+          fi
+          # The package was built from this commit plus the version change.
+          if [ "$(git rev-parse HEAD)" != "$BASE" ]; then
+            echo "::error::$BRANCH moved to $(git rev-parse HEAD) since the build" \
+              "job used it at $BASE; start the release again."
+            exit 1
+          fi
+
+      - name: Set the version, commit and push
+        id: commit
+        env:
+          BRANCH: ${{ needs.build.outputs.branch }}
+        run: |
+          python "$RUNNER_TEMP/release.py" set-version "$VERSION"
+          # Nothing to commit when re-running a release whose branch was pushed.
+          if ! git diff --quiet; then
+            git commit --all --message "REL set version to $VERSION"
+          fi
+          git log --oneline -1
+          git push origin "HEAD:refs/heads/$BRANCH"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
   testpypi:
     name: Publish to TestPyPI
-    needs: prepare
-    if: ${{ !inputs.dry_run && github.repository == 'skops-dev/skops' }}
+    # Skipped along with the push job for dry runs.
+    needs: [build, push]
     runs-on: ubuntu-latest
     environment:
       name: publish-pypi
       url: https://test.pypi.org/project/skops/${{ inputs.version }}/
     permissions:
       # Mandatory for trusted publishing, and all this job needs: it does not
-      # check out the repository, it only uses the artifacts of the prepare job.
+      # check out the repository, it only uses the artifacts of the build job.
       id-token: write
 
     steps:
@@ -253,7 +310,7 @@ jobs:
 
   pypi:
     name: Publish to PyPI, tag and create the GitHub release
-    needs: [prepare, testpypi]
+    needs: [build, push, testpypi]
     runs-on: ubuntu-latest
     environment:
       name: publish-pypi
@@ -269,7 +326,7 @@ jobs:
       # out cleans the workspace.
       - uses: actions/checkout@v7
         with:
-          ref: ${{ needs.prepare.outputs.sha }}
+          ref: ${{ needs.push.outputs.sha }}
 
       - uses: actions/download-artifact@v8
         with:
@@ -294,7 +351,7 @@ jobs:
       # Tagging after publishing means a failed upload never leaves a tag behind.
       - name: Tag the release
         env:
-          TAG: ${{ needs.prepare.outputs.tag }}
+          TAG: ${{ needs.build.outputs.tag }}
         run: |
           git tag "$TAG"
           git push origin "refs/tags/$TAG"
@@ -302,7 +359,7 @@ jobs:
       - name: Create the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ needs.prepare.outputs.tag }}
+          TAG: ${{ needs.build.outputs.tag }}
         run: |
           gh release create "$TAG" dist/* \
             --verify-tag \
@@ -312,16 +369,16 @@ jobs:
 
   post-release:
     name: Start the next development version
-    needs: [prepare, pypi]
+    needs: [build, pypi]
     # A bug fix release comes from an existing release branch and leaves main alone.
-    if: ${{ needs.prepare.outputs.is_patch == 'false' }}
+    if: ${{ needs.build.outputs.is_patch == 'false' }}
     runs-on: ubuntu-latest
     permissions:
       # To push the branch and open the pull request.
       contents: write
       pull-requests: write
     env:
-      NEXT_MINOR: ${{ needs.prepare.outputs.next_minor }}
+      NEXT_MINOR: ${{ needs.build.outputs.next_minor }}
 
     steps:
       - uses: actions/checkout@v7
