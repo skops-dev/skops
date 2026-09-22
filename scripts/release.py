@@ -195,7 +195,7 @@ def fetch_digests(index_url: str, version: str) -> dict[str, str] | None:
     """
     url = f"{index_url}/pypi/skops/{version}/json"
     try:
-        with urllib.request.urlopen(url) as response:
+        with urllib.request.urlopen(url, timeout=30) as response:
             data = json.load(response)
     except urllib.error.HTTPError as exc:
         if exc.code == 404:

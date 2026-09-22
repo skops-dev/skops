@@ -50,6 +50,7 @@ jobs:
     name: Cut the release branch and build
     runs-on: ubuntu-latest
     permissions:
+      # To push the release branch.
       contents: write
     outputs:
       branch: ${{ steps.meta.outputs.branch }}
@@ -59,6 +60,24 @@ jobs:
       sha: ${{ steps.commit.outputs.sha }}
 
     steps:
+      - name: Check that this run may release
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          # A release is started from main in skops-dev/skops, so that this
+          # workflow and the release script come from main and a new minor release
+          # is cut from main. Only a dry run may come from anywhere, e.g. a fork or
+          # a branch that changes this workflow, since it pushes nothing.
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "Dry run: nothing is pushed or published."
+          elif [ "$GITHUB_REPOSITORY" != "skops-dev/skops" ]; then
+            echo "::error::Only dry runs are possible on a fork ($GITHUB_REPOSITORY)."
+            exit 1
+          elif [ "$GITHUB_REF_NAME" != "main" ]; then
+            echo "::error::A release must be started from main, not from $GITHUB_REF_NAME."
+            exit 1
+          fi
+
       - uses: actions/checkout@v7
         with:
           # All branches, to find an existing release branch.
@@ -68,10 +87,17 @@ jobs:
         with:
           python-version: "3.x"
 
-      # The release branch may predate the script, so use the copy from the
-      # branch the workflow was started from, not from the release branch.
+      # The release branch may predate the script, so every job uses this copy
+      # from the branch the workflow was started from, never the copy on the
+      # release branch.
       - name: Keep the release script from this branch
         run: cp scripts/release.py "$RUNNER_TEMP/release.py"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-script
+          path: ${{ runner.temp }}/release.py
+          if-no-files-found: error
 
       - name: Derive the branch, tag and changelog section from the version
         id: meta
@@ -80,9 +106,10 @@ jobs:
       - name: Check that the version is not on PyPI yet
         run: |
           status=$(curl --silent --output /dev/null --write-out '%{http_code}' \
-            "https://pypi.org/pypi/skops/$VERSION/json")
+            --max-time 30 --retry 3 "https://pypi.org/pypi/skops/$VERSION/json")
           if [ "$status" != "404" ]; then
-            echo "::error::skops $VERSION is already on PyPI (HTTP $status)."
+            echo "::error::Expected HTTP 404 for skops $VERSION on PyPI but got" \
+              "$status: the version is released already, or PyPI is not reachable."
             exit 1
           fi
 
@@ -90,16 +117,7 @@ jobs:
         env:
           BRANCH: ${{ steps.meta.outputs.branch }}
           IS_PATCH: ${{ steps.meta.outputs.is_patch }}
-          DRY_RUN: ${{ inputs.dry_run }}
         run: |
-          # A release is started from main, so that this workflow and the release
-          # script come from main and a new minor release is cut from main. Only a
-          # dry run may come from anywhere (e.g. a branch that changes this
-          # workflow) since it pushes nothing.
-          if [ "$DRY_RUN" != "true" ] && [ "$GITHUB_REF_NAME" != "main" ]; then
-            echo "::error::A release must be started from main, not from $GITHUB_REF_NAME."
-            exit 1
-          fi
           if git ls-remote --exit-code --heads origin "$BRANCH" > /dev/null; then
             echo "Releasing from the existing branch $BRANCH"
             git switch "$BRANCH"
@@ -167,21 +185,24 @@ jobs:
       name: publish-pypi
       url: https://test.pypi.org/project/skops/${{ inputs.version }}/
     permissions:
-      # Mandatory for trusted publishing.
+      # Mandatory for trusted publishing, and all this job needs: it does not
+      # check out the repository, it only uses the artifacts of the prepare job.
       id-token: write
 
     steps:
-      # Before the artifact download: checking out cleans the workspace.
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.x"
-
       - uses: actions/download-artifact@v8
         with:
           name: dist
           path: dist/
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-script
+          path: ${{ runner.temp }}
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.x"
 
       - name: Publish to TestPyPI
         uses: pypa/gh-action-pypi-publish@v1.14.2
@@ -193,7 +214,7 @@ jobs:
 
       - name: Check that the files on TestPyPI are the ones built by this run
         run: |
-          python scripts/release.py verify-upload "$VERSION" \
+          python "$RUNNER_TEMP/release.py" verify-upload "$VERSION" \
             --index-url https://test.pypi.org dist/*
 
       - name: Smoke test the TestPyPI release
@@ -244,7 +265,8 @@ jobs:
       contents: write
 
     steps:
-      # Before the artifact download: checking out cleans the workspace.
+      # The release commit, to tag it. Before the artifact downloads: checking
+      # out cleans the workspace.
       - uses: actions/checkout@v7
         with:
           ref: ${{ needs.prepare.outputs.sha }}
@@ -254,15 +276,20 @@ jobs:
           name: dist
           path: dist/
 
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@v1.14.2
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-script
+          path: ${{ runner.temp }}
 
       - uses: actions/setup-python@v7
         with:
           python-version: "3.x"
 
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@v1.14.2
+
       - name: Check that the files on PyPI are the ones built by this run
-        run: python scripts/release.py verify-upload "$VERSION" dist/*
+        run: python "$RUNNER_TEMP/release.py" verify-upload "$VERSION" dist/*
 
       # Tagging after publishing means a failed upload never leaves a tag behind.
       - name: Tag the release
@@ -290,6 +317,7 @@ jobs:
     if: ${{ needs.prepare.outputs.is_patch == 'false' }}
     runs-on: ubuntu-latest
     permissions:
+      # To push the branch and open the pull request.
       contents: write
       pull-requests: write
     env:
@@ -297,6 +325,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-script
+          path: ${{ runner.temp }}
 
       - uses: actions/setup-python@v7
         with:
@@ -309,7 +342,7 @@ jobs:
           # release waited for approvals.
           git fetch origin main
           git switch --create "start-$NEXT_MINOR.dev0" FETCH_HEAD
-          python scripts/release.py start-dev "$NEXT_MINOR" | tee -a "$GITHUB_OUTPUT"
+          python "$RUNNER_TEMP/release.py" start-dev "$NEXT_MINOR" | tee -a "$GITHUB_OUTPUT"
           git diff
 
       - name: Open a pull request

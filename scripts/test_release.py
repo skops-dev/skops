@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import email.message
 import hashlib
+import io
+import json
+import urllib.error
 from pathlib import Path
 
 import pytest
@@ -221,6 +225,49 @@ def test_verify_upload_rejects_extra_files(dist: list[Path]) -> None:
         match="has files this run did not build: skops-0.16.0-py3-none-win_amd64.whl",
     ):
         release.verify_upload("https://pypi.org", "0.16.0", dist, fetch=fetch)
+
+
+def test_fetch_digests(monkeypatch: pytest.MonkeyPatch) -> None:
+    payload = {
+        "urls": [
+            {"filename": "skops-0.16.0.tar.gz", "digests": {"sha256": "abc"}},
+            {"filename": "skops-0.16.0-py3-none-any.whl", "digests": {"sha256": "def"}},
+        ]
+    }
+    urls: list[str] = []
+
+    def urlopen(url: str, timeout: float) -> io.BytesIO:
+        urls.append(url)
+        return io.BytesIO(json.dumps(payload).encode())
+
+    monkeypatch.setattr("urllib.request.urlopen", urlopen)
+    digests = release.fetch_digests("https://test.pypi.org", "0.16.0")
+    assert digests == {
+        "skops-0.16.0.tar.gz": "abc",
+        "skops-0.16.0-py3-none-any.whl": "def",
+    }
+    assert urls == ["https://test.pypi.org/pypi/skops/0.16.0/json"]
+
+
+def test_fetch_digests_unknown_release(monkeypatch: pytest.MonkeyPatch) -> None:
+    def urlopen(url: str, timeout: float) -> io.BytesIO:
+        raise urllib.error.HTTPError(
+            url, 404, "Not Found", email.message.Message(), None
+        )
+
+    monkeypatch.setattr("urllib.request.urlopen", urlopen)
+    assert release.fetch_digests("https://pypi.org", "0.16.0") is None
+
+
+def test_fetch_digests_other_errors_propagate(monkeypatch: pytest.MonkeyPatch) -> None:
+    def urlopen(url: str, timeout: float) -> io.BytesIO:
+        raise urllib.error.HTTPError(
+            url, 503, "Service Unavailable", email.message.Message(), None
+        )
+
+    monkeypatch.setattr("urllib.request.urlopen", urlopen)
+    with pytest.raises(urllib.error.HTTPError):
+        release.fetch_digests("https://pypi.org", "0.16.0")
 
 
 def test_main_meta(capsys: pytest.CaptureFixture[str]) -> None:
