@@ -68,9 +68,14 @@ jobs:
         with:
           python-version: "3.x"
 
+      # The release branch may predate the script, so use the copy from the
+      # branch the workflow was started from, not from the release branch.
+      - name: Keep the release script from this branch
+        run: cp scripts/release.py "$RUNNER_TEMP/release.py"
+
       - name: Derive the branch, tag and changelog section from the version
         id: meta
-        run: python scripts/release.py meta "$VERSION" | tee -a "$GITHUB_OUTPUT"
+        run: python "$RUNNER_TEMP/release.py" meta "$VERSION" | tee -a "$GITHUB_OUTPUT"
 
       - name: Check that the version is not on PyPI yet
         run: |
@@ -85,7 +90,15 @@ jobs:
         env:
           BRANCH: ${{ steps.meta.outputs.branch }}
           IS_PATCH: ${{ steps.meta.outputs.is_patch }}
+          DRY_RUN: ${{ inputs.dry_run }}
         run: |
+          # A new minor release is cut from main; a dry run may come from anywhere
+          # (e.g. a branch that changes this workflow) since it pushes nothing.
+          if [ "$IS_PATCH" != "true" ] && [ "$DRY_RUN" != "true" ] \
+              && [ "$GITHUB_REF_NAME" != "main" ]; then
+            echo "::error::A new minor release must be started from main, not from $GITHUB_REF_NAME."
+            exit 1
+          fi
           if git ls-remote --exit-code --heads origin "$BRANCH" > /dev/null; then
             echo "Releasing from the existing branch $BRANCH"
             git switch "$BRANCH"
@@ -98,12 +111,12 @@ jobs:
           fi
 
       - name: Check that the changelog has a section for this release
-        run: python scripts/release.py check-changelog "$VERSION"
+        run: python "$RUNNER_TEMP/release.py" check-changelog "$VERSION"
 
       - name: Set the version and commit
         id: commit
         run: |
-          python scripts/release.py set-version "$VERSION"
+          python "$RUNNER_TEMP/release.py" set-version "$VERSION"
           # Nothing to commit when re-running a release whose branch was pushed.
           if ! git diff --quiet; then
             git commit --all --message "REL set version to $VERSION"
@@ -157,6 +170,13 @@ jobs:
       id-token: write
 
     steps:
+      # Before the artifact download: checking out cleans the workspace.
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.x"
+
       - uses: actions/download-artifact@v8
         with:
           name: dist
@@ -166,12 +186,14 @@ jobs:
         uses: pypa/gh-action-pypi-publish@v1.14.2
         with:
           repository-url: https://test.pypi.org/legacy/
-          # A re-run after a failure further down must not fail here.
+          # A re-run after a failure further down must not fail here. The next
+          # step makes sure that what is on TestPyPI is what this run built.
           skip-existing: true
 
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.x"
+      - name: Check that the files on TestPyPI are the ones built by this run
+        run: |
+          python scripts/release.py verify-upload "$VERSION" \
+            --index-url https://test.pypi.org dist/*
 
       - name: Smoke test the TestPyPI release
         run: |
@@ -231,6 +253,13 @@ jobs:
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@v1.14.2
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.x"
+
+      - name: Check that the files on PyPI are the ones built by this run
+        run: python scripts/release.py verify-upload "$VERSION" dist/*
 
       # Tagging after publishing means a failed upload never leaves a tag behind.
       - name: Tag the release

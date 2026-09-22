@@ -256,7 +256,7 @@ scipy = "*"
 lint = { cmd = "pre-commit install && pre-commit run -v --all-files --show-diff-on-failure" }
 
 [tool.pixi.feature.tests.tasks]
-tests = { cmd = "pytest -vsl --cov=skops --cov-report=xml --cov-report=term-missing -m \"not inference\" skops" }
+tests = { cmd = "pytest -vsl --cov=skops --cov-report=xml --cov-report=term-missing -m \"not inference\" skops scripts/test_release.py" }
 
 [tool.pixi.environments]
 default = ["docs", "tests", "lint", "rich", "dev", "sklearn-nightly"]
