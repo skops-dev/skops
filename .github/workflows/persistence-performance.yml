@@ -15,6 +15,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@v7
+      with:
+        # hatch-vcs derives the version from git tags, so it needs them.
+        fetch-depth: 0
     - name: Set up Python
       uses: actions/setup-python@v7
       with:

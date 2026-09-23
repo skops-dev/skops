@@ -1,0 +1,4 @@
+# git archive (which GitHub uses for its source tarballs) fills in the commit and
+# tag information in this file, so that hatch-vcs can derive the version from an
+# archive that has no .git directory, e.g. in the conda-forge feedstock.
+.git_archival.txt  export-subst
