@@ -154,15 +154,20 @@ jobs:
         run: |
           python -m venv "$RUNNER_TEMP/smoke"
           "$RUNNER_TEMP/smoke/bin/python" -m pip install --quiet dist/*.whl
-          "$RUNNER_TEMP/smoke/bin/python" - <<'EOF'
+          # -I keeps the current directory, i.e. the checkout with its skops/
+          # source tree, off sys.path, so that the installed wheel is what gets
+          # imported; the first assertion makes sure of that.
+          "$RUNNER_TEMP/smoke/bin/python" -I - <<'EOF'
           import os
+          import sys
 
           import skops
           import skops.io
 
+          assert skops.__file__.startswith(sys.prefix), skops.__file__
           assert skops.__version__ == os.environ["VERSION"], skops.__version__
           assert skops.io.loads(skops.io.dumps([1, 2, 3])) == [1, 2, 3]
-          print("skops", skops.__version__, "works")
+          print("skops", skops.__version__, "from", skops.__file__, "works")
           EOF
 
       - uses: actions/upload-artifact@v7
@@ -297,15 +302,19 @@ jobs:
           done
           # Dependencies are resolved from PyPI only, the default index.
           "$python" -m pip install --quiet "$RUNNER_TEMP"/testpypi/skops-*.whl
-          "$python" - <<'EOF'
+          # -I keeps the current directory off sys.path, so that the installed
+          # wheel is what gets imported; the first assertion makes sure of that.
+          "$python" -I - <<'EOF'
           import os
+          import sys
 
           import skops
           import skops.io
 
+          assert skops.__file__.startswith(sys.prefix), skops.__file__
           assert skops.__version__ == os.environ["VERSION"], skops.__version__
           assert skops.io.loads(skops.io.dumps([1, 2, 3])) == [1, 2, 3]
-          print("skops", skops.__version__, "from TestPyPI works")
+          print("skops", skops.__version__, "from", skops.__file__, "works")
           EOF
 
   pypi:
