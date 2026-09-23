@@ -4,6 +4,7 @@ import io
 import json
 import operator
 import uuid
+import zoneinfo
 from collections import defaultdict
 from functools import partial
 from reprlib import Repr
@@ -402,12 +403,19 @@ def object_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
         pass
 
     # Then we check if the output of __reduce__ is of the form
-    # (constructor, (constructor_args,))
+    # (constructor, (constructor_args,)), optionally followed by ``None``
+    # entries for the state, list items, dict items and state setter of the
+    # pickle protocol, i.e. the constructor call alone restores the object.
+    # ``datetime.timezone`` for instance returns ``(timezone, (offset,), None)``.
     # If the constructor is the same as the object's type, then we consider it
     # safe to call it with the specified arguments.
 
     reduce_output = obj.__reduce__()
-    if len(reduce_output) == 2 and reduce_output[0] is type(obj):
+    if (
+        len(reduce_output) >= 2
+        and reduce_output[0] is type(obj)
+        and all(item is None for item in reduce_output[2:])
+    ):
         return {
             "__class__": type(obj).__name__,
             "__module__": get_module(type(obj)),
@@ -436,6 +444,20 @@ def object_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     # only have str type keys
     res["content"] = content
     return res
+
+
+def zoneinfo_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
+    # ``ZoneInfo.__reduce__`` returns ``(ZoneInfo._unpickle, (key, from_cache))``,
+    # i.e. a classmethod rather than the type, which ``object_get_state`` does
+    # not accept as a constructor. Calling the type with the key is what
+    # ``_unpickle`` does for the cached case, so the object can be persisted as
+    # a plain constructor call and loaded with ``ConstructorFromReduceNode``.
+    return {
+        "__class__": type(obj).__name__,
+        "__module__": get_module(type(obj)),
+        "__loader__": "ConstructorFromReduceNode",
+        "content": get_state((obj.key,), save_context),
+    }
 
 
 class ConstructorFromReduceNode(Node):
@@ -704,6 +726,7 @@ GET_STATE_DISPATCH_FUNCTIONS = [
     (operator.attrgetter, operator_func_get_state),
     (operator.itemgetter, operator_func_get_state),
     (operator.methodcaller, operator_func_get_state),
+    (zoneinfo.ZoneInfo, zoneinfo_get_state),
     (object, object_get_state),
 ]
 

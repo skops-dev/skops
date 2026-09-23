@@ -11,6 +11,11 @@ skops Changelog
 
 v0.16
 -----
+- Fix loading of time-zone-aware ``datetime.datetime`` and ``datetime.time``
+  objects, and of ``zoneinfo.ZoneInfo`` and ``datetime.timezone`` instances.
+  Their ``__reduce__`` output was not recognized as a constructor call, so they
+  were saved without their state and could not be loaded even when trusted.
+  :issue:`545` by `Adrin Jalali`_.
 - Importing ``skops.io`` is faster: resolving the module of objects without
   ``__module__``, such as scipy ufuncs, no longer raises and catches an
   exception for every loaded module that lacks the attribute. :pr:`543` by
