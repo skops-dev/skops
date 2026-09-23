@@ -105,14 +105,11 @@ scikit-learn and all other required dependencies with:
 Releases
 ========
 
-Releases are cut from ``main``; there are no bug fix releases of older
-versions. Pushing a tag such as ``v0.16.0`` starts the `Release workflow
-<https://github.com/skops-dev/skops/actions/workflows/publish-pypi.yml>`__,
-which builds the package, checks that the tag matches the version in
-``skops/__init__.py``, publishes to TestPyPI and then to PyPI, and creates the
-GitHub release with generated notes. Publishing waits for a maintainer to
-approve the ``publish-pypi`` environment, once for TestPyPI and once for PyPI.
-As a maintainer, follow these steps:
+The version of skops comes from git tags: tagging a commit on ``main`` with
+``v0.16.0`` makes it version ``0.16.0``, and until the next tag ``main`` builds
+as ``0.17.0.devN``. There is nothing to bump before or after a release, and
+there are no bug fix releases of older versions. As a maintainer, follow these
+steps:
 
 1. Check that ``docs/changes.rst`` has a complete section for the release, e.g.
    ``v0.16``, and git grep for any TODO's that need fixing before the release
@@ -122,31 +119,21 @@ As a maintainer, follow these steps:
 
       git grep -n TODO
 
-2. Open a pull request that sets ``__version__`` in ``skops/__init__.py`` to
-   the release version, e.g. ``0.16.0``, and merge it.
-3. Tag the merge commit with ``v`` followed by the version and push the tag to
-   ``skops-dev/skops`` (the ``upstream`` remote here):
-
-   .. code:: bash
-
-      git fetch upstream
-      git tag v0.16.0 upstream/main
-      git push upstream v0.16.0
-
-4. In the workflow run, approve the ``publish-pypi`` environment to publish to
-   **TestPyPI**. Check the release `on TestPyPI
-   <https://test.pypi.org/project/skops/>`_, then approve again to publish to
-   **PyPI**. The workflow then creates the `GitHub release
-   <https://github.com/skops-dev/skops/releases>`_.
-5. Open a pull request that sets ``__version__`` to the next development
-   version, e.g. ``0.17.dev0``, and adds an empty ``v0.17`` section at the top
-   of ``docs/changes.rst``, and merge it.
-6. Merge the pull request that the conda-forge bot opens on the `feedstock
+2. Create a `new release <https://github.com/skops-dev/skops/releases/new>`_ on
+   GitHub: enter ``v0.16.0`` as a new tag on ``main``, click "Generate release
+   notes", and publish it. This creates the tag.
+3. Use the `GitHub action
+   <https://github.com/skops-dev/skops/actions/workflows/publish-pypi.yml>`__
+   with the tag ``v0.16.0`` as the version, first for ``testpypi`` and, after
+   checking the release `on TestPyPI <https://test.pypi.org/project/skops/>`_,
+   for ``pypi``. Both runs wait for a maintainer to approve the ``publish-pypi``
+   environment.
+4. Merge the pull request that the conda-forge bot opens on the `feedstock
    <https://github.com/conda-forge/skops-feedstock>`_. If any dependency
    versions changed, make sure they are reflected in the feedstock recipe.
-7. Check that the documentation for the new version was built correctly on
+5. Check that the documentation for the new version was built correctly on
    `readthedocs <https://readthedocs.org/projects/skops/builds/>`_, and make
    sure all relevant releases are *active*.
 
-To try changes to the workflow without publishing anything, start it by hand
-from the "Actions" tab: without a tag it only builds and checks the package.
+The section for the next release in ``docs/changes.rst`` is added by the first
+pull request that has something to put in it.

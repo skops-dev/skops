@@ -1,12 +1,20 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [tool.hatch.metadata]
 license-files = ["LICENSE"]
 
+# The version comes from git tags: a tag v0.16.0 makes that commit version 0.16.0,
+# and later commits on main are 0.17.0.devN. hatch-vcs writes it to
+# skops/_version.py when the package is built or installed; that file is not
+# tracked in git. See the "Releases" section of CONTRIBUTING.rst.
 [tool.hatch.version]
-path = "skops/__init__.py"
+source = "vcs"
+raw-options = { version_scheme = "release-branch-semver" }
+
+[tool.hatch.build.hooks.vcs]
+version-file = "skops/_version.py"
 
 [project]
 name = "skops"
