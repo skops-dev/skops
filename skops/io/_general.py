@@ -3,6 +3,7 @@ from __future__ import annotations
 import io
 import json
 import operator
+import pickle
 import uuid
 import zoneinfo
 from collections import defaultdict
@@ -450,8 +451,23 @@ def zoneinfo_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     # ``ZoneInfo.__reduce__`` returns ``(ZoneInfo._unpickle, (key, from_cache))``,
     # i.e. a classmethod rather than the type, which ``object_get_state`` does
     # not accept as a constructor. Calling the type with the key is what
-    # ``_unpickle`` does for the cached case, so the object can be persisted as
-    # a plain constructor call and loaded with ``ConstructorFromReduceNode``.
+    # ``_unpickle`` does, so the object can be persisted as a plain constructor
+    # call and loaded with ``ConstructorFromReduceNode``. The ``from_cache``
+    # flag is deliberately not preserved: it only controls whether the object
+    # is the process-wide cached instance for its key, and a loaded object
+    # always is.
+    try:
+        obj.__reduce__()
+    except pickle.PicklingError as err:
+        # Objects created with ``ZoneInfo.from_file`` hold data that did not
+        # come from a key, so they cannot be loaded from one. Pickle refuses
+        # them for the same reason, and so do we, instead of writing a file
+        # that fails to load or loads different time zone data.
+        raise UnsupportedTypeException(
+            "ZoneInfo objects created with ZoneInfo.from_file are not supported,"
+            " since their time zone data cannot be loaded from a key; create the"
+            " object with ZoneInfo(key) instead."
+        ) from err
     return {
         "__class__": type(obj).__name__,
         "__module__": get_module(type(obj)),
@@ -572,7 +588,9 @@ class MethodNode(Node):
 
 
 def unsupported_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
-    raise UnsupportedTypeException(obj)
+    raise UnsupportedTypeException(
+        f"Objects of type {obj.__class__.__name__} are not supported yet."
+    )
 
 
 class JsonNode(Node):

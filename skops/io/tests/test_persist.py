@@ -3,6 +3,7 @@ import inspect
 import io
 import json
 import operator
+import struct
 import sys
 import warnings
 from collections import Counter, OrderedDict, defaultdict
@@ -1451,6 +1452,26 @@ def test_timezone_aware(obj):
     # timezones only the offset, so also check that the timezone and its name
     # were restored.
     assert repr(loaded_obj) == repr(obj)
+
+
+def test_zoneinfo_from_file_unsupported():
+    # ZoneInfo objects created from a file object are not backed by a key that
+    # could be loaded again, so dumping them is refused, as pickling is. Such
+    # an object is otherwise indistinguishable from ZoneInfo(key). The file is
+    # a minimal version 1 TZif file: no transitions and a single UTC offset.
+    tzif = (
+        b"TZif\x00"
+        + bytes(15)
+        # number of isut, isstd, leap, transition, type and abbreviation entries
+        + struct.pack(">6l", 0, 0, 0, 0, 1, 4)
+        # the single type entry: utoff, isdst, abbreviation index
+        + struct.pack(">lbb", 0, 0, 0)
+        + b"UTC\x00"
+    )
+    obj = ZoneInfo.from_file(io.BytesIO(tzif), key="UTC")
+    assert repr(obj) == repr(ZoneInfo("UTC"))
+    with pytest.raises(UnsupportedTypeException, match="ZoneInfo.from_file"):
+        dumps(obj)
 
 
 def test_slice():
