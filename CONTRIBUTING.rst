@@ -130,7 +130,10 @@ steps:
    environment.
 4. Merge the pull request that the conda-forge bot opens on the `feedstock
    <https://github.com/conda-forge/skops-feedstock>`_. If any dependency
-   versions changed, make sure they are reflected in the feedstock recipe.
+   versions changed, make sure they are reflected in the feedstock recipe. The
+   recipe builds from the GitHub source archive of the tag, which carries the
+   version in ``.git_archival.txt``, and needs ``hatch-vcs`` among its host
+   requirements.
 5. Check that the documentation for the new version was built correctly on
    `readthedocs <https://readthedocs.org/projects/skops/builds/>`_, and make
    sure all relevant releases are *active*.
