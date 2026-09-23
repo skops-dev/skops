@@ -1,5 +1,6 @@
 [build-system]
-requires = ["hatchling", "hatch-vcs"]
+# setuptools-scm 10 is the first version that knows the version scheme used below.
+requires = ["hatchling", "hatch-vcs", "setuptools-scm>=10"]
 build-backend = "hatchling.build"
 
 [tool.hatch.metadata]
@@ -11,7 +12,7 @@ license-files = ["LICENSE"]
 # tracked in git. See the "Releases" section of CONTRIBUTING.rst.
 [tool.hatch.version]
 source = "vcs"
-raw-options = { version_scheme = "release-branch-semver" }
+raw-options = { version_scheme = "semver-pep440-release-branch" }
 
 [tool.hatch.build.hooks.vcs]
 version-file = "skops/_version.py"
