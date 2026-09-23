@@ -3,7 +3,9 @@ from __future__ import annotations
 import io
 import json
 import operator
+import pickle
 import uuid
+import zoneinfo
 from collections import defaultdict
 from functools import partial
 from reprlib import Repr
@@ -402,12 +404,19 @@ def object_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
         pass
 
     # Then we check if the output of __reduce__ is of the form
-    # (constructor, (constructor_args,))
+    # (constructor, (constructor_args,)), optionally followed by ``None``
+    # entries for the state, list items, dict items and state setter of the
+    # pickle protocol, i.e. the constructor call alone restores the object.
+    # ``datetime.timezone`` for instance returns ``(timezone, (offset,), None)``.
     # If the constructor is the same as the object's type, then we consider it
     # safe to call it with the specified arguments.
 
     reduce_output = obj.__reduce__()
-    if len(reduce_output) == 2 and reduce_output[0] is type(obj):
+    if (
+        len(reduce_output) >= 2
+        and reduce_output[0] is type(obj)
+        and all(item is None for item in reduce_output[2:])
+    ):
         return {
             "__class__": type(obj).__name__,
             "__module__": get_module(type(obj)),
@@ -436,6 +445,35 @@ def object_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     # only have str type keys
     res["content"] = content
     return res
+
+
+def zoneinfo_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
+    # ``ZoneInfo.__reduce__`` returns ``(ZoneInfo._unpickle, (key, from_cache))``,
+    # i.e. a classmethod rather than the type, which ``object_get_state`` does
+    # not accept as a constructor. Calling the type with the key is what
+    # ``_unpickle`` does, so the object can be persisted as a plain constructor
+    # call and loaded with ``ConstructorFromReduceNode``. The ``from_cache``
+    # flag is deliberately not preserved: it only controls whether the object
+    # is the process-wide cached instance for its key, and a loaded object
+    # always is.
+    try:
+        obj.__reduce__()
+    except pickle.PicklingError as err:
+        # Objects created with ``ZoneInfo.from_file`` hold data that did not
+        # come from a key, so they cannot be loaded from one. Pickle refuses
+        # them for the same reason, and so do we, instead of writing a file
+        # that fails to load or loads different time zone data.
+        raise UnsupportedTypeException(
+            "ZoneInfo objects created with ZoneInfo.from_file are not supported,"
+            " since their time zone data cannot be loaded from a key; create the"
+            " object with ZoneInfo(key) instead."
+        ) from err
+    return {
+        "__class__": type(obj).__name__,
+        "__module__": get_module(type(obj)),
+        "__loader__": "ConstructorFromReduceNode",
+        "content": get_state((obj.key,), save_context),
+    }
 
 
 class ConstructorFromReduceNode(Node):
@@ -550,7 +588,9 @@ class MethodNode(Node):
 
 
 def unsupported_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
-    raise UnsupportedTypeException(obj)
+    raise UnsupportedTypeException(
+        f"Objects of type {obj.__class__.__name__} are not supported yet."
+    )
 
 
 class JsonNode(Node):
@@ -704,6 +744,7 @@ GET_STATE_DISPATCH_FUNCTIONS = [
     (operator.attrgetter, operator_func_get_state),
     (operator.itemgetter, operator_func_get_state),
     (operator.methodcaller, operator_func_get_state),
+    (zoneinfo.ZoneInfo, zoneinfo_get_state),
     (object, object_get_state),
 ]
 

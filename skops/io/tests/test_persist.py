@@ -3,13 +3,15 @@ import inspect
 import io
 import json
 import operator
+import struct
 import sys
 import warnings
 from collections import Counter, OrderedDict, defaultdict
-from datetime import datetime
+from datetime import datetime, time, timedelta, timezone
 from functools import partial, wraps
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
+from zoneinfo import ZoneInfo
 
 import joblib
 import numpy as np
@@ -1421,6 +1423,55 @@ def test_datetime():
     loaded_obj = loads(dumps(obj), trusted=[datetime])
     assert obj == loaded_obj
     assert type(obj) is datetime
+
+
+@pytest.mark.parametrize(
+    "obj",
+    [
+        ZoneInfo("UTC"),
+        ZoneInfo("Europe/Paris"),
+        timezone.utc,
+        timezone(timedelta(hours=2)),
+        timezone(timedelta(hours=-5, minutes=-30), "custom"),
+        datetime(2020, 1, 1, tzinfo=ZoneInfo("Europe/Paris")),
+        datetime(2020, 1, 1, tzinfo=timezone.utc),
+        time(1, 2, tzinfo=ZoneInfo("Asia/Tokyo")),
+        time(1, 2, tzinfo=timezone(timedelta(hours=2))),
+    ],
+    ids=repr,
+)
+def test_timezone_aware(obj):
+    # ZoneInfo reduces to a classmethod call and datetime.timezone to a 3-tuple
+    # with a None state; neither was recognized as a constructor call, so these
+    # objects could be dumped but not loaded, see gh-545.
+    dumped = dumps(obj)
+    loaded_obj = loads(dumped, trusted=get_untrusted_types(data=dumped))
+    assert type(loaded_obj) is type(obj)
+    assert loaded_obj == obj
+    # == on aware datetimes only compares the instant in time and == on
+    # timezones only the offset, so also check that the timezone and its name
+    # were restored.
+    assert repr(loaded_obj) == repr(obj)
+
+
+def test_zoneinfo_from_file_unsupported():
+    # ZoneInfo objects created from a file object are not backed by a key that
+    # could be loaded again, so dumping them is refused, as pickling is. Such
+    # an object is otherwise indistinguishable from ZoneInfo(key). The file is
+    # a minimal version 1 TZif file: no transitions and a single UTC offset.
+    tzif = (
+        b"TZif\x00"
+        + bytes(15)
+        # number of isut, isstd, leap, transition, type and abbreviation entries
+        + struct.pack(">6l", 0, 0, 0, 0, 1, 4)
+        # the single type entry: utoff, isdst, abbreviation index
+        + struct.pack(">lbb", 0, 0, 0)
+        + b"UTC\x00"
+    )
+    obj = ZoneInfo.from_file(io.BytesIO(tzif), key="UTC")
+    assert repr(obj) == repr(ZoneInfo("UTC"))
+    with pytest.raises(UnsupportedTypeException, match="ZoneInfo.from_file"):
+        dumps(obj)
 
 
 def test_slice():
