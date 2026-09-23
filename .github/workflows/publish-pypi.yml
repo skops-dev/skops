@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to upload to pypi'
+        description: 'Tag to release, e.g. "v0.16.0"'
         required: true
       pypi_repo:
         description: 'Repo to upload to ("testpypi" or "pypi")'
@@ -24,6 +24,8 @@ jobs:
     - uses: actions/checkout@v7
       with:
         ref: ${{ github.event.inputs.version }}
+        # hatch-vcs derives the version from git tags, so it needs them.
+        fetch-depth: 0
 
     - uses: actions/setup-python@v7
       with:

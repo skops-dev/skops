@@ -33,6 +33,8 @@ lib64/
 parts/
 sdist/
 var/
+# Written by hatch-vcs when the package is built or installed
+skops/_version.py
 *.egg-info/
 .installed.cfg
 *.egg
