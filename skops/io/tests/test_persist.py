@@ -1520,6 +1520,44 @@ def test_custom_reduce():
     assert obj.value == loaded_obj.value
 
 
+# This class is here as opposed to inside the test because it needs to be importable.
+# It mimics Cython extension types with a ``__cinit__`` and no ``__reduce__``,
+# such as ``pandas._libs.internals.BlockValuesRefs``, whose ``__reduce__``
+# raises instead of returning a value.
+class RaisingReduce:
+    def __init__(self):
+        self.x = 3
+
+    def __reduce__(self):
+        raise TypeError("no default __reduce__ due to non-trivial __cinit__")
+
+
+def test_reduce_raises_falls_back_to_dict():
+    # ``__reduce__`` is only called to probe for a constructor call; objects
+    # whose ``__reduce__`` raises must still be persisted through ``__dict__``,
+    # as they were before the probe was added, see gh-450.
+    dumped = dumps(RaisingReduce())
+    loaded_obj = loads(dumped, trusted=[RaisingReduce])
+    assert type(loaded_obj) is RaisingReduce
+    assert loaded_obj.x == 3
+
+
+def test_object_holding_pandas_can_be_dumped():
+    # pandas Series, DataFrame and Index objects hold a ``BlockValuesRefs``,
+    # whose ``__reduce__`` raises, so any object containing one failed to dump,
+    # see gh-450. Loading pandas objects is not supported, so only dumping and
+    # auditing are checked here. The default ``RangeIndex`` does not hold such
+    # a reference, hence the explicit index.
+    pd = pytest.importorskip("pandas")
+
+    class Holder:
+        def __init__(self):
+            self.series = pd.Series([1, 2, 3], index=["a", "b", "c"])
+
+    dumped = dumps(Holder())
+    assert "pandas.Series" in get_untrusted_types(data=dumped)
+
+
 def test_loss_get_state_unsupported_reduce():
     # loss_get_state understands the two shapes of __reduce__ output produced by
     # scikit-learn's loss classes, and refuses anything else.
