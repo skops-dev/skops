@@ -11,6 +11,7 @@ from typing import Any, Sequence, Type, Union
 from zipfile import ZipFile
 
 from ._protocol import PROTOCOL
+from .exceptions import UnsupportedTypeException
 
 # Types the user trusts to be loaded, given either by their fully qualified
 # name, e.g. "sklearn.linear_model._logistic.LogisticRegression" as returned by
@@ -128,6 +129,11 @@ class SaveContext:
     zip_file: ZipFile
     protocol: int = PROTOCOL
     memo: dict[int, Any] = field(default_factory=dict)
+    # The ids of the objects whose state is being computed right now, i.e. the
+    # path from the root object to the current one, mapped to whether a
+    # reference back to that object was found inside its own state. Used by
+    # ``get_state`` to detect circular references.
+    in_progress: dict[int, bool] = field(default_factory=dict)
 
     def memoize(self, obj: Any) -> int:
         # Currently, the only purpose for saving the object id is to make sure
@@ -221,23 +227,50 @@ def _get_state(obj, save_context: SaveContext):
     raise TypeError(f"Getting the state of type {type(obj)} is not supported yet")
 
 
+def _supports_circular_reference(value: Any, state: dict[str, Any]) -> bool:
+    """Whether a reference to ``value`` from inside its own state can be loaded.
+
+    This mirrors the ``Node`` classes whose ``_construct`` registers the
+    instance before constructing its children, see ``Node.construct``.
+    ``ListNode`` and ``SetNode`` only do so for plain lists and sets.
+    """
+    if type(value) in (list, set):
+        return True
+    return state["__loader__"] in ("DictNode", "ObjectNode")
+
+
 def get_state(value, save_context: SaveContext) -> dict[str, Any]:
     # This is a helper function to try to get the state of an object. If it
     # fails with `get_state`, we try with json.dumps, if that fails, we raise
     # the original error alongside the json error.
-
-    # TODO: This should help with fixing recursive references.
-    # if id(value) in save_context.memo:
-    #     return {
-    #         "__module__": None,
-    #         "__class__": None,
-    #         "__id__": id(value),
-    #         "__loader__": "CachedNode",
-    #     }
-
     __id__ = save_context.memoize(obj=value)
 
-    res = _get_state(value, save_context)
+    if __id__ in save_context.in_progress:
+        # We are already computing the state of ``value``, so it contains a
+        # reference to itself, directly or through its children. Instead of
+        # recursing forever, save a reference to it. When loading, ``get_tree``
+        # resolves the ``__id__`` to the node of the occurrence which holds the
+        # actual state, since that node is created before its children.
+        save_context.in_progress[__id__] = True
+        return {
+            "__class__": type(value).__name__,
+            "__module__": get_module(type(value)),
+            "__loader__": "CachedNode",
+            "__id__": __id__,
+        }
+
+    save_context.in_progress[__id__] = False
+    try:
+        res = _get_state(value, save_context)
+        if save_context.in_progress[__id__] and not _supports_circular_reference(
+            value, res
+        ):
+            raise UnsupportedTypeException(
+                f"Objects of type {type(value).__name__} which contain a"
+                " reference to themselves are not supported yet."
+            )
+    finally:
+        del save_context.in_progress[__id__]
 
     res["__id__"] = __id__
     return res

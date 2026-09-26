@@ -79,6 +79,9 @@ class DictNode(Node):
 
     def _construct(self):
         content = gettype(self.module_name, self.class_name)()
+        # Make the dict available to children which refer back to it, see
+        # ``Node.construct``.
+        self._constructed = content
         key_types = self.key_types.construct()
         for k_type, (key, val) in zip(key_types, self.content.items()):
             content[k_type(key)] = val.construct()
@@ -149,7 +152,15 @@ class ListNode(Node):
 
     def _construct(self):
         content_type = gettype(self.module_name, self.class_name)
-        return content_type([item.construct() for item in self.content])
+        if content_type is not list:
+            return content_type([item.construct() for item in self.content])
+
+        # Fill a plain list in place and make it available to children which
+        # refer back to it, see ``Node.construct``.
+        content: list[Any] = []
+        self._constructed = content
+        content.extend(item.construct() for item in self.content)
+        return content
 
 
 def set_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
@@ -179,7 +190,15 @@ class SetNode(Node):
 
     def _construct(self):
         content_type = gettype(self.module_name, self.class_name)
-        return content_type([item.construct() for item in self.content])
+        if content_type is not set:
+            return content_type([item.construct() for item in self.content])
+
+        # Fill a plain set in place and make it available to children which
+        # refer back to it, see ``Node.construct``.
+        content: set[Any] = set()
+        self._constructed = content
+        content.update(item.construct() for item in self.content)
+        return content
 
 
 def tuple_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
@@ -520,6 +539,9 @@ class ObjectNode(Node):
         # issue of required init arguments. Note that the instance created here
         # might not be valid until all its attributes have been set below.
         instance = cls.__new__(cls)
+        # Make the instance available to attributes which refer back to it, see
+        # ``Node.construct``.
+        self._constructed = instance
 
         attrs_node = self.attrs
         if attrs_node is None:
@@ -543,9 +565,13 @@ def method_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     # and prepares both to be persisted.
     owner = obj.__self__
     func_name = obj.__func__.__name__
+    # MethodNode checks these against the type of the persisted owner, so the
+    # module has to be the one of the owner's class, not the one where the
+    # method is defined, which differs when the method is inherited from a
+    # class in another module.
     res = {
         "__class__": owner.__class__.__name__,
-        "__module__": get_module(obj),
+        "__module__": get_module(type(owner)),
         "__loader__": "MethodNode",
         "content": {
             "func": func_name,

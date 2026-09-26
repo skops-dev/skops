@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from sklearn.cluster import Birch
 from sklearn.tree._tree import Tree
 
 from ._audit import Node, get_tree
@@ -104,7 +103,7 @@ except ImportError:
     LossFunction = None
 
 
-UNSUPPORTED_TYPES = {Birch}
+UNSUPPORTED_TYPES: set[type] = set()
 
 
 def reduce_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:

@@ -17,7 +17,7 @@ import joblib
 import numpy as np
 import pytest
 import sklearn
-from scipy import sparse, special
+from scipy import sparse, special, stats
 from sklearn.base import BaseEstimator, is_regressor
 from sklearn.compose import ColumnTransformer
 from sklearn.datasets import load_sample_images, make_classification, make_regression
@@ -1096,14 +1096,16 @@ class TestPersistingBoundMethods:
         loaded_1 = loaded_transformer.inverse_func.__self__
         assert loaded_0 is loaded_1
 
-    @pytest.mark.xfail(reason="Failing due to circular self reference", strict=True)
-    def test_scipy_stats(self, tmp_path):
-        from scipy import stats
-
+    def test_scipy_stats(self):
+        # Regression test for gh-184: scipy's discrete distributions keep a
+        # numpy.vectorize of one of their own bound methods as an attribute,
+        # which is a reference back to the distribution.
         estimator = FunctionTransformer(func=stats.zipf)
         dumped = dumps(estimator)
         untrusted_types = get_untrusted_types(data=dumped)
-        loads(dumped, trusted=untrusted_types)
+        loaded = loads(dumped, trusted=untrusted_types)
+        assert type(loaded.func) is type(stats.zipf)
+        assert loaded.func.pmf(2, 3) == pytest.approx(stats.zipf.pmf(2, 3))
 
 
 class CustomEstimator(BaseEstimator):
@@ -1561,3 +1563,133 @@ def test_loss_node_does_not_import_before_audit(monkeypatch):
 
     with pytest.raises(UntrustedTypesFoundException, match="malicious_mod.Payload"):
         loads(dumped)
+
+
+class CircularReferenceEstimator(BaseEstimator):
+    """Estimator whose fitted attributes refer back to it, see gh-184."""
+
+    def fit(self, X, y=None):
+        self.list_: list[object] = [123, self, 456]
+        self.dict_ = {"a": self.list_}
+        self.list_.append(self.dict_)
+        self.method_ = self.meth
+        return self
+
+    def meth(self):
+        return "called"
+
+
+def test_circular_references_are_persisted():
+    # Regression test for gh-184: objects containing references to themselves,
+    # directly, through containers, or through bound methods, used to raise a
+    # RecursionError when dumped.
+    estimator = CircularReferenceEstimator().fit(None)
+    dumped = dumps(estimator)
+    untrusted_types = get_untrusted_types(data=dumped)
+    loaded = loads(dumped, trusted=untrusted_types)
+
+    assert loaded.list_[0] == 123
+    assert loaded.list_[1] is loaded
+    assert loaded.list_[2] == 456
+    assert loaded.list_[3] is loaded.dict_
+    assert loaded.dict_["a"] is loaded.list_
+    assert loaded.method_.__self__ is loaded
+    assert loaded.method_() == "called"
+
+
+@pytest.mark.parametrize("dict_type", [dict, OrderedDict])
+def test_circular_reference_in_dict(dict_type):
+    obj = dict_type(a=1)
+    obj["self"] = obj
+    loaded = loads(dumps(obj))
+    assert type(loaded) is dict_type
+    assert loaded["a"] == 1
+    assert loaded["self"] is loaded
+
+
+def test_circular_reference_in_list():
+    obj: list[object] = [1]
+    obj.append(obj)
+    loaded = loads(dumps(obj))
+    assert loaded[0] == 1
+    assert loaded[1] is loaded
+
+
+class SetHolder:
+    """Object which is a member of one of its own attributes."""
+
+    members: set
+
+
+def test_circular_reference_through_set():
+    holder = SetHolder()
+    holder.members = {holder}
+    dumped = dumps(holder)
+    loaded = loads(dumped, trusted=get_untrusted_types(data=dumped))
+    (member,) = loaded.members
+    assert member is loaded
+
+
+def _tuple_referencing_itself():
+    obj = ([],)
+    obj[0].append(obj)
+    return obj
+
+
+def _object_array_referencing_itself():
+    obj = np.empty(1, dtype=object)
+    obj[0] = obj
+    return obj
+
+
+@pytest.mark.parametrize(
+    "make_obj, type_name",
+    [
+        (_tuple_referencing_itself, "tuple"),
+        (_object_array_referencing_itself, "ndarray"),
+    ],
+)
+def test_circular_reference_through_unsupported_type_raises(make_obj, type_name):
+    # A tuple or an array cannot be handed out before its items are
+    # constructed, so a reference to it from one of its items cannot be
+    # reconstructed. Refuse it when saving instead of producing a file that
+    # cannot be loaded.
+    msg = f"Objects of type {type_name} which contain a reference to themselves"
+    with pytest.raises(UnsupportedTypeException, match=msg):
+        dumps(make_obj())
+
+
+def test_shared_references_are_saved_in_full():
+    # Only a reference back to an object whose state is being saved is stored
+    # as a reference. An object which appears several times without referring
+    # to itself is saved in full each time, as before, so that the file format
+    # of such objects does not change. Loading still resolves them to the same
+    # instance.
+    shared = [1, 2]
+    dumped = dumps({"a": shared, "b": shared})
+    with ZipFile(io.BytesIO(dumped), "r") as zip_file:
+        schema = zip_file.read("schema.json").decode()
+    assert "CachedNode" not in schema
+
+    loaded = loads(dumped)
+    assert loaded["a"] == [1, 2]
+    assert loaded["a"] is loaded["b"]
+
+
+class EstimatorInheritingMethods(BaseEstimator):
+    """Its methods are defined in ``sklearn.base``, not in this module."""
+
+
+def test_method_defined_in_other_module():
+    # The module saved for a bound method is the module of the owner's class,
+    # which MethodNode checks the file against, not the module where the method
+    # is defined. Files of inherited methods used to be rejected as corrupted.
+    method = EstimatorInheritingMethods().get_params
+    state = get_state(method, make_save_context())
+    assert state["__module__"] == __name__
+
+    dumped = dumps(method)
+    untrusted_types = get_untrusted_types(data=dumped)
+    assert f"{__name__}.EstimatorInheritingMethods.get_params" in untrusted_types
+    loaded = loads(dumped, trusted=untrusted_types)
+    assert loaded() == method()

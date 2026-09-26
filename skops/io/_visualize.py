@@ -203,6 +203,7 @@ def walk_tree(
     node_name: str = "root",
     level: int = 0,
     is_last: bool = False,
+    _ancestors: frozenset[int] = frozenset(),
 ) -> Iterator[NodeInfo]:
     """Visit all nodes of the tree and yield their important attributes.
 
@@ -233,6 +234,11 @@ def walk_tree(
     is_last: bool (default=False)
         Whether this is the last node among its sibling nodes.
 
+    _ancestors: frozenset of int (default=frozenset())
+        The ids of the nodes on the path from the root to this node. A node
+        which is its own ancestor is a circular reference; it is shown once
+        more, but its children are not visited again.
+
     Yields
     ------
     :class:`~NodeInfo`:
@@ -258,6 +264,7 @@ def walk_tree(
                 node_name=key,
                 level=level,
                 is_last=i == num_nodes,
+                _ancestors=_ancestors,
             )
         return
 
@@ -269,6 +276,7 @@ def walk_tree(
                 node_name=node_name,
                 level=level,
                 is_last=i == num_nodes,
+                _ancestors=_ancestors,
             )
         return
 
@@ -284,10 +292,11 @@ def walk_tree(
     # Note: calling node.is_safe() on all nodes is potentially wasteful because
     # it is already a recursive call, i.e. child nodes will be checked many
     # times. A solution to this would be to add caching to its call.
+    is_circular = id(node) in _ancestors
     yield NodeInfo(
         level=level,
         key=node_name,
-        val=node.format(),
+        val=node.format() + (" (circular reference)" if is_circular else ""),
         is_self_safe=node.is_self_safe(),
         is_safe=node.is_safe(),
         is_last=is_last,
@@ -297,13 +306,14 @@ def walk_tree(
     # TODO: For better security, we should check the schema if we return early,
     # otherwise something nefarious could be hidden inside (however, if there
     # is, the node should be marked as unsafe)
-    if isinstance(node, SKIPPED_TYPES):
+    if isinstance(node, SKIPPED_TYPES) or is_circular:
         return
 
     yield from walk_tree(
         node.children,
         node_name=node_name,
         level=level + 1,
+        _ancestors=_ancestors | {id(node)},
     )
 
 
