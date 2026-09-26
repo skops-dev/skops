@@ -15,7 +15,7 @@ v0.17
   ``setup.py`` and lost when the packaging moved to ``pyproject.toml`` in
   v0.11.0, so ``skops convert`` and ``skops update`` had not been available
   from the command line since. ``python -m skops`` now also runs the CLI.
-  :pr:`547` by `Adrin Jalali`_.
+  :pr:`548` by `Adrin Jalali`_.
 
 v0.16
 -----
