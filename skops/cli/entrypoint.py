@@ -13,7 +13,7 @@ def main_cli(command_line_args=None):
         3. Add those to the function map.
     """
     entry_parser = argparse.ArgumentParser(
-        prog="Skops",
+        prog="skops",
         description="Main entrypoint for all command line Skops methods.",
         add_help=True,
     )

@@ -66,6 +66,9 @@ Repository = "http://github.com/skops-dev/skops"
 Issues = "http://github.com/skops-dev/skops/issues"
 Changelog = "https://skops.readthedocs.io/en/stable/changes.html"
 
+[project.scripts]
+skops = "skops.cli.entrypoint:main_cli"
+
 [tool.ruff]
 line-length = 88
 extend-exclude = [

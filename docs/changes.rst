@@ -9,6 +9,14 @@ skops Changelog
     :depth: 1
     :local:
 
+v0.17
+-----
+- Restore the ``skops`` command line entry point. It was declared in
+  ``setup.py`` and lost when the packaging moved to ``pyproject.toml`` in
+  v0.11.0, so ``skops convert`` and ``skops update`` had not been available
+  from the command line since. ``python -m skops`` now also runs the CLI.
+  :pr:`547` by `Adrin Jalali`_.
+
 v0.16
 -----
 - Fix loading of time-zone-aware ``datetime.datetime`` and ``datetime.time``
