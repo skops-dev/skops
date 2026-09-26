@@ -2,14 +2,19 @@ import io
 import json
 import operator
 import re
+from collections import defaultdict
 from contextlib import suppress
+from datetime import timezone
+from functools import partial
 from zipfile import ZipFile
 
+import numpy as np
 import pytest
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import FunctionTransformer
+from sklearn.tree import DecisionTreeClassifier
 
-from skops.io import dumps, get_untrusted_types
+from skops.io import dumps, get_untrusted_types, loads
 from skops.io._audit import (
     CachedNode,
     Node,
@@ -21,9 +26,11 @@ from skops.io._audit import (
 from skops.io._general import (
     DictNode,
     JsonNode,
+    ListNode,
     MethodNode,
     ObjectNode,
     OperatorFuncNode,
+    TupleNode,
     dict_get_state,
     method_get_state,
     operator_func_get_state,
@@ -343,3 +350,128 @@ def test_cached_node_resolves_to_memoized_node():
     # get_tree short-circuits on an already memoized __id__ and hands back the
     # original node instead of building a CachedNode.
     assert get_tree(cached_state, load_context, trusted=None) is node
+
+
+def _replace_child(data: bytes, keys: list[str | int], new_state: dict) -> bytes:
+    """Return a copy of a skops dump with the node at ``keys`` replaced."""
+    src = ZipFile(io.BytesIO(data))
+    schema = json.loads(src.read("schema.json"))
+    parent = schema
+    for key in keys[:-1]:
+        parent = parent[key]
+    parent[keys[-1]] = new_state
+    buffer = io.BytesIO()
+    with ZipFile(buffer, "w") as out:
+        for name in src.namelist():
+            if name == "schema.json":
+                out.writestr(name, json.dumps(schema))
+            else:
+                out.writestr(name, src.read(name))
+    return buffer.getvalue()
+
+
+# A node that is trusted by default and that no parent expects as a child.
+SLICE_STATE = {
+    "__class__": "slice",
+    "__module__": "builtins",
+    "__loader__": "SliceNode",
+    "content": {"start": None, "stop": None, "step": None},
+}
+
+_TREE = DecisionTreeClassifier(random_state=0).fit([[0.0], [1.0]], [0, 1]).tree_
+
+
+def test_get_tree_allowed_types():
+    load_context = make_load_context()
+    state = get_state((1, 2), make_save_context())
+
+    node = get_tree(state, load_context, trusted=None, allowed_types=(TupleNode,))
+    assert isinstance(node, TupleNode)
+    assert (
+        get_tree(state, load_context, trusted=None, allowed_types=(DictNode, TupleNode))
+        is node
+    )
+
+    msg = "Expected a node of type DictNode or ListNode, got TupleNode"
+    with pytest.raises(ValueError, match=msg):
+        get_tree(
+            state,
+            make_load_context(),
+            trusted=None,
+            allowed_types=(DictNode, ListNode),
+        )
+    # The node is in the memo of ``load_context`` by now and is handed back
+    # from there; the check applies to that node too.
+    with pytest.raises(ValueError, match=msg):
+        get_tree(state, load_context, trusted=None, allowed_types=(DictNode, ListNode))
+
+
+@pytest.mark.parametrize(
+    "obj, keys, expected",
+    [
+        ({"a": 1}, ["key_types"], "ListNode"),
+        (defaultdict(list), ["content", "main"], "DictNode"),
+        (partial(np.add, 1), ["content", "args"], "TupleNode"),
+        (partial(np.add, 1), ["content", "kwds"], "DictNode"),
+        (partial(np.add, 1), ["content", "namespace"], "DictNode or JsonNode"),
+        (operator.itemgetter(1), ["attrs"], "TupleNode"),
+        (timezone.utc, ["content"], "TupleNode"),
+        (np.array([1, "a"], dtype=object), ["shape"], "TupleNode"),
+        (np.ma.MaskedArray([1, 2]), ["content", "mask"], "NdArrayNode"),
+        (np.random.RandomState(0), ["content"], "DictNode"),
+        (np.random.default_rng(0), ["content", "seed_seq"], "DictNode"),
+        (np.dtype("float64"), ["content"], "NdArrayNode"),
+        (_TREE, ["content"], "DictNode or TupleNode"),
+        (_TREE, ["__reduce__", "args"], "TupleNode"),
+    ],
+    ids=[
+        "dict.key_types",
+        "defaultdict.main",
+        "partial.args",
+        "partial.kwds",
+        "partial.namespace",
+        "itemgetter.attrs",
+        "timezone.content",
+        "ndarray.shape",
+        "maskedarray.mask",
+        "randomstate.content",
+        "generator.seed_seq",
+        "dtype.content",
+        "tree.attrs",
+        "tree.args",
+    ],
+)
+def test_child_of_unexpected_node_type_is_rejected(obj, keys, expected):
+    # Each node states which kind of child its ``_construct`` relies on, and a
+    # file with any other node there is refused while the tree is built, i.e.
+    # before the audit. So neither loading nor listing the untrusted types
+    # gets as far as constructing anything from such a file, and the user is
+    # told that the file is corrupted instead of getting an unrelated error
+    # from construct, or no error at all.
+    data = _replace_child(dumps(obj), keys, SLICE_STATE)
+    msg = f"Expected a node of type {expected}, got SliceNode"
+    with pytest.raises(ValueError, match=msg):
+        get_untrusted_types(data=data)
+    with pytest.raises(ValueError, match=msg):
+        loads(data)
+
+
+def test_child_aliased_to_earlier_node_is_rejected():
+    # ``get_tree`` hands back the node it already built for an ``__id__`` it
+    # has seen before, whatever else the state says, so a file can point a
+    # child at any earlier node of the tree. The type is checked on the node
+    # that is handed back, which catches this too.
+    data = dumps([LogisticRegression(), {"a": 1}])
+    schema = json.loads(ZipFile(io.BytesIO(data)).read("schema.json"))
+    alias = {
+        "__class__": "list",
+        "__module__": "builtins",
+        "__loader__": "ListNode",
+        "__id__": schema["content"][0]["__id__"],
+    }
+    data = _replace_child(data, ["content", 1, "key_types"], alias)
+    msg = "Expected a node of type ListNode, got ObjectNode"
+    with pytest.raises(ValueError, match=msg):
+        get_untrusted_types(data=data)
+    with pytest.raises(ValueError, match=msg):
+        loads(data)

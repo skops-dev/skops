@@ -243,3 +243,27 @@ def test_random_generator_v1_missing_name_is_rejected(save_context):
     )
     with pytest.raises(ValueError, match="Could not find the bit generator name"):
         get_untrusted_types(data=broken)
+
+
+def test_random_generator_v1_wrong_child_type_is_rejected(save_context):
+    # As for the current node (see test_audit.py), the bit generator state has
+    # to be a DictNode, and a file with any other node there is refused before
+    # the audit.
+    rng = np.random.default_rng(42)
+    slice_state = {
+        "__class__": "slice",
+        "__module__": "builtins",
+        "__loader__": "SliceNode",
+        "content": {"start": None, "stop": None, "step": None},
+    }
+    broken = downgrade_state(
+        data=_dump_v1_generator(save_context, rng),
+        keys=["content", "bit_generator"],
+        old_state=slice_state,
+        protocol=1,
+    )
+    msg = "Expected a node of type DictNode, got SliceNode"
+    with pytest.raises(ValueError, match=msg):
+        get_untrusted_types(data=broken)
+    with pytest.raises(ValueError, match=msg):
+        loads(broken)

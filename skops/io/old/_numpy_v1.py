@@ -6,6 +6,7 @@ from typing import Any
 import numpy as np
 
 from skops.io._audit import Node, get_tree
+from skops.io._general import DictNode
 from skops.io._trusted_types import NUMPY_RANDOM_BIT_GENERATOR_TYPE_NAMES
 from skops.io._utils import LoadContext, TrustedTypes, gettype
 
@@ -21,7 +22,10 @@ class RandomGeneratorNode(Node):
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.bit_generator_state = get_tree(
-            state["content"]["bit_generator"], load_context, trusted=trusted
+            state["content"]["bit_generator"],
+            load_context,
+            trusted=trusted,
+            allowed_types=(DictNode,),
         )
         self.children = {"bit_generator_state": self.bit_generator_state}
         self.trusted = self._get_trusted(trusted, [np.random.Generator])

@@ -156,6 +156,8 @@ class Node:
         #    list of appropriate trusted types
         # 3. store each child in a typed attribute and mirror them in
         #    self.children; do not construct the children objects yet
+        # 4. pass ``allowed_types`` to ``get_tree`` for each child whose kind
+        #    ``_construct`` relies on, e.g. a dict of keyword arguments
         self.trusted = self._get_trusted(trusted, [])
         # ``children`` is the generic view of the node's children, used to audit
         # and visualize the tree. Subclasses read their children through the
@@ -317,6 +319,8 @@ def get_tree(
     state: dict[str, Any],
     load_context: LoadContext,
     trusted: TrustedTypes | None,
+    *,
+    allowed_types: tuple[type[Node], ...] | None = None,
 ) -> Node:
     """Get the tree of nodes.
 
@@ -341,6 +345,15 @@ def get_tree(
         objects of types listed in ``trusted`` in the dumped file. Types can be
         given by their fully qualified name or as the type itself.
 
+    allowed_types : tuple of Node subclasses, default=None
+        If given, the returned node has to be an instance of one of these
+        classes, and a ``ValueError`` is raised otherwise. A node passes this
+        for the children whose kind its ``_construct`` relies on, e.g. a
+        ``PartialNode`` requires its keyword arguments to be a ``DictNode``,
+        so that a crafted file cannot put an arbitrary node in that place.
+        The check is done on the node that is returned, so it also covers a
+        node taken from the memo through its ``__id__``.
+
     Returns
     -------
     loaded_tree : Node
@@ -353,30 +366,39 @@ def get_tree(
         # the parent node's ``construct`` method is called, and for this node
         # it'll be called more than once. But that's not an issue since the
         # node's ``construct`` method caches the instance.
-        return load_context.get_object(saved_id)
-
-    loader: str = state["__loader__"]
-    protocol = load_context.protocol
-    key = (loader, protocol)
-
-    if key in NODE_TYPE_MAPPING:
-        node_cls = NODE_TYPE_MAPPING[key]
+        loaded_tree = load_context.get_object(saved_id)
     else:
-        # What probably happened here is that we released a new protocol. If
-        # there is no specific key for the old protocol, it means it is safe to
-        # use the current protocol instead, because this node was not changed.
-        key_new = (loader, PROTOCOL)
-        try:
-            node_cls = NODE_TYPE_MAPPING[key_new]
-        except KeyError:
-            # If we still cannot find the loader for this key, something went
-            # wrong.
-            type_name = f"{state['__module__']}.{state['__class__']}"
-            raise TypeError(
-                f" Can't find loader {state['__loader__']} for type {type_name} and "
-                f"protocol {protocol}. You might need to update skops to load this "
-                "file."
-            )
+        loader: str = state["__loader__"]
+        protocol = load_context.protocol
+        key = (loader, protocol)
 
-    loaded_tree = node_cls(state, load_context, trusted=trusted)
+        if key in NODE_TYPE_MAPPING:
+            node_cls = NODE_TYPE_MAPPING[key]
+        else:
+            # What probably happened here is that we released a new protocol.
+            # If there is no specific key for the old protocol, it means it is
+            # safe to use the current protocol instead, because this node was
+            # not changed.
+            key_new = (loader, PROTOCOL)
+            try:
+                node_cls = NODE_TYPE_MAPPING[key_new]
+            except KeyError:
+                # If we still cannot find the loader for this key, something
+                # went wrong.
+                type_name = f"{state['__module__']}.{state['__class__']}"
+                raise TypeError(
+                    f" Can't find loader {state['__loader__']} for type {type_name} "
+                    f"and protocol {protocol}. You might need to update skops to "
+                    "load this file."
+                )
+
+        loaded_tree = node_cls(state, load_context, trusted=trusted)
+
+    if allowed_types is not None and not isinstance(loaded_tree, allowed_types):
+        expected = " or ".join(cls.__name__ for cls in allowed_types)
+        raise ValueError(
+            f"Expected a node of type {expected}, got "
+            f"{type(loaded_tree).__name__}. This is probably due to a corrupted "
+            "or a malicious file."
+        )
     return loaded_tree
