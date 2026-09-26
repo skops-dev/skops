@@ -16,7 +16,7 @@ v0.17
   ``functools.partial`` are stored as a dict. A file that does not is refused
   with an error while it is read, before anything in it is audited or
   constructed, instead of failing with an unrelated error, or being accepted,
-  during construction. :issue:`222` by `Adrin Jalali`_.
+  during construction. :pr:`547` by `Adrin Jalali`_.
 
 v0.16
 -----
