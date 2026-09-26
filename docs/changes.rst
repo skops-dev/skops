@@ -9,6 +9,17 @@ skops Changelog
     :depth: 1
     :local:
 
+v0.17
+-----
+- Fix a regression since v0.12.0 where saving an object whose ``__reduce__``
+  raises failed at dump time. ``__reduce__`` is called on every object to
+  detect a plain constructor call, but Cython extension types with a
+  ``__cinit__`` and no ``__reduce__`` raise instead of returning one; pandas'
+  ``BlockValuesRefs`` is such a type and sits inside every ``Series``,
+  ``DataFrame`` and ``Index``, so any object holding one could not be saved.
+  Such objects are now saved through ``__getstate__``/``__dict__`` again, as
+  before v0.12.0. :pr:`XXX` by `Adrin Jalali`_.
+
 v0.16
 -----
 - Fix loading of time-zone-aware ``datetime.datetime`` and ``datetime.time``
