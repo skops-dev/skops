@@ -11,6 +11,15 @@ skops Changelog
 
 v0.16
 -----
+- Objects which contain a reference to themselves, directly or through
+  their attributes, dicts, lists, or sets, can now be saved and loaded. They
+  used to fail with a ``RecursionError``; this affected for instance the
+  discrete distributions of ``scipy.stats`` and fitted
+  :class:`sklearn.cluster.Birch` models, which is no longer listed as
+  unsupported. Such a reference through any other type, e.g. a tuple, raises
+  an ``UnsupportedTypeException`` when saving. Bound methods inherited from a
+  class defined in another module can now be loaded, they used to be
+  rejected as corrupted. :issue:`184` by `Adrin Jalali`_.
 - Fix loading of time-zone-aware ``datetime.datetime`` and ``datetime.time``
   objects, and of ``zoneinfo.ZoneInfo`` and ``datetime.timezone`` instances.
   Their ``__reduce__`` output was not recognized as a constructor call, so they

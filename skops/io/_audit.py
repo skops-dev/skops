@@ -144,6 +144,8 @@ class Node:
         self._is_safe = None
         # the constructed object can be anything, hence ``Any``
         self._constructed: Any = UNINITIALIZED
+        # set while ``_construct`` runs, see ``construct``
+        self._constructing = False
         saved_id = state.get("__id__")
         if saved_id and memoize:
             # hold reference to obj in case same instance encountered again in
@@ -166,10 +168,33 @@ class Node:
         """Construct the object.
 
         We only construct the object once, and then cache the result.
+
+        A node is reached again while its own ``_construct`` runs when the saved
+        object contained a reference to itself, directly or through its
+        children. ``ObjectNode``, ``DictNode``, ``ListNode`` and ``SetNode``
+        support this by storing the instance in ``_constructed`` before
+        constructing the children, so the second call returns the partially
+        constructed instance, like pickle does. Any other node raises instead
+        of recursing until the interpreter gives up.
         """
         if self._constructed is not UNINITIALIZED:
             return self._constructed
-        self._constructed = self._construct()
+        if self._constructing:
+            raise ValueError(
+                f"Cannot construct an object of type {self.format()} which contains"
+                " a reference to itself. This is only supported for objects,"
+                " dicts, lists, and sets."
+            )
+
+        self._constructing = True
+        try:
+            self._constructed = self._construct()
+        except BaseException:
+            # ``_construct`` may have stored a partially constructed instance
+            self._constructed = UNINITIALIZED
+            raise
+        finally:
+            self._constructing = False
         return self._constructed
 
     def _construct(self) -> Any:
@@ -304,9 +329,6 @@ class CachedNode(Node):
         self.children = {}
 
     def _construct(self):
-        # TODO: FIXME This causes a recursion error when loading a cached
-        # object if we call the cached object's `construct``. Some refactoring
-        # is needed to fix this.
         return self.cached.construct()
 
 

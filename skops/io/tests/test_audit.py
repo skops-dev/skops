@@ -21,6 +21,7 @@ from skops.io._audit import (
 from skops.io._general import (
     DictNode,
     JsonNode,
+    ListNode,
     MethodNode,
     ObjectNode,
     OperatorFuncNode,
@@ -343,3 +344,44 @@ def test_cached_node_resolves_to_memoized_node():
     # get_tree short-circuits on an already memoized __id__ and hands back the
     # original node instead of building a CachedNode.
     assert get_tree(cached_state, load_context, trusted=None) is node
+
+
+def test_circular_reference_resolves_to_same_node():
+    # A reference back to an object whose state is being saved is stored as a
+    # CachedNode with the __id__ of that object, which get_tree resolves to the
+    # node holding the object's actual state.
+    obj: list[object] = [1]
+    obj.append(obj)
+    state = get_state(obj, make_save_context())
+    assert state["content"][1]["__loader__"] == "CachedNode"
+    assert state["content"][1]["__id__"] == state["__id__"]
+
+    node = get_tree(state, make_load_context(), trusted=None)
+    assert isinstance(node, ListNode)
+    assert node.content[1] is node
+    assert node.get_unsafe_set() == set()
+    loaded = node.construct()
+    assert loaded[1] is loaded
+
+
+def test_construct_refuses_unresolvable_circular_reference():
+    # Only nodes which can hand out a partially constructed instance resolve a
+    # reference back to themselves. For any other node, e.g. a tuple, a file
+    # claiming such a reference is refused with a clear error instead of
+    # recursing until the interpreter gives up. dumps never produces such a
+    # file, so this only happens for a corrupted or malicious one.
+    state = get_state((1, 2), make_save_context())
+    state["content"] = [
+        state["content"][0],
+        {
+            "__class__": "tuple",
+            "__module__": "builtins",
+            "__loader__": "CachedNode",
+            "__id__": state["__id__"],
+        },
+    ]
+    node = get_tree(state, make_load_context(), trusted=None)
+    # the audit terminates, and a tuple of ints is trusted
+    assert node.get_unsafe_set() == set()
+    with pytest.raises(ValueError, match="contains a reference to itself"):
+        node.construct()

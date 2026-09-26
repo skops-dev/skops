@@ -4,6 +4,7 @@ import io
 import json
 import sys
 import warnings
+from functools import wraps
 from zipfile import ZipFile
 
 import numpy as np
@@ -47,6 +48,33 @@ def _is_steps_like(obj):
     return True
 
 
+# The pairs of values being compared further up the stack, see
+# ``_skip_circular_references``.
+_COMPARING: set[tuple[int, int]] = set()
+
+
+def _skip_circular_references(func):
+    """Return early for a pair of values which is already being compared.
+
+    Objects can refer back to themselves, directly or through their
+    attributes, e.g. the tree of a fitted Birch. Comparing such a pair again
+    would recurse forever; it is being compared further up the stack already.
+    """
+
+    @wraps(func)
+    def wrapper(val1, val2, path=""):
+        key = (id(val1), id(val2))
+        if key in _COMPARING:
+            return
+        _COMPARING.add(key)
+        try:
+            return func(val1, val2, path=path)
+        finally:
+            _COMPARING.discard(key)
+
+    return wrapper
+
+
 def _assert_generic_objects_equal(val1, val2, path=""):
     def _is_builtin(val):
         # Check if value is a builtin type
@@ -76,6 +104,7 @@ def _assert_tuples_equal(val1, val2, path=""):
         _assert_vals_equal(subval1, subval2, path=f"{path}[]")
 
 
+@_skip_circular_references
 def _assert_vals_equal(val1, val2, path=""):
     if isinstance(val1, type):  # e.g. could be np.int64
         assert val1 is val2, f"Path: {path}"
@@ -155,6 +184,7 @@ def _clean_params(params):
     return params
 
 
+@_skip_circular_references
 def assert_params_equal(params1, params2, path=""):
     # helper function to compare estimator dictionaries of parameters
     if params1 is None and params2 is None:
