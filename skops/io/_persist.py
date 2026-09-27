@@ -16,7 +16,9 @@ from ._utils import SaveContext, TrustedTypes, _get_state, get_state, read_schem
 # them. Old protocols are found in the 'old/' directory, with the protocol
 # version appended to the corresponding module name.
 modules = ["._general", "._numpy", "._scipy", "._sklearn", "._quantile_forest"]
-modules.extend([".old._general_v0", ".old._numpy_v0", ".old._numpy_v1"])
+modules.extend(
+    [".old._general_v0", ".old._general_v2", ".old._numpy_v0", ".old._numpy_v1"]
+)
 for module_name in modules:
     # register exposed functions for get_state and get_tree
     module = importlib.import_module(module_name, package="skops.io")

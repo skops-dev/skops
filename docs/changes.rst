@@ -9,6 +9,14 @@ skops Changelog
     :depth: 1
     :local:
 
+v0.17
+-----
+- Fix saving of ``operator.methodcaller`` objects with keyword arguments: the
+  method name and the keyword arguments were dropped, so the saved object
+  could not be loaded. The file format now stores the keyword arguments and
+  the persistence protocol is bumped to 3; files written with an earlier
+  protocol load as before. By `Adrin Jalali`_.
+
 v0.16
 -----
 - Fix loading of time-zone-aware ``datetime.datetime`` and ``datetime.time``

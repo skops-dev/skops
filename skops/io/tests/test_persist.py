@@ -1268,6 +1268,8 @@ OPERATORS = [
     ("itemgetter", operator.itemgetter(None, None)),
     ("methodcaller", operator.methodcaller("round")),
     ("methodcaller", operator.methodcaller("round", 2)),
+    ("methodcaller", operator.methodcaller("round", decimals=2)),
+    ("methodcaller", operator.methodcaller("clip", 0, max=1)),
 ]
 
 if sys.version_info >= (3, 11):
@@ -1304,6 +1306,27 @@ def test_persist_operator(op):
     # but it would be useless in practice, since methodcaller is not properly
     # instantiated.
     est.transform(X)
+
+
+@pytest.mark.parametrize(
+    "func",
+    [
+        operator.methodcaller("upper"),
+        operator.methodcaller("replace", "a", "b"),
+        operator.methodcaller("split", "a", maxsplit=1),
+        operator.methodcaller("split", maxsplit=1),
+    ],
+    ids=["no-args", "args", "args-and-kwargs", "kwargs"],
+)
+def test_persist_methodcaller(func):
+    # methodcaller with keyword arguments reduces to a partial that holds the
+    # method name and the keyword arguments; they used to be dropped when
+    # saving, so the file could not be loaded.
+    dumped = dumps(func)
+    assert get_untrusted_types(data=dumped) == ["operator.methodcaller"]
+    loaded = loads(dumped, trusted=["operator.methodcaller"])
+    assert type(loaded) is operator.methodcaller
+    assert loaded("a b a") == func("a b a")
 
 
 @pytest.mark.parametrize("op", OPERATORS)
