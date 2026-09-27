@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import json
+import operator
 from zipfile import ZipFile
 
 import numpy as np
@@ -12,12 +13,16 @@ from scipy import special
 from sklearn.preprocessing import FunctionTransformer
 
 from skops.io import dumps, get_untrusted_types, loads
-from skops.io._utils import SaveContext, get_module, get_state
+from skops.io._audit import get_tree
+from skops.io._general import OperatorFuncNode, operator_func_get_state
+from skops.io._utils import SaveContext, get_module, get_state, read_schema
 from skops.io.exceptions import UntrustedTypesFoundException
+from skops.io.old._general_v2 import OperatorFuncNode as OperatorFuncNodeV2
 from skops.io.tests._utils import (
     assert_method_outputs_equal,
     assert_params_equal,
     downgrade_state,
+    make_load_context,
 )
 
 
@@ -284,3 +289,83 @@ def test_random_generator_v1_missing_name_is_rejected(save_context):
     )
     with pytest.raises(ValueError, match="Could not find the bit generator name"):
         get_untrusted_types(data=broken)
+
+
+def test_random_generator_v1_wrong_child_type_is_rejected(save_context):
+    # As for the current node (see test_audit.py), the bit generator state has
+    # to be a DictNode, and a file with any other node there is refused before
+    # the audit.
+    rng = np.random.default_rng(42)
+    slice_state = {
+        "__class__": "slice",
+        "__module__": "builtins",
+        "__loader__": "SliceNode",
+        "content": {"start": None, "stop": None, "step": None},
+    }
+    broken = downgrade_state(
+        data=_dump_v1_generator(save_context, rng),
+        keys=["content", "bit_generator"],
+        old_state=slice_state,
+        protocol=1,
+    )
+    msg = "Expected a node of type DictNode, got SliceNode"
+    with pytest.raises(ValueError, match=msg):
+        get_untrusted_types(data=broken)
+    with pytest.raises(ValueError, match=msg):
+        loads(broken)
+
+
+#############
+# VERSION 2 #
+#############
+
+
+@pytest.mark.parametrize(
+    "func, arg",
+    [
+        (operator.attrgetter("real"), 3.5),
+        (operator.itemgetter(1), "banana"),
+        (operator.methodcaller("replace", "a", "b"), "banana"),
+    ],
+    ids=["attrgetter", "itemgetter", "methodcaller"],
+)
+def test_operator_func_v2(save_context, func, arg):
+    # Up to protocol 2 an OperatorFuncNode state had no "kwargs" entry. Such
+    # files are read by the protocol-2 node in skops.io.old, and load and
+    # behave as before.
+
+    # operator_func_get_state as it was for protocol 2
+    def old_operator_func_get_state(obj, save_context):
+        _, attrs = obj.__reduce__()
+        return {
+            "__class__": obj.__class__.__name__,
+            "__module__": "operator",
+            "__loader__": "OperatorFuncNode",
+            "attrs": get_state(attrs, save_context),
+        }
+
+    downgraded = downgrade_state(
+        data=dumps(func),
+        keys=None,
+        old_state=old_operator_func_get_state(func, save_context),
+        protocol=2,
+    )
+    with ZipFile(io.BytesIO(downgraded)) as zip_file:
+        schema, load_context = read_schema(zip_file)
+        node = get_tree(schema, load_context, trusted=None)
+    assert isinstance(node, OperatorFuncNodeV2)
+
+    type_name = f"operator.{type(func).__name__}"
+    assert get_untrusted_types(data=downgraded) == [type_name]
+    loaded = loads(downgraded, trusted=[type_name])
+    assert loaded(arg) == func(arg)
+
+
+def test_operator_func_current_requires_kwargs(save_context):
+    # The current OperatorFuncNode requires the "kwargs" entry added in
+    # protocol 3, so it cannot read a protocol-2 state; those go through the
+    # old node instead, see test_operator_func_v2.
+    state = operator_func_get_state(operator.methodcaller("upper"), save_context)
+    del state["kwargs"]
+    with pytest.raises(KeyError, match="kwargs"):
+        OperatorFuncNode(state, make_load_context(), trusted=None)

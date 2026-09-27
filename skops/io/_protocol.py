@@ -38,4 +38,4 @@ Otherwise the fix can be bypassed by lowering the protocol number in the file.
 
 """
 
-PROTOCOL = 2
+PROTOCOL = 3
