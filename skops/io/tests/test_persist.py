@@ -1555,7 +1555,9 @@ def test_object_holding_pandas_can_be_dumped():
             self.series = pd.Series([1, 2, 3], index=["a", "b", "c"])
 
     dumped = dumps(Holder())
-    assert "pandas.Series" in get_untrusted_types(data=dumped)
+    # Depending on the pandas version, the class is reported as
+    # ``pandas.Series`` or ``pandas.core.series.Series``.
+    assert any(t.endswith(".Series") for t in get_untrusted_types(data=dumped))
 
 
 def test_loss_get_state_unsupported_reduce():
