@@ -698,7 +698,7 @@ def operator_func_get_state(obj: Any, save_context: SaveContext) -> dict[str, An
         args = constructor.args + args
         kwargs = dict(constructor.keywords)
         constructor = constructor.func
-    if constructor is not type(obj):
+    if constructor is not type(obj):  # pragma: no cover
         raise UnsupportedTypeException(
             f"Unsupported __reduce__ output for {obj.__class__.__name__}: "
             f"{obj.__reduce__()!r}"
