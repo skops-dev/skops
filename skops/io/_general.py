@@ -717,12 +717,26 @@ class BytearrayNode(BytesNode):
 
 
 def operator_func_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
-    _, attrs = obj.__reduce__()
+    constructor, args = obj.__reduce__()
+    kwargs: dict[str, Any] = {}
+    if isinstance(constructor, partial):
+        # ``methodcaller`` with keyword arguments reduces to
+        # ``(partial(methodcaller, name, **kwargs), args)``, i.e. the method
+        # name and the keyword arguments live in the partial, not in ``args``.
+        args = constructor.args + args
+        kwargs = dict(constructor.keywords)
+        constructor = constructor.func
+    if constructor is not type(obj):  # pragma: no cover
+        raise UnsupportedTypeException(
+            f"Unsupported __reduce__ output for {obj.__class__.__name__}: "
+            f"{obj.__reduce__()!r}"
+        )
     res = {
         "__class__": obj.__class__.__name__,
         "__module__": "operator",
         "__loader__": "OperatorFuncNode",
-        "attrs": get_state(attrs, save_context),
+        "attrs": get_state(args, save_context),
+        "kwargs": get_state(kwargs, save_context),
     }
     return res
 
@@ -744,12 +758,18 @@ class OperatorFuncNode(Node):
         self.attrs = get_tree(
             state["attrs"], load_context, trusted=trusted, allowed_types=(TupleNode,)
         )
-        self.children = {"attrs": self.attrs}
+        # ``kwargs`` was added in protocol 3; older files are read by the node
+        # in ``skops/io/old/_general_v2.py``
+        self.kwargs = get_tree(
+            state["kwargs"], load_context, trusted=trusted, allowed_types=(DictNode,)
+        )
+        self.children = {"attrs": self.attrs, "kwargs": self.kwargs}
 
     def _construct(self):
         op = getattr(operator, self.class_name)
         attrs = self.attrs.construct()
-        return op(*attrs)
+        kwargs = self.kwargs.construct()
+        return op(*attrs, **kwargs)
 
 
 # <class 'builtin_function_or_method'>

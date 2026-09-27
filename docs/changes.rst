@@ -32,6 +32,11 @@ v0.17
   from the command line since. ``python -m skops`` now also runs the CLI, and
   running it without a subcommand prints a usage error instead of a traceback.
   :pr:`548` by `Adrin Jalali`_.
+- Fix saving of ``operator.methodcaller`` objects with keyword arguments: the
+  method name and the keyword arguments were dropped, so the saved object
+  could not be loaded. The file format now stores the keyword arguments and
+  the persistence protocol is bumped to 3; files written with an earlier
+  protocol load as before. :pr:`551` by `Adrin Jalali`_.
 
 v0.16
 -----
