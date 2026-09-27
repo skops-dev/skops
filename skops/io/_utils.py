@@ -252,8 +252,10 @@ def get_state(value, save_context: SaveContext) -> dict[str, Any]:
         # resolves the ``__id__`` to the node of the occurrence which holds the
         # actual state, since that node is created before its children.
         save_context.in_progress[__id__] = True
+        # same type description as the state of the object itself, which
+        # ``get_tree`` checks when it resolves the reference
         return {
-            "__class__": type(value).__name__,
+            "__class__": value.__class__.__name__,
             "__module__": get_module(type(value)),
             "__loader__": "CachedNode",
             "__id__": __id__,

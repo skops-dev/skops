@@ -19,7 +19,9 @@ v0.16
   unsupported. Such a reference through any other type, e.g. a tuple, raises
   an ``UnsupportedTypeException`` when saving. Bound methods inherited from a
   class defined in another module can now be loaded, they used to be
-  rejected as corrupted. :issue:`184` by `Adrin Jalali`_.
+  rejected as corrupted. A file in which nodes of different types share an
+  ``__id__`` is now rejected when loading instead of silently loading one of
+  them in place of the other. :pr:`549` by `Adrin Jalali`_.
 - Fix loading of time-zone-aware ``datetime.datetime`` and ``datetime.time``
   objects, and of ``zoneinfo.ZoneInfo`` and ``datetime.timezone`` instances.
   Their ``__reduce__`` output was not recognized as a constructor call, so they

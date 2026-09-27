@@ -235,6 +235,30 @@ def assert_method_outputs_equal(estimator, loaded, X):
             assert_allclose_dense_sparse(X_out1, X_out2, err_msg=err_msg, atol=ATOL)
 
 
+def _unused_id(schema: dict) -> int:
+    """Return an ``__id__`` which no node of ``schema`` uses.
+
+    The ``__id__`` of a node is the ``id()`` of the object at dump time. Some of
+    those objects were temporaries which have been freed since, so the ``id()``
+    of an object created after dumping can coincide with one of them. Two nodes
+    sharing an ``__id__`` are loaded as the same object.
+    """
+    used: set[int] = set()
+
+    def collect(state):
+        if isinstance(state, dict):
+            if "__id__" in state:
+                used.add(state["__id__"])
+            for value in state.values():
+                collect(value)
+        elif isinstance(state, list):
+            for value in state:
+                collect(value)
+
+    collect(schema)
+    return max(used, default=0) + 1
+
+
 def downgrade_state(
     *, data: bytes, keys: list[str] | None, old_state: dict, protocol: int
 ):
@@ -302,7 +326,7 @@ def downgrade_state(
     if keys is None:
         # replace all fields
         schema = old_state
-        schema["__id__"] = id(schema)
+        schema["__id__"] = _unused_id(schema)
     else:
         # replace specific field
         state = schema
@@ -311,7 +335,7 @@ def downgrade_state(
         state[keys[-1]] = old_state
 
         # there has to be an __id__ field for memoization
-        state[keys[-1]]["__id__"] = id(schema)
+        state[keys[-1]]["__id__"] = _unused_id(schema)
 
     schema["protocol"] = protocol
 

@@ -1615,6 +1615,33 @@ def test_circular_reference_in_list():
     assert loaded[1] is loaded
 
 
+class ListSubclass(list):
+    pass
+
+
+class SetSubclass(set):
+    pass
+
+
+@pytest.mark.parametrize("container_type", [ListSubclass, SetSubclass])
+def test_list_and_set_subclasses_round_trip(container_type):
+    # Only plain lists and sets are filled in place, to resolve references back
+    # to them. Their subclasses are constructed from the items, as before.
+    obj = container_type([1, 2, 3])
+    dumped = dumps(obj)
+    loaded = loads(dumped, trusted=get_untrusted_types(data=dumped))
+    assert type(loaded) is container_type
+    assert loaded == obj
+
+
+def test_circular_reference_through_list_subclass_raises():
+    obj = ListSubclass([1])
+    obj.append(obj)
+    msg = "Objects of type ListSubclass which contain a reference to themselves"
+    with pytest.raises(UnsupportedTypeException, match=msg):
+        dumps(obj)
+
+
 class SetHolder:
     """Object which is a member of one of its own attributes."""
 

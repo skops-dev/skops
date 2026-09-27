@@ -25,6 +25,47 @@ def dummy_func(X):
     return X
 
 
+def test_downgrade_state_assigns_unused_id():
+    # The __id__ given to the downgraded node must not be in use by another
+    # node of the file, otherwise both are loaded as the same object. Using the
+    # id() of a new object is not enough: the ids in the file belong to objects
+    # of dump time, some of which have been freed since.
+    dumped = dumps(FunctionTransformer(func=np.sqrt))
+    old_state = {
+        "__class__": "ufunc",
+        "__module__": "numpy",
+        "__loader__": "FunctionNode",
+        "content": {"module_path": "numpy", "function": "sqrt"},
+    }
+    downgraded = downgrade_state(
+        data=dumped,
+        keys=["content", "content", "func"],
+        old_state=old_state,
+        protocol=0,
+    )
+    with ZipFile(io.BytesIO(downgraded), "r") as zip_file:
+        schema = json.loads(zip_file.read("schema.json"))
+    func_state = schema["content"]["content"]["func"]
+
+    # the ids of all other nodes; shared objects like None legitimately repeat
+    other_ids: set[int] = set()
+
+    def collect(state):
+        if state is func_state:
+            return
+        if isinstance(state, dict):
+            if "__id__" in state:
+                other_ids.add(state["__id__"])
+            for value in state.values():
+                collect(value)
+        elif isinstance(state, list):
+            for value in state:
+                collect(value)
+
+    collect(schema)
+    assert func_state["__id__"] not in other_ids
+
+
 @pytest.fixture
 def save_context():
     buffer = io.BytesIO()

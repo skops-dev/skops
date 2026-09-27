@@ -375,7 +375,21 @@ def get_tree(
         # the parent node's ``construct`` method is called, and for this node
         # it'll be called more than once. But that's not an issue since the
         # node's ``construct`` method caches the instance.
-        return load_context.get_object(saved_id)
+        node = load_context.get_object(saved_id)
+        # Within one dump an __id__ belongs to a single object, so a second
+        # state with the same __id__ is either that object saved again or a
+        # reference back to it, and both name the same type. Two different
+        # types sharing an __id__ means the file was not produced by dumping an
+        # object; refuse it rather than loading one node in place of the other.
+        class_name, module_name = state.get("__class__"), state.get("__module__")
+        if (class_name, module_name) != (node.class_name, node.module_name):
+            raise ValueError(
+                f"The object id {saved_id!r} is used for an object of type"
+                f" {node.module_name}.{node.class_name} and for an object of type"
+                f" {module_name}.{class_name}. This is probably due to a corrupted"
+                " or a malicious file."
+            )
+        return node
 
     loader: str = state["__loader__"]
     protocol = load_context.protocol
