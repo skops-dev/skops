@@ -87,3 +87,13 @@ def test_python_m_skops():
     )
     assert "convert" in result.stdout
     assert "update" in result.stdout
+
+
+def test_no_subcommand_is_a_usage_error(capsys):
+    """A bare ``skops`` exits with argparse's usage error, not a traceback."""
+    with pytest.raises(SystemExit) as exc_info:
+        main_cli([])
+    assert exc_info.value.code == 2
+    captured = capsys.readouterr()
+    assert "usage: skops" in captured.err
+    assert "required" in captured.err

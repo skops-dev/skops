@@ -21,8 +21,10 @@ def main_cli(command_line_args=None):
     subparsers = entry_parser.add_subparsers(
         title="Commands",
         description="Skops command to call",
-        dest="cmd",
+        dest="command",
         help="Sub-commands help",
+        # Without this, a bare ``skops`` parses fine and crashes on ``args.func``.
+        required=True,
     )
 
     # function_map should map a command to
