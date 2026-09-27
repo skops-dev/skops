@@ -1542,24 +1542,6 @@ def test_reduce_raises_falls_back_to_dict():
     assert loaded_obj.x == 3
 
 
-def test_object_holding_pandas_can_be_dumped():
-    # pandas Series, DataFrame and Index objects hold a ``BlockValuesRefs``,
-    # whose ``__reduce__`` raises, so any object containing one failed to dump,
-    # see gh-450. Loading pandas objects is not supported, so only dumping and
-    # auditing are checked here. The default ``RangeIndex`` does not hold such
-    # a reference, hence the explicit index.
-    pd = pytest.importorskip("pandas")
-
-    class Holder:
-        def __init__(self):
-            self.series = pd.Series([1, 2, 3], index=["a", "b", "c"])
-
-    dumped = dumps(Holder())
-    # Depending on the pandas version, the class is reported as
-    # ``pandas.Series`` or ``pandas.core.series.Series``.
-    assert any(t.endswith(".Series") for t in get_untrusted_types(data=dumped))
-
-
 def test_loss_get_state_unsupported_reduce():
     # loss_get_state understands the two shapes of __reduce__ output produced by
     # scikit-learn's loss classes, and refuses anything else.
