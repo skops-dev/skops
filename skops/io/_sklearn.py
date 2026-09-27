@@ -6,7 +6,7 @@ from sklearn.cluster import Birch
 from sklearn.tree._tree import Tree
 
 from ._audit import Node, get_tree
-from ._general import TypeNode, unsupported_get_state
+from ._general import DictNode, TupleNode, TypeNode, unsupported_get_state
 from ._protocol import PROTOCOL
 from ._utils import (
     LoadContext,
@@ -166,8 +166,17 @@ class ReduceNode(Node):
         super().__init__(state, load_context, trusted)
         reduce = state["__reduce__"]
         ctor_module, ctor_class = constructor
-        self.attrs = get_tree(state["content"], load_context, trusted=trusted)
-        self.args = get_tree(reduce["args"], load_context, trusted=trusted)
+        # ``reduce_get_state`` only accepts a dict or a tuple as the state, and
+        # ``__reduce__`` gives the constructor arguments as a tuple
+        self.attrs = get_tree(
+            state["content"],
+            load_context,
+            trusted=trusted,
+            allowed_types=(DictNode, TupleNode),
+        )
+        self.args = get_tree(
+            reduce["args"], load_context, trusted=trusted, allowed_types=(TupleNode,)
+        )
         self.constructor = TypeNode(
             {"__class__": ctor_class, "__module__": ctor_module},
             load_context,
@@ -327,11 +336,17 @@ class _DictWithDeprecatedKeysNode(Node):  # pragma: no cover
         self.trusted = [
             get_module(_DictWithDeprecatedKeysNode) + "._DictWithDeprecatedKeys"
         ]
-        self.main = get_tree(state["content"]["main"], load_context, trusted=trusted)
+        self.main = get_tree(
+            state["content"]["main"],
+            load_context,
+            trusted=trusted,
+            allowed_types=(DictNode,),
+        )
         self.deprecated_key_to_new_key = get_tree(
             state["content"]["_deprecated_key_to_new_key"],
             load_context,
             trusted=trusted,
+            allowed_types=(DictNode,),
         )
         self.children = {
             "main": self.main,

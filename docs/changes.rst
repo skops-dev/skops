@@ -11,6 +11,12 @@ skops Changelog
 
 v0.17
 -----
+- Loading a skops file now checks that each part of the file holds the kind
+  of content its loader expects, for instance that the keyword arguments of a
+  ``functools.partial`` are stored as a dict. A file that does not is refused
+  with an error while it is read, before anything in it is audited or
+  constructed, instead of failing with an unrelated error, or being accepted,
+  during construction. :pr:`547` by `Adrin Jalali`_.
 - Fix a regression since v0.12.0 where saving an object whose ``__reduce__``
   raises failed at dump time. ``__reduce__`` is called on every object to
   detect a plain constructor call, but Cython extension types with a

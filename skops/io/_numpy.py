@@ -7,7 +7,7 @@ from typing import Any
 import numpy as np
 
 from ._audit import Node, get_tree
-from ._general import function_get_state
+from ._general import DictNode, TupleNode, function_get_state
 from ._protocol import PROTOCOL
 from ._trusted_types import (
     NUMPY_DTYPE_TYPE_NAMES,
@@ -86,7 +86,12 @@ class NdArrayNode(Node):
             self.items = [
                 get_tree(o, load_context, trusted=trusted) for o in state["content"]
             ]
-            self.shape = get_tree(state["shape"], load_context, trusted=trusted)
+            self.shape = get_tree(
+                state["shape"],
+                load_context,
+                trusted=trusted,
+                allowed_types=(TupleNode,),
+            )
             self.children = {"content": self.items, "shape": self.shape}
         else:
             raise ValueError(f"Unknown type {self.type}.")
@@ -141,8 +146,20 @@ class MaskedArrayNode(Node):
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.trusted = self._get_trusted(trusted, [np.ma.MaskedArray])
-        self.data = get_tree(state["content"]["data"], load_context, trusted=trusted)
-        self.mask = get_tree(state["content"]["mask"], load_context, trusted=trusted)
+        # ``mask`` is an array, or the ``numpy.bool_`` scalar ``nomask``; both
+        # are saved as an ``NdArrayNode``
+        self.data = get_tree(
+            state["content"]["data"],
+            load_context,
+            trusted=trusted,
+            allowed_types=(NdArrayNode,),
+        )
+        self.mask = get_tree(
+            state["content"]["mask"],
+            load_context,
+            trusted=trusted,
+            allowed_types=(NdArrayNode,),
+        )
         self.children = {"data": self.data, "mask": self.mask}
 
     def _construct(self):
@@ -171,7 +188,9 @@ class RandomStateNode(Node):
     ) -> None:
         super().__init__(state, load_context, trusted)
         # TODO
-        self.content = get_tree(state["content"], load_context, trusted=trusted)
+        self.content = get_tree(
+            state["content"], load_context, trusted=trusted, allowed_types=(DictNode,)
+        )
         self.children = {"content": self.content}
         self.trusted = self._get_trusted(trusted, [np.random.RandomState])
 
@@ -202,10 +221,16 @@ class RandomGeneratorNode(Node):
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.bit_generator_state = get_tree(
-            state["content"]["bit_generator"], load_context, trusted=trusted
+            state["content"]["bit_generator"],
+            load_context,
+            trusted=trusted,
+            allowed_types=(DictNode,),
         )
         self.seed_seq_state = get_tree(
-            state["content"]["seed_seq"], load_context, trusted=trusted
+            state["content"]["seed_seq"],
+            load_context,
+            trusted=trusted,
+            allowed_types=(DictNode,),
         )
         self.children = {
             "bit_generator_state": self.bit_generator_state,
@@ -326,7 +351,13 @@ class DTypeNode(Node):
         trusted: TrustedTypes | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
-        self.content = get_tree(state["content"], load_context, trusted=trusted)
+        # the dtype is stored through an empty array of that dtype
+        self.content = get_tree(
+            state["content"],
+            load_context,
+            trusted=trusted,
+            allowed_types=(NdArrayNode,),
+        )
         self.children = {"content": self.content}
         # TODO: what should we trust?
         self.trusted = self._get_trusted(trusted, [])

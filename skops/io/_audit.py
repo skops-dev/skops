@@ -156,6 +156,8 @@ class Node:
         #    list of appropriate trusted types
         # 3. store each child in a typed attribute and mirror them in
         #    self.children; do not construct the children objects yet
+        # 4. pass ``allowed_types`` to ``get_tree`` for each child whose kind
+        #    ``_construct`` relies on, e.g. a dict of keyword arguments
         self.trusted = self._get_trusted(trusted, [])
         # ``children`` is the generic view of the node's children, used to audit
         # and visualize the tree. Subclasses read their children through the
@@ -313,10 +315,25 @@ class CachedNode(Node):
 NODE_TYPE_MAPPING[("CachedNode", PROTOCOL)] = CachedNode
 
 
+def _check_node_type(
+    node_cls: type[Node], allowed_types: tuple[type[Node], ...] | None
+) -> None:
+    """Raise ``ValueError`` if ``node_cls`` is not one of ``allowed_types``."""
+    if allowed_types is None or issubclass(node_cls, allowed_types):
+        return
+    expected = " or ".join(cls.__name__ for cls in allowed_types)
+    raise ValueError(
+        f"Expected a node of type {expected}, got {node_cls.__name__}. This is "
+        "probably due to a corrupted or a malicious file."
+    )
+
+
 def get_tree(
     state: dict[str, Any],
     load_context: LoadContext,
     trusted: TrustedTypes | None,
+    *,
+    allowed_types: tuple[type[Node], ...] | None = None,
 ) -> Node:
     """Get the tree of nodes.
 
@@ -341,6 +358,16 @@ def get_tree(
         objects of types listed in ``trusted`` in the dumped file. Types can be
         given by their fully qualified name or as the type itself.
 
+    allowed_types : tuple of Node subclasses, default=None
+        If given, the returned node has to be an instance of one of these
+        classes, and a ``ValueError`` is raised otherwise. A node passes this
+        for the children whose kind its ``_construct`` relies on, e.g. a
+        ``PartialNode`` requires its keyword arguments to be a ``DictNode``,
+        so that a crafted file cannot put an arbitrary node in that place.
+        The loader named in ``state`` is checked before its node is built, so
+        nothing in a rejected subtree is read, and a node handed back from the
+        memo through its ``__id__`` is checked as well.
+
     Returns
     -------
     loaded_tree : Node
@@ -353,7 +380,9 @@ def get_tree(
         # the parent node's ``construct`` method is called, and for this node
         # it'll be called more than once. But that's not an issue since the
         # node's ``construct`` method caches the instance.
-        return load_context.get_object(saved_id)
+        loaded_tree = load_context.get_object(saved_id)
+        _check_node_type(type(loaded_tree), allowed_types)
+        return loaded_tree
 
     loader: str = state["__loader__"]
     protocol = load_context.protocol
@@ -378,5 +407,7 @@ def get_tree(
                 "file."
             )
 
-    loaded_tree = node_cls(state, load_context, trusted=trusted)
-    return loaded_tree
+    # Check the loader before building its node, so that nothing in a rejected
+    # subtree is read or parsed.
+    _check_node_type(node_cls, allowed_types)
+    return node_cls(state, load_context, trusted=trusted)
