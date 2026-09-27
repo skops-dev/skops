@@ -23,7 +23,7 @@ class OperatorFuncNode(Node):
         trusted: TrustedTypes | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
-        if self.module_name != "operator":
+        if self.module_name != "operator":  # pragma: no cover
             raise ValueError(
                 f"Expected module 'operator', got {self.module_name}. This is probably"
                 " due to a corrupted or a malicious file."
