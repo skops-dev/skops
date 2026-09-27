@@ -9,6 +9,24 @@ skops Changelog
     :depth: 1
     :local:
 
+v0.17
+-----
+- Fix a regression since v0.12.0 where saving an object whose ``__reduce__``
+  raises failed at dump time. ``__reduce__`` is called on every object to
+  detect a plain constructor call, but Cython extension types with a
+  ``__cinit__`` and no ``__reduce__`` raise instead of returning one. pandas'
+  ``BlockValuesRefs`` is such a type and every pandas ``Index`` except
+  ``RangeIndex`` holds one, so objects containing such an index, or a
+  ``Series`` or ``DataFrame`` using one, could not be saved. Such objects are
+  now saved through ``__getstate__``/``__dict__`` again, as before v0.12.0.
+  :pr:`550` by `Adrin Jalali`_.
+- Restore the ``skops`` command line entry point. It was declared in
+  ``setup.py`` and lost when the packaging moved to ``pyproject.toml`` in
+  v0.11.0, so ``skops convert`` and ``skops update`` had not been available
+  from the command line since. ``python -m skops`` now also runs the CLI, and
+  running it without a subcommand prints a usage error instead of a traceback.
+  :pr:`548` by `Adrin Jalali`_.
+
 v0.16
 -----
 - Objects which contain a reference to themselves, directly or through

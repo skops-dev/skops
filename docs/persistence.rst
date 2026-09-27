@@ -125,6 +125,10 @@ Skops has a command line interface to:
 - convert scikit-learn models persisted with ``Pickle`` to ``Skops`` files.
 - update ``Skops`` files to the latest version.
 
+The ``skops`` command is installed together with the package. ``python -m skops``
+is equivalent and can be used when the scripts directory of the Python
+environment is not on ``PATH``.
+
 ``skops convert``
 ~~~~~~~~~~~~~~~~~
 
