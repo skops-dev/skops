@@ -25,9 +25,10 @@ v0.17
   trusted by default. Estimators from other libraries that keep pandas objects
   in their fitted attributes, such as ``category_encoders``, can now be
   persisted. A file written with one pandas version loads with any other from
-  2.0 on, keeping the dtypes of the version that wrote it. The ``freq`` of
-  datetime-like indexes and the ``attrs`` of a Series or DataFrame are not
-  preserved. :issue:`450` and :pr:`XXX` by `Adrin Jalali`_.
+  2.0 on, keeping the dtypes of the version that wrote it. Not preserved are
+  the ``freq`` of datetime-like indexes and arrays, the ``attrs`` and ``flags``
+  of a Series or DataFrame, and the storage, python or pyarrow, of a string
+  dtype. :issue:`450` and :pr:`552` by `Adrin Jalali`_.
 - Fix a regression since v0.12.0 where saving an object whose ``__reduce__``
   raises failed at dump time. ``__reduce__`` is called on every object to
   detect a plain constructor call, but Cython extension types with a

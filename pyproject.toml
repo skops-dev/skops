@@ -247,6 +247,8 @@ numpy = "~=2.5.0"
 scipy = "~=1.18.0"
 catboost = ">=1.0"
 quantile-forest = "~=1.4.0"
+# keeps pandas objects in fitted attributes, see the test for issue #450
+category_encoders = ">=2.6"
 python = "~=3.14.0"
 
 # [tool.pixi.feature.sklearn17]

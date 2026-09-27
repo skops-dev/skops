@@ -24,6 +24,8 @@ tm = pytest.importorskip("pandas.testing")
 
 def assert_equal(expected, actual):
     assert type(actual) is type(expected)
+    if isinstance(expected, pd.MultiIndex):
+        assert actual.sortorder == expected.sortorder
     if isinstance(expected, pd.DataFrame):
         tm.assert_frame_equal(expected, actual, check_freq=False)
     elif isinstance(expected, pd.Series):
@@ -63,6 +65,7 @@ INDEXES = [
     pd.interval_range(0, 3),
     pd.CategoricalIndex(["a", "b", "a"], categories=["b", "a"], ordered=True),
     pd.MultiIndex.from_tuples([("a", 1), ("b", 2)], names=["letters", None]),
+    pd.MultiIndex.from_tuples([("a", 1), ("b", 2)], sortorder=0),
 ]
 
 SERIES = [
@@ -181,6 +184,66 @@ def test_estimator_with_pandas_attributes():
     tm.assert_series_equal(loaded.mapping_["col"], estimator.mapping_["col"])
     tm.assert_index_equal(loaded.categories_, estimator.categories_, exact=True)
     assert loaded.dtypes_ == estimator.dtypes_
+
+
+def _with_edited_schema(dumped, edit):
+    # ``dumped`` with ``edit`` applied to its schema, to mimic a crafted file
+    with ZipFile(io.BytesIO(dumped)) as zip_file:
+        schema = json.loads(zip_file.read("schema.json"))
+        files = {
+            name: zip_file.read(name)
+            for name in zip_file.namelist()
+            if name != "schema.json"
+        }
+    edit(schema)
+    buffer = io.BytesIO()
+    with ZipFile(buffer, "w") as zip_file:
+        zip_file.writestr("schema.json", json.dumps(schema))
+        for name, data in files.items():
+            zip_file.writestr(name, data)
+    return buffer.getvalue()
+
+
+def test_dtype_node_only_builds_the_declared_class():
+    # the name in the file is parsed by the declared, trusted dtype class and
+    # not looked up in pandas' registry of extension dtypes, where it could
+    # name the dtype of another library, whose code would then run
+    dumped = dumps(pd.Int64Dtype())
+
+    def edit(schema):
+        schema["content"]["name"]["content"] = json.dumps("period[M]")
+
+    with pytest.raises(TypeError, match="Cannot construct"):
+        loads(_with_edited_schema(dumped, edit))
+
+
+def test_child_of_wrong_kind_is_refused():
+    # the values of an Index are an array; a file holding something else there
+    # is refused while it is read, before anything is constructed
+    dumped = dumps(pd.Index([1, 2]))
+
+    def edit(schema):
+        schema["content"]["values"] = {
+            "__class__": "str",
+            "__module__": "builtins",
+            "__loader__": "JsonNode",
+            "content": json.dumps("x"),
+            "is_json": True,
+            "__id__": 1,
+        }
+
+    with pytest.raises(ValueError, match="Expected a node of type"):
+        loads(_with_edited_schema(dumped, edit))
+
+
+def test_missing_entry_is_refused():
+    dumped = dumps(pd.Index([1, 2]))
+
+    def edit(schema):
+        del schema["content"]["name"]
+
+    with pytest.raises(ValueError, match="Expected the entries"):
+        loads(_with_edited_schema(dumped, edit))
 
 
 def test_subclass_from_other_library_is_unsupported():

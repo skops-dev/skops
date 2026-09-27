@@ -21,8 +21,9 @@ pandas is optional and slow to import, so ``skops.io`` does not import it. The
 imported pandas, see :func:`register_if_imported`, and the nodes only import
 pandas when they construct an object.
 
-Not preserved: the ``freq`` of datetime-like indexes and arrays, and the
-``attrs`` and ``flags`` of a Series or DataFrame.
+Not preserved: the ``freq`` of datetime-like indexes and arrays, the ``attrs``
+and ``flags`` of a Series or DataFrame, and the storage, python or pyarrow, of
+a string dtype, which is an environment choice over the same values.
 """
 
 from __future__ import annotations
@@ -34,6 +35,8 @@ from typing import Any
 import numpy as np
 
 from ._audit import Node, get_tree
+from ._general import JsonNode, ListNode
+from ._numpy import NdArrayNode
 from ._protocol import PROTOCOL
 from ._trusted_types import PANDAS_TYPE_NAMES
 from ._utils import (
@@ -120,6 +123,7 @@ def multi_index_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]
     content = {
         "levels": list(obj.levels),
         "codes": list(obj.codes),
+        "sortorder": obj.sortorder,
         "names": list(obj.names),
     }
     return _pandas_state(obj, "PandasMultiIndexNode", content, save_context)
@@ -206,8 +210,10 @@ def sparse_dtype_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any
 class _PandasNode(Node):
     """Base class of the pandas nodes.
 
-    The children are the entries of ``state["content"]``, and ``_construct``
-    of each subclass builds the object from the constructed children.
+    The children are the entries of ``state["content"]``. ``_allowed_types``
+    of each subclass names every entry and the node types it may hold, which
+    is checked while the file is read, and ``_construct`` builds the object
+    from the constructed children.
     """
 
     def __init__(
@@ -218,17 +224,34 @@ class _PandasNode(Node):
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.trusted = self._get_trusted(trusted, PANDAS_TYPE_NAMES)
+        allowed_types = self._allowed_types()
+        if set(state["content"]) != set(allowed_types):
+            raise ValueError(
+                f"Expected the entries {sorted(allowed_types)}, got"
+                f" {sorted(state['content'])}. This is probably due to a corrupted"
+                " or a malicious file."
+            )
         self.content = {
-            key: get_tree(value, load_context, trusted=trusted)
+            key: get_tree(
+                value, load_context, trusted=trusted, allowed_types=allowed_types[key]
+            )
             for key, value in state["content"].items()
         }
         self.children = dict(self.content)
+
+    def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
+        # The node types each entry may hold, ``None`` for any: names for
+        # instance can be any hashable.
+        raise NotImplementedError
 
     def _construct_content(self) -> dict[str, Any]:
         return {key: node.construct() for key, node in self.content.items()}
 
 
 class PandasIndexNode(_PandasNode):
+    def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
+        return {"values": _ARRAY_NODES, "name": None}
+
     def _construct(self):
         import pandas as pd
 
@@ -242,6 +265,14 @@ class PandasIndexNode(_PandasNode):
 
 
 class PandasRangeIndexNode(_PandasNode):
+    def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
+        return {
+            "start": (JsonNode,),
+            "stop": (JsonNode,),
+            "step": (JsonNode,),
+            "name": None,
+        }
+
     def _construct(self):
         import pandas as pd
 
@@ -252,16 +283,30 @@ class PandasRangeIndexNode(_PandasNode):
 
 
 class PandasMultiIndexNode(_PandasNode):
+    def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
+        return {
+            "levels": (ListNode,),
+            "codes": (ListNode,),
+            "sortorder": (JsonNode,),
+            "names": (ListNode,),
+        }
+
     def _construct(self):
         import pandas as pd
 
         content = self._construct_content()
         return pd.MultiIndex(
-            levels=content["levels"], codes=content["codes"], names=content["names"]
+            levels=content["levels"],
+            codes=content["codes"],
+            sortorder=content["sortorder"],
+            names=content["names"],
         )
 
 
 class PandasSeriesNode(_PandasNode):
+    def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
+        return {"values": _ARRAY_NODES, "index": _INDEX_NODES, "name": None}
+
     def _construct(self):
         import pandas as pd
 
@@ -273,6 +318,9 @@ class PandasSeriesNode(_PandasNode):
 
 
 class PandasDataFrameNode(_PandasNode):
+    def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
+        return {"columns": _INDEX_NODES, "index": _INDEX_NODES, "data": (ListNode,)}
+
     def _construct(self):
         import pandas as pd
 
@@ -288,6 +336,9 @@ class PandasDataFrameNode(_PandasNode):
 
 
 class PandasNumpyBackedArrayNode(_PandasNode):
+    def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
+        return {"values": (NdArrayNode,), "tz": (JsonNode,)}
+
     def _construct(self):
         import pandas as pd
 
@@ -306,6 +357,9 @@ class PandasNumpyBackedArrayNode(_PandasNode):
 
 
 class PandasMaskedArrayNode(_PandasNode):
+    def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
+        return {"values": (NdArrayNode,), "mask": (NdArrayNode,)}
+
     def _construct(self):
         content = self._construct_content()
         cls = gettype(self.module_name, self.class_name)
@@ -313,6 +367,9 @@ class PandasMaskedArrayNode(_PandasNode):
 
 
 class PandasCategoricalNode(_PandasNode):
+    def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
+        return {"codes": (NdArrayNode,), "dtype": (PandasCategoricalDtypeNode,)}
+
     def _construct(self):
         import pandas as pd
 
@@ -321,6 +378,9 @@ class PandasCategoricalNode(_PandasNode):
 
 
 class PandasPeriodArrayNode(_PandasNode):
+    def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
+        return {"ordinals": (NdArrayNode,), "dtype": (PandasExtensionDtypeNode,)}
+
     def _construct(self):
         import pandas as pd
 
@@ -329,6 +389,9 @@ class PandasPeriodArrayNode(_PandasNode):
 
 
 class PandasIntervalArrayNode(_PandasNode):
+    def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
+        return {"left": _INDEX_NODES, "right": _INDEX_NODES, "closed": (JsonNode,)}
+
     def _construct(self):
         import pandas as pd
 
@@ -339,6 +402,9 @@ class PandasIntervalArrayNode(_PandasNode):
 
 
 class PandasExtensionArrayNode(_PandasNode):
+    def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
+        return {"values": (NdArrayNode,), "dtype": _DTYPE_NODES}
+
     def _construct(self):
         import pandas as pd
 
@@ -347,20 +413,38 @@ class PandasExtensionArrayNode(_PandasNode):
 
 
 class PandasExtensionDtypeNode(_PandasNode):
+    def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
+        return {"name": (JsonNode,)}
+
     def _construct(self):
         import pandas as pd
 
         name = self._construct_content()["name"]
-        dtype = pd.api.types.pandas_dtype(name)
-        if name == "str" and not isinstance(dtype, pd.api.extensions.ExtensionDtype):
-            # "str" is the default string dtype of pandas 3. Older versions
-            # parse it as a numpy unicode dtype, and keep strings in object
-            # arrays instead, which is what the values are stored as.
-            return np.dtype(object)
-        return dtype
+        # The declared, trusted dtype class parses the name itself.
+        # ``pandas.api.types.pandas_dtype`` would look the name up in pandas'
+        # registry of extension dtypes instead, where any imported library can
+        # register one, and run that library's code for a name from the file.
+        cls = gettype(self.module_name, self.class_name)
+        if not issubclass(cls, pd.api.extensions.ExtensionDtype):
+            raise ValueError(
+                f"{self.module_name}.{self.class_name} is not a pandas extension"
+                " dtype. This is probably due to a corrupted or a malicious file."
+            )
+        try:
+            return cls.construct_from_string(name)
+        except TypeError:
+            if name == "str" and cls is pd.StringDtype:
+                # "str" is the default string dtype of pandas 3. Older versions
+                # do not know it, and keep strings in object arrays instead,
+                # which is what the values are stored as.
+                return np.dtype(object)
+            raise
 
 
 class PandasCategoricalDtypeNode(_PandasNode):
+    def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
+        return {"categories": _INDEX_NODES + (JsonNode,), "ordered": (JsonNode,)}
+
     def _construct(self):
         import pandas as pd
 
@@ -369,11 +453,35 @@ class PandasCategoricalDtypeNode(_PandasNode):
 
 
 class PandasSparseDtypeNode(_PandasNode):
+    def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
+        return {"subtype": (JsonNode,), "fill_value": (JsonNode, NdArrayNode)}
+
     def _construct(self):
         import pandas as pd
 
         content = self._construct_content()
-        return pd.SparseDtype(content["subtype"], content["fill_value"])
+        # numpy parses the subtype, so that the name from the file is not
+        # looked up in pandas' registry of extension dtypes
+        return pd.SparseDtype(np.dtype(content["subtype"]), content["fill_value"])
+
+
+# The node types the values, the index and the dtype of a pandas object may be
+# stored as.
+_ARRAY_NODES = (
+    NdArrayNode,
+    PandasNumpyBackedArrayNode,
+    PandasMaskedArrayNode,
+    PandasCategoricalNode,
+    PandasPeriodArrayNode,
+    PandasIntervalArrayNode,
+    PandasExtensionArrayNode,
+)
+_INDEX_NODES = (PandasIndexNode, PandasRangeIndexNode, PandasMultiIndexNode)
+_DTYPE_NODES = (
+    PandasExtensionDtypeNode,
+    PandasCategoricalDtypeNode,
+    PandasSparseDtypeNode,
+)
 
 
 _registered = False

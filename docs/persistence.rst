@@ -255,9 +255,10 @@ arrays, dtypes, random generators, and ufuncs. **pandas** objects, that is
 extension dtypes, are supported as well with pandas 2.0 or later: they are
 stored as the arrays they are made of and rebuilt through the public pandas
 constructors, so that no pandas internals end up in the file, and a file
-written with one pandas version loads with any other. The ``freq`` of
-datetime-like indexes and the ``attrs`` of a ``Series`` or ``DataFrame`` are not
-preserved.
+written with one pandas version loads with any other. Not preserved are the
+``freq`` of datetime-like indexes and arrays, the ``attrs`` and ``flags`` of a
+``Series`` or ``DataFrame``, and the storage, python or pyarrow, of a string
+dtype, which is an environment choice over the same values.
 
 Apart from this core, we plan to support machine learning libraries commonly
 used be the community. So far, we have tested the following libraries:
