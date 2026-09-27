@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import io
 import json
 import operator
@@ -404,6 +406,26 @@ def test_get_tree_allowed_types():
     # from there; the check applies to that node too.
     with pytest.raises(ValueError, match=msg):
         get_tree(state, load_context, trusted=None, allowed_types=(DictNode, ListNode))
+
+
+def test_get_tree_rejects_unexpected_node_before_building_it():
+    # The loader named in the file is checked before its node is built, so a
+    # rejected subtree is not read at all: the unknown loader inside this list
+    # would raise a TypeError if the ListNode were built.
+    state = {
+        "__class__": "list",
+        "__module__": "builtins",
+        "__loader__": "ListNode",
+        "content": [
+            {"__class__": "list", "__module__": "builtins", "__loader__": "NoSuchNode"}
+        ],
+    }
+    with pytest.raises(TypeError, match="Can't find loader NoSuchNode"):
+        get_tree(state, make_load_context(), trusted=None)
+
+    msg = "Expected a node of type DictNode, got ListNode"
+    with pytest.raises(ValueError, match=msg):
+        get_tree(state, make_load_context(), trusted=None, allowed_types=(DictNode,))
 
 
 @pytest.mark.parametrize(

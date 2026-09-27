@@ -315,6 +315,19 @@ class CachedNode(Node):
 NODE_TYPE_MAPPING[("CachedNode", PROTOCOL)] = CachedNode
 
 
+def _check_node_type(
+    node_cls: type[Node], allowed_types: tuple[type[Node], ...] | None
+) -> None:
+    """Raise ``ValueError`` if ``node_cls`` is not one of ``allowed_types``."""
+    if allowed_types is None or issubclass(node_cls, allowed_types):
+        return
+    expected = " or ".join(cls.__name__ for cls in allowed_types)
+    raise ValueError(
+        f"Expected a node of type {expected}, got {node_cls.__name__}. This is "
+        "probably due to a corrupted or a malicious file."
+    )
+
+
 def get_tree(
     state: dict[str, Any],
     load_context: LoadContext,
@@ -351,8 +364,9 @@ def get_tree(
         for the children whose kind its ``_construct`` relies on, e.g. a
         ``PartialNode`` requires its keyword arguments to be a ``DictNode``,
         so that a crafted file cannot put an arbitrary node in that place.
-        The check is done on the node that is returned, so it also covers a
-        node taken from the memo through its ``__id__``.
+        The loader named in ``state`` is checked before its node is built, so
+        nothing in a rejected subtree is read, and a node handed back from the
+        memo through its ``__id__`` is checked as well.
 
     Returns
     -------
@@ -367,38 +381,33 @@ def get_tree(
         # it'll be called more than once. But that's not an issue since the
         # node's ``construct`` method caches the instance.
         loaded_tree = load_context.get_object(saved_id)
+        _check_node_type(type(loaded_tree), allowed_types)
+        return loaded_tree
+
+    loader: str = state["__loader__"]
+    protocol = load_context.protocol
+    key = (loader, protocol)
+
+    if key in NODE_TYPE_MAPPING:
+        node_cls = NODE_TYPE_MAPPING[key]
     else:
-        loader: str = state["__loader__"]
-        protocol = load_context.protocol
-        key = (loader, protocol)
+        # What probably happened here is that we released a new protocol. If
+        # there is no specific key for the old protocol, it means it is safe to
+        # use the current protocol instead, because this node was not changed.
+        key_new = (loader, PROTOCOL)
+        try:
+            node_cls = NODE_TYPE_MAPPING[key_new]
+        except KeyError:
+            # If we still cannot find the loader for this key, something went
+            # wrong.
+            type_name = f"{state['__module__']}.{state['__class__']}"
+            raise TypeError(
+                f" Can't find loader {state['__loader__']} for type {type_name} and "
+                f"protocol {protocol}. You might need to update skops to load this "
+                "file."
+            )
 
-        if key in NODE_TYPE_MAPPING:
-            node_cls = NODE_TYPE_MAPPING[key]
-        else:
-            # What probably happened here is that we released a new protocol.
-            # If there is no specific key for the old protocol, it means it is
-            # safe to use the current protocol instead, because this node was
-            # not changed.
-            key_new = (loader, PROTOCOL)
-            try:
-                node_cls = NODE_TYPE_MAPPING[key_new]
-            except KeyError:
-                # If we still cannot find the loader for this key, something
-                # went wrong.
-                type_name = f"{state['__module__']}.{state['__class__']}"
-                raise TypeError(
-                    f" Can't find loader {state['__loader__']} for type {type_name} "
-                    f"and protocol {protocol}. You might need to update skops to "
-                    "load this file."
-                )
-
-        loaded_tree = node_cls(state, load_context, trusted=trusted)
-
-    if allowed_types is not None and not isinstance(loaded_tree, allowed_types):
-        expected = " or ".join(cls.__name__ for cls in allowed_types)
-        raise ValueError(
-            f"Expected a node of type {expected}, got "
-            f"{type(loaded_tree).__name__}. This is probably due to a corrupted "
-            "or a malicious file."
-        )
-    return loaded_tree
+    # Check the loader before building its node, so that nothing in a rejected
+    # subtree is read or parsed.
+    _check_node_type(node_cls, allowed_types)
+    return node_cls(state, load_context, trusted=trusted)
