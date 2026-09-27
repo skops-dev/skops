@@ -24,7 +24,9 @@ modules = [
     "._quantile_forest",
     "._pandas",
 ]
-modules.extend([".old._general_v0", ".old._numpy_v0", ".old._numpy_v1"])
+modules.extend(
+    [".old._general_v0", ".old._general_v2", ".old._numpy_v0", ".old._numpy_v1"]
+)
 for module_name in modules:
     # register exposed functions for get_state and get_tree
     module = importlib.import_module(module_name, package="skops.io")
