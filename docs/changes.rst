@@ -20,15 +20,6 @@ v0.17
   ``Series`` or ``DataFrame`` using one, could not be saved. Such objects are
   now saved through ``__getstate__``/``__dict__`` again, as before v0.12.0.
   :pr:`550` by `Adrin Jalali`_.
-- Restore the ``skops`` command line entry point. It was declared in
-  ``setup.py`` and lost when the packaging moved to ``pyproject.toml`` in
-  v0.11.0, so ``skops convert`` and ``skops update`` had not been available
-  from the command line since. ``python -m skops`` now also runs the CLI, and
-  running it without a subcommand prints a usage error instead of a traceback.
-  :pr:`548` by `Adrin Jalali`_.
-
-v0.16
------
 - Objects which contain a reference to themselves, directly or through
   their attributes, dicts, lists, or sets, can now be saved and loaded. They
   used to fail with a ``RecursionError``; this affected for instance the
@@ -40,6 +31,15 @@ v0.16
   rejected as corrupted. A file in which nodes of different types share an
   ``__id__`` is now rejected when loading instead of silently loading one of
   them in place of the other. :pr:`549` by `Adrin Jalali`_.
+- Restore the ``skops`` command line entry point. It was declared in
+  ``setup.py`` and lost when the packaging moved to ``pyproject.toml`` in
+  v0.11.0, so ``skops convert`` and ``skops update`` had not been available
+  from the command line since. ``python -m skops`` now also runs the CLI, and
+  running it without a subcommand prints a usage error instead of a traceback.
+  :pr:`548` by `Adrin Jalali`_.
+
+v0.16
+-----
 - Fix loading of time-zone-aware ``datetime.datetime`` and ``datetime.time``
   objects, and of ``zoneinfo.ZoneInfo`` and ``datetime.timezone`` instances.
   Their ``__reduce__`` output was not recognized as a constructor call, so they
