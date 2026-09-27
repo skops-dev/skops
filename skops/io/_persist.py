@@ -9,13 +9,21 @@ from zipfile import ZIP_STORED, ZipFile
 
 import skops
 
+from . import _pandas
 from ._audit import NODE_TYPE_MAPPING, audit_tree, get_tree
 from ._utils import SaveContext, TrustedTypes, _get_state, get_state, read_schema
 
 # We load the dispatch functions from the corresponding modules and register
 # them. Old protocols are found in the 'old/' directory, with the protocol
 # version appended to the corresponding module name.
-modules = ["._general", "._numpy", "._scipy", "._sklearn", "._quantile_forest"]
+modules = [
+    "._general",
+    "._numpy",
+    "._scipy",
+    "._sklearn",
+    "._quantile_forest",
+    "._pandas",
+]
 modules.extend([".old._general_v0", ".old._numpy_v0", ".old._numpy_v1"])
 for module_name in modules:
     # register exposed functions for get_state and get_tree
@@ -27,6 +35,10 @@ for module_name in modules:
 
 
 def _save(obj: Any, compression: int, compresslevel: int | None) -> io.BytesIO:
+    # pandas is optional and only imported by the user, so its get_state
+    # functions are registered here rather than when skops.io is imported.
+    _pandas.register_if_imported()
+
     buffer = io.BytesIO()
 
     with ZipFile(

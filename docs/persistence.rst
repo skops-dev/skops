@@ -246,7 +246,14 @@ Supported libraries
 Skops intends to support all of **scikit-learn**, that is, not only its
 estimators, but also other classes like cross validation splitters. Furthermore,
 most types from **numpy** and **scipy** should be supported, such as (sparse)
-arrays, dtypes, random generators, and ufuncs.
+arrays, dtypes, random generators, and ufuncs. **pandas** objects, that is
+``DataFrame``, ``Series``, every kind of ``Index``, extension arrays and
+extension dtypes, are supported as well with pandas 2.0 or later: they are
+stored as the arrays they are made of and rebuilt through the public pandas
+constructors, so that no pandas internals end up in the file, and a file
+written with one pandas version loads with any other. The ``freq`` of
+datetime-like indexes and the ``attrs`` of a ``Series`` or ``DataFrame`` are not
+preserved.
 
 Apart from this core, we plan to support machine learning libraries commonly
 used be the community. So far, we have tested the following libraries:

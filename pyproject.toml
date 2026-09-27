@@ -128,7 +128,6 @@ skops = { path = ".", editable = true }
 [tool.pixi.feature.docs.dependencies]
 # To be synced with the versions in docs/requirements.txt
 matplotlib = ">=3.3"
-pandas = ">=1"
 sphinx = ">=3.2.0"
 sphinx-gallery = ">=0.7.0"
 sphinx-rtd-theme = ">=1"
@@ -138,8 +137,10 @@ sphinx-issues = ">=1.2.0"
 
 [tool.pixi.feature.docs.pypi-dependencies]
 # everything that depends on scikit-learn needs to be a pypi dependency so that this
-# spec is compatible with the nightly build environment.
+# spec is compatible with the nightly build environment. The same holds for pandas,
+# whose dev version the nightly build environment installs from pypi.
 fairlearn = ">=0.7.0"
+pandas = ">=2"
 
 [tool.pixi.feature.tests.dependencies]
 pytest = ">=7"
@@ -148,7 +149,6 @@ flaky = ">=3.7.0"
 pandoc = ">=3.6.4"
 rich = ">=12"
 matplotlib = ">=3.3"
-pandas = ">=1"
 
 [tool.pixi.feature.tests.pypi-dependencies]
 # these are packages that require scikit-learn. They need to be as a pypi dependency
@@ -156,6 +156,11 @@ pandas = ">=1"
 # when installing pre-release nightly release.
 lightgbm = ">=3"
 xgboost = ">=1.6"
+# skops.io supports pandas 2.0 and later; each CI environment pins one minor
+# version so that the whole range is tested, see the sklearn* features below.
+# A pypi dependency for the same reason as above: the nightly environment
+# installs the dev version of pandas from pypi.
+pandas = ">=2"
 
 [tool.pixi.feature.lint.dependencies]
 pre-commit = "*"
@@ -257,7 +262,9 @@ extra-index-urls = ["https://pypi.anaconda.org/scientific-python-nightly-wheels/
 # The version value here needs to be exact, hence == instead of ~=
 scikit-learn = "==1.10.dev0"
 fairlearn = "*"
-pandas = "*"
+# The dev version of pandas from the nightly index; "*" would pick the latest
+# release, since pre-releases are only considered when named explicitly.
+pandas = "==3.1.0.dev0"
 numpy = "*"
 scipy = "*"
 
