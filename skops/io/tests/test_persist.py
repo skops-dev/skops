@@ -1543,6 +1543,28 @@ def test_custom_reduce():
     assert obj.value == loaded_obj.value
 
 
+# This class is here as opposed to inside the test because it needs to be importable.
+# It mimics Cython extension types with a ``__cinit__`` and no ``__reduce__``,
+# such as ``pandas._libs.internals.BlockValuesRefs``, whose ``__reduce__``
+# raises instead of returning a value.
+class RaisingReduce:
+    def __init__(self):
+        self.x = 3
+
+    def __reduce__(self):
+        raise TypeError("no default __reduce__ due to non-trivial __cinit__")
+
+
+def test_reduce_raises_falls_back_to_dict():
+    # ``__reduce__`` is only called to probe for a constructor call; objects
+    # whose ``__reduce__`` raises must still be persisted through ``__dict__``,
+    # as they were before the probe was added, see gh-450.
+    dumped = dumps(RaisingReduce())
+    loaded_obj = loads(dumped, trusted=[RaisingReduce])
+    assert type(loaded_obj) is RaisingReduce
+    assert loaded_obj.x == 3
+
+
 def test_loss_get_state_unsupported_reduce():
     # loss_get_state understands the two shapes of __reduce__ output produced by
     # scikit-learn's loss classes, and refuses anything else.

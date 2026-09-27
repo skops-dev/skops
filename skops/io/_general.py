@@ -410,8 +410,16 @@ def object_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     # ``datetime.timezone`` for instance returns ``(timezone, (offset,), None)``.
     # If the constructor is the same as the object's type, then we consider it
     # safe to call it with the specified arguments.
-
-    reduce_output = obj.__reduce__()
+    #
+    # The call is only a probe for that shape. Objects that cannot be pickled
+    # raise from ``__reduce__``, e.g. Cython extension types with a
+    # ``__cinit__`` such as ``pandas._libs.internals.BlockValuesRefs``, and for
+    # those we fall through to the ``__getstate__``/``__dict__`` path below, as
+    # we did before this probe existed.
+    try:
+        reduce_output = obj.__reduce__()
+    except Exception:
+        reduce_output = ()
     if (
         len(reduce_output) >= 2
         and reduce_output[0] is type(obj)
