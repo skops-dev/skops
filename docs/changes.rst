@@ -11,6 +11,12 @@ skops Changelog
 
 v0.17
 -----
+- Loading a skops file now checks that each part of the file holds the kind
+  of content its loader expects, for instance that the keyword arguments of a
+  ``functools.partial`` are stored as a dict. A file that does not is refused
+  with an error while it is read, before anything in it is audited or
+  constructed, instead of failing with an unrelated error, or being accepted,
+  during construction. :pr:`547` by `Adrin Jalali`_.
 - Add support for pandas objects: :class:`~pandas.DataFrame`,
   :class:`~pandas.Series`, every kind of :class:`~pandas.Index`, extension
   arrays and extension dtypes can now be saved and loaded. They are stored as
@@ -22,6 +28,21 @@ v0.17
   2.0 on, keeping the dtypes of the version that wrote it. The ``freq`` of
   datetime-like indexes and the ``attrs`` of a Series or DataFrame are not
   preserved. :issue:`450` and :pr:`XXX` by `Adrin Jalali`_.
+- Fix a regression since v0.12.0 where saving an object whose ``__reduce__``
+  raises failed at dump time. ``__reduce__`` is called on every object to
+  detect a plain constructor call, but Cython extension types with a
+  ``__cinit__`` and no ``__reduce__`` raise instead of returning one. pandas'
+  ``BlockValuesRefs`` is such a type and every pandas ``Index`` except
+  ``RangeIndex`` holds one, so objects containing such an index, or a
+  ``Series`` or ``DataFrame`` using one, could not be saved. Such objects are
+  now saved through ``__getstate__``/``__dict__`` again, as before v0.12.0.
+  :pr:`550` by `Adrin Jalali`_.
+- Restore the ``skops`` command line entry point. It was declared in
+  ``setup.py`` and lost when the packaging moved to ``pyproject.toml`` in
+  v0.11.0, so ``skops convert`` and ``skops update`` had not been available
+  from the command line since. ``python -m skops`` now also runs the CLI, and
+  running it without a subcommand prints a usage error instead of a traceback.
+  :pr:`548` by `Adrin Jalali`_.
 
 v0.16
 -----

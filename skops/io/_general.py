@@ -70,7 +70,9 @@ class DictNode(Node):
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.trusted = self._get_trusted(trusted, [dict, "collections.OrderedDict"])
-        self.key_types = get_tree(state["key_types"], load_context, trusted=trusted)
+        self.key_types = get_tree(
+            state["key_types"], load_context, trusted=trusted, allowed_types=(ListNode,)
+        )
         self.content = {
             key: get_tree(value, load_context, trusted=trusted)
             for key, value in state["content"].items()
@@ -109,7 +111,12 @@ class DefaultDictNode(Node):
     ) -> None:
         super().__init__(state, load_context, trusted)
         self.trusted = ["collections.defaultdict"]
-        self.main = get_tree(state["content"]["main"], load_context, trusted=trusted)
+        self.main = get_tree(
+            state["content"]["main"],
+            load_context,
+            trusted=trusted,
+            allowed_types=(DictNode,),
+        )
         self.default_factory = get_tree(
             state["content"]["default_factory"], load_context, trusted=trusted
         )
@@ -294,9 +301,19 @@ class PartialNode(Node):
         self.trusted = self._get_trusted(trusted, [])
         content = state["content"]
         self.func = get_tree(content["func"], load_context, trusted=trusted)
-        self.args = get_tree(content["args"], load_context, trusted=trusted)
-        self.kwds = get_tree(content["kwds"], load_context, trusted=trusted)
-        self.namespace = get_tree(content["namespace"], load_context, trusted=trusted)
+        self.args = get_tree(
+            content["args"], load_context, trusted=trusted, allowed_types=(TupleNode,)
+        )
+        self.kwds = get_tree(
+            content["kwds"], load_context, trusted=trusted, allowed_types=(DictNode,)
+        )
+        # the ``__dict__`` of the partial object, or None if it had none
+        self.namespace = get_tree(
+            content["namespace"],
+            load_context,
+            trusted=trusted,
+            allowed_types=(DictNode, JsonNode),
+        )
         self.children = {
             "func": self.func,
             "args": self.args,
@@ -410,8 +427,16 @@ def object_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     # ``datetime.timezone`` for instance returns ``(timezone, (offset,), None)``.
     # If the constructor is the same as the object's type, then we consider it
     # safe to call it with the specified arguments.
-
-    reduce_output = obj.__reduce__()
+    #
+    # The call is only a probe for that shape. Objects that cannot be pickled
+    # raise from ``__reduce__``, e.g. Cython extension types with a
+    # ``__cinit__`` such as ``pandas._libs.internals.BlockValuesRefs``, and for
+    # those we fall through to the ``__getstate__``/``__dict__`` path below, as
+    # we did before this probe existed.
+    try:
+        reduce_output = obj.__reduce__()
+    except Exception:
+        reduce_output = ()
     if (
         len(reduce_output) >= 2
         and reduce_output[0] is type(obj)
@@ -484,7 +509,10 @@ class ConstructorFromReduceNode(Node):
         trusted: TrustedTypes | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
-        self.content = get_tree(state["content"], load_context, trusted=trusted)
+        # ``__reduce__`` gives the constructor arguments as a tuple
+        self.content = get_tree(
+            state["content"], load_context, trusted=trusted, allowed_types=(TupleNode,)
+        )
         self.children = {"content": self.content}
 
     def _construct(self):
@@ -713,7 +741,9 @@ class OperatorFuncNode(Node):
                 " due to a corrupted or a malicious file."
             )
         self.trusted = self._get_trusted(trusted, [])
-        self.attrs = get_tree(state["attrs"], load_context, trusted=trusted)
+        self.attrs = get_tree(
+            state["attrs"], load_context, trusted=trusted, allowed_types=(TupleNode,)
+        )
         self.children = {"attrs": self.attrs}
 
     def _construct(self):
