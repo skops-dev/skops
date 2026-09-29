@@ -354,6 +354,64 @@ def test_cached_node_resolves_to_memoized_node():
     assert get_tree(cached_state, load_context, trusted=None) is node
 
 
+def test_circular_reference_resolves_to_same_node():
+    # A reference back to an object whose state is being saved is stored as a
+    # CachedNode with the __id__ of that object, which get_tree resolves to the
+    # node holding the object's actual state.
+    obj: list[object] = [1]
+    obj.append(obj)
+    state = get_state(obj, make_save_context())
+    assert state["content"][1]["__loader__"] == "CachedNode"
+    assert state["content"][1]["__id__"] == state["__id__"]
+
+    node = get_tree(state, make_load_context(), trusted=None)
+    assert isinstance(node, ListNode)
+    assert node.content[1] is node
+    assert node.get_unsafe_set() == set()
+    loaded = node.construct()
+    assert loaded[1] is loaded
+
+
+def test_get_tree_rejects_id_shared_by_different_types():
+    # An __id__ identifies one object of a dump, so all states carrying it
+    # describe the same type. A file where a state of another type carries an
+    # already seen __id__ is refused, instead of loading the first node in its
+    # place.
+    state = get_state({"a": [1], "b": (2,)}, make_save_context())
+    content = state["content"]
+    content["b"]["__id__"] = content["a"]["__id__"]
+
+    msg = re.escape(
+        "is used for an object of type builtins.list and for an object of type"
+        " builtins.tuple"
+    )
+    with pytest.raises(ValueError, match=msg):
+        get_tree(state, make_load_context(), trusted=None)
+
+
+def test_construct_refuses_unresolvable_circular_reference():
+    # Only nodes which can hand out a partially constructed instance resolve a
+    # reference back to themselves. For any other node, e.g. a tuple, a file
+    # claiming such a reference is refused with a clear error instead of
+    # recursing until the interpreter gives up. dumps never produces such a
+    # file, so this only happens for a corrupted or malicious one.
+    state = get_state((1, 2), make_save_context())
+    state["content"] = [
+        state["content"][0],
+        {
+            "__class__": "tuple",
+            "__module__": "builtins",
+            "__loader__": "CachedNode",
+            "__id__": state["__id__"],
+        },
+    ]
+    node = get_tree(state, make_load_context(), trusted=None)
+    # the audit terminates, and a tuple of ints is trusted
+    assert node.get_unsafe_set() == set()
+    with pytest.raises(ValueError, match="contains a reference to itself"):
+        node.construct()
+
+
 def _replace_child(data: bytes, keys: list[str | int], new_state: dict) -> bytes:
     """Return a copy of a skops dump with the node at ``keys`` replaced."""
     src = ZipFile(io.BytesIO(data))

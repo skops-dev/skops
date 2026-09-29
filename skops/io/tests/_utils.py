@@ -4,6 +4,7 @@ import io
 import json
 import sys
 import warnings
+from functools import wraps
 from zipfile import ZipFile
 
 import numpy as np
@@ -47,6 +48,33 @@ def _is_steps_like(obj):
     return True
 
 
+# The pairs of values being compared further up the stack, see
+# ``_skip_circular_references``.
+_COMPARING: set[tuple[int, int]] = set()
+
+
+def _skip_circular_references(func):
+    """Return early for a pair of values which is already being compared.
+
+    Objects can refer back to themselves, directly or through their
+    attributes, e.g. the tree of a fitted Birch. Comparing such a pair again
+    would recurse forever; it is being compared further up the stack already.
+    """
+
+    @wraps(func)
+    def wrapper(val1, val2, path=""):
+        key = (id(val1), id(val2))
+        if key in _COMPARING:
+            return
+        _COMPARING.add(key)
+        try:
+            return func(val1, val2, path=path)
+        finally:
+            _COMPARING.discard(key)
+
+    return wrapper
+
+
 def _assert_generic_objects_equal(val1, val2, path=""):
     def _is_builtin(val):
         # Check if value is a builtin type
@@ -76,6 +104,7 @@ def _assert_tuples_equal(val1, val2, path=""):
         _assert_vals_equal(subval1, subval2, path=f"{path}[]")
 
 
+@_skip_circular_references
 def _assert_vals_equal(val1, val2, path=""):
     if isinstance(val1, type):  # e.g. could be np.int64
         assert val1 is val2, f"Path: {path}"
@@ -155,6 +184,7 @@ def _clean_params(params):
     return params
 
 
+@_skip_circular_references
 def assert_params_equal(params1, params2, path=""):
     # helper function to compare estimator dictionaries of parameters
     if params1 is None and params2 is None:
@@ -203,6 +233,30 @@ def assert_method_outputs_equal(estimator, loaded, X):
             X_out1 = getattr(estimator, method)(X)
             X_out2 = getattr(loaded, method)(X)
             assert_allclose_dense_sparse(X_out1, X_out2, err_msg=err_msg, atol=ATOL)
+
+
+def _unused_id(schema: dict) -> int:
+    """Return an ``__id__`` which no node of ``schema`` uses.
+
+    The ``__id__`` of a node is the ``id()`` of the object at dump time. Some of
+    those objects were temporaries which have been freed since, so the ``id()``
+    of an object created after dumping can coincide with one of them. Two nodes
+    sharing an ``__id__`` are loaded as the same object.
+    """
+    used: set[int] = set()
+
+    def collect(state):
+        if isinstance(state, dict):
+            if "__id__" in state:
+                used.add(state["__id__"])
+            for value in state.values():
+                collect(value)
+        elif isinstance(state, list):
+            for value in state:
+                collect(value)
+
+    collect(schema)
+    return max(used, default=0) + 1
 
 
 def downgrade_state(
@@ -272,7 +326,7 @@ def downgrade_state(
     if keys is None:
         # replace all fields
         schema = old_state
-        schema["__id__"] = id(schema)
+        schema["__id__"] = _unused_id(schema)
     else:
         # replace specific field
         state = schema
@@ -281,7 +335,7 @@ def downgrade_state(
         state[keys[-1]] = old_state
 
         # there has to be an __id__ field for memoization
-        state[keys[-1]]["__id__"] = id(schema)
+        state[keys[-1]]["__id__"] = _unused_id(schema)
 
     schema["protocol"] = protocol
 
