@@ -160,6 +160,10 @@ class ListNode(Node):
     def _construct(self):
         content_type = gettype(self.module_name, self.class_name)
         if content_type is not list:
+            # Subclasses are built from their items through their own
+            # constructor, as before, so there is no instance to hand out
+            # before it is complete: a reference back to a list subclass is not
+            # supported, and ``get_state`` refuses it when saving.
             return content_type([item.construct() for item in self.content])
 
         # Fill a plain list in place and make it available to children which
@@ -198,6 +202,10 @@ class SetNode(Node):
     def _construct(self):
         content_type = gettype(self.module_name, self.class_name)
         if content_type is not set:
+            # Subclasses are built from their items through their own
+            # constructor, as before, so there is no instance to hand out
+            # before it is complete: a reference back to a set subclass is not
+            # supported, and ``get_state`` refuses it when saving.
             return content_type([item.construct() for item in self.content])
 
         # Fill a plain set in place and make it available to children which
