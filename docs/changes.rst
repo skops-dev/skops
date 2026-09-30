@@ -43,10 +43,11 @@ v0.17
     is created with ``__new__`` and filled in place instead of through its
     constructor, so a subclass whose constructor requires arguments can now
     be loaded, and its instance attributes, which used to be dropped, are
-    saved and restored. Set subclasses are treated the same way, although
-    pickle builds them through their constructor, so that items which refer
-    back to the set can be loaded. Files written with an earlier protocol
-    load as before.
+    saved and restored. Subclasses of ``set`` and of
+    ``collections.defaultdict`` are treated the same way, although pickle
+    builds them through their constructor, so that items which refer back to
+    the container can be loaded. Files written with an earlier protocol load
+    as before.
 
   - Loading: bound methods inherited from a class defined in another module
     can now be loaded, they used to be rejected as corrupted. A file in which
@@ -66,7 +67,9 @@ v0.17
 - Fix loading of ``collections.defaultdict`` objects whose keys are not
   strings, which failed with a ``TypeError``, and of objects whose class
   defines ``__slots__``, which failed with an ``AttributeError`` on Python
-  3.11 and later. :pr:`554` by `Adrin Jalali`_.
+  3.11 and later. Subclasses of ``defaultdict`` are now loaded as their own
+  type, with their instance attributes; they used to be loaded as a plain
+  ``defaultdict``. :pr:`554` by `Adrin Jalali`_.
 
 v0.16
 -----

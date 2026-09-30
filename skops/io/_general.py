@@ -181,6 +181,9 @@ def defaultdict_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]
     content["main"] = get_state(dict(obj), save_context)
     content["default_factory"] = get_state(obj.default_factory, save_context)
     res["content"] = content
+    attrs = _get_attrs_state(obj, save_context)
+    if attrs is not None:
+        res["attrs"] = attrs
     return res
 
 
@@ -192,7 +195,7 @@ class DefaultDictNode(Node):
         trusted: TrustedTypes | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
-        self.trusted = ["collections.defaultdict"]
+        self.trusted = self._get_trusted(trusted, ["collections.defaultdict"])
         self.main = get_tree(
             state["content"]["main"],
             load_context,
@@ -203,14 +206,24 @@ class DefaultDictNode(Node):
             state["content"]["default_factory"], load_context, trusted=trusted
         )
         self.children = {"main": self.main, "default_factory": self.default_factory}
+        # the instance attributes of a subclass, see ``_get_attrs_state``
+        self.attrs = _get_attrs_tree(state, load_context, trusted)
+        if self.attrs is not None:
+            self.children["attrs"] = self.attrs
 
     def _construct(self):
-        instance: defaultdict[Any, Any] = defaultdict()
-        # Make the instance available to children which refer back to it, see
-        # ``Node.construct``.
+        cls: type[object] = gettype(self.module_name, self.class_name)
+        # Like ``DictNode``: the instance is created with ``__new__``, stored,
+        # given its default factory, filled in place and then given its
+        # attributes back. Pickle builds a defaultdict through its constructor
+        # with the default factory instead, which a subclass whose constructor
+        # takes other arguments does not accept.
+        instance: Any = cls.__new__(cls)
         self._constructed = instance
         instance.default_factory = self.default_factory.construct()
-        instance.update(self.main.construct())
+        for key, value in self.main.construct().items():
+            instance[key] = value
+        _set_attrs(instance, self.attrs)
         return instance
 
 
@@ -298,10 +311,12 @@ class SetNode(Node):
         # Like ``ListNode``: the instance is created with ``__new__``, stored,
         # filled in place and then given its attributes back. Pickle builds a
         # set subclass through its constructor instead, which would leave no
-        # instance to hand out to items which refer back to it.
+        # instance to hand out to items which refer back to it. The items are
+        # added with the built-in ``set.update``, as the constructor would, so
+        # that an overridden ``update`` does not run on a bare instance.
         instance: Any = cls.__new__(cls)
         self._constructed = instance
-        instance.update([item.construct() for item in self.content])
+        set.update(instance, [item.construct() for item in self.content])
         _set_attrs(instance, self.attrs)
         return instance
 

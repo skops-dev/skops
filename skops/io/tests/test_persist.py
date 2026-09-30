@@ -76,7 +76,7 @@ from skops.io._trusted_types import (
     SCIPY_UFUNC_TYPE_NAMES,
     SKLEARN_ESTIMATOR_TYPE_NAMES,
 )
-from skops.io._utils import LoadContext, _get_state, get_state, gettype
+from skops.io._utils import LoadContext, _get_state, get_module, get_state, gettype
 from skops.io.exceptions import UnsupportedTypeException, UntrustedTypesFoundException
 from skops.io.tests._utils import (
     assert_method_outputs_equal,
@@ -1844,6 +1844,59 @@ def test_circular_reference_through_defaultdict():
     assert type(loaded) is defaultdict
     assert loaded.default_factory is list
     assert loaded["self"] is loaded
+
+
+class DefaultDictWithAttrs(defaultdict):
+    """defaultdict subclass with a fixed factory and an attribute."""
+
+    owner: object
+
+    def __init__(self, name):
+        super().__init__(list)
+        self.name = name
+
+
+def test_defaultdict_subclass_keeps_type_and_attributes():
+    # A defaultdict subclass used to be loaded as a plain defaultdict. Like
+    # the other container subclasses it is created with __new__, which its
+    # constructor, unlike with pickle, does not have to accept the factory for.
+    obj = DefaultDictWithAttrs("foo")
+    obj["a"].append(1)
+    obj.owner = obj
+    dumped = dumps(obj)
+    assert get_untrusted_types(data=dumped) == [
+        f"{get_module(DefaultDictWithAttrs)}.DefaultDictWithAttrs"
+    ]
+    loaded = loads(dumped, trusted=get_untrusted_types(data=dumped))
+    assert type(loaded) is DefaultDictWithAttrs
+    assert loaded == obj
+    assert loaded.default_factory is list
+    assert loaded.name == "foo"
+    assert loaded.owner is loaded
+
+
+class SetCountingUpdates(set):
+    """Set subclass whose overridden ``update`` needs its constructor to run."""
+
+    def __init__(self, items=()):
+        self.updates = 0
+        super().__init__(items)
+
+    def update(self, *args):
+        self.updates += 1
+        super().update(*args)
+
+
+def test_set_subclass_overriding_update_round_trip():
+    # The items are added with the built-in set.update, as the constructor
+    # would, so the override does not run on an instance without attributes.
+    obj = SetCountingUpdates()
+    obj.update({1, 2})
+    dumped = dumps(obj)
+    loaded = loads(dumped, trusted=get_untrusted_types(data=dumped))
+    assert type(loaded) is SetCountingUpdates
+    assert loaded == obj
+    assert loaded.updates == 1
 
 
 def test_defaultdict_non_string_keys():
