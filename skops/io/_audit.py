@@ -173,8 +173,8 @@ class Node:
 
         A node is reached again while its own ``_construct`` runs when the saved
         object contained a reference to itself, directly or through its
-        children. ``ObjectNode``, ``DictNode``, ``ListNode`` and ``SetNode``
-        support this by storing the instance in ``_constructed`` before
+        children. ``ObjectNode``, ``DictNode``, ``DefaultDictNode``, ``ListNode``
+        and ``SetNode`` support this by storing the instance in ``_constructed`` before
         constructing the children, so the second call returns the partially
         constructed instance, like pickle does. Any other node raises instead
         of recursing until the interpreter gives up.

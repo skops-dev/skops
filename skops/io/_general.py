@@ -46,17 +46,21 @@ def _get_attrs_state(obj: Any, save_context: SaveContext) -> dict[str, Any] | No
     A plain dict, list or set has no instance attributes. An instance of a
     subclass has a ``__dict__``, unless the class defines ``__slots__``, and
     its attributes are read the way ``object_get_state`` reads them: through
-    ``__getstate__`` when the object has one (every object does since Python
-    3.11, and the default returns ``None`` when there is nothing to save), and
-    from ``__dict__`` otherwise. ``None`` is returned when there is nothing to
-    save, so that the state of an object without attributes is the same on
-    every Python version.
+    ``__getstate__`` when the object has one, and from ``__dict__`` otherwise.
+    Every object has a ``__getstate__`` since Python 3.11, and the default one
+    returns ``None`` when there is nothing to save. A class which defines its
+    own decides what is worth saving, an empty dict included, and gets it back
+    through ``__setstate__``, as with pickle. ``None`` is returned when there
+    is nothing to save, so that the state of an object without attributes is
+    the same on every Python version.
     """
     if hasattr(obj, "__getstate__"):
         attrs = obj.__getstate__()
     else:
-        attrs = getattr(obj, "__dict__", None)
-    if attrs is None or (isinstance(attrs, dict) and not attrs):
+        # Python < 3.11, where only a custom ``__getstate__`` exists: an empty
+        # ``__dict__`` is what the default ``__getstate__`` reports as ``None``.
+        attrs = getattr(obj, "__dict__", None) or None
+    if attrs is None:
         return None
     return get_state(attrs, save_context)
 
@@ -79,9 +83,11 @@ def _set_attrs(instance: Any, attrs: Node | None) -> None:
     """Give ``instance`` its attributes back from the node of their state.
 
     ``ObjectNode``, ``DictNode``, ``ListNode`` and ``SetNode`` create the
-    instance with ``__new__`` and then restore its attributes, through
-    ``__setstate__`` when it has one and by updating its ``__dict__``
-    otherwise, as pickle does.
+    instance with ``__new__`` and then restore its attributes the way pickle
+    does: through ``__setstate__`` when the instance has one, and otherwise
+    by updating its ``__dict__``. The default ``__getstate__`` of an object
+    whose class defines ``__slots__`` returns a ``(dict_state, slots_state)``
+    tuple instead of a dict, and the slot values are set one by one.
     """
     if attrs is None:
         return
@@ -90,8 +96,15 @@ def _set_attrs(instance: Any, attrs: Node | None) -> None:
         return
     if hasattr(instance, "__setstate__"):
         instance.__setstate__(state)
-    else:
+        return
+    slots_state = None
+    if isinstance(state, tuple) and len(state) == 2:
+        state, slots_state = state
+    if state:
         instance.__dict__.update(state)
+    if slots_state:
+        for name, value in slots_state.items():
+            setattr(instance, name, value)
 
 
 def dict_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
@@ -192,8 +205,12 @@ class DefaultDictNode(Node):
         self.children = {"main": self.main, "default_factory": self.default_factory}
 
     def _construct(self):
-        instance = defaultdict(**self.main.construct())
+        instance: defaultdict[Any, Any] = defaultdict()
+        # Make the instance available to children which refer back to it, see
+        # ``Node.construct``.
+        self._constructed = instance
         instance.default_factory = self.default_factory.construct()
+        instance.update(self.main.construct())
         return instance
 
 

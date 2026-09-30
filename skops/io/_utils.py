@@ -233,7 +233,13 @@ def _supports_circular_reference(state: dict[str, Any]) -> bool:
     This mirrors the ``Node`` classes whose ``_construct`` registers the
     instance before constructing its children, see ``Node.construct``.
     """
-    return state["__loader__"] in ("DictNode", "ListNode", "SetNode", "ObjectNode")
+    return state["__loader__"] in (
+        "DictNode",
+        "DefaultDictNode",
+        "ListNode",
+        "SetNode",
+        "ObjectNode",
+    )
 
 
 def get_state(value, save_context: SaveContext) -> dict[str, Any]:

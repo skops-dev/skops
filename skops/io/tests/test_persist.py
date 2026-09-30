@@ -1745,6 +1745,64 @@ def test_container_attrs_saved_only_when_present():
     assert state["attrs"]["__loader__"] == "DictNode"
 
 
+class ListWithCustomState(list):
+    """List subclass whose empty custom state must still reach __setstate__."""
+
+    def __getstate__(self):
+        return {}
+
+    def __setstate__(self, state):
+        self.restored = state
+
+
+def test_container_empty_custom_state_is_saved():
+    # A custom __getstate__ decides what is saved, an empty dict included, and
+    # __setstate__ gets it back, as with pickle. Only the default state is
+    # skipped when empty, see test_container_attrs_saved_only_when_present.
+    obj = ListWithCustomState([1])
+    state = list_get_state(obj, make_save_context())
+    assert state["attrs"]["__loader__"] == "DictNode"
+    dumped = dumps(obj)
+    loaded = loads(dumped, trusted=get_untrusted_types(data=dumped))
+    assert loaded == obj
+    assert loaded.restored == {}
+
+
+class SlottedDict(dict):
+    __slots__ = ("name",)
+
+
+class SlottedList(list):
+    __slots__ = ("name",)
+
+
+class SlottedSet(set):
+    __slots__ = ("name",)
+
+
+class SlottedObject:
+    __slots__ = ("name",)
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 11),
+    reason="the default __getstate__, which reports the slots, exists since 3.11",
+)
+@pytest.mark.parametrize(
+    "slotted_type", [SlottedDict, SlottedList, SlottedSet, SlottedObject]
+)
+def test_slotted_round_trip(slotted_type):
+    # The default __getstate__ of an object whose class defines __slots__
+    # returns a (dict_state, slots_state) tuple, which is restored the way
+    # pickle does it, by setting the slots one by one.
+    obj = slotted_type()
+    obj.name = "foo"
+    dumped = dumps(obj)
+    loaded = loads(dumped, trusted=get_untrusted_types(data=dumped))
+    assert type(loaded) is slotted_type
+    assert loaded.name == "foo"
+
+
 def test_bunch_round_trip():
     # sklearn's Bunch is a dict subclass which exposes its keys as attributes;
     # it is built for pickle's __new__ path and ignores its saved __dict__ in
@@ -1776,6 +1834,26 @@ def test_circular_reference_through_dict_subclass():
     loaded = loads(dumped, trusted=get_untrusted_types(data=dumped))
     assert loaded["a"] == 1
     assert loaded["self"] is loaded
+
+
+def test_circular_reference_through_defaultdict():
+    obj: defaultdict[str, object] = defaultdict(list)
+    obj["self"] = obj
+    dumped = dumps(obj)
+    loaded = loads(dumped, trusted=get_untrusted_types(data=dumped))
+    assert type(loaded) is defaultdict
+    assert loaded.default_factory is list
+    assert loaded["self"] is loaded
+
+
+def test_defaultdict_non_string_keys():
+    # the instance used to be built from the items as keyword arguments
+    obj = defaultdict(list, {1: [2], 3: [4]})
+    dumped = dumps(obj)
+    loaded = loads(dumped, trusted=get_untrusted_types(data=dumped))
+    assert type(loaded) is defaultdict
+    assert loaded.default_factory is list
+    assert loaded == obj
 
 
 @pytest.mark.parametrize("plain_subclass, with_attrs, items", CONTAINER_SUBCLASS_CASES)

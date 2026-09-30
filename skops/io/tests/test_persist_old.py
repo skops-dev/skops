@@ -459,6 +459,32 @@ def test_container_subclass_v2(
 
 
 @pytest.mark.parametrize(
+    "obj, get_state_func, old_node_cls",
+    [
+        pytest.param({"a": 1, "b": 2}, dict_get_state, DictNodeV2, id="dict"),
+        pytest.param([1, 2, 3], list_get_state, ListNodeV2, id="list"),
+        pytest.param({1, 2, 3}, set_get_state, SetNodeV2, id="set"),
+    ],
+)
+@pytest.mark.parametrize("protocol", [0, 1, 2])
+def test_plain_container_v2(save_context, obj, get_state_func, old_node_cls, protocol):
+    # A plain dict, list or set has no "attrs" entry in any protocol. Files up
+    # to protocol 2 are read through the old nodes, which build it as before.
+    old_state = get_state_func(obj, save_context)
+    assert "attrs" not in old_state
+    downgraded = downgrade_state(
+        data=dumps(obj), keys=None, old_state=old_state, protocol=protocol
+    )
+    with ZipFile(io.BytesIO(downgraded)) as zip_file:
+        schema, load_context = read_schema(zip_file)
+        node = get_tree(schema, load_context, trusted=None)
+    assert isinstance(node, old_node_cls)
+    loaded = loads(downgraded)
+    assert type(loaded) is type(obj)
+    assert loaded == obj
+
+
+@pytest.mark.parametrize(
     "container_type, items, get_state_func, node_cls, old_node_cls",
     CONTAINER_SUBCLASS_CASES,
 )
