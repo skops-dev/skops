@@ -338,3 +338,19 @@ class TestVisualizeTree:
         assert expected_tree_block in stdout
         assert "    │   └── constructor: sklearn.tree._tree.Tree [UNSAFE]" in stdout
         assert '_sklearn_version: json-type("{}")'.format(sklearn.__version__) in stdout
+
+
+def test_visualize_circular_reference(capsys):
+    # A node which contains itself is shown once more, marked as such, and its
+    # children are not visited again.
+    obj: list[object] = [1]
+    obj.append(obj)
+    sio.visualize(sio.dumps(obj))
+
+    expected = [
+        "root: builtins.list",
+        "├── content: json-type(1)",
+        "└── content: builtins.list (circular reference)",
+    ]
+    stdout, _ = capsys.readouterr()
+    assert stdout.strip() == "\n".join(expected)
