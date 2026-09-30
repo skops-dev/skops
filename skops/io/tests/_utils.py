@@ -15,6 +15,11 @@ from sklearn.utils._testing import assert_allclose_dense_sparse
 from skops.io._protocol import PROTOCOL
 from skops.io._utils import LoadContext, SaveContext
 
+try:
+    import pandas as pd
+except ImportError:  # pandas is optional
+    pd = None
+
 # TODO: Investigate why that seems to be an issue on MacOS (only observed with
 # Python 3.8)
 ATOL = 1e-6 if sys.platform == "darwin" else 1e-7
@@ -104,10 +109,51 @@ def _assert_tuples_equal(val1, val2, path=""):
         _assert_vals_equal(subval1, subval2, path=f"{path}[]")
 
 
+def _is_pandas_object(val):
+    return pd is not None and isinstance(
+        val,
+        (
+            pd.DataFrame,
+            pd.Series,
+            pd.Index,
+            pd.api.extensions.ExtensionArray,
+            pd.api.extensions.ExtensionDtype,
+        ),
+    )
+
+
+def _assert_pandas_equal(val1, val2, path=""):
+    # Strict equality of pandas objects, up to what skops does not preserve:
+    # the freq of datetime-like indexes and arrays.
+    assert pd is not None  # only called for pandas objects
+    assert type(val1) is type(val2), f"Path: type({path})"
+    if isinstance(val1, pd.DataFrame):
+        pd.testing.assert_frame_equal(val1, val2, check_freq=False, obj=path or "df")
+    elif isinstance(val1, pd.Series):
+        pd.testing.assert_series_equal(
+            val1, val2, check_freq=False, obj=path or "Series"
+        )
+    elif isinstance(val1, pd.MultiIndex):
+        assert val1.sortorder == val2.sortorder, f"Path: {path}.sortorder"
+        pd.testing.assert_index_equal(val1, val2, exact=True, obj=path or "Index")
+    elif isinstance(val1, pd.Index):
+        if isinstance(val1, (pd.DatetimeIndex, pd.TimedeltaIndex)):
+            # assert_index_equal starts checking the freq by default in pandas 3.1
+            val1 = type(val1)(val1, freq=None)
+        pd.testing.assert_index_equal(val1, val2, exact=True, obj=path or "Index")
+    elif isinstance(val1, pd.api.extensions.ExtensionArray):
+        pd.testing.assert_extension_array_equal(val1, val2)
+    else:  # an extension dtype
+        assert val1 == val2, f"Path: {path}"
+
+
 @_skip_circular_references
 def _assert_vals_equal(val1, val2, path=""):
     if isinstance(val1, type):  # e.g. could be np.int64
         assert val1 is val2, f"Path: {path}"
+    elif _is_pandas_object(val1):
+        # before the __getstate__ branch, which would compare pandas internals
+        _assert_pandas_equal(val1, val2, path=path)
     elif hasattr(val1, "__getstate__") and (val1.__getstate__() is not None):
         # This includes BaseEstimator since they implement __getstate__ and
         # that returns the parameters as well.

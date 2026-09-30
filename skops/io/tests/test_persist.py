@@ -75,7 +75,7 @@ from skops.io._trusted_types import (
     SCIPY_UFUNC_TYPE_NAMES,
     SKLEARN_ESTIMATOR_TYPE_NAMES,
 )
-from skops.io._utils import LoadContext, _get_state, get_state, gettype
+from skops.io._utils import LoadContext, _get_state, get_state, get_type_name, gettype
 from skops.io.exceptions import UnsupportedTypeException, UntrustedTypesFoundException
 from skops.io.tests._utils import (
     assert_method_outputs_equal,
@@ -1565,6 +1565,29 @@ def test_reduce_raises_falls_back_to_dict():
     loaded_obj = loads(dumped, trusted=[RaisingReduce])
     assert type(loaded_obj) is RaisingReduce
     assert loaded_obj.x == 3
+
+
+# This class is here as opposed to inside the test because it needs to be importable.
+# It mirrors the fitted attributes of category_encoders' TargetEncoder, see gh-450.
+class PandasEncoder(BaseEstimator):
+    def fit(self, X, y=None):
+        import pandas as pd
+
+        self.mapping_ = {"col": pd.Series([0.49, 0.66], index=pd.Index([1, 2]))}
+        self.categories_ = pd.Index(["A", "B"], name="col")
+        self.dtypes_ = [pd.StringDtype(), pd.Int64Dtype()]
+        return self
+
+
+def test_estimator_with_pandas_attributes():
+    pytest.importorskip("pandas")
+    estimator = PandasEncoder().fit(None)
+    dumped = dumps(estimator)
+    # the pandas objects are trusted by default, only the estimator is not
+    assert get_untrusted_types(data=dumped) == [get_type_name(PandasEncoder)]
+
+    loaded = loads(dumped, trusted=[PandasEncoder])
+    assert_params_equal(estimator.__dict__, loaded.__dict__)
 
 
 def test_loss_get_state_unsupported_reduce():
