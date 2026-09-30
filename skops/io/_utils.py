@@ -227,16 +227,13 @@ def _get_state(obj, save_context: SaveContext):
     raise TypeError(f"Getting the state of type {type(obj)} is not supported yet")
 
 
-def _supports_circular_reference(value: Any, state: dict[str, Any]) -> bool:
-    """Whether a reference to ``value`` from inside its own state can be loaded.
+def _supports_circular_reference(state: dict[str, Any]) -> bool:
+    """Whether a reference to the object of ``state`` from inside it can be loaded.
 
     This mirrors the ``Node`` classes whose ``_construct`` registers the
     instance before constructing its children, see ``Node.construct``.
-    ``ListNode`` and ``SetNode`` only do so for plain lists and sets.
     """
-    if type(value) in (list, set):
-        return True
-    return state["__loader__"] in ("DictNode", "ObjectNode")
+    return state["__loader__"] in ("DictNode", "ListNode", "SetNode", "ObjectNode")
 
 
 def get_state(value, save_context: SaveContext) -> dict[str, Any]:
@@ -264,9 +261,7 @@ def get_state(value, save_context: SaveContext) -> dict[str, Any]:
     save_context.in_progress[__id__] = False
     try:
         res = _get_state(value, save_context)
-        if save_context.in_progress[__id__] and not _supports_circular_reference(
-            value, res
-        ):
+        if save_context.in_progress[__id__] and not _supports_circular_reference(res):
             raise UnsupportedTypeException(
                 f"Objects of type {type(value).__name__} which contain a"
                 " reference to themselves are not supported yet."

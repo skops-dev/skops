@@ -40,6 +40,60 @@ arepr = Repr()
 arepr.maxstring = 24
 
 
+def _get_attrs_state(obj: Any, save_context: SaveContext) -> dict[str, Any] | None:
+    """Return the state of the instance attributes of a container, if any.
+
+    A plain dict, list or set has no instance attributes. An instance of a
+    subclass has a ``__dict__``, unless the class defines ``__slots__``, and
+    its attributes are read the way ``object_get_state`` reads them: through
+    ``__getstate__`` when the object has one (every object does since Python
+    3.11, and the default returns ``None`` when there is nothing to save), and
+    from ``__dict__`` otherwise. ``None`` is returned when there is nothing to
+    save, so that the state of an object without attributes is the same on
+    every Python version.
+    """
+    if hasattr(obj, "__getstate__"):
+        attrs = obj.__getstate__()
+    else:
+        attrs = getattr(obj, "__dict__", None)
+    if attrs is None or (isinstance(attrs, dict) and not attrs):
+        return None
+    return get_state(attrs, save_context)
+
+
+def _get_attrs_tree(
+    state: dict[str, Any], load_context: LoadContext, trusted: TrustedTypes | None
+) -> Node | None:
+    """Return the node of the ``attrs`` entry of ``state``, if there is one.
+
+    The entry is written by ``_get_attrs_state``, for instances which have
+    attributes.
+    """
+    attrs = state.get("attrs")
+    if attrs is None:
+        return None
+    return get_tree(attrs, load_context, trusted=trusted)
+
+
+def _set_attrs(instance: Any, attrs: Node | None) -> None:
+    """Give ``instance`` its attributes back from the node of their state.
+
+    ``ObjectNode``, ``DictNode``, ``ListNode`` and ``SetNode`` create the
+    instance with ``__new__`` and then restore its attributes, through
+    ``__setstate__`` when it has one and by updating its ``__dict__``
+    otherwise, as pickle does.
+    """
+    if attrs is None:
+        return
+    state = attrs.construct()
+    if state is None:
+        return
+    if hasattr(instance, "__setstate__"):
+        instance.__setstate__(state)
+    else:
+        instance.__dict__.update(state)
+
+
 def dict_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     res = {
         "__class__": obj.__class__.__name__,
@@ -58,6 +112,9 @@ def dict_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
         content[key] = get_state(value, save_context)
     res["content"] = content
     res["key_types"] = key_types
+    attrs = _get_attrs_state(obj, save_context)
+    if attrs is not None:
+        res["attrs"] = attrs
     return res
 
 
@@ -78,16 +135,25 @@ class DictNode(Node):
             for key, value in state["content"].items()
         }
         self.children = {"key_types": self.key_types, "content": self.content}
+        # the instance attributes of a subclass, see ``_get_attrs_state``
+        self.attrs = _get_attrs_tree(state, load_context, trusted)
+        if self.attrs is not None:
+            self.children["attrs"] = self.attrs
 
     def _construct(self):
-        content = gettype(self.module_name, self.class_name)()
-        # Make the dict available to children which refer back to it, see
+        cls: type[object] = gettype(self.module_name, self.class_name)
+        # As pickle does, the instance is created with ``__new__`` instead of
+        # through its constructor, filled in place and then given its
+        # attributes back. It is stored before its items are constructed, so
+        # that items which refer back to it get the instance, see
         # ``Node.construct``.
-        self._constructed = content
+        instance: Any = cls.__new__(cls)
+        self._constructed = instance
         key_types = self.key_types.construct()
         for k_type, (key, val) in zip(key_types, self.content.items()):
-            content[k_type(key)] = val.construct()
-        return content
+            instance[k_type(key)] = val.construct()
+        _set_attrs(instance, self.attrs)
+        return instance
 
 
 def defaultdict_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
@@ -140,6 +206,9 @@ def list_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     content = [get_state(value, save_context) for value in obj]
 
     res["content"] = content
+    attrs = _get_attrs_state(obj, save_context)
+    if attrs is not None:
+        res["attrs"] = attrs
     return res
 
 
@@ -156,22 +225,23 @@ class ListNode(Node):
             get_tree(value, load_context, trusted=trusted) for value in state["content"]
         ]
         self.children = {"content": self.content}
+        # the instance attributes of a subclass, see ``_get_attrs_state``
+        self.attrs = _get_attrs_tree(state, load_context, trusted)
+        if self.attrs is not None:
+            self.children["attrs"] = self.attrs
 
     def _construct(self):
-        content_type = gettype(self.module_name, self.class_name)
-        if content_type is not list:
-            # Subclasses are built from their items through their own
-            # constructor, as before, so there is no instance to hand out
-            # before it is complete: a reference back to a list subclass is not
-            # supported, and ``get_state`` refuses it when saving.
-            return content_type([item.construct() for item in self.content])
-
-        # Fill a plain list in place and make it available to children which
-        # refer back to it, see ``Node.construct``.
-        content: list[Any] = []
-        self._constructed = content
-        content.extend(item.construct() for item in self.content)
-        return content
+        cls: type[object] = gettype(self.module_name, self.class_name)
+        # As pickle does, the instance is created with ``__new__`` instead of
+        # through its constructor, filled in place and then given its
+        # attributes back. It is stored before its items are constructed, so
+        # that items which refer back to it get the instance, see
+        # ``Node.construct``.
+        instance: Any = cls.__new__(cls)
+        self._constructed = instance
+        instance.extend([item.construct() for item in self.content])
+        _set_attrs(instance, self.attrs)
+        return instance
 
 
 def set_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
@@ -182,6 +252,9 @@ def set_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     }
     content = [get_state(value, save_context) for value in obj]
     res["content"] = content
+    attrs = _get_attrs_state(obj, save_context)
+    if attrs is not None:
+        res["attrs"] = attrs
     return res
 
 
@@ -198,22 +271,22 @@ class SetNode(Node):
             get_tree(value, load_context, trusted=trusted) for value in state["content"]
         ]
         self.children = {"content": self.content}
+        # the instance attributes of a subclass, see ``_get_attrs_state``
+        self.attrs = _get_attrs_tree(state, load_context, trusted)
+        if self.attrs is not None:
+            self.children["attrs"] = self.attrs
 
     def _construct(self):
-        content_type = gettype(self.module_name, self.class_name)
-        if content_type is not set:
-            # Subclasses are built from their items through their own
-            # constructor, as before, so there is no instance to hand out
-            # before it is complete: a reference back to a set subclass is not
-            # supported, and ``get_state`` refuses it when saving.
-            return content_type([item.construct() for item in self.content])
-
-        # Fill a plain set in place and make it available to children which
-        # refer back to it, see ``Node.construct``.
-        content: set[Any] = set()
-        self._constructed = content
-        content.update(item.construct() for item in self.content)
-        return content
+        cls: type[object] = gettype(self.module_name, self.class_name)
+        # Like ``ListNode``: the instance is created with ``__new__``, stored,
+        # filled in place and then given its attributes back. Pickle builds a
+        # set subclass through its constructor instead, which would leave no
+        # instance to hand out to items which refer back to it.
+        instance: Any = cls.__new__(cls)
+        self._constructed = instance
+        instance.update([item.construct() for item in self.content])
+        _set_attrs(instance, self.attrs)
+        return instance
 
 
 def tuple_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
@@ -578,19 +651,7 @@ class ObjectNode(Node):
         # Make the instance available to attributes which refer back to it, see
         # ``Node.construct``.
         self._constructed = instance
-
-        attrs_node = self.attrs
-        if attrs_node is None:
-            # nothing more to do
-            return instance
-
-        attrs = attrs_node.construct()
-        if attrs is not None:
-            if hasattr(instance, "__setstate__"):
-                instance.__setstate__(attrs)
-            else:
-                instance.__dict__.update(attrs)
-
+        _set_attrs(instance, self.attrs)
         return instance
 
 
