@@ -10,37 +10,15 @@ from zipfile import ZipFile
 
 import numpy as np
 import pytest
-from sklearn.base import BaseEstimator
 
 from skops.io import dump, dumps, get_untrusted_types, load, loads, visualize
 from skops.io._pandas import _public_module
 from skops.io._trusted_types import PANDAS_TYPE_NAMES
-from skops.io._utils import get_type_name, gettype
+from skops.io._utils import gettype
 from skops.io.exceptions import UnsupportedTypeException
+from skops.io.tests._utils import _assert_vals_equal
 
 pd = pytest.importorskip("pandas")
-tm = pytest.importorskip("pandas.testing")
-
-
-def assert_equal(expected, actual):
-    assert type(actual) is type(expected)
-    if isinstance(expected, pd.MultiIndex):
-        assert actual.sortorder == expected.sortorder
-    if isinstance(expected, pd.DataFrame):
-        tm.assert_frame_equal(expected, actual, check_freq=False)
-    elif isinstance(expected, pd.Series):
-        tm.assert_series_equal(expected, actual, check_freq=False)
-    elif isinstance(expected, (pd.DatetimeIndex, pd.TimedeltaIndex)):
-        # the freq is not preserved, and assert_index_equal starts checking it
-        # by default in pandas 3.1
-        expected = type(expected)(expected, freq=None)
-        tm.assert_index_equal(expected, actual, exact=True)
-    elif isinstance(expected, pd.Index):
-        tm.assert_index_equal(expected, actual, exact=True)
-    elif isinstance(expected, pd.api.extensions.ExtensionArray):
-        tm.assert_extension_array_equal(expected, actual)
-    else:
-        assert expected == actual
 
 
 INDEXES = [
@@ -157,33 +135,12 @@ def _id(obj):
 def test_roundtrip(obj):
     # pandas types are trusted by default, so no trusted list is needed
     loaded = loads(dumps(obj))
-    assert_equal(obj, loaded)
+    # the strict pandas comparison shared with the estimator tests
+    _assert_vals_equal(obj, loaded)
 
 
 def test_pandas_types_are_trusted_by_default():
     assert get_untrusted_types(data=dumps(FRAMES[1])) == []
-
-
-class Encoder(BaseEstimator):
-    """Mirrors the fitted attributes of category_encoders' TargetEncoder."""
-
-    def fit(self, X, y=None):
-        self.mapping_ = {"col": pd.Series([0.49, 0.66], index=pd.Index([1, 2]))}
-        self.categories_ = pd.Index(["A", "B"], name="col")
-        self.dtypes_ = [pd.StringDtype(), pd.Int64Dtype()]
-        return self
-
-
-def test_estimator_with_pandas_attributes():
-    estimator = Encoder().fit(None)
-    dumped = dumps(estimator)
-    # only the estimator itself needs to be trusted
-    assert get_untrusted_types(data=dumped) == [get_type_name(Encoder)]
-
-    loaded = loads(dumped, trusted=[Encoder])
-    tm.assert_series_equal(loaded.mapping_["col"], estimator.mapping_["col"])
-    tm.assert_index_equal(loaded.categories_, estimator.categories_, exact=True)
-    assert loaded.dtypes_ == estimator.dtypes_
 
 
 def _with_edited_schema(dumped, edit):
@@ -398,25 +355,3 @@ def test_load_file_of_other_pandas_version(path):
     # pandas types are trusted by default, so no trusted list is needed
     loaded = load(path)
     assert_same_data(cross_version_objects(), loaded)
-
-
-# category_encoders uses deprecated pandas options, which the test setup turns
-# into errors
-@pytest.mark.filterwarnings("ignore")
-def test_category_encoders_target_encoder():
-    # the report in https://github.com/skops-dev/skops/issues/450
-    ce = pytest.importorskip("category_encoders")
-
-    X = pd.DataFrame({"category": list("ABACBACCBA")})
-    y = np.array([0, 1, 0, 1, 1, 0, 1, 1, 1, 0])
-    encoder = ce.TargetEncoder().fit(X, y)
-
-    dumped = dumps(encoder)
-    assert get_untrusted_types(data=dumped) == [
-        get_type_name(ce.OrdinalEncoder),
-        get_type_name(ce.TargetEncoder),
-    ]
-    loaded = loads(dumped, trusted=[ce.OrdinalEncoder, ce.TargetEncoder])
-
-    X_new = pd.DataFrame({"category": ["A", "C", "unseen", None]})
-    tm.assert_frame_equal(loaded.transform(X_new), encoder.transform(X_new))
