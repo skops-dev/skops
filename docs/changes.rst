@@ -26,17 +26,33 @@ v0.17
   ``Series`` or ``DataFrame`` using one, could not be saved. Such objects are
   now saved through ``__getstate__``/``__dict__`` again, as before v0.12.0.
   :pr:`550` by `Adrin Jalali`_.
-- Objects which contain a reference to themselves, directly or through
-  their attributes, dicts, lists, or sets, can now be saved and loaded. They
-  used to fail with a ``RecursionError``; this affected for instance the
-  discrete distributions of ``scipy.stats`` and fitted
-  :class:`sklearn.cluster.Birch` models, which is no longer listed as
-  unsupported. Such a reference through any other type, e.g. a tuple, raises
-  an ``UnsupportedTypeException`` when saving. Bound methods inherited from a
-  class defined in another module can now be loaded, they used to be
-  rejected as corrupted. A file in which nodes of different types share an
-  ``__id__`` is now rejected when loading instead of silently loading one of
-  them in place of the other. :pr:`549` by `Adrin Jalali`_.
+- Objects which contain a reference to themselves can now be saved and
+  loaded, and subclasses of the built-in containers are persisted the way
+  pickle does it. :pr:`549` and :pr:`554` by `Adrin Jalali`_.
+
+  - Circular references: objects which refer to themselves, directly or
+    through their attributes, dicts, lists, or sets, including subclasses of
+    these, can now be saved and loaded. They used to fail with a
+    ``RecursionError``; this affected for instance the discrete distributions
+    of ``scipy.stats`` and fitted :class:`sklearn.cluster.Birch` models, which
+    is no longer listed as unsupported. Such a reference through any other
+    type, e.g. a tuple, raises an ``UnsupportedTypeException`` when saving.
+
+  - Container subclasses: subclasses of ``dict``, ``list`` and ``set`` are now
+    saved and loaded the way pickle does it for dicts and lists. The instance
+    is created with ``__new__`` and filled in place instead of through its
+    constructor, so a subclass whose constructor requires arguments can now
+    be loaded, and its instance attributes, which used to be dropped, are
+    saved and restored. Subclasses of ``set`` and of
+    ``collections.defaultdict`` are treated the same way, although pickle
+    builds them through their constructor, so that items which refer back to
+    the container can be loaded. Files written with an earlier protocol load
+    as before.
+
+  - Loading: bound methods inherited from a class defined in another module
+    can now be loaded, they used to be rejected as corrupted. A file in which
+    nodes of different types share an ``__id__`` is now rejected instead of
+    silently loading one of them in place of the other.
 - Restore the ``skops`` command line entry point. It was declared in
   ``setup.py`` and lost when the packaging moved to ``pyproject.toml`` in
   v0.11.0, so ``skops convert`` and ``skops update`` had not been available
@@ -48,6 +64,12 @@ v0.17
   could not be loaded. The file format now stores the keyword arguments and
   the persistence protocol is bumped to 3; files written with an earlier
   protocol load as before. :pr:`551` by `Adrin Jalali`_.
+- Fix loading of ``collections.defaultdict`` objects whose keys are not
+  strings, which failed with a ``TypeError``, and of objects whose class
+  defines ``__slots__``, which failed with an ``AttributeError`` on Python
+  3.11 and later. Subclasses of ``defaultdict`` are now loaded as their own
+  type, with their instance attributes; they used to be loaded as a plain
+  ``defaultdict``. :pr:`554` by `Adrin Jalali`_.
 
 v0.16
 -----

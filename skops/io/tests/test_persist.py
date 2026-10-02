@@ -53,7 +53,7 @@ from sklearn.preprocessing import (
     StandardScaler,
 )
 from sklearn.tree import DecisionTreeClassifier
-from sklearn.utils import all_estimators, check_random_state
+from sklearn.utils import Bunch, all_estimators, check_random_state
 from sklearn.utils._testing import SkipTest, set_random_state
 from sklearn.utils.estimator_checks import (
     _enforce_estimator_tags_X,
@@ -65,6 +65,7 @@ from sklearn.utils.fixes import parse_version, sp_version
 import skops
 from skops.io import dump, dumps, get_untrusted_types, load, loads, visualize
 from skops.io._audit import NODE_TYPE_MAPPING, Node, get_tree
+from skops.io._general import dict_get_state, list_get_state, set_get_state
 from skops.io._protocol import PROTOCOL
 from skops.io._sklearn import UNSUPPORTED_TYPES, loss_get_state
 from skops.io._trusted_types import (
@@ -75,7 +76,7 @@ from skops.io._trusted_types import (
     SCIPY_UFUNC_TYPE_NAMES,
     SKLEARN_ESTIMATOR_TYPE_NAMES,
 )
-from skops.io._utils import LoadContext, _get_state, get_state, gettype
+from skops.io._utils import LoadContext, _get_state, get_module, get_state, gettype
 from skops.io.exceptions import UnsupportedTypeException, UntrustedTypesFoundException
 from skops.io.tests._utils import (
     assert_method_outputs_equal,
@@ -1660,6 +1661,10 @@ def test_circular_reference_in_list():
     assert loaded[1] is loaded
 
 
+class DictSubclass(dict):
+    pass
+
+
 class ListSubclass(list):
     pass
 
@@ -1668,23 +1673,252 @@ class SetSubclass(set):
     pass
 
 
-@pytest.mark.parametrize("container_type", [ListSubclass, SetSubclass])
-def test_list_and_set_subclasses_round_trip(container_type):
-    # Only plain lists and sets are filled in place, to resolve references back
-    # to them. Their subclasses are constructed from the items, as before.
-    obj = container_type([1, 2, 3])
+class DictWithAttrs(dict):
+    """Dict subclass with a required constructor argument and an attribute."""
+
+    def __init__(self, name, items):
+        super().__init__(items)
+        self.name = name
+
+
+class ListWithAttrs(list):
+    """List subclass with a required constructor argument and an attribute."""
+
+    def __init__(self, name, items):
+        super().__init__(items)
+        self.name = name
+
+
+class SetWithAttrs(set):
+    """Set subclass with a required constructor argument and an attribute."""
+
+    def __init__(self, name, items):
+        super().__init__(items)
+        self.name = name
+
+
+CONTAINER_SUBCLASS_CASES = [
+    pytest.param(DictSubclass, DictWithAttrs, {"a": 1, "b": 2}, id="dict"),
+    pytest.param(ListSubclass, ListWithAttrs, [1, 2, 3], id="list"),
+    pytest.param(SetSubclass, SetWithAttrs, {1, 2, 3}, id="set"),
+]
+
+
+@pytest.mark.parametrize("plain_subclass, with_attrs, items", CONTAINER_SUBCLASS_CASES)
+def test_container_subclasses_round_trip(plain_subclass, with_attrs, items):
+    obj = plain_subclass(items)
     dumped = dumps(obj)
     loaded = loads(dumped, trusted=get_untrusted_types(data=dumped))
-    assert type(loaded) is container_type
+    assert type(loaded) is plain_subclass
     assert loaded == obj
 
 
-def test_circular_reference_through_list_subclass_raises():
+@pytest.mark.parametrize("plain_subclass, with_attrs, items", CONTAINER_SUBCLASS_CASES)
+def test_container_subclasses_keep_attributes(plain_subclass, with_attrs, items):
+    # Like pickle, the instance of a subclass is created with __new__ and
+    # filled in place, so its constructor does not have to accept the items,
+    # and its attributes are saved and restored.
+    obj = with_attrs("foo", items)
+    dumped = dumps(obj)
+    loaded = loads(dumped, trusted=get_untrusted_types(data=dumped))
+    assert type(loaded) is with_attrs
+    assert loaded == obj
+    assert loaded.name == "foo"
+
+
+def test_container_attrs_saved_only_when_present():
+    # A plain dict, list or set has no instance attributes, and neither has an
+    # instance of a subclass without any, so their state has no "attrs" entry
+    # and is the same as before. The entry holds the attributes as a dict.
+    save_context = make_save_context()
+    assert "attrs" not in dict_get_state({"a": 1}, save_context)
+    assert "attrs" not in list_get_state([1], save_context)
+    assert "attrs" not in set_get_state({1}, save_context)
+    assert "attrs" not in dict_get_state(DictSubclass({"a": 1}), save_context)
+    assert "attrs" not in list_get_state(ListSubclass([1]), save_context)
+    assert "attrs" not in set_get_state(SetSubclass([1]), save_context)
+    state = dict_get_state(DictWithAttrs("foo", {"a": 1}), save_context)
+    assert state["attrs"]["__loader__"] == "DictNode"
+    state = list_get_state(ListWithAttrs("foo", [1]), save_context)
+    assert state["attrs"]["__loader__"] == "DictNode"
+    state = set_get_state(SetWithAttrs("foo", [1]), save_context)
+    assert state["attrs"]["__loader__"] == "DictNode"
+
+
+class ListWithCustomState(list):
+    """List subclass whose empty custom state must still reach __setstate__."""
+
+    def __getstate__(self):
+        return {}
+
+    def __setstate__(self, state):
+        self.restored = state
+
+
+def test_container_empty_custom_state_is_saved():
+    # A custom __getstate__ decides what is saved, an empty dict included, and
+    # __setstate__ gets it back, as with pickle. Only the default state is
+    # skipped when empty, see test_container_attrs_saved_only_when_present.
+    obj = ListWithCustomState([1])
+    state = list_get_state(obj, make_save_context())
+    assert state["attrs"]["__loader__"] == "DictNode"
+    dumped = dumps(obj)
+    loaded = loads(dumped, trusted=get_untrusted_types(data=dumped))
+    assert loaded == obj
+    assert loaded.restored == {}
+
+
+class SlottedDict(dict):
+    __slots__ = ("name",)
+
+
+class SlottedList(list):
+    __slots__ = ("name",)
+
+
+class SlottedSet(set):
+    __slots__ = ("name",)
+
+
+class SlottedObject:
+    __slots__ = ("name",)
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 11),
+    reason="the default __getstate__, which reports the slots, exists since 3.11",
+)
+@pytest.mark.parametrize(
+    "slotted_type", [SlottedDict, SlottedList, SlottedSet, SlottedObject]
+)
+def test_slotted_round_trip(slotted_type):
+    # The default __getstate__ of an object whose class defines __slots__
+    # returns a (dict_state, slots_state) tuple, which is restored the way
+    # pickle does it, by setting the slots one by one.
+    obj = slotted_type()
+    obj.name = "foo"
+    dumped = dumps(obj)
+    loaded = loads(dumped, trusted=get_untrusted_types(data=dumped))
+    assert type(loaded) is slotted_type
+    assert loaded.name == "foo"
+
+
+def test_bunch_round_trip():
+    # sklearn's Bunch is a dict subclass which exposes its keys as attributes;
+    # it is built for pickle's __new__ path and ignores its saved __dict__ in
+    # its __setstate__, and behaves the same here.
+    obj = Bunch(a=1, b=[2, 3])
+    dumped = dumps(obj)
+    loaded = loads(dumped, trusted=get_untrusted_types(data=dumped))
+    assert type(loaded) is Bunch
+    assert loaded == obj
+    assert loaded.a == 1
+    assert loaded.b == [2, 3]
+    loaded.c = 4
+    assert loaded["c"] == 4
+
+
+def test_circular_reference_through_list_subclass():
     obj = ListSubclass([1])
     obj.append(obj)
-    msg = "Objects of type ListSubclass which contain a reference to themselves"
-    with pytest.raises(UnsupportedTypeException, match=msg):
-        dumps(obj)
+    dumped = dumps(obj)
+    loaded = loads(dumped, trusted=get_untrusted_types(data=dumped))
+    assert loaded[0] == 1
+    assert loaded[1] is loaded
+
+
+def test_circular_reference_through_dict_subclass():
+    obj = DictSubclass(a=1)
+    obj["self"] = obj
+    dumped = dumps(obj)
+    loaded = loads(dumped, trusted=get_untrusted_types(data=dumped))
+    assert loaded["a"] == 1
+    assert loaded["self"] is loaded
+
+
+def test_circular_reference_through_defaultdict():
+    obj: defaultdict[str, object] = defaultdict(list)
+    obj["self"] = obj
+    dumped = dumps(obj)
+    loaded = loads(dumped, trusted=get_untrusted_types(data=dumped))
+    assert type(loaded) is defaultdict
+    assert loaded.default_factory is list
+    assert loaded["self"] is loaded
+
+
+class DefaultDictWithAttrs(defaultdict):
+    """defaultdict subclass with a fixed factory and an attribute."""
+
+    owner: object
+
+    def __init__(self, name):
+        super().__init__(list)
+        self.name = name
+
+
+def test_defaultdict_subclass_keeps_type_and_attributes():
+    # A defaultdict subclass used to be loaded as a plain defaultdict. Like
+    # the other container subclasses it is created with __new__, which its
+    # constructor, unlike with pickle, does not have to accept the factory for.
+    obj = DefaultDictWithAttrs("foo")
+    obj["a"].append(1)
+    obj.owner = obj
+    dumped = dumps(obj)
+    assert get_untrusted_types(data=dumped) == [
+        f"{get_module(DefaultDictWithAttrs)}.DefaultDictWithAttrs"
+    ]
+    loaded = loads(dumped, trusted=get_untrusted_types(data=dumped))
+    assert type(loaded) is DefaultDictWithAttrs
+    assert loaded == obj
+    assert loaded.default_factory is list
+    assert loaded.name == "foo"
+    assert loaded.owner is loaded
+
+
+class SetCountingUpdates(set):
+    """Set subclass whose overridden ``update`` needs its constructor to run."""
+
+    def __init__(self, items=()):
+        self.updates = 0
+        super().__init__(items)
+
+    def update(self, *args):
+        self.updates += 1
+        super().update(*args)
+
+
+def test_set_subclass_overriding_update_round_trip():
+    # The items are added with the built-in set.update, as the constructor
+    # would, so the override does not run on an instance without attributes.
+    obj = SetCountingUpdates()
+    obj.update({1, 2})
+    dumped = dumps(obj)
+    loaded = loads(dumped, trusted=get_untrusted_types(data=dumped))
+    assert type(loaded) is SetCountingUpdates
+    assert loaded == obj
+    assert loaded.updates == 1
+
+
+def test_defaultdict_non_string_keys():
+    # the instance used to be built from the items as keyword arguments
+    obj = defaultdict(list, {1: [2], 3: [4]})
+    dumped = dumps(obj)
+    loaded = loads(dumped, trusted=get_untrusted_types(data=dumped))
+    assert type(loaded) is defaultdict
+    assert loaded.default_factory is list
+    assert loaded == obj
+
+
+@pytest.mark.parametrize("plain_subclass, with_attrs, items", CONTAINER_SUBCLASS_CASES)
+def test_circular_reference_through_container_attribute(
+    plain_subclass, with_attrs, items
+):
+    obj = with_attrs("foo", items)
+    obj.owner = obj
+    dumped = dumps(obj)
+    loaded = loads(dumped, trusted=get_untrusted_types(data=dumped))
+    assert loaded.owner is loaded
+    assert loaded.name == "foo"
 
 
 class SetHolder:
@@ -1693,11 +1927,13 @@ class SetHolder:
     members: set
 
 
-def test_circular_reference_through_set():
+@pytest.mark.parametrize("container_type", [set, SetSubclass])
+def test_circular_reference_through_set(container_type):
     holder = SetHolder()
-    holder.members = {holder}
+    holder.members = container_type({holder})
     dumped = dumps(holder)
     loaded = loads(dumped, trusted=get_untrusted_types(data=dumped))
+    assert type(loaded.members) is container_type
     (member,) = loaded.members
     assert member is loaded
 

@@ -14,10 +14,22 @@ from sklearn.preprocessing import FunctionTransformer
 
 from skops.io import dumps, get_untrusted_types, loads
 from skops.io._audit import get_tree
-from skops.io._general import OperatorFuncNode, operator_func_get_state
+from skops.io._general import (
+    DictNode,
+    ListNode,
+    OperatorFuncNode,
+    SetNode,
+    dict_get_state,
+    list_get_state,
+    operator_func_get_state,
+    set_get_state,
+)
 from skops.io._utils import SaveContext, get_module, get_state, read_schema
 from skops.io.exceptions import UntrustedTypesFoundException
+from skops.io.old._general_v2 import DictNode as DictNodeV2
+from skops.io.old._general_v2 import ListNode as ListNodeV2
 from skops.io.old._general_v2 import OperatorFuncNode as OperatorFuncNodeV2
+from skops.io.old._general_v2 import SetNode as SetNodeV2
 from skops.io.tests._utils import (
     assert_method_outputs_equal,
     assert_params_equal,
@@ -329,10 +341,11 @@ def test_random_generator_v1_wrong_child_type_is_rejected(save_context):
     ],
     ids=["attrgetter", "itemgetter", "methodcaller"],
 )
-def test_operator_func_v2(save_context, func, arg):
+@pytest.mark.parametrize("protocol", [0, 1, 2])
+def test_operator_func_v2(save_context, func, arg, protocol):
     # Up to protocol 2 an OperatorFuncNode state had no "kwargs" entry. Such
-    # files are read by the protocol-2 node in skops.io.old, and load and
-    # behave as before.
+    # files, whichever of these protocols they were written with, are read by
+    # the protocol-2 node in skops.io.old, and load and behave as before.
 
     # operator_func_get_state as it was for protocol 2
     def old_operator_func_get_state(obj, save_context):
@@ -348,7 +361,7 @@ def test_operator_func_v2(save_context, func, arg):
         data=dumps(func),
         keys=None,
         old_state=old_operator_func_get_state(func, save_context),
-        protocol=2,
+        protocol=protocol,
     )
     with ZipFile(io.BytesIO(downgraded)) as zip_file:
         schema, load_context = read_schema(zip_file)
@@ -369,3 +382,123 @@ def test_operator_func_current_requires_kwargs(save_context):
     del state["kwargs"]
     with pytest.raises(KeyError, match="kwargs"):
         OperatorFuncNode(state, make_load_context(), trusted=None)
+
+
+class TaggedDict(dict):
+    """Dict subclass whose constructor sets an attribute."""
+
+    def __init__(self, items=()):
+        super().__init__(items)
+        self.tagged = True
+
+
+class TaggedList(list):
+    """List subclass whose constructor sets an attribute."""
+
+    def __init__(self, items):
+        super().__init__(items)
+        self.tagged = True
+
+
+class TaggedSet(set):
+    """Set subclass whose constructor sets an attribute."""
+
+    def __init__(self, items):
+        super().__init__(items)
+        self.tagged = True
+
+
+CONTAINER_SUBCLASS_CASES = [
+    pytest.param(
+        TaggedDict, {"a": 1, "b": 2}, dict_get_state, DictNode, DictNodeV2, id="dict"
+    ),
+    pytest.param(
+        TaggedList, [1, 2, 3], list_get_state, ListNode, ListNodeV2, id="list"
+    ),
+    pytest.param(TaggedSet, {1, 2, 3}, set_get_state, SetNode, SetNodeV2, id="set"),
+]
+
+
+@pytest.mark.parametrize(
+    "container_type, items, get_state_func, node_cls, old_node_cls",
+    CONTAINER_SUBCLASS_CASES,
+)
+@pytest.mark.parametrize("protocol", [0, 1, 2])
+def test_container_subclass_v2(
+    save_context,
+    container_type,
+    items,
+    get_state_func,
+    node_cls,
+    old_node_cls,
+    protocol,
+):
+    # Up to protocol 2 the state of a dict, list or set had no "attrs" entry,
+    # and an instance of a subclass was built through its constructor. Such
+    # files, whichever of these protocols they were written with, are read by
+    # the protocol-2 nodes in skops.io.old and load as before, here with the
+    # attribute the constructor sets.
+    obj = container_type(items)
+    # the state as it was for protocol 2
+    old_state = get_state_func(obj, save_context)
+    del old_state["attrs"]
+    downgraded = downgrade_state(
+        data=dumps(obj), keys=None, old_state=old_state, protocol=protocol
+    )
+    with ZipFile(io.BytesIO(downgraded)) as zip_file:
+        schema, load_context = read_schema(zip_file)
+        node = get_tree(schema, load_context, trusted=None)
+    assert isinstance(node, old_node_cls)
+
+    type_name = f"{get_module(container_type)}.{container_type.__name__}"
+    assert get_untrusted_types(data=downgraded) == [type_name]
+    loaded = loads(downgraded, trusted=[type_name])
+    assert type(loaded) is container_type
+    assert loaded == obj
+    assert loaded.tagged is True
+
+
+@pytest.mark.parametrize(
+    "obj, get_state_func, old_node_cls",
+    [
+        pytest.param({"a": 1, "b": 2}, dict_get_state, DictNodeV2, id="dict"),
+        pytest.param([1, 2, 3], list_get_state, ListNodeV2, id="list"),
+        pytest.param({1, 2, 3}, set_get_state, SetNodeV2, id="set"),
+    ],
+)
+@pytest.mark.parametrize("protocol", [0, 1, 2])
+def test_plain_container_v2(save_context, obj, get_state_func, old_node_cls, protocol):
+    # A plain dict, list or set has no "attrs" entry in any protocol. Files up
+    # to protocol 2 are read through the old nodes, which build it as before.
+    old_state = get_state_func(obj, save_context)
+    assert "attrs" not in old_state
+    downgraded = downgrade_state(
+        data=dumps(obj), keys=None, old_state=old_state, protocol=protocol
+    )
+    with ZipFile(io.BytesIO(downgraded)) as zip_file:
+        schema, load_context = read_schema(zip_file)
+        node = get_tree(schema, load_context, trusted=None)
+    assert isinstance(node, old_node_cls)
+    loaded = loads(downgraded)
+    assert type(loaded) is type(obj)
+    assert loaded == obj
+
+
+@pytest.mark.parametrize(
+    "container_type, items, get_state_func, node_cls, old_node_cls",
+    CONTAINER_SUBCLASS_CASES,
+)
+def test_container_subclass_current_does_not_call_constructor(
+    save_context, container_type, items, get_state_func, node_cls, old_node_cls
+):
+    # The current nodes create the instance with __new__ and restore its
+    # attributes from the "attrs" entry added in protocol 3. Without the entry
+    # the constructor is not called either, which is why a protocol-2 state
+    # goes through the old node instead, see test_container_subclass_v2.
+    obj = container_type(items)
+    state = get_state_func(obj, save_context)
+    del state["attrs"]
+    loaded = node_cls(state, make_load_context(), trusted=None).construct()
+    assert type(loaded) is container_type
+    assert loaded == obj
+    assert not hasattr(loaded, "tagged")
