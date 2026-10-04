@@ -16,7 +16,7 @@ from packaging.version import Version
 from skops.io import dump, dumps, get_untrusted_types, load, loads, visualize
 from skops.io._pandas import _RENAMED_CLASSES, _public_module
 from skops.io._trusted_types import PANDAS_TYPE_NAMES
-from skops.io._utils import gettype
+from skops.io._utils import get_type_name, gettype
 from skops.io.exceptions import UnsupportedTypeException
 from skops.io.tests._utils import _assert_vals_equal
 
@@ -109,6 +109,17 @@ ARRAYS = [
     pd.array(
         pd.to_datetime(["2024-01-01"]).tz_localize(dt.timezone(dt.timedelta(hours=1)))
     ),
+    # fixed offsets with seconds, as in the local mean time of old data
+    pd.array(
+        pd.to_datetime(["1850-01-01"]).tz_localize(
+            dt.timezone(dt.timedelta(minutes=19, seconds=32))
+        )
+    ),
+    pd.array(
+        pd.to_datetime(["2024-01-01"]).tz_localize(
+            dt.timezone(-dt.timedelta(hours=3, minutes=30, seconds=45))
+        )
+    ),
     pd.array(pd.to_timedelta([1], unit="s")),
     pd.array(pd.period_range("2024-01", periods=1, freq="M")),
     pd.array(pd.interval_range(0, 2)),
@@ -124,6 +135,7 @@ DTYPES = [
     pd.CategoricalDtype(),
     pd.DatetimeTZDtype("ns", "UTC"),
     pd.DatetimeTZDtype("us", "Europe/Berlin"),
+    pd.DatetimeTZDtype("ns", dt.timezone(dt.timedelta(seconds=30))),
     pd.PeriodDtype("M"),
     pd.IntervalDtype("int64", closed="left"),
     pd.IntervalDtype("datetime64[ns]"),
@@ -146,6 +158,13 @@ def test_roundtrip(obj):
 
 def test_pandas_types_are_trusted_by_default():
     assert get_untrusted_types(data=dumps(FRAMES[1])) == []
+
+
+def test_private_pandas_types_are_not_trusted():
+    # the dtype of a numpy-backed extension array has no public name, so the
+    # file holds its defining module, which the default trust does not cover
+    dtype = pd.Series([1, 2]).array.dtype
+    assert get_untrusted_types(data=dumps(dtype)) == [get_type_name(type(dtype))]
 
 
 def _with_edited_schema(dumped, edit):
@@ -176,6 +195,18 @@ def test_dtype_node_only_builds_the_declared_class():
         schema["content"]["name"]["content"] = json.dumps("period[M]")
 
     with pytest.raises(TypeError, match="Cannot construct"):
+        loads(_with_edited_schema(dumped, edit))
+
+
+def test_dtype_node_refuses_other_classes():
+    # a trusted pandas class that is not an extension dtype cannot be routed
+    # through the name based dtype loader
+    dumped = dumps(pd.Int64Dtype())
+
+    def edit(schema):
+        schema["__class__"] = "Series"
+
+    with pytest.raises(ValueError, match="not a pandas extension dtype"):
         loads(_with_edited_schema(dumped, edit))
 
 
@@ -210,6 +241,14 @@ def test_timezone_from_file_is_restricted(name):
         loads(_with_edited_schema(dumped, edit))
 
 
+def test_sub_second_offset_is_unsupported():
+    # the name of a fixed offset holds whole seconds; a finer offset cannot be
+    # written, and must not be rounded silently
+    tz = dt.timezone(dt.timedelta(microseconds=1))
+    with pytest.raises(UnsupportedTypeException, match="whole seconds"):
+        dumps(pd.DatetimeTZDtype("ns", tz))
+
+
 def test_interval_dtype_subtype_is_parsed_by_numpy():
     # pandas would look a subtype name up in its registry of extension dtypes,
     # where any imported library can register a dtype whose parser then runs
@@ -220,6 +259,12 @@ def test_interval_dtype_subtype_is_parsed_by_numpy():
 
     with pytest.raises(ValueError, match="subtype of an interval dtype"):
         loads(_with_edited_schema(dumped, edit))
+
+    def edit_to_number(schema):
+        schema["content"]["subtype"]["content"] = json.dumps(5)
+
+    with pytest.raises(ValueError, match="subtype of an interval dtype"):
+        loads(_with_edited_schema(dumped, edit_to_number))
 
 
 def test_child_of_wrong_kind_is_refused():

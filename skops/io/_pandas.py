@@ -34,6 +34,7 @@ parsed here rather than by pandas, whose parser can open any file on disk.
 
 from __future__ import annotations
 
+import datetime
 import re
 import sys
 import warnings
@@ -157,38 +158,51 @@ def dataframe_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     return _pandas_state(obj, "PandasDataFrameNode", content, save_context)
 
 
-_FIXED_OFFSET = re.compile(r"^UTC([+-])(\d{2}):(\d{2})$")
+_FIXED_OFFSET = re.compile(r"^UTC([+-])(\d{2}):(\d{2})(?::(\d{2}))?$")
 
 
 def _timezone_name(tz: Any) -> str:
     # The name of a time zone as written to the file: the key of a zoneinfo
-    # or pytz zone, "UTC", or "UTC+01:00" for a fixed offset. These are the
-    # only names ``_timezone`` accepts when loading.
+    # or pytz zone, "UTC", or a fixed offset as "UTC+01:00", with its seconds
+    # as "UTC+00:19:32" if it has any. These are the only names ``_timezone``
+    # accepts when loading.
     name = getattr(tz, "key", None) or getattr(tz, "zone", None)
     if name is not None:
         return name
     offset = tz.utcoffset(None)
-    if offset is None:
+    if offset is None or offset.microseconds:
         raise UnsupportedTypeException(
-            f"The time zone {tz!r} has neither a name nor a fixed offset, so it"
-            " cannot be saved."
+            f"The time zone {tz!r} has neither a name nor a fixed offset of whole"
+            " seconds, so it cannot be saved."
         )
     seconds = int(offset.total_seconds())
     if seconds == 0:
         return "UTC"
     sign, seconds = ("-", -seconds) if seconds < 0 else ("+", seconds)
-    return f"UTC{sign}{seconds // 3600:02d}:{seconds % 3600 // 60:02d}"
+    name = f"UTC{sign}{seconds // 3600:02d}:{seconds % 3600 // 60:02d}"
+    if seconds % 60:
+        name += f":{seconds % 60:02d}"
+    return name
 
 
-def _timezone(name: str) -> str:
-    # The name of a time zone from the file, checked before pandas parses it:
-    # pandas' own parser would also accept "tzlocal()" and "dateutil/<path>",
-    # the latter opening any file on disk. Accepted are "UTC", a fixed offset,
-    # and a key that zoneinfo finds in its own directories; pandas then builds
-    # the zone of its default implementation from the name, so that it equals
-    # the zone that was saved.
-    if name == "UTC" or _FIXED_OFFSET.match(name):
-        return name
+def _timezone(name: str) -> str | datetime.tzinfo:
+    # The time zone for a name from the file, parsed here rather than by
+    # pandas: pandas' own parser would also accept "tzlocal()" and
+    # "dateutil/<path>", the latter opening any file on disk, and it drops the
+    # seconds of a fixed offset. "UTC" and fixed offsets become the
+    # ``datetime.timezone`` objects pandas builds for them too. A zone key is
+    # checked with zoneinfo, which only looks in its own directories, and then
+    # handed to pandas as a name, so that pandas builds the zone of its
+    # default implementation and the loaded zone equals the saved one.
+    if name == "UTC":
+        return datetime.timezone.utc
+    match = _FIXED_OFFSET.match(name)
+    if match:
+        sign, hours, minutes, seconds = match.groups()
+        offset = datetime.timedelta(
+            hours=int(hours), minutes=int(minutes), seconds=int(seconds or 0)
+        )
+        return datetime.timezone(-offset if sign == "-" else offset)
     try:
         zoneinfo.ZoneInfo(name)
     except (ValueError, KeyError, OSError) as err:
@@ -317,7 +331,7 @@ class _PandasNode(Node):
     def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
         # The node types each entry may hold, ``None`` for any: names for
         # instance can be any hashable.
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def _construct_content(self) -> dict[str, Any]:
         return {key: node.construct() for key, node in self.content.items()}

@@ -17,7 +17,7 @@ from skops.io._utils import LoadContext, SaveContext
 
 try:
     import pandas as pd
-except ImportError:  # pandas is optional
+except ImportError:  # pragma: no cover
     pd = None
 
 # TODO: Investigate why that seems to be an issue on MacOS (only observed with

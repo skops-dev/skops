@@ -170,6 +170,10 @@ pre-commit = "*"
 
 [tool.pixi.feature.dev.dependencies]
 ipython = "*"
+# A conda pandas for the default environment, which includes the nightly index
+# of the sklearn-nightly feature: that index shadows PyPI for the packages it
+# has, so a pypi pandas there would be a dev build.
+pandas = ">=2"
 
 [tool.pixi.feature.sklearn12.dependencies]
 scikit-learn = "~=1.2.0"
@@ -267,11 +271,20 @@ extra-index-urls = ["https://pypi.anaconda.org/scientific-python-nightly-wheels/
 # The version value here needs to be exact, hence == instead of ~=
 scikit-learn = "==1.10.dev0"
 fairlearn = "*"
-# The dev version of pandas from the nightly index; "*" would pick the latest
-# release, since pre-releases are only considered when named explicitly.
-pandas = "==3.1.0.dev0"
 numpy = "*"
 scipy = "*"
+
+[tool.pixi.feature.pandas-nightly.pypi-dependencies]
+# The dev version of pandas from the nightly index; "*" would pick the latest
+# release, since pre-releases are only considered when named explicitly. Unlike
+# the scikit-learn and scipy nightlies, pandas puts the git revision in the
+# version, so every build is a new file and the index drops old ones after a
+# few days: the locked wheel goes stale. CI refreshes it before installing the
+# environment, see .github/workflows/build-test.yml; do the same locally with
+# ``pixi update --environment ci-sklearn-nightly pandas``. This is why the
+# feature is not part of the default environment. Like the scikit-learn pin
+# above, the version needs a bump after each pandas release.
+pandas = "==3.2.0.dev0"
 
 [tool.pixi.feature.lint.tasks]
 lint = { cmd = "pre-commit install && pre-commit run -v --all-files --show-diff-on-failure" }
@@ -291,4 +304,4 @@ ci-sklearn16 = ["rich", "tests", "lint", "sklearn16"]
 ci-sklearn17 = ["rich", "tests", "lint", "sklearn17"]
 ci-sklearn18 = ["rich", "tests", "lint", "sklearn18"]
 ci-sklearn19 = ["rich", "tests", "lint", "sklearn19"]
-ci-sklearn-nightly = ["rich", "tests", "lint", "sklearn-nightly"]
+ci-sklearn-nightly = ["rich", "tests", "lint", "sklearn-nightly", "pandas-nightly"]

@@ -52,6 +52,16 @@ jobs:
           # we can freeze the environment and manually bump the dependencies to the
           # latest version time to time.
           frozen: true
+          # the nightly environment is installed below, after refreshing the
+          # locked pandas nightly wheel, which the index drops after a few days
+          run-install: ${{ matrix.environment != 'ci-sklearn-nightly' }}
+
+      - name: Install the nightly environment with the latest pandas nightly
+        if: matrix.environment == 'ci-sklearn-nightly'
+        run: |
+          pixi update --environment ci-sklearn-nightly pandas
+          pixi install --environment ci-sklearn-nightly --frozen
+        shell: bash
 
       - name: Linters
         run: pixi run -e lint lint
