@@ -24,12 +24,20 @@ pandas when they construct an object.
 Not preserved: the ``freq`` of datetime-like indexes and arrays, the ``attrs``
 and ``flags`` of a Series or DataFrame, and the storage, python or pyarrow, of
 a string dtype, which is an environment choice over the same values.
+
+The pandas types are trusted by default, so loading must stay within pandas'
+constructors and the data from the file. In particular, no name from the file
+is looked up in pandas' registry of extension dtypes, where any imported
+library can register a dtype whose parser would then run, and time zones are
+parsed here rather than by pandas, whose parser can open any file on disk.
 """
 
 from __future__ import annotations
 
+import re
 import sys
 import warnings
+import zoneinfo
 from typing import Any
 
 import numpy as np
@@ -69,11 +77,13 @@ def _public_module(cls: type) -> str:
     return get_module(cls)
 
 
-# Classes that later pandas versions renamed, mapped to their current name, so
-# that a file never names a class the loading version may not have.
+# Classes that later pandas versions renamed, mapped to their current name and
+# the pandas version that introduced it, so that a file never names a class
+# the loading version may not have. An entry can go once the versions before
+# the rename are no longer supported. The test suite checks each entry against
+# the running pandas version.
 _RENAMED_CLASSES = {
-    # renamed in pandas 2.1
-    "PandasArray": "NumpyExtensionArray",
+    "PandasArray": ("NumpyExtensionArray", "2.1"),
 }
 
 
@@ -91,8 +101,12 @@ def _pandas_state(
             " as its pandas base class."
         )
 
+    class_name = cls.__name__
+    if class_name in _RENAMED_CLASSES:
+        class_name, _ = _RENAMED_CLASSES[class_name]
+
     return {
-        "__class__": _RENAMED_CLASSES.get(cls.__name__, cls.__name__),
+        "__class__": class_name,
         "__module__": _public_module(cls),
         "__loader__": loader,
         "content": {
@@ -143,13 +157,58 @@ def dataframe_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     return _pandas_state(obj, "PandasDataFrameNode", content, save_context)
 
 
+_FIXED_OFFSET = re.compile(r"^UTC([+-])(\d{2}):(\d{2})$")
+
+
+def _timezone_name(tz: Any) -> str:
+    # The name of a time zone as written to the file: the key of a zoneinfo
+    # or pytz zone, "UTC", or "UTC+01:00" for a fixed offset. These are the
+    # only names ``_timezone`` accepts when loading.
+    name = getattr(tz, "key", None) or getattr(tz, "zone", None)
+    if name is not None:
+        return name
+    offset = tz.utcoffset(None)
+    if offset is None:
+        raise UnsupportedTypeException(
+            f"The time zone {tz!r} has neither a name nor a fixed offset, so it"
+            " cannot be saved."
+        )
+    seconds = int(offset.total_seconds())
+    if seconds == 0:
+        return "UTC"
+    sign, seconds = ("-", -seconds) if seconds < 0 else ("+", seconds)
+    return f"UTC{sign}{seconds // 3600:02d}:{seconds % 3600 // 60:02d}"
+
+
+def _timezone(name: str) -> str:
+    # The name of a time zone from the file, checked before pandas parses it:
+    # pandas' own parser would also accept "tzlocal()" and "dateutil/<path>",
+    # the latter opening any file on disk. Accepted are "UTC", a fixed offset,
+    # and a key that zoneinfo finds in its own directories; pandas then builds
+    # the zone of its default implementation from the name, so that it equals
+    # the zone that was saved.
+    if name == "UTC" or _FIXED_OFFSET.match(name):
+        return name
+    try:
+        zoneinfo.ZoneInfo(name)
+    except (ValueError, KeyError, OSError) as err:
+        raise ValueError(
+            f"{name!r} is not a known time zone. This is probably due to a"
+            " corrupted or a malicious file."
+        ) from err
+    return name
+
+
 def numpy_backed_array_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     # NumpyExtensionArray, DatetimeArray and TimedeltaArray wrap a numpy array.
     # Time zone aware datetimes are stored as naive UTC values plus the zone,
     # since ``to_numpy`` would otherwise give an array of Timestamp objects.
     tz = getattr(obj, "tz", None)
     values = obj if tz is None else obj.tz_convert("UTC").tz_localize(None)
-    content = {"values": values.to_numpy(), "tz": None if tz is None else str(tz)}
+    content = {
+        "values": values.to_numpy(),
+        "tz": None if tz is None else _timezone_name(tz),
+    }
     return _pandas_state(obj, "PandasNumpyBackedArrayNode", content, save_context)
 
 
@@ -188,10 +247,26 @@ def extension_array_get_state(obj: Any, save_context: SaveContext) -> dict[str, 
 
 
 def extension_dtype_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
-    # Extension dtypes are rebuilt from their string form, e.g. "Int64",
-    # "datetime64[ns, UTC]" or "period[M]".
+    # Extension dtypes are rebuilt from their string form, e.g. "Int64" or
+    # "period[M]", except those whose parser consults pandas' registry of
+    # extension dtypes or the file system, which are stored as parts below.
     content = {"name": str(obj)}
     return _pandas_state(obj, "PandasExtensionDtypeNode", content, save_context)
+
+
+def datetime_tz_dtype_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
+    content = {"unit": obj.unit, "tz": _timezone_name(obj.tz)}
+    return _pandas_state(obj, "PandasDatetimeTZDtypeNode", content, save_context)
+
+
+def interval_dtype_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
+    # The subtype is a numpy dtype, stored by its name like the subtype of a
+    # sparse dtype, a tz-aware datetime dtype, or None.
+    subtype = obj.subtype
+    if isinstance(subtype, np.dtype):
+        subtype = str(subtype)
+    content = {"subtype": subtype, "closed": obj.closed}
+    return _pandas_state(obj, "PandasIntervalDtypeNode", content, save_context)
 
 
 def categorical_dtype_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
@@ -352,7 +427,7 @@ class PandasNumpyBackedArrayNode(_PandasNode):
         dtype = None if values.dtype.kind in "Mm" else values.dtype
         array = pd.array(values, dtype=dtype)
         if content["tz"] is not None:
-            array = array.tz_localize("UTC").tz_convert(content["tz"])
+            array = array.tz_localize("UTC").tz_convert(_timezone(content["tz"]))
         return array
 
 
@@ -424,11 +499,22 @@ class PandasExtensionDtypeNode(_PandasNode):
         # ``pandas.api.types.pandas_dtype`` would look the name up in pandas'
         # registry of extension dtypes instead, where any imported library can
         # register one, and run that library's code for a name from the file.
+        # The parsers of the remaining pandas dtypes, the masked numeric and
+        # boolean ones, StringDtype, PeriodDtype and ArrowDtype, compare the
+        # name with their own, or hand it to the offset parser or to pyarrow.
         cls = gettype(self.module_name, self.class_name)
         if not issubclass(cls, pd.api.extensions.ExtensionDtype):
             raise ValueError(
                 f"{self.module_name}.{self.class_name} is not a pandas extension"
                 " dtype. This is probably due to a corrupted or a malicious file."
+            )
+        if cls in _dtypes_stored_as_parts():
+            # Their parsers consult the registry (the subtype of an interval
+            # or sparse dtype) or the file system (the time zone of a
+            # datetime dtype), so they have loaders of their own.
+            raise ValueError(
+                f"{self.class_name} is not stored by its name. This is probably"
+                " due to a corrupted or a malicious file."
             )
         try:
             return cls.construct_from_string(name)
@@ -465,6 +551,50 @@ class PandasSparseDtypeNode(_PandasNode):
         return pd.SparseDtype(np.dtype(content["subtype"]), content["fill_value"])
 
 
+class PandasDatetimeTZDtypeNode(_PandasNode):
+    def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
+        return {"unit": (JsonNode,), "tz": (JsonNode,)}
+
+    def _construct(self):
+        import pandas as pd
+
+        content = self._construct_content()
+        return pd.DatetimeTZDtype(unit=content["unit"], tz=_timezone(content["tz"]))
+
+
+class PandasIntervalDtypeNode(_PandasNode):
+    def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
+        return {"subtype": (JsonNode, PandasDatetimeTZDtypeNode), "closed": (JsonNode,)}
+
+    def _construct(self):
+        import pandas as pd
+
+        content = self._construct_content()
+        subtype = content["subtype"]
+        # A name is parsed by numpy, so that it is not looked up in pandas'
+        # registry of extension dtypes; otherwise the subtype is a tz-aware
+        # datetime dtype, built by its own node, or None.
+        message = (
+            "The subtype of an interval dtype must be a numpy dtype, a datetime"
+            " dtype or None. This is probably due to a corrupted or a malicious"
+            " file."
+        )
+        if isinstance(subtype, str):
+            try:
+                subtype = np.dtype(subtype)
+            except TypeError as err:
+                raise ValueError(message) from err
+        elif subtype is not None and not isinstance(subtype, pd.DatetimeTZDtype):
+            raise ValueError(message)
+        return pd.IntervalDtype(subtype, closed=content["closed"])
+
+
+def _dtypes_stored_as_parts():
+    import pandas as pd
+
+    return (pd.CategoricalDtype, pd.SparseDtype, pd.DatetimeTZDtype, pd.IntervalDtype)
+
+
 # The node types the values, the index and the dtype of a pandas object may be
 # stored as.
 _ARRAY_NODES = (
@@ -481,6 +611,8 @@ _DTYPE_NODES = (
     PandasExtensionDtypeNode,
     PandasCategoricalDtypeNode,
     PandasSparseDtypeNode,
+    PandasDatetimeTZDtypeNode,
+    PandasIntervalDtypeNode,
 )
 
 
@@ -518,6 +650,8 @@ def register_if_imported() -> None:
         (pd.api.extensions.ExtensionDtype, extension_dtype_get_state),
         (pd.CategoricalDtype, categorical_dtype_get_state),
         (pd.SparseDtype, sparse_dtype_get_state),
+        (pd.DatetimeTZDtype, datetime_tz_dtype_get_state),
+        (pd.IntervalDtype, interval_dtype_get_state),
     ]
     # pandas.arrays.PandasArray was renamed to NumpyExtensionArray in pandas 2.1
     numpy_backed = getattr(pd.arrays, "NumpyExtensionArray", None)
@@ -548,4 +682,6 @@ NODE_TYPE_MAPPING = {
     ("PandasExtensionDtypeNode", PROTOCOL): PandasExtensionDtypeNode,
     ("PandasCategoricalDtypeNode", PROTOCOL): PandasCategoricalDtypeNode,
     ("PandasSparseDtypeNode", PROTOCOL): PandasSparseDtypeNode,
+    ("PandasDatetimeTZDtypeNode", PROTOCOL): PandasDatetimeTZDtypeNode,
+    ("PandasIntervalDtypeNode", PROTOCOL): PandasIntervalDtypeNode,
 }

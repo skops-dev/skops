@@ -5,14 +5,16 @@ from __future__ import annotations
 import datetime as dt
 import io
 import json
+import warnings
 from pathlib import Path
 from zipfile import ZipFile
 
 import numpy as np
 import pytest
+from packaging.version import Version
 
 from skops.io import dump, dumps, get_untrusted_types, load, loads, visualize
-from skops.io._pandas import _public_module
+from skops.io._pandas import _RENAMED_CLASSES, _public_module
 from skops.io._trusted_types import PANDAS_TYPE_NAMES
 from skops.io._utils import gettype
 from skops.io.exceptions import UnsupportedTypeException
@@ -121,8 +123,11 @@ DTYPES = [
     pd.CategoricalDtype(["b", "a"], ordered=True),
     pd.CategoricalDtype(),
     pd.DatetimeTZDtype("ns", "UTC"),
+    pd.DatetimeTZDtype("us", "Europe/Berlin"),
     pd.PeriodDtype("M"),
     pd.IntervalDtype("int64", closed="left"),
+    pd.IntervalDtype("datetime64[ns]"),
+    pd.IntervalDtype(),
     pd.SparseDtype(float, 0.0),
 ]
 
@@ -171,6 +176,49 @@ def test_dtype_node_only_builds_the_declared_class():
         schema["content"]["name"]["content"] = json.dumps("period[M]")
 
     with pytest.raises(TypeError, match="Cannot construct"):
+        loads(_with_edited_schema(dumped, edit))
+
+
+def test_dtype_node_refuses_dtypes_stored_as_parts():
+    # the parsers of these dtypes consult pandas' registry of extension dtypes
+    # or the file system, so a file cannot route them through the name based
+    # loader
+    dumped = dumps(pd.Int64Dtype())
+
+    def edit(schema):
+        schema["__class__"] = "DatetimeTZDtype"
+        schema["content"]["name"]["content"] = json.dumps(
+            "datetime64[ns, dateutil//etc/localtime]"
+        )
+
+    with pytest.raises(ValueError, match="not stored by its name"):
+        loads(_with_edited_schema(dumped, edit))
+
+
+@pytest.mark.parametrize(
+    "name", ["dateutil//etc/localtime", "tzlocal()", "../../etc/localtime", "/x"]
+)
+def test_timezone_from_file_is_restricted(name):
+    # pandas' own parser would open any file on disk for "dateutil/<path>";
+    # only "UTC", fixed offsets and valid zoneinfo keys are accepted
+    dumped = dumps(pd.date_range("2024-01-01", periods=2, tz="UTC"))
+
+    def edit(schema):
+        schema["content"]["values"]["content"]["tz"]["content"] = json.dumps(name)
+
+    with pytest.raises(ValueError, match="not a known time zone"):
+        loads(_with_edited_schema(dumped, edit))
+
+
+def test_interval_dtype_subtype_is_parsed_by_numpy():
+    # pandas would look a subtype name up in its registry of extension dtypes,
+    # where any imported library can register a dtype whose parser then runs
+    dumped = dumps(pd.IntervalDtype("int64"))
+
+    def edit(schema):
+        schema["content"]["subtype"]["content"] = json.dumps("probe")
+
+    with pytest.raises(ValueError, match="subtype of an interval dtype"):
         loads(_with_edited_schema(dumped, edit))
 
 
@@ -226,6 +274,22 @@ def test_file_uses_public_type_names():
     assert (schema["__module__"], schema["__class__"]) == ("pandas", "Series")
     index = schema["content"]["index"]
     assert (index["__module__"], index["__class__"]) == ("pandas", "Index")
+
+
+def test_renamed_classes_match_pandas_version():
+    # each rename is a fact about pandas: before the version that introduced
+    # the new name only the old one exists, from then on the new one does
+    def exists(name):
+        with warnings.catch_warnings():
+            # the old name may live on as a deprecated alias that warns
+            warnings.simplefilter("ignore")
+            return any(hasattr(module, name) for module in (pd, pd.arrays))
+
+    for old, (new, since) in _RENAMED_CLASSES.items():
+        if Version(pd.__version__) < Version(since):
+            assert exists(old) and not exists(new), old
+        else:
+            assert exists(new), new
 
 
 def test_trusted_type_names_are_valid():
