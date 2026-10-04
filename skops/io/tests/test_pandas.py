@@ -321,6 +321,33 @@ def test_file_uses_public_type_names():
     assert (index["__module__"], index["__class__"]) == ("pandas", "Index")
 
 
+class NamelessDtype(pd.api.extensions.ExtensionDtype):
+    """A dtype whose name does not rebuild it.
+
+    pandas has such a dtype, ``ArrowDtype(pyarrow.string())``, whose name
+    "string[pyarrow]" it reserves for its ``StringDtype``; this stand-in needs
+    no pyarrow. The module is faked since skops only saves pandas' own dtypes.
+    """
+
+    __module__ = "pandas.tests"
+    name = "nameless"
+    type = object
+
+    @classmethod
+    def construct_array_type(cls):
+        return pd.arrays.NumpyExtensionArray  # pragma: no cover
+
+    @classmethod
+    def construct_from_string(cls, string):
+        raise TypeError(f"Cannot construct a 'NamelessDtype' from '{string}'")
+
+
+def test_dtype_not_rebuildable_from_its_name_is_unsupported():
+    # refused when saving rather than failing when loading
+    with pytest.raises(UnsupportedTypeException, match="cannot be rebuilt"):
+        dumps(NamelessDtype())
+
+
 def test_renamed_classes_match_pandas_version():
     # each rename is a fact about pandas: before the version that introduced
     # the new name only the old one exists, from then on the new one does

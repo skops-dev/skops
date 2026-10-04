@@ -251,11 +251,14 @@ Skops intends to support all of **scikit-learn**, that is, not only its
 estimators, but also other classes like cross validation splitters. Furthermore,
 most types from **numpy** and **scipy** should be supported, such as (sparse)
 arrays, dtypes, random generators, and ufuncs. **pandas** objects, that is
-``DataFrame``, ``Series``, every kind of ``Index``, extension arrays and
-extension dtypes, are supported as well with pandas 2.0 or later: they are
+``DataFrame``, ``Series``, every kind of ``Index``, and the extension arrays
+and extension dtypes of pandas itself, not those of other libraries, are
+supported as well with pandas 2.0 or later: they are
 stored as the arrays they are made of and rebuilt through the public pandas
 constructors, so that no pandas internals end up in the file, and a file
-written with one pandas version loads with any other. Not preserved are the
+written with one pandas version loads with any other. They are trusted by
+default, except for the pyarrow backed arrays and dtypes, which need to be
+passed as ``trusted`` explicitly. Not preserved are the
 ``freq`` of datetime-like indexes and arrays, the ``attrs`` and ``flags`` of a
 ``Series`` or ``DataFrame``, and the storage, python or pyarrow, of a string
 dtype, which is an environment choice over the same values.

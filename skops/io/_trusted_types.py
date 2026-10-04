@@ -139,7 +139,10 @@ NUMPY_DTYPE_TYPE_NAMES = sorted(
 # pandas types which ``skops.io._pandas`` rebuilds from their data through the
 # public pandas constructors, by the public names it writes to the file. They
 # are listed as strings so that pandas, which is optional, is not imported
-# here.
+# here. The pyarrow backed arrays and dtypes, ``pandas.arrays.ArrowExtensionArray``,
+# ``pandas.arrays.ArrowStringArray`` and ``pandas.ArrowDtype``, can be saved and
+# loaded the same way but are not trusted by default, since loading them runs
+# pyarrow's conversion of the loaded values, which has not been reviewed.
 PANDAS_TYPE_NAMES = [
     "pandas.DataFrame",
     "pandas.Series",
@@ -151,8 +154,6 @@ PANDAS_TYPE_NAMES = [
     "pandas.TimedeltaIndex",
     "pandas.PeriodIndex",
     "pandas.IntervalIndex",
-    "pandas.arrays.ArrowExtensionArray",
-    "pandas.arrays.ArrowStringArray",
     "pandas.arrays.BooleanArray",
     "pandas.arrays.Categorical",
     "pandas.arrays.DatetimeArray",
@@ -164,7 +165,6 @@ PANDAS_TYPE_NAMES = [
     "pandas.arrays.SparseArray",
     "pandas.arrays.StringArray",
     "pandas.arrays.TimedeltaArray",
-    "pandas.ArrowDtype",
     "pandas.BooleanDtype",
     "pandas.CategoricalDtype",
     "pandas.DatetimeTZDtype",

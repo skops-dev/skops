@@ -264,7 +264,19 @@ def extension_dtype_get_state(obj: Any, save_context: SaveContext) -> dict[str, 
     # Extension dtypes are rebuilt from their string form, e.g. "Int64" or
     # "period[M]", except those whose parser consults pandas' registry of
     # extension dtypes or the file system, which are stored as parts below.
-    content = {"name": str(obj)}
+    name = str(obj)
+    try:
+        rebuilt = type(obj).construct_from_string(name)
+    except TypeError:
+        rebuilt = None
+    if type(rebuilt) is not type(obj):
+        # e.g. ArrowDtype(pyarrow.string()), whose name "string[pyarrow]" pandas
+        # reserves for its StringDtype
+        raise UnsupportedTypeException(
+            f"The dtype {obj!r} cannot be rebuilt from its name {name!r}, so it"
+            " cannot be saved."
+        )
+    content = {"name": name}
     return _pandas_state(obj, "PandasExtensionDtypeNode", content, save_context)
 
 
@@ -514,8 +526,9 @@ class PandasExtensionDtypeNode(_PandasNode):
         # registry of extension dtypes instead, where any imported library can
         # register one, and run that library's code for a name from the file.
         # The parsers of the remaining pandas dtypes, the masked numeric and
-        # boolean ones, StringDtype, PeriodDtype and ArrowDtype, compare the
-        # name with their own, or hand it to the offset parser or to pyarrow.
+        # boolean ones, StringDtype and PeriodDtype, compare the name with
+        # their own or hand it to the offset parser. ArrowDtype hands it to
+        # pyarrow, and is not trusted by default.
         cls = gettype(self.module_name, self.class_name)
         if not issubclass(cls, pd.api.extensions.ExtensionDtype):
             raise ValueError(
