@@ -2,10 +2,10 @@
 
 ## Supported Versions
 
-| Version       | Supported          |
-| ------------- | ------------------ |
-| 0.11          | :white_check_mark: |
-| < 0.11        | :x:                |
+Only the [latest release](https://github.com/skops-dev/skops/releases/latest)
+of skops receives security fixes; there are no bug fix releases of older
+versions. If you find a vulnerability in an older version, please check whether
+it still affects the latest release.
 
 ## Reporting a Vulnerability
 
