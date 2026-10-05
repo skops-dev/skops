@@ -258,7 +258,9 @@ stored as the arrays they are made of and rebuilt through the public pandas
 constructors, so that no pandas internals end up in the file, and a file
 written with one pandas version loads with any other. They are trusted by
 default, except for the pyarrow backed arrays and dtypes, which need to be
-passed as ``trusted`` explicitly. Not preserved are the
+passed as ``trusted`` explicitly; ``ArrowDtype(pyarrow.string())`` cannot be
+saved at all, since its name is the one pandas reserves for ``StringDtype``.
+Not preserved are the
 ``freq`` of datetime-like indexes and arrays, the ``attrs`` and ``flags`` of a
 ``Series`` or ``DataFrame``, and the storage, python or pyarrow, of a string
 dtype, which is an environment choice over the same values.

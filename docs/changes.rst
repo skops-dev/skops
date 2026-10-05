@@ -23,7 +23,9 @@ v0.17
   libraries, can now be saved and loaded. They are stored as
   the numpy arrays and scalars they are made of and rebuilt through the public
   pandas constructors, so no pandas internals end up in the file, and they are
-  trusted by default, except for the pyarrow backed arrays and dtypes.
+  trusted by default, except for the pyarrow backed arrays and dtypes. The
+  one dtype that cannot be saved is ``ArrowDtype(pyarrow.string())``, whose
+  name pandas reserves for its ``StringDtype``.
   Estimators from other libraries that keep pandas objects
   in their fitted attributes, such as ``category_encoders``, can now be
   persisted. A file written with one pandas version loads with any other from

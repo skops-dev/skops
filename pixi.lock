@@ -209,7 +209,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/99/c7/bd05c5c430feb347aa040fcc8870135d70b256718deee9bc7d2ca74a77ff/xgboost-3.4.1-py3-none-manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/c4/0e/57f6bb3024a597b2e8ec4aee710ffe62ddc95af2e2bb1ee7a7abdc22c68c/wcwidth-0.8.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/fe/be/2e6798ace5cc036f5d05d36b7b2fd85346f1a708c87060890b070d0ec607/prettytable-3.18.0-py3-none-any.whl
-      - pypi: https://pypi.anaconda.org/scientific-python-nightly-wheels/simple/pandas/3.2.0.dev0+74.ga8069d6bdf/pandas-3.2.0.dev0+74.ga8069d6bdf-cp312-cp312-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl
+      - pypi: https://pypi.anaconda.org/scientific-python-nightly-wheels/simple/pandas/3.2.0.dev0+83.g71e11934c8/pandas-3.2.0.dev0+83.g71e11934c8-cp312-cp312-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl
       - pypi: https://pypi.anaconda.org/scientific-python-nightly-wheels/simple/scikit-learn/1.10.dev0/scikit_learn-1.10.dev0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
       - pypi: https://pypi.anaconda.org/scientific-python-nightly-wheels/simple/scipy/2.0.0.dev0/scipy-2.0.0.dev0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
       osx-64:
@@ -334,7 +334,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/c4/0e/57f6bb3024a597b2e8ec4aee710ffe62ddc95af2e2bb1ee7a7abdc22c68c/wcwidth-0.8.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/cd/05/7213965863cba1ed0150ad045bceed6276a1afaaaedbaeff4699ec4f0ccb/lightgbm-4.7.0-py3-none-macosx_10_15_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/fe/be/2e6798ace5cc036f5d05d36b7b2fd85346f1a708c87060890b070d0ec607/prettytable-3.18.0-py3-none-any.whl
-      - pypi: https://pypi.anaconda.org/scientific-python-nightly-wheels/simple/pandas/3.2.0.dev0+74.ga8069d6bdf/pandas-3.2.0.dev0+74.ga8069d6bdf-cp314-cp314-macosx_10_15_x86_64.whl
+      - pypi: https://pypi.anaconda.org/scientific-python-nightly-wheels/simple/pandas/3.2.0.dev0+83.g71e11934c8/pandas-3.2.0.dev0+83.g71e11934c8-cp314-cp314-macosx_10_15_x86_64.whl
       - pypi: https://pypi.anaconda.org/scientific-python-nightly-wheels/simple/scikit-learn/1.10.dev0/scikit_learn-1.10.dev0-cp314-cp314-macosx_10_15_x86_64.whl
       - pypi: https://pypi.anaconda.org/scientific-python-nightly-wheels/simple/scipy/2.0.0.dev0/scipy-2.0.0.dev0-cp314-cp314-macosx_10_15_x86_64.whl
       osx-arm64:
@@ -459,7 +459,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/c4/0e/57f6bb3024a597b2e8ec4aee710ffe62ddc95af2e2bb1ee7a7abdc22c68c/wcwidth-0.8.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/f7/94/e5c37a8972ad780edc1d8459d1931356344ca133f7f99ba9cfda516b5bba/xgboost-3.4.1-py3-none-macosx_12_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/fe/be/2e6798ace5cc036f5d05d36b7b2fd85346f1a708c87060890b070d0ec607/prettytable-3.18.0-py3-none-any.whl
-      - pypi: https://pypi.anaconda.org/scientific-python-nightly-wheels/simple/pandas/3.2.0.dev0+74.ga8069d6bdf/pandas-3.2.0.dev0+74.ga8069d6bdf-cp314-cp314-macosx_11_0_arm64.whl
+      - pypi: https://pypi.anaconda.org/scientific-python-nightly-wheels/simple/pandas/3.2.0.dev0+83.g71e11934c8/pandas-3.2.0.dev0+83.g71e11934c8-cp314-cp314-macosx_11_0_arm64.whl
       - pypi: https://pypi.anaconda.org/scientific-python-nightly-wheels/simple/scikit-learn/1.10.dev0/scikit_learn-1.10.dev0-cp314-cp314-macosx_12_0_arm64.whl
       - pypi: https://pypi.anaconda.org/scientific-python-nightly-wheels/simple/scipy/2.0.0.dev0/scipy-2.0.0.dev0-cp314-cp314-macosx_12_0_arm64.whl
       win-64:
@@ -591,7 +591,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/d5/0b/c5c17d862b12ce292f24cd85d40f2f8f8981668fbdbd43fdc2625eccbc79/lightgbm-4.7.0-py3-none-win_amd64.whl
       - pypi: https://files.pythonhosted.org/packages/f9/bc/8737e8d54cf51106118039b83f485a4783112fab49ea9d044b234978a46e/tzdata-2026.4-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/fe/be/2e6798ace5cc036f5d05d36b7b2fd85346f1a708c87060890b070d0ec607/prettytable-3.18.0-py3-none-any.whl
-      - pypi: https://pypi.anaconda.org/scientific-python-nightly-wheels/simple/pandas/3.2.0.dev0+74.ga8069d6bdf/pandas-3.2.0.dev0+74.ga8069d6bdf-cp314-cp314-win_amd64.whl
+      - pypi: https://pypi.anaconda.org/scientific-python-nightly-wheels/simple/pandas/3.2.0.dev0+83.g71e11934c8/pandas-3.2.0.dev0+83.g71e11934c8-cp314-cp314-win_amd64.whl
       - pypi: https://pypi.anaconda.org/scientific-python-nightly-wheels/simple/scikit-learn/1.10.dev0/scikit_learn-1.10.dev0-cp314-cp314-win_amd64.whl
       - pypi: https://pypi.anaconda.org/scientific-python-nightly-wheels/simple/scipy/2.0.0.dev0/scipy-2.0.0.dev0-cp314-cp314-win_amd64.whl
   ci-sklearn12:
@@ -34693,9 +34693,9 @@ packages:
   - pytest-lazy-fixtures ; extra == 'tests'
   - pytest>=9 ; extra == 'tests'
   requires_python: '>=3.10'
-- pypi: https://pypi.anaconda.org/scientific-python-nightly-wheels/simple/pandas/3.2.0.dev0+74.ga8069d6bdf/pandas-3.2.0.dev0+74.ga8069d6bdf-cp312-cp312-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl
+- pypi: https://pypi.anaconda.org/scientific-python-nightly-wheels/simple/pandas/3.2.0.dev0+83.g71e11934c8/pandas-3.2.0.dev0+83.g71e11934c8-cp312-cp312-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl
   name: pandas
-  version: 3.2.0.dev0+74.ga8069d6bdf
+  version: 3.2.0.dev0+83.g71e11934c8
   index: https://pypi.anaconda.org/scientific-python-nightly-wheels/simple
   requires_dist:
   - numpy>=2.0.2 ; python_full_version < '3.14'
@@ -34781,9 +34781,9 @@ packages:
   - xlsxwriter>=3.2.5 ; extra == 'all'
   - zstandard>=0.23.0 ; extra == 'all'
   requires_python: '>=3.11'
-- pypi: https://pypi.anaconda.org/scientific-python-nightly-wheels/simple/pandas/3.2.0.dev0+74.ga8069d6bdf/pandas-3.2.0.dev0+74.ga8069d6bdf-cp314-cp314-macosx_10_15_x86_64.whl
+- pypi: https://pypi.anaconda.org/scientific-python-nightly-wheels/simple/pandas/3.2.0.dev0+83.g71e11934c8/pandas-3.2.0.dev0+83.g71e11934c8-cp314-cp314-macosx_10_15_x86_64.whl
   name: pandas
-  version: 3.2.0.dev0+74.ga8069d6bdf
+  version: 3.2.0.dev0+83.g71e11934c8
   index: https://pypi.anaconda.org/scientific-python-nightly-wheels/simple
   requires_dist:
   - numpy>=2.0.2 ; python_full_version < '3.14'
@@ -34869,9 +34869,9 @@ packages:
   - xlsxwriter>=3.2.5 ; extra == 'all'
   - zstandard>=0.23.0 ; extra == 'all'
   requires_python: '>=3.11'
-- pypi: https://pypi.anaconda.org/scientific-python-nightly-wheels/simple/pandas/3.2.0.dev0+74.ga8069d6bdf/pandas-3.2.0.dev0+74.ga8069d6bdf-cp314-cp314-macosx_11_0_arm64.whl
+- pypi: https://pypi.anaconda.org/scientific-python-nightly-wheels/simple/pandas/3.2.0.dev0+83.g71e11934c8/pandas-3.2.0.dev0+83.g71e11934c8-cp314-cp314-macosx_11_0_arm64.whl
   name: pandas
-  version: 3.2.0.dev0+74.ga8069d6bdf
+  version: 3.2.0.dev0+83.g71e11934c8
   index: https://pypi.anaconda.org/scientific-python-nightly-wheels/simple
   requires_dist:
   - numpy>=2.0.2 ; python_full_version < '3.14'
@@ -34957,9 +34957,9 @@ packages:
   - xlsxwriter>=3.2.5 ; extra == 'all'
   - zstandard>=0.23.0 ; extra == 'all'
   requires_python: '>=3.11'
-- pypi: https://pypi.anaconda.org/scientific-python-nightly-wheels/simple/pandas/3.2.0.dev0+74.ga8069d6bdf/pandas-3.2.0.dev0+74.ga8069d6bdf-cp314-cp314-win_amd64.whl
+- pypi: https://pypi.anaconda.org/scientific-python-nightly-wheels/simple/pandas/3.2.0.dev0+83.g71e11934c8/pandas-3.2.0.dev0+83.g71e11934c8-cp314-cp314-win_amd64.whl
   name: pandas
-  version: 3.2.0.dev0+74.ga8069d6bdf
+  version: 3.2.0.dev0+83.g71e11934c8
   index: https://pypi.anaconda.org/scientific-python-nightly-wheels/simple
   requires_dist:
   - numpy>=2.0.2 ; python_full_version < '3.14'
