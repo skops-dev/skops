@@ -135,3 +135,51 @@ NUMPY_DTYPE_TYPE_NAMES = sorted(
         if (type_name := get_type_name(dtype)).startswith("numpy")
     }
 )
+
+# pandas types which ``skops.io._pandas`` rebuilds from their data through the
+# public pandas constructors, by the public names it writes to the file. They
+# are listed as strings so that pandas, which is optional, is not imported
+# here. The pyarrow backed arrays and dtypes, ``pandas.arrays.ArrowExtensionArray``,
+# ``pandas.arrays.ArrowStringArray`` and ``pandas.ArrowDtype``, can be saved and
+# loaded the same way but are not trusted by default, since loading them runs
+# pyarrow's conversion of the loaded values, which has not been reviewed.
+PANDAS_TYPE_NAMES = [
+    "pandas.DataFrame",
+    "pandas.Series",
+    "pandas.Index",
+    "pandas.RangeIndex",
+    "pandas.MultiIndex",
+    "pandas.CategoricalIndex",
+    "pandas.DatetimeIndex",
+    "pandas.TimedeltaIndex",
+    "pandas.PeriodIndex",
+    "pandas.IntervalIndex",
+    "pandas.arrays.BooleanArray",
+    "pandas.arrays.Categorical",
+    "pandas.arrays.DatetimeArray",
+    "pandas.arrays.FloatingArray",
+    "pandas.arrays.IntegerArray",
+    "pandas.arrays.IntervalArray",
+    "pandas.arrays.NumpyExtensionArray",
+    "pandas.arrays.PeriodArray",
+    "pandas.arrays.SparseArray",
+    "pandas.arrays.StringArray",
+    "pandas.arrays.TimedeltaArray",
+    "pandas.BooleanDtype",
+    "pandas.CategoricalDtype",
+    "pandas.DatetimeTZDtype",
+    "pandas.Float32Dtype",
+    "pandas.Float64Dtype",
+    "pandas.Int8Dtype",
+    "pandas.Int16Dtype",
+    "pandas.Int32Dtype",
+    "pandas.Int64Dtype",
+    "pandas.IntervalDtype",
+    "pandas.PeriodDtype",
+    "pandas.SparseDtype",
+    "pandas.StringDtype",
+    "pandas.UInt8Dtype",
+    "pandas.UInt16Dtype",
+    "pandas.UInt32Dtype",
+    "pandas.UInt64Dtype",
+]

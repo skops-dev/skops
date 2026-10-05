@@ -17,6 +17,22 @@ v0.17
   with an error while it is read, before anything in it is audited or
   constructed, instead of failing with an unrelated error, or being accepted,
   during construction. :pr:`547` by `Adrin Jalali`_.
+- Add support for pandas objects: :class:`~pandas.DataFrame`,
+  :class:`~pandas.Series`, every kind of :class:`~pandas.Index`, and the
+  extension arrays and extension dtypes of pandas itself, not those of other
+  libraries, can now be saved and loaded. They are stored as
+  the numpy arrays and scalars they are made of and rebuilt through the public
+  pandas constructors, so no pandas internals end up in the file, and they are
+  trusted by default, except for the pyarrow backed arrays and dtypes. The
+  one dtype that cannot be saved is ``ArrowDtype(pyarrow.string())``, whose
+  name pandas reserves for its ``StringDtype``.
+  Estimators from other libraries that keep pandas objects
+  in their fitted attributes, such as ``category_encoders``, can now be
+  persisted. A file written with one pandas version loads with any other from
+  2.0 on, keeping the dtypes of the version that wrote it. Not preserved are
+  the ``freq`` of datetime-like indexes and arrays, the ``attrs`` and ``flags``
+  of a Series or DataFrame, and the storage, python or pyarrow, of a string
+  dtype. :pr:`552` by `Adrin Jalali`_.
 - Fix a regression since v0.12.0 where saving an object whose ``__reduce__``
   raises failed at dump time. ``__reduce__`` is called on every object to
   detect a plain constructor call, but Cython extension types with a

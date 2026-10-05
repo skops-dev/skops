@@ -46,12 +46,29 @@ jobs:
         shell: bash
 
       - uses: prefix-dev/setup-pixi@v0.10.2
+        if: matrix.environment != 'ci-sklearn-nightly'
         with:
           pixi-version: v0.68.0
           environments: ${{ matrix.environment }}
           # we can freeze the environment and manually bump the dependencies to the
           # latest version time to time.
           frozen: true
+
+      # The nightly environment is installed by hand: the locked pandas nightly
+      # wheel is dropped from its index after a few days, so it is refreshed
+      # first. The action accepts no other input together with run-install.
+      - uses: prefix-dev/setup-pixi@v0.10.2
+        if: matrix.environment == 'ci-sklearn-nightly'
+        with:
+          pixi-version: v0.68.0
+          run-install: false
+
+      - name: Install the nightly environment with the latest pandas nightly
+        if: matrix.environment == 'ci-sklearn-nightly'
+        run: |
+          pixi update --environment ci-sklearn-nightly pandas
+          pixi install --environment ci-sklearn-nightly --frozen
+        shell: bash
 
       - name: Linters
         run: pixi run -e lint lint

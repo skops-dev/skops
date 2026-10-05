@@ -131,7 +131,6 @@ skops = { path = ".", editable = true }
 [tool.pixi.feature.docs.dependencies]
 # To be synced with the versions in docs/requirements.txt
 matplotlib = ">=3.3"
-pandas = ">=1"
 sphinx = ">=3.2.0"
 sphinx-gallery = ">=0.7.0"
 sphinx-rtd-theme = ">=1"
@@ -141,8 +140,10 @@ sphinx-issues = ">=1.2.0"
 
 [tool.pixi.feature.docs.pypi-dependencies]
 # everything that depends on scikit-learn needs to be a pypi dependency so that this
-# spec is compatible with the nightly build environment.
+# spec is compatible with the nightly build environment. The same holds for pandas,
+# whose dev version the nightly build environment installs from pypi.
 fairlearn = ">=0.7.0"
+pandas = ">=2"
 
 [tool.pixi.feature.tests.dependencies]
 pytest = ">=7"
@@ -151,7 +152,6 @@ flaky = ">=3.7.0"
 pandoc = ">=3.6.4"
 rich = ">=12"
 matplotlib = ">=3.3"
-pandas = ">=1"
 
 [tool.pixi.feature.tests.pypi-dependencies]
 # these are packages that require scikit-learn. They need to be as a pypi dependency
@@ -159,12 +159,21 @@ pandas = ">=1"
 # when installing pre-release nightly release.
 lightgbm = ">=3"
 xgboost = ">=1.6"
+# skops.io supports pandas 2.0 and later; each CI environment pins one minor
+# version so that the whole range is tested, see the sklearn* features below.
+# A pypi dependency for the same reason as above: the nightly environment
+# installs the dev version of pandas from pypi.
+pandas = ">=2"
 
 [tool.pixi.feature.lint.dependencies]
 pre-commit = "*"
 
 [tool.pixi.feature.dev.dependencies]
 ipython = "*"
+# A conda pandas for the default environment, which includes the nightly index
+# of the sklearn-nightly feature: that index shadows PyPI for the packages it
+# has, so a pypi pandas there would be a dev build.
+pandas = ">=2"
 
 [tool.pixi.feature.sklearn12.dependencies]
 scikit-learn = "~=1.2.0"
@@ -242,6 +251,8 @@ numpy = "~=2.5.0"
 scipy = "~=1.18.0"
 catboost = ">=1.0"
 quantile-forest = "~=1.4.0"
+# keeps pandas objects in fitted attributes, see the test for issue #450
+category_encoders = ">=2.6"
 python = "~=3.14.0"
 
 # [tool.pixi.feature.sklearn17]
@@ -260,9 +271,20 @@ extra-index-urls = ["https://pypi.anaconda.org/scientific-python-nightly-wheels/
 # The version value here needs to be exact, hence == instead of ~=
 scikit-learn = "==1.10.dev0"
 fairlearn = "*"
-pandas = "*"
 numpy = "*"
 scipy = "*"
+
+[tool.pixi.feature.pandas-nightly.pypi-dependencies]
+# The dev version of pandas from the nightly index; "*" would pick the latest
+# release, since pre-releases are only considered when named explicitly. Unlike
+# the scikit-learn and scipy nightlies, pandas puts the git revision in the
+# version, so every build is a new file and the index drops old ones after a
+# few days: the locked wheel goes stale. CI refreshes it before installing the
+# environment, see .github/workflows/build-test.yml; do the same locally with
+# ``pixi update --environment ci-sklearn-nightly pandas``. This is why the
+# feature is not part of the default environment. Like the scikit-learn pin
+# above, the version needs a bump after each pandas release.
+pandas = "==3.2.0.dev0"
 
 [tool.pixi.feature.lint.tasks]
 lint = { cmd = "pre-commit install && pre-commit run -v --all-files --show-diff-on-failure" }
@@ -282,4 +304,4 @@ ci-sklearn16 = ["rich", "tests", "lint", "sklearn16"]
 ci-sklearn17 = ["rich", "tests", "lint", "sklearn17"]
 ci-sklearn18 = ["rich", "tests", "lint", "sklearn18"]
 ci-sklearn19 = ["rich", "tests", "lint", "sklearn19"]
-ci-sklearn-nightly = ["rich", "tests", "lint", "sklearn-nightly"]
+ci-sklearn-nightly = ["rich", "tests", "lint", "sklearn-nightly", "pandas-nightly"]

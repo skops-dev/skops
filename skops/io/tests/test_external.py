@@ -17,7 +17,8 @@ from unittest.mock import Mock, patch
 import pytest
 from sklearn.datasets import make_classification, make_regression
 
-from skops.io import dumps, loads, visualize
+from skops.io import dumps, get_untrusted_types, loads, visualize
+from skops.io._utils import get_type_name
 from skops.io.tests._utils import assert_method_outputs_equal, assert_params_equal
 from skops.utils._fixes import make_xgboost_random_forest
 
@@ -437,5 +438,41 @@ class TestQuantileForest:
         dumped = dumps(estimator)
         loaded = loads(dumped, trusted=trusted)
         assert_method_outputs_equal(estimator, loaded, X)
+
+        visualize(dumped, trusted=trusted)
+
+
+class TestCategoryEncoders:
+    """Tests for category_encoders, whose fitted attributes hold pandas objects"""
+
+    @pytest.fixture(autouse=True)
+    def ce(self):
+        return pytest.importorskip("category_encoders")
+
+    @pytest.fixture
+    def trusted(self, ce):
+        return [ce.OrdinalEncoder, ce.TargetEncoder]
+
+    # category_encoders uses deprecated pandas options, which the test setup
+    # turns into errors
+    @pytest.mark.filterwarnings("ignore")
+    def test_target_encoder(self, ce, trusted):
+        # the report in https://github.com/skops-dev/skops/issues/450
+        pd = pytest.importorskip("pandas")
+        X = pd.DataFrame({"category": list("ABACBACCBA")})
+        y = [0, 1, 0, 1, 1, 0, 1, 1, 1, 0]
+
+        estimator = ce.TargetEncoder()
+        loaded = loads(dumps(estimator), trusted=trusted)
+        assert_params_equal(estimator.get_params(), loaded.get_params())
+
+        estimator.fit(X, y)
+        dumped = dumps(estimator)
+        # the pandas objects in the fitted attributes are trusted by default
+        assert get_untrusted_types(data=dumped) == [get_type_name(t) for t in trusted]
+        loaded = loads(dumped, trusted=trusted)
+        assert_params_equal(estimator.__dict__, loaded.__dict__)
+        X_new = pd.DataFrame({"category": ["A", "C", "unseen", None]})
+        assert_method_outputs_equal(estimator, loaded, X_new)
 
         visualize(dumped, trusted=trusted)
