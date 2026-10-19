@@ -99,7 +99,9 @@ def _update_file(
         return None
 
     with tempfile.TemporaryDirectory() as tmp_dir:
-        tmp_output_file = Path(tmp_dir) / f"{output_file}.tmp"
+        # Only the file name is used, so a relative output path with directories
+        # (e.g. ``models/model.skops``) doesn't point into a missing directory.
+        tmp_output_file = Path(tmp_dir) / f"{Path(output_file).name}.tmp"
         dump(input_model, tmp_output_file)
         shutil.move(str(tmp_output_file), str(output_file))
     logger.info(f"Updated skops file written to {output_file}")

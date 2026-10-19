@@ -11,6 +11,8 @@ skops Changelog
 
 v0.17
 -----
+- Fix ``skops update`` failing when a relative output path contains a
+  directory, including updates with ``--inplace``.
 - Loading a skops file now checks that each part of the file holds the kind
   of content its loader expects, for instance that the keyword arguments of a
   ``functools.partial`` are stored as a dict. A file that does not is refused
