@@ -85,6 +85,23 @@ class TestUpdate:
         mock_logger.error.assert_not_called()
         mock_logger.debug.assert_not_called()
 
+    @pytest.mark.parametrize("inplace", [True, False])
+    def test_relative_path_with_directory(
+        self, tmp_path, monkeypatch, inplace: bool, dump_old_file, safe_obj
+    ):
+        # A relative output path with a directory component used to fail, since
+        # it was joined to the temporary directory as is.
+        monkeypatch.chdir(tmp_path.parent)
+        input_file = pathlib.Path(tmp_path.name) / f"{self.model_name}.skops"
+        output_file = None if inplace else input_file.with_name("updated.skops")
+
+        _update._update_file(
+            input_file=input_file, output_file=output_file, inplace=inplace
+        )
+
+        updated_obj = load(output_file or input_file)
+        assert np.array_equal(updated_obj, safe_obj)
+
     @mock.patch("skops.cli._update.dump")
     def test_only_diff(
         self, mock_dump: mock.MagicMock, skops_path: pathlib.Path, dump_old_file
