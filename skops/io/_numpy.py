@@ -110,6 +110,9 @@ class NdArrayNode(Node):
             shape = self.shape.construct()
             tmp = [o.construct() for o in self.items]
 
+            if 0 in shape:
+                return np.empty(shape, dtype="O")
+
             # TODO: this is a hack to get the correct shape of the array. We
             # should find _a better way_ to do this.
             if len(shape) == 1:
