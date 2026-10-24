@@ -45,7 +45,7 @@ jobs:
           echo PR_COMMIT_MESSAGE=$(git log -1 --pretty=format:\"%s\") >> $GITHUB_ENV
         shell: bash
 
-      - uses: prefix-dev/setup-pixi@v0.10.2
+      - uses: prefix-dev/setup-pixi@v0.11.2
         if: matrix.environment != 'ci-sklearn-nightly'
         with:
           pixi-version: v0.68.0
@@ -57,7 +57,7 @@ jobs:
       # The nightly environment is installed by hand: the locked pandas nightly
       # wheel is dropped from its index after a few days, so it is refreshed
       # first. The action accepts no other input together with run-install.
-      - uses: prefix-dev/setup-pixi@v0.10.2
+      - uses: prefix-dev/setup-pixi@v0.11.2
         if: matrix.environment == 'ci-sklearn-nightly'
         with:
           pixi-version: v0.68.0

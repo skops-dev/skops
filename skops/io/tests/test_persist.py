@@ -796,6 +796,25 @@ def test_numpy_object_dtype_2d_array(transpose):
     assert_params_equal(est.__dict__, loaded.__dict__)
 
 
+@pytest.mark.parametrize(
+    "shape", [(0,), (0, 3), (2, 0), (2, 0, 3), (2, 3, 0), (0, 2, 3), (2, 3)]
+)
+@pytest.mark.parametrize("use_file", [False, True])
+def test_numpy_object_dtype_empty_array(shape, use_file, tmp_path):
+    arr = np.full(shape, "value", dtype=object)
+
+    if use_file:
+        path = tmp_path / "array.skops"
+        dump(arr, path)
+        loaded = load(path)
+    else:
+        loaded = loads(dumps(arr))
+
+    assert loaded.shape == shape
+    assert loaded.dtype == arr.dtype
+    np.testing.assert_array_equal(loaded, arr)
+
+
 def test_metainfo():
     class MyEstimator(BaseEstimator):
         """Estimator with attributes of different supported types"""
