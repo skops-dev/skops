@@ -260,6 +260,14 @@ def extension_array_get_state(obj: Any, save_context: SaveContext) -> dict[str, 
     return _pandas_state(obj, "PandasExtensionArrayNode", content, save_context)
 
 
+def sparse_array_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
+    # Stored dense, as the numpy array of its subtype, rather than as scalars:
+    # the array keeps its subtype, e.g. a complex one which scalars would not,
+    # and the fill value is part of the dtype, which rebuilds the sparse array.
+    content = {"values": obj.to_numpy(), "dtype": obj.dtype}
+    return _pandas_state(obj, "PandasExtensionArrayNode", content, save_context)
+
+
 def extension_dtype_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     # Extension dtypes are rebuilt from their string form, e.g. "Int64" or
     # "period[M]", except those whose parser consults pandas' registry of
@@ -301,10 +309,34 @@ def categorical_dtype_get_state(obj: Any, save_context: SaveContext) -> dict[str
     return _pandas_state(obj, "PandasCategoricalDtypeNode", content, save_context)
 
 
+def _sparse_fill_value(dtype: Any) -> Any:
+    """The fill value of a sparse dtype in a form that can be stored.
+
+    JSON scalars and numpy scalars are stored as they are. Any other scalar is
+    converted to the numpy scalar of the subtype, e.g. a complex number, a
+    Timestamp or a Timedelta, which JSON cannot hold.
+    """
+    import pandas as pd
+
+    fill_value = dtype.fill_value
+    if fill_value is None or isinstance(
+        fill_value, (str, bool, int, float, np.generic)
+    ):
+        return fill_value
+    if dtype.subtype.kind in "biufcMm" and not pd.isna(fill_value):
+        try:
+            return dtype.subtype.type(fill_value)
+        except (TypeError, ValueError):  # pragma: no cover
+            pass
+    raise UnsupportedTypeException(
+        f"The fill value {fill_value!r} of the sparse dtype {dtype} cannot be saved."
+    )
+
+
 def sparse_dtype_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     # The string form of a sparse dtype can only be parsed back when the fill
-    # value is the default one for its subtype.
-    content = {"subtype": str(obj.subtype), "fill_value": obj.fill_value}
+    # value is the default one for its subtype, so the parts are stored.
+    content = {"subtype": str(obj.subtype), "fill_value": _sparse_fill_value(obj)}
     return _pandas_state(obj, "PandasSparseDtypeNode", content, save_context)
 
 
@@ -674,6 +706,7 @@ def register_if_imported() -> None:
         (pd.Categorical, categorical_get_state),
         (pd.arrays.PeriodArray, period_array_get_state),
         (pd.arrays.IntervalArray, interval_array_get_state),
+        (pd.arrays.SparseArray, sparse_array_get_state),
         (pd.api.extensions.ExtensionDtype, extension_dtype_get_state),
         (pd.CategoricalDtype, categorical_dtype_get_state),
         (pd.SparseDtype, sparse_dtype_get_state),

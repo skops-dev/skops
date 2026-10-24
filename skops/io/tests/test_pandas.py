@@ -65,6 +65,8 @@ SERIES = [
     pd.Series(pd.period_range("2024-01", periods=2, freq="M")),
     pd.Series(pd.interval_range(0, 2)),
     pd.Series(pd.arrays.SparseArray([0, 0, 1.5])),
+    pd.Series(pd.arrays.SparseArray([1 + 2j, 0, 0], fill_value=0)),
+    pd.Series(pd.arrays.SparseArray(pd.to_datetime(["2024-01-01", None]))),
     pd.Series([1, 2], index=pd.MultiIndex.from_tuples([("a", 1), ("b", 2)])),
     pd.Series([1, 2, 3], index=[1, 1, 2]),
     pd.Series([1], name=("a", "b")),
@@ -141,6 +143,13 @@ DTYPES = [
     pd.IntervalDtype("datetime64[ns]"),
     pd.IntervalDtype(),
     pd.SparseDtype(float, 0.0),
+    # fill values JSON cannot hold, and missing ones
+    pd.SparseDtype("complex128", 1 + 2j),
+    pd.SparseDtype("int64", np.nan),
+    pd.SparseDtype("datetime64[ns]"),
+    pd.SparseDtype("datetime64[ns]", pd.Timestamp("2024-01-01")),
+    pd.SparseDtype("timedelta64[ns]", pd.Timedelta("1h")),
+    pd.SparseDtype(object, "missing"),
 ]
 
 
@@ -340,6 +349,26 @@ class NamelessDtype(pd.api.extensions.ExtensionDtype):
     @classmethod
     def construct_from_string(cls, string):
         raise TypeError(f"Cannot construct a 'NamelessDtype' from '{string}'")
+
+
+def test_sparse_fill_value_outside_json_is_unsupported():
+    # a fill value of an object subtype has to be a JSON scalar: refused when
+    # saving rather than failing when loading
+    dtype = pd.SparseDtype(object, pd.Timestamp("2024-01-01"))
+    with pytest.raises(UnsupportedTypeException, match="fill value"):
+        dumps(dtype)
+
+
+def test_sparse_fill_value_pandas_nat():
+    # The missing value of pandas is not the one of numpy, and pandas does not
+    # consider the two dtypes equal, so it is refused; recent versions of
+    # pandas convert it to the numpy one when building the dtype.
+    dtype = pd.SparseDtype("datetime64[ns]", pd.NaT)
+    if isinstance(dtype.fill_value, np.generic):
+        assert loads(dumps(dtype)) == dtype
+    else:
+        with pytest.raises(UnsupportedTypeException, match="fill value"):
+            dumps(dtype)
 
 
 def test_dtype_not_rebuildable_from_its_name_is_unsupported():
