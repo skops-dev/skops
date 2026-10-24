@@ -38,6 +38,7 @@ disk.
 from __future__ import annotations
 
 import datetime
+import pickle
 import re
 import sys
 import warnings
@@ -90,6 +91,31 @@ _RENAMED_CLASSES = {
 }
 
 
+def _public_name(cls: type) -> str:
+    # The name a file holds for a pandas class, which is also the name to pass
+    # as ``trusted``.
+    class_name = cls.__name__
+    if class_name in _RENAMED_CLASSES:
+        class_name, _ = _RENAMED_CLASSES[class_name]
+    return f"{_public_module(cls)}.{class_name}"
+
+
+def _public_trusted(trusted: Any) -> Any:
+    # pandas classes passed as ``trusted`` are matched by the public names the
+    # file holds, rather than by their defining module, which pandas before 3.0
+    # reports, or by an old name.
+    if isinstance(trusted, (str, type)):
+        trusted = [trusted]
+    if not isinstance(trusted, (list, tuple)):
+        return trusted
+    return [
+        _public_name(entry)
+        if isinstance(entry, type) and entry.__module__.partition(".")[0] == "pandas"
+        else entry
+        for entry in trusted
+    ]
+
+
 def _pandas_state(
     obj: Any, loader: str, content: dict[str, Any], save_context: SaveContext
 ) -> dict[str, Any]:
@@ -104,13 +130,10 @@ def _pandas_state(
             " as its pandas base class."
         )
 
-    class_name = cls.__name__
-    if class_name in _RENAMED_CLASSES:
-        class_name, _ = _RENAMED_CLASSES[class_name]
-
+    module, _, class_name = _public_name(cls).rpartition(".")
     return {
         "__class__": class_name,
-        "__module__": _public_module(cls),
+        "__module__": module,
         "__loader__": loader,
         "content": {
             key: get_state(value, save_context) for key, value in content.items()
@@ -168,6 +191,18 @@ def _timezone_name(tz: Any) -> str:
     # or pytz zone, "UTC", or a fixed offset as "UTC+01:00", with its seconds
     # as "UTC+00:19:32" if it has any. These are the only names ``_timezone``
     # accepts when loading.
+    if isinstance(tz, zoneinfo.ZoneInfo):
+        try:
+            tz.__reduce__()
+        except pickle.PicklingError as err:
+            # Created with ``ZoneInfo.from_file``: its key, if it has one,
+            # need not describe its data, and the key is all the file holds.
+            # Refused like ``skops.io`` refuses such objects on their own.
+            raise UnsupportedTypeException(
+                "ZoneInfo objects created with ZoneInfo.from_file are not"
+                " supported, since their time zone data cannot be loaded from a"
+                " key; create the zone with ZoneInfo(key) instead."
+            ) from err
     name = getattr(tz, "key", None) or getattr(tz, "zone", None)
     if name is not None:
         return name
@@ -347,9 +382,18 @@ class _PandasNode(Node):
 
     The children are the entries of ``state["content"]``. ``_allowed_types``
     of each subclass names every entry and the node types it may hold, which
-    is checked while the file is read, and ``_construct`` builds the object
-    from the constructed children.
+    is checked while the file is read, and ``_build`` builds the object from
+    the constructed children.
+
+    The audit trusts the class a file declares, so the declared class has to
+    be one the loader builds: ``_module`` and ``_classes`` of each subclass
+    name them, the declaration is checked while the file is read, and the
+    built object is checked to be of the declared class. The two loaders
+    whose ``_classes`` is None explain why they cannot check by name.
     """
+
+    _module = "pandas"
+    _classes: tuple[str, ...] | None = ()
 
     def __init__(
         self,
@@ -358,7 +402,20 @@ class _PandasNode(Node):
         trusted: TrustedTypes | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
+        trusted = _public_trusted(trusted)
         self.trusted = self._get_trusted(trusted, [])
+        if self._classes is None:
+            declared_ok = self.module_name.partition(".")[0] == "pandas"
+        else:
+            declared_ok = (
+                self.module_name == self._module and self.class_name in self._classes
+            )
+        if not declared_ok:
+            raise ValueError(
+                f"{self.module_name}.{self.class_name} is not a class"
+                f" {type(self).__name__} builds. This is probably due to a"
+                " corrupted or a malicious file."
+            )
         allowed_types = self._allowed_types()
         if set(state["content"]) != set(allowed_types):
             raise ValueError(
@@ -382,12 +439,36 @@ class _PandasNode(Node):
     def _construct_content(self) -> dict[str, Any]:
         return {key: node.construct() for key, node in self.content.items()}
 
+    def _build(self):
+        raise NotImplementedError  # pragma: no cover
+
+    def _construct(self):
+        obj = self._build()
+        declared = f"{self.module_name}.{self.class_name}"
+        if self._classes is not None and _public_name(type(obj)) != declared:
+            raise ValueError(
+                f"The file declares {declared}, but its data builds"
+                f" {_public_name(type(obj))}. This is probably due to a corrupted"
+                " or a malicious file."
+            )
+        return obj
+
 
 class PandasIndexNode(_PandasNode):
+    # ``pd.Index`` returns the subclass for the dtype of the values
+    _classes = (
+        "Index",
+        "DatetimeIndex",
+        "TimedeltaIndex",
+        "PeriodIndex",
+        "CategoricalIndex",
+        "IntervalIndex",
+    )
+
     def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
         return {"values": _ARRAY_NODES, "name": None}
 
-    def _construct(self):
+    def _build(self):
         import pandas as pd
 
         content = self._construct_content()
@@ -400,6 +481,8 @@ class PandasIndexNode(_PandasNode):
 
 
 class PandasRangeIndexNode(_PandasNode):
+    _classes = ("RangeIndex",)
+
     def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
         return {
             "start": (JsonNode,),
@@ -408,7 +491,7 @@ class PandasRangeIndexNode(_PandasNode):
             "name": None,
         }
 
-    def _construct(self):
+    def _build(self):
         import pandas as pd
 
         content = self._construct_content()
@@ -418,6 +501,8 @@ class PandasRangeIndexNode(_PandasNode):
 
 
 class PandasMultiIndexNode(_PandasNode):
+    _classes = ("MultiIndex",)
+
     def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
         return {
             "levels": (ListNode,),
@@ -426,7 +511,7 @@ class PandasMultiIndexNode(_PandasNode):
             "names": (ListNode,),
         }
 
-    def _construct(self):
+    def _build(self):
         import pandas as pd
 
         content = self._construct_content()
@@ -439,10 +524,12 @@ class PandasMultiIndexNode(_PandasNode):
 
 
 class PandasSeriesNode(_PandasNode):
+    _classes = ("Series",)
+
     def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
         return {"values": _ARRAY_NODES, "index": _INDEX_NODES, "name": None}
 
-    def _construct(self):
+    def _build(self):
         import pandas as pd
 
         content = self._construct_content()
@@ -453,10 +540,12 @@ class PandasSeriesNode(_PandasNode):
 
 
 class PandasDataFrameNode(_PandasNode):
+    _classes = ("DataFrame",)
+
     def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
         return {"columns": _INDEX_NODES, "index": _INDEX_NODES, "data": (ListNode,)}
 
-    def _construct(self):
+    def _build(self):
         import pandas as pd
 
         content = self._construct_content()
@@ -471,41 +560,69 @@ class PandasDataFrameNode(_PandasNode):
 
 
 class PandasNumpyBackedArrayNode(_PandasNode):
+    _module = "pandas.arrays"
+    _classes = ("NumpyExtensionArray", "DatetimeArray", "TimedeltaArray")
+
     def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
         return {"values": (NdArrayNode,), "tz": (JsonNode,)}
 
-    def _construct(self):
+    def _build(self):
         import pandas as pd
 
         content = self._construct_content()
-        values = content["values"]
-        # A numpy dtype makes ``pd.array`` return a NumpyExtensionArray, which
-        # is what is wanted for all but datetime64 and timedelta64 arrays: for
-        # those pandas 2.0 also returns one when the dtype is given with a unit
-        # other than nanoseconds, while without a dtype every version infers
-        # a DatetimeArray or TimedeltaArray.
-        dtype = None if values.dtype.kind in "Mm" else values.dtype
-        array = pd.array(values, dtype=dtype)
-        if content["tz"] is not None:
-            array = array.tz_localize("UTC").tz_convert(_timezone(content["tz"]))
+        values, tz = content["values"], content["tz"]
+        if self.class_name == "NumpyExtensionArray":
+            # The plain wrapper of a numpy array of any dtype, datetime64 and
+            # timedelta64 included, which pandas 2.0 has under its old name.
+            if tz is not None:
+                raise ValueError(
+                    "A NumpyExtensionArray has no time zone. This is probably due"
+                    " to a corrupted or a malicious file."
+                )
+            cls = getattr(pd.arrays, "NumpyExtensionArray", None)
+            if cls is None:
+                cls = pd.arrays.PandasArray
+            return cls(values)
+        # A DatetimeArray or TimedeltaArray, which ``pd.array`` infers from the
+        # dtype of the values on every pandas version.
+        kind = "M" if self.class_name == "DatetimeArray" else "m"
+        if values.dtype.kind != kind:
+            raise ValueError(
+                f"The values of a {self.class_name} must have a {np.dtype(kind)}"
+                " dtype. This is probably due to a corrupted or a malicious file."
+            )
+        if tz is not None and kind == "m":
+            raise ValueError(
+                "A TimedeltaArray has no time zone. This is probably due to a"
+                " corrupted or a malicious file."
+            )
+        array = pd.array(values)
+        if tz is not None:
+            array = array.tz_localize("UTC").tz_convert(_timezone(tz))
         return array
 
 
 class PandasMaskedArrayNode(_PandasNode):
+    _module = "pandas.arrays"
+    _classes = ("IntegerArray", "FloatingArray", "BooleanArray")
+
     def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
         return {"values": (NdArrayNode,), "mask": (NdArrayNode,)}
 
-    def _construct(self):
+    def _build(self):
         content = self._construct_content()
         cls = gettype(self.module_name, self.class_name)
         return cls(content["values"], content["mask"])
 
 
 class PandasCategoricalNode(_PandasNode):
+    _module = "pandas.arrays"
+    _classes = ("Categorical",)
+
     def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
         return {"codes": (NdArrayNode,), "dtype": (PandasCategoricalDtypeNode,)}
 
-    def _construct(self):
+    def _build(self):
         import pandas as pd
 
         content = self._construct_content()
@@ -513,10 +630,13 @@ class PandasCategoricalNode(_PandasNode):
 
 
 class PandasPeriodArrayNode(_PandasNode):
+    _module = "pandas.arrays"
+    _classes = ("PeriodArray",)
+
     def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
         return {"ordinals": (NdArrayNode,), "dtype": (PandasExtensionDtypeNode,)}
 
-    def _construct(self):
+    def _build(self):
         import pandas as pd
 
         content = self._construct_content()
@@ -524,10 +644,13 @@ class PandasPeriodArrayNode(_PandasNode):
 
 
 class PandasIntervalArrayNode(_PandasNode):
+    _module = "pandas.arrays"
+    _classes = ("IntervalArray",)
+
     def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
         return {"left": _INDEX_NODES, "right": _INDEX_NODES, "closed": (JsonNode,)}
 
-    def _construct(self):
+    def _build(self):
         import pandas as pd
 
         content = self._construct_content()
@@ -537,10 +660,16 @@ class PandasIntervalArrayNode(_PandasNode):
 
 
 class PandasExtensionArrayNode(_PandasNode):
+    # Not checked by name: the array is built by ``pd.array`` from its dtype,
+    # whose node is audited itself, the class of a string array follows the
+    # string storage of the environment, and pandas has private array
+    # classes, e.g. the ones behind the ``str`` dtype of pandas 3.
+    _classes = None
+
     def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
         return {"values": (NdArrayNode,), "dtype": _DTYPE_NODES}
 
-    def _construct(self):
+    def _build(self):
         import pandas as pd
 
         content = self._construct_content()
@@ -548,10 +677,15 @@ class PandasExtensionArrayNode(_PandasNode):
 
 
 class PandasExtensionDtypeNode(_PandasNode):
+    # Not checked by name: the declared class is resolved and checked when
+    # the dtype is built, and pandas has private dtype classes, e.g. the one
+    # of a NumpyExtensionArray.
+    _classes = None
+
     def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
         return {"name": (JsonNode,)}
 
-    def _construct(self):
+    def _build(self):
         import pandas as pd
 
         name = self._construct_content()["name"]
@@ -589,10 +723,12 @@ class PandasExtensionDtypeNode(_PandasNode):
 
 
 class PandasCategoricalDtypeNode(_PandasNode):
+    _classes = ("CategoricalDtype",)
+
     def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
         return {"categories": _INDEX_NODES + (JsonNode,), "ordered": (JsonNode,)}
 
-    def _construct(self):
+    def _build(self):
         import pandas as pd
 
         content = self._construct_content()
@@ -600,10 +736,12 @@ class PandasCategoricalDtypeNode(_PandasNode):
 
 
 class PandasSparseDtypeNode(_PandasNode):
+    _classes = ("SparseDtype",)
+
     def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
         return {"subtype": (JsonNode,), "fill_value": (JsonNode, NdArrayNode)}
 
-    def _construct(self):
+    def _build(self):
         import pandas as pd
 
         content = self._construct_content()
@@ -613,10 +751,12 @@ class PandasSparseDtypeNode(_PandasNode):
 
 
 class PandasDatetimeTZDtypeNode(_PandasNode):
+    _classes = ("DatetimeTZDtype",)
+
     def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
         return {"unit": (JsonNode,), "tz": (JsonNode,)}
 
-    def _construct(self):
+    def _build(self):
         import pandas as pd
 
         content = self._construct_content()
@@ -624,10 +764,12 @@ class PandasDatetimeTZDtypeNode(_PandasNode):
 
 
 class PandasIntervalDtypeNode(_PandasNode):
+    _classes = ("IntervalDtype",)
+
     def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
         return {"subtype": (JsonNode, PandasDatetimeTZDtypeNode), "closed": (JsonNode,)}
 
-    def _construct(self):
+    def _build(self):
         import pandas as pd
 
         content = self._construct_content()

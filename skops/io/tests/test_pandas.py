@@ -5,7 +5,9 @@ from __future__ import annotations
 import datetime as dt
 import io
 import json
+import struct
 import warnings
+import zoneinfo
 from pathlib import Path
 from zipfile import ZipFile
 
@@ -103,6 +105,11 @@ FRAMES = [
     ),
 ]
 
+# the plain wrapper of a numpy array, under its old name on pandas 2.0
+_NumpyBackedArray = (
+    getattr(pd.arrays, "NumpyExtensionArray", None) or pd.arrays.PandasArray
+)
+
 ARRAYS = [
     pd.array([1, None], dtype="Int64"),
     pd.array([1.5, None], dtype="Float64"),
@@ -129,6 +136,10 @@ ARRAYS = [
     pd.array(pd.interval_range(0, 2)),
     pd.arrays.SparseArray([0, 1]),
     pd.Series([1, 2]).array,
+    # the plain wrapper around datetime64 and timedelta64 values, which pandas
+    # itself represents as DatetimeArray and TimedeltaArray
+    _NumpyBackedArray(np.array(["2024-01-01"], dtype="datetime64[ns]")),
+    _NumpyBackedArray(np.array([1], dtype="timedelta64[ns]")),
 ]
 
 DTYPES = [
@@ -263,6 +274,100 @@ def test_timezone_from_file_is_restricted(name):
 
     with pytest.raises(ValueError, match="not a known time zone"):
         loads(_with_edited_schema(dumped, edit), trusted=trusted)
+
+
+def test_file_backed_zone_is_unsupported():
+    # a zone created with ZoneInfo.from_file may carry a key that does not
+    # describe its data, and the key is all the file holds, so it is refused
+    # like skops.io refuses such zones on their own. This one is a minimal
+    # version 1 TZif file with a single offset of one hour, under the key UTC.
+    tzif = (
+        b"TZif\x00"
+        + bytes(15)
+        # number of isut, isstd, leap, transition, type and abbreviation entries
+        + struct.pack(">6l", 0, 0, 0, 0, 1, 4)
+        # the single type entry: utoff, isdst, abbreviation index
+        + struct.pack(">lbb", 3600, 0, 0)
+        + b"UTC\x00"
+    )
+    tz = zoneinfo.ZoneInfo.from_file(io.BytesIO(tzif), key="UTC")
+    with pytest.raises(UnsupportedTypeException, match="ZoneInfo.from_file"):
+        dumps(pd.DatetimeTZDtype("ns", tz))
+    with pytest.raises(UnsupportedTypeException, match="ZoneInfo.from_file"):
+        dumps(pd.array(pd.to_datetime(["2024-01-01"]).tz_localize(tz)))
+
+
+def test_declared_class_must_be_one_the_loader_builds():
+    # the audit trusts the class a file declares, so a loader only accepts the
+    # classes it builds: a trusted name cannot make it build another class
+    dumped = dumps(pd.RangeIndex(3))
+
+    def edit(schema):
+        schema["__class__"] = "Series"
+
+    with pytest.raises(ValueError, match="not a class PandasRangeIndexNode builds"):
+        get_untrusted_types(data=_with_edited_schema(dumped, edit))
+
+    def edit_module(schema):
+        schema["__module__"] = "pandas.core.indexes.range"
+
+    with pytest.raises(ValueError, match="not a class PandasRangeIndexNode builds"):
+        get_untrusted_types(data=_with_edited_schema(dumped, edit_module))
+
+
+def test_built_object_must_be_of_the_declared_class():
+    # the declared class is one the loader builds, but the data builds another
+    dumped = dumps(pd.Index(pd.to_datetime(["2024-01-01"])))
+
+    def edit(schema):
+        schema["__class__"] = "Index"
+
+    with pytest.raises(ValueError, match="builds pandas.DatetimeIndex"):
+        loads(_with_edited_schema(dumped, edit), trusted=["pandas.Index"])
+
+
+def test_numpy_backed_array_follows_the_declared_class():
+    # the declared class, not the dtype of the values, decides between the
+    # plain wrapper and the datetime-like arrays, and must fit the values
+    timedeltas = dumps(pd.array(pd.to_timedelta([1], unit="s")))
+    aware = dumps(pd.array(pd.to_datetime(["2024-01-01"]).tz_localize("UTC")))
+
+    def to_datetime_array(schema):
+        schema["__class__"] = "DatetimeArray"
+
+    with pytest.raises(ValueError, match="must have a datetime64 dtype"):
+        loads(
+            _with_edited_schema(timedeltas, to_datetime_array),
+            trusted=["pandas.arrays.DatetimeArray"],
+        )
+
+    def to_wrapper(schema):
+        schema["__class__"] = "NumpyExtensionArray"
+
+    with pytest.raises(ValueError, match="NumpyExtensionArray has no time zone"):
+        loads(
+            _with_edited_schema(aware, to_wrapper),
+            trusted=["pandas.arrays.NumpyExtensionArray"],
+        )
+
+    def with_zone(schema):
+        schema["content"]["tz"]["content"] = json.dumps("UTC")
+
+    with pytest.raises(ValueError, match="TimedeltaArray has no time zone"):
+        loads(
+            _with_edited_schema(timedeltas, with_zone),
+            trusted=["pandas.arrays.TimedeltaArray"],
+        )
+
+
+def test_pandas_classes_as_trusted_entries():
+    # a pandas class passed as trusted is matched by the public name the file
+    # holds, which on pandas 2.x differs from its defining module
+    loads(dumps(pd.Int64Dtype()), trusted=[pd.Int64Dtype])
+    loads(dumps(pd.Series([1], index=pd.Index([1]))), trusted=[pd.Series, pd.Index])
+    # PandasArray on pandas 2.0, with a dtype of a private class
+    array = pd.Series([1, 2]).array
+    loads(dumps(array), trusted=[type(array), type(array.dtype)])
 
 
 def test_sub_second_offset_is_unsupported():
