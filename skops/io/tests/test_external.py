@@ -468,11 +468,15 @@ class TestCategoryEncoders:
 
         estimator.fit(X, y)
         dumped = dumps(estimator)
-        # the pandas objects in the fitted attributes are trusted by default
-        assert get_untrusted_types(data=dumped) == [get_type_name(t) for t in trusted]
-        loaded = loads(dumped, trusted=trusted)
+        # the pandas objects in the fitted attributes are not trusted by
+        # default either; a user passes the names the file holds
+        untrusted = get_untrusted_types(data=dumped)
+        assert {name for name in untrusted if not name.startswith("pandas.")} == {
+            get_type_name(t) for t in trusted
+        }
+        loaded = loads(dumped, trusted=untrusted)
         assert_params_equal(estimator.__dict__, loaded.__dict__)
         X_new = pd.DataFrame({"category": ["A", "C", "unseen", None]})
         assert_method_outputs_equal(estimator, loaded, X_new)
 
-        visualize(dumped, trusted=trusted)
+        visualize(dumped, trusted=untrusted)

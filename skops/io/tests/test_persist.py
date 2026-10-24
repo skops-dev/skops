@@ -1610,10 +1610,13 @@ def test_estimator_with_pandas_attributes():
     pytest.importorskip("pandas")
     estimator = PandasEncoder().fit(None)
     dumped = dumps(estimator)
-    # the pandas objects are trusted by default, only the estimator is not
-    assert get_untrusted_types(data=dumped) == [get_type_name(PandasEncoder)]
+    # neither the estimator nor the pandas objects it holds are trusted by
+    # default; the file names the latter by their public pandas names
+    untrusted = get_untrusted_types(data=dumped)
+    assert get_type_name(PandasEncoder) in untrusted
+    assert {"pandas.Series", "pandas.Index", "pandas.StringDtype"} <= set(untrusted)
 
-    loaded = loads(dumped, trusted=[PandasEncoder])
+    loaded = loads(dumped, trusted=untrusted)
     assert_params_equal(estimator.__dict__, loaded.__dict__)
 
 

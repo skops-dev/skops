@@ -25,11 +25,14 @@ Not preserved: the ``freq`` of datetime-like indexes and arrays, the ``attrs``
 and ``flags`` of a Series or DataFrame, and the storage, python or pyarrow, of
 a string dtype, which is an environment choice over the same values.
 
-The pandas types are trusted by default, so loading must stay within pandas'
-constructors and the data from the file. In particular, no name from the file
-is looked up in pandas' registry of extension dtypes, where any imported
-library can register a dtype whose parser would then run, and time zones are
-parsed here rather than by pandas, whose parser can open any file on disk.
+The pandas types are not trusted by default, since this support is new; a user
+passes the names a file holds, see :func:`skops.io.get_untrusted_types`.
+Trusting them should mean trusting pandas and nothing else, so loading stays
+within pandas' constructors and the data from the file. In particular, no name
+from the file is looked up in pandas' registry of extension dtypes, where any
+imported library can register a dtype whose parser would then run, and time
+zones are parsed here rather than by pandas, whose parser can open any file on
+disk.
 """
 
 from __future__ import annotations
@@ -47,7 +50,6 @@ from ._audit import Node, get_tree
 from ._general import JsonNode, ListNode
 from ._numpy import NdArrayNode
 from ._protocol import PROTOCOL
-from ._trusted_types import PANDAS_TYPE_NAMES
 from ._utils import (
     LoadContext,
     SaveContext,
@@ -65,7 +67,7 @@ def _public_module(cls: type) -> str:
     # classes and "pandas" for everything else. pandas 3 reports these as
     # ``__module__`` already, but older versions report the defining module,
     # e.g. ``pandas.core.series``, and a file must not depend on that: the
-    # public name is what the default trusted list knows, and what stays
+    # public name is what a user passes as ``trusted``, and what stays
     # importable across versions. Deprecated aliases such as
     # ``pandas.arrays.PandasArray`` warn when accessed, hence the suppression.
     import pandas as pd
@@ -356,7 +358,7 @@ class _PandasNode(Node):
         trusted: TrustedTypes | None = None,
     ) -> None:
         super().__init__(state, load_context, trusted)
-        self.trusted = self._get_trusted(trusted, PANDAS_TYPE_NAMES)
+        self.trusted = self._get_trusted(trusted, [])
         allowed_types = self._allowed_types()
         if set(state["content"]) != set(allowed_types):
             raise ValueError(
@@ -560,7 +562,7 @@ class PandasExtensionDtypeNode(_PandasNode):
         # The parsers of the remaining pandas dtypes, the masked numeric and
         # boolean ones, StringDtype and PeriodDtype, compare the name with
         # their own or hand it to the offset parser. ArrowDtype hands it to
-        # pyarrow, and is not trusted by default.
+        # pyarrow.
         cls = gettype(self.module_name, self.class_name)
         if not issubclass(cls, pd.api.extensions.ExtensionDtype):
             raise ValueError(

@@ -14,10 +14,12 @@ import pytest
 from packaging.version import Version
 
 from skops.io import dump, dumps, get_untrusted_types, load, loads, visualize
-from skops.io._pandas import _RENAMED_CLASSES, _public_module
-from skops.io._trusted_types import PANDAS_TYPE_NAMES
-from skops.io._utils import get_type_name, gettype
-from skops.io.exceptions import UnsupportedTypeException
+from skops.io._pandas import _RENAMED_CLASSES
+from skops.io._utils import get_type_name
+from skops.io.exceptions import (
+    UnsupportedTypeException,
+    UntrustedTypesFoundException,
+)
 from skops.io.tests._utils import _assert_vals_equal
 
 pd = pytest.importorskip("pandas")
@@ -157,21 +159,33 @@ def _id(obj):
     return f"{type(obj).__name__}-{getattr(obj, 'dtype', '')}"
 
 
+def _loads(dumped):
+    # pandas types are not trusted by default: a user passes the names a file
+    # holds, which are all public pandas names
+    untrusted = get_untrusted_types(data=dumped)
+    assert untrusted and all(name.partition(".")[0] == "pandas" for name in untrusted)
+    return loads(dumped, trusted=untrusted)
+
+
 @pytest.mark.parametrize("obj", INDEXES + SERIES + FRAMES + ARRAYS + DTYPES, ids=_id)
 def test_roundtrip(obj):
-    # pandas types are trusted by default, so no trusted list is needed
-    loaded = loads(dumps(obj))
+    loaded = _loads(dumps(obj))
     # the strict pandas comparison shared with the estimator tests
     _assert_vals_equal(obj, loaded)
 
 
-def test_pandas_types_are_trusted_by_default():
-    assert get_untrusted_types(data=dumps(FRAMES[1])) == []
+def test_pandas_types_are_not_trusted_by_default():
+    dumped = dumps(FRAMES[1])
+    untrusted = get_untrusted_types(data=dumped)
+    assert "pandas.DataFrame" in untrusted
+    with pytest.raises(UntrustedTypesFoundException, match="pandas.DataFrame"):
+        loads(dumped)
+    loads(dumped, trusted=untrusted)
 
 
-def test_private_pandas_types_are_not_trusted():
+def test_private_pandas_type_is_named_by_its_module():
     # the dtype of a numpy-backed extension array has no public name, so the
-    # file holds its defining module, which the default trust does not cover
+    # file holds its defining module, which is then the name to trust
     dtype = pd.Series([1, 2]).array.dtype
     assert get_untrusted_types(data=dumps(dtype)) == [get_type_name(type(dtype))]
 
@@ -195,28 +209,28 @@ def _with_edited_schema(dumped, edit):
 
 
 def test_dtype_node_only_builds_the_declared_class():
-    # the name in the file is parsed by the declared, trusted dtype class and
-    # not looked up in pandas' registry of extension dtypes, where it could
-    # name the dtype of another library, whose code would then run
+    # the name in the file is parsed by the declared dtype class, which the
+    # user trusts, and not looked up in pandas' registry of extension dtypes,
+    # where it could name the dtype of another library, whose code would run
     dumped = dumps(pd.Int64Dtype())
 
     def edit(schema):
         schema["content"]["name"]["content"] = json.dumps("period[M]")
 
     with pytest.raises(TypeError, match="Cannot construct"):
-        loads(_with_edited_schema(dumped, edit))
+        loads(_with_edited_schema(dumped, edit), trusted=["pandas.Int64Dtype"])
 
 
 def test_dtype_node_refuses_other_classes():
-    # a trusted pandas class that is not an extension dtype cannot be routed
-    # through the name based dtype loader
+    # a pandas class the user trusts that is not an extension dtype cannot be
+    # routed through the name based dtype loader
     dumped = dumps(pd.Int64Dtype())
 
     def edit(schema):
         schema["__class__"] = "Series"
 
     with pytest.raises(ValueError, match="not a pandas extension dtype"):
-        loads(_with_edited_schema(dumped, edit))
+        loads(_with_edited_schema(dumped, edit), trusted=["pandas.Series"])
 
 
 def test_dtype_node_refuses_dtypes_stored_as_parts():
@@ -232,7 +246,7 @@ def test_dtype_node_refuses_dtypes_stored_as_parts():
         )
 
     with pytest.raises(ValueError, match="not stored by its name"):
-        loads(_with_edited_schema(dumped, edit))
+        loads(_with_edited_schema(dumped, edit), trusted=["pandas.DatetimeTZDtype"])
 
 
 @pytest.mark.parametrize(
@@ -242,12 +256,13 @@ def test_timezone_from_file_is_restricted(name):
     # pandas' own parser would open any file on disk for "dateutil/<path>";
     # only "UTC", fixed offsets and valid zoneinfo keys are accepted
     dumped = dumps(pd.date_range("2024-01-01", periods=2, tz="UTC"))
+    trusted = get_untrusted_types(data=dumped)
 
     def edit(schema):
         schema["content"]["values"]["content"]["tz"]["content"] = json.dumps(name)
 
     with pytest.raises(ValueError, match="not a known time zone"):
-        loads(_with_edited_schema(dumped, edit))
+        loads(_with_edited_schema(dumped, edit), trusted=trusted)
 
 
 def test_sub_second_offset_is_unsupported():
@@ -266,14 +281,15 @@ def test_interval_dtype_subtype_is_parsed_by_numpy():
     def edit(schema):
         schema["content"]["subtype"]["content"] = json.dumps("probe")
 
+    trusted = ["pandas.IntervalDtype"]
     with pytest.raises(ValueError, match="subtype of an interval dtype"):
-        loads(_with_edited_schema(dumped, edit))
+        loads(_with_edited_schema(dumped, edit), trusted=trusted)
 
     def edit_to_number(schema):
         schema["content"]["subtype"]["content"] = json.dumps(5)
 
     with pytest.raises(ValueError, match="subtype of an interval dtype"):
-        loads(_with_edited_schema(dumped, edit_to_number))
+        loads(_with_edited_schema(dumped, edit_to_number), trusted=trusted)
 
 
 def test_child_of_wrong_kind_is_refused():
@@ -321,7 +337,7 @@ def test_visualize(capsys):
 def test_file_uses_public_type_names():
     # older pandas versions report the defining module of a class, e.g.
     # pandas.core.series.Series, and pandas 3 reports pandas.Series; the file
-    # always holds the public name, which is the one trusted by default
+    # always holds the public name, which is the one a user passes as trusted
     dumped = dumps(pd.Series([1], index=pd.Index([1])))
     with ZipFile(io.BytesIO(dumped)) as zip_file:
         schema = json.loads(zip_file.read("schema.json"))
@@ -365,7 +381,7 @@ def test_sparse_fill_value_pandas_nat():
     # pandas convert it to the numpy one when building the dtype.
     dtype = pd.SparseDtype("datetime64[ns]", pd.NaT)
     if isinstance(dtype.fill_value, np.generic):
-        assert loads(dumps(dtype)) == dtype
+        assert _loads(dumps(dtype)) == dtype
     else:
         with pytest.raises(UnsupportedTypeException, match="fill value"):
             dumps(dtype)
@@ -391,19 +407,6 @@ def test_renamed_classes_match_pandas_version():
             assert exists(old) and not exists(new), old
         else:
             assert exists(new), new
-
-
-def test_trusted_type_names_are_valid():
-    # every name is the public path of a pandas class, as written by dumps, so
-    # that a rename in pandas does not silently leave a type untrusted
-    for name in PANDAS_TYPE_NAMES:
-        module, _, class_name = name.rpartition(".")
-        try:
-            cls = gettype(module, class_name)
-        except AttributeError:
-            # types that only exist in some pandas versions, e.g. PandasArray
-            continue
-        assert f"{_public_module(cls)}.{cls.__name__}" == name
 
 
 FIXTURE_DIR = Path(__file__).parent / "data"
@@ -517,6 +520,8 @@ def assert_same_data(expected, actual):
     "path", sorted(FIXTURE_DIR.glob("pandas-*.skops")), ids=lambda path: path.stem
 )
 def test_load_file_of_other_pandas_version(path):
-    # pandas types are trusted by default, so no trusted list is needed
-    loaded = load(path)
+    # the names in the file are the public ones, which every version resolves
+    untrusted = get_untrusted_types(file=path)
+    assert all(name.partition(".")[0] == "pandas" for name in untrusted)
+    loaded = load(path, trusted=untrusted)
     assert_same_data(cross_version_objects(), loaded)

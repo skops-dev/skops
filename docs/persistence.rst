@@ -256,10 +256,11 @@ and extension dtypes of pandas itself, not those of other libraries, are
 supported as well with pandas 2.0 or later: they are
 stored as the arrays they are made of and rebuilt through the public pandas
 constructors, so that no pandas internals end up in the file, and a file
-written with one pandas version loads with any other. They are trusted by
-default, except for the pyarrow backed arrays and dtypes, which need to be
-passed as ``trusted`` explicitly; ``ArrowDtype(pyarrow.string())`` cannot be
-saved at all, since its name is the one pandas reserves for ``StringDtype``.
+written with one pandas version loads with any other. They are not trusted by
+default: the pandas types a file holds, which
+:func:`skops.io.get_untrusted_types` lists, have to be passed as ``trusted``.
+``ArrowDtype(pyarrow.string())`` cannot be saved at all, since its name is the
+one pandas reserves for ``StringDtype``.
 Not preserved are the
 ``freq`` of datetime-like indexes and arrays, the ``attrs`` and ``flags`` of a
 ``Series`` or ``DataFrame``, and the storage, python or pyarrow, of a string
