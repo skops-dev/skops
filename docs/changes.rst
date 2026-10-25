@@ -29,9 +29,10 @@ v0.17
   pandas constructors, so no pandas internals end up in the file. They are
   not trusted by default: the pandas types a file holds, which
   :func:`skops.io.get_untrusted_types` lists, have to be passed as
-  ``trusted``. The one dtype that cannot be saved is
-  ``ArrowDtype(pyarrow.string())``, whose name pandas reserves for its
-  ``StringDtype``.
+  ``trusted``. The scalars :class:`~pandas.Timestamp`,
+  :class:`~pandas.Timedelta` and ``pandas.NA`` are saved as well. The pyarrow
+  backed arrays and dtypes, those with an ``ArrowDtype``, are not supported
+  yet; the string dtype with pyarrow storage is, as a string dtype.
   Estimators from other libraries that keep pandas objects
   in their fitted attributes, such as ``category_encoders``, can now be
   persisted. A file written with one pandas version loads with any other from

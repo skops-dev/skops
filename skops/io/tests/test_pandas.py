@@ -77,6 +77,15 @@ SERIES = [
     pd.Series([], dtype=float),
     # the shape of category_encoders' TargetEncoder.mapping values
     pd.Series([0.49, 0.66, 0.6], index=pd.Index([1, 2, -1]), name="category"),
+    # pandas scalars in an object column
+    pd.Series(
+        [
+            pd.Timestamp("2024-01-01 00:00:00.000000001", tz="Europe/Berlin"),
+            pd.Timedelta(1, unit="ns"),
+            pd.NA,
+        ],
+        dtype=object,
+    ),
 ]
 
 FRAMES = [
@@ -162,7 +171,21 @@ DTYPES = [
     pd.SparseDtype("datetime64[ns]"),
     pd.SparseDtype("datetime64[ns]", pd.Timestamp("2024-01-01")),
     pd.SparseDtype("timedelta64[ns]", pd.Timedelta("1h")),
+    # fill values with nanoseconds, which the numpy scalar constructors drop
+    pd.SparseDtype("datetime64[ns]", pd.Timestamp("2024-01-01 00:00:00.000000001")),
+    pd.SparseDtype("timedelta64[ns]", pd.Timedelta(1, unit="ns")),
     pd.SparseDtype(object, "missing"),
+]
+
+
+SCALARS = [
+    pd.Timestamp("2024-01-01 00:00:00.000000001"),
+    pd.Timestamp("2024-01-01", tz="Europe/Berlin"),
+    pd.Timestamp("2024-01-01", tz=dt.timezone(dt.timedelta(hours=1))),
+    pd.Timestamp("2024-01-01").as_unit("s"),
+    pd.Timedelta(1, unit="ns"),
+    pd.Timedelta(days=1).as_unit("ms"),
+    pd.NA,
 ]
 
 
@@ -183,6 +206,14 @@ def test_roundtrip(obj):
     loaded = _loads(dumps(obj))
     # the strict pandas comparison shared with the estimator tests
     _assert_vals_equal(obj, loaded)
+
+
+@pytest.mark.parametrize("obj", SCALARS, ids=repr)
+def test_scalar_roundtrip(obj):
+    loaded = _loads(dumps(obj))
+    assert type(loaded) is type(obj)
+    # the repr shows the unit, the nanoseconds and the zone
+    assert repr(loaded) == repr(obj)
 
 
 def test_pandas_types_are_not_trusted_by_default():
@@ -258,6 +289,29 @@ def test_dtype_node_refuses_dtypes_stored_as_parts():
 
     with pytest.raises(ValueError, match="not stored by its name"):
         loads(_with_edited_schema(dumped, edit), trusted=["pandas.DatetimeTZDtype"])
+
+
+def test_dtype_node_refuses_arrow_dtype():
+    # pyarrow backed dtypes are not supported: pyarrow would parse their
+    # names, so a file cannot route a name to it, whatever the user trusts
+    dumped = dumps(pd.Int64Dtype())
+
+    def edit(schema):
+        schema["__class__"] = "ArrowDtype"
+
+    with pytest.raises(ValueError, match="not supported"):
+        loads(_with_edited_schema(dumped, edit), trusted=["pandas.ArrowDtype"])
+
+
+def test_arrow_backed_types_are_unsupported():
+    pa = pytest.importorskip("pyarrow")
+    arrow = pd.ArrowDtype(pa.int64())
+    for obj in [arrow, pd.array([1, None], dtype=arrow), pd.Series([1], dtype=arrow)]:
+        with pytest.raises(UnsupportedTypeException, match="not supported"):
+            dumps(obj)
+    # the string dtype with pyarrow storage is a string dtype, and supported
+    strings = pd.array(["a", None], dtype=pd.StringDtype("pyarrow"))
+    _assert_vals_equal(strings, _loads(dumps(strings)))
 
 
 @pytest.mark.parametrize(

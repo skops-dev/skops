@@ -11,7 +11,10 @@ dtype, so that no type inference happens on load:
 - a :class:`~pandas.Series` as its values, index and name,
 - a :class:`~pandas.DataFrame` as its columns, index and one array per column,
 - extension arrays as the numpy arrays or scalars they are made of, plus their
-  dtype, and extension dtypes as their string representation.
+  dtype, and extension dtypes as their string representation,
+- a :class:`~pandas.Timestamp` or :class:`~pandas.Timedelta` as the numpy
+  scalar of its value, plus the zone of an aware Timestamp, and ``pandas.NA``
+  by its name alone.
 
 Values with a numpy dtype are stored as numpy arrays, everything else as lists
 of scalars.
@@ -24,6 +27,10 @@ pandas when they construct an object.
 Not preserved: the ``freq`` of datetime-like indexes and arrays, the ``attrs``
 and ``flags`` of a Series or DataFrame, and the storage, python or pyarrow, of
 a string dtype, which is an environment choice over the same values.
+
+Not supported: the pyarrow backed arrays and dtypes, those with an
+``ArrowDtype``, whose names pyarrow parses. The string dtype with pyarrow
+storage is a string dtype, and supported as one.
 
 The pandas types are not trusted by default, since this support is new; a user
 passes the names a file holds, see :func:`skops.io.get_untrusted_types`.
@@ -89,6 +96,11 @@ def _public_module(cls: type) -> str:
 _RENAMED_CLASSES = {
     "PandasArray": ("NumpyExtensionArray", "2.1"),
 }
+
+_ARROW_UNSUPPORTED = (
+    "The pyarrow backed arrays and dtypes of pandas, those with an ArrowDtype,"
+    " are not supported yet."
+)
 
 
 def _public_name(cls: type) -> str:
@@ -263,6 +275,28 @@ def numpy_backed_array_get_state(obj: Any, save_context: SaveContext) -> dict[st
     return _pandas_state(obj, "PandasNumpyBackedArrayNode", content, save_context)
 
 
+def timestamp_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
+    # A Timestamp as the numpy datetime64 of its value, which keeps its unit
+    # and its nanoseconds, in UTC when it is aware, plus the name of its zone.
+    tz = obj.tz
+    value = obj if tz is None else obj.tz_convert("UTC").tz_localize(None)
+    content = {
+        "value": value.to_datetime64(),
+        "tz": None if tz is None else _timezone_name(tz),
+    }
+    return _pandas_state(obj, "PandasTimestampNode", content, save_context)
+
+
+def timedelta_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
+    content = {"value": obj.to_timedelta64()}
+    return _pandas_state(obj, "PandasTimedeltaNode", content, save_context)
+
+
+def na_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
+    # ``pandas.NA`` is a singleton, so nothing but its name is stored.
+    return _pandas_state(obj, "PandasNANode", {}, save_context)
+
+
 def masked_array_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     # IntegerArray, FloatingArray and BooleanArray: a numpy array of values and
     # a boolean mask of the missing entries, which is what their constructor
@@ -291,8 +325,12 @@ def interval_array_get_state(obj: Any, save_context: SaveContext) -> dict[str, A
 
 
 def extension_array_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
-    # Any other extension array, e.g. string, sparse or pyarrow backed arrays:
-    # stored as its scalars, with ``None`` for missing values, plus its dtype.
+    # Any other extension array, e.g. a string array of either storage: stored
+    # as its scalars, with ``None`` for missing values, plus its dtype.
+    import pandas as pd
+
+    if isinstance(obj.dtype, pd.ArrowDtype):
+        raise UnsupportedTypeException(_ARROW_UNSUPPORTED)
     content = {"values": obj.to_numpy(dtype=object, na_value=None), "dtype": obj.dtype}
     return _pandas_state(obj, "PandasExtensionArrayNode", content, save_context)
 
@@ -309,14 +347,17 @@ def extension_dtype_get_state(obj: Any, save_context: SaveContext) -> dict[str, 
     # Extension dtypes are rebuilt from their string form, e.g. "Int64" or
     # "period[M]", except those whose parser consults pandas' registry of
     # extension dtypes or the file system, which are stored as parts below.
+    import pandas as pd
+
+    if isinstance(obj, pd.ArrowDtype):
+        raise UnsupportedTypeException(_ARROW_UNSUPPORTED)
     name = str(obj)
     try:
         rebuilt = type(obj).construct_from_string(name)
     except TypeError:
         rebuilt = None
     if type(rebuilt) is not type(obj):
-        # e.g. ArrowDtype(pyarrow.string()), whose name "string[pyarrow]" pandas
-        # reserves for its StringDtype
+        # e.g. a dtype whose name another dtype claims
         raise UnsupportedTypeException(
             f"The dtype {obj!r} cannot be rebuilt from its name {name!r}, so it"
             " cannot be saved."
@@ -360,8 +401,14 @@ def _sparse_fill_value(dtype: Any) -> Any:
         fill_value, (str, bool, int, float, np.generic)
     ):
         return fill_value
-    if dtype.subtype.kind in "biufcMm" and not pd.isna(fill_value):
+    kind = dtype.subtype.kind
+    if kind in "biufcMm" and not pd.isna(fill_value):
         try:
+            if kind == "M":
+                # keeps the nanoseconds, which np.datetime64(datetime) drops
+                return pd.Timestamp(fill_value).to_datetime64()
+            if kind == "m":
+                return pd.Timedelta(fill_value).to_timedelta64()
             return dtype.subtype.type(fill_value)
         except (TypeError, ValueError):  # pragma: no cover
             pass
@@ -388,11 +435,13 @@ class _PandasNode(Node):
     The audit trusts the class a file declares, so the declared class has to
     be one the loader builds: ``_module`` and ``_classes`` of each subclass
     name them, the declaration is checked while the file is read, and the
-    built object is checked to be of the declared class. The two loaders
-    whose ``_classes`` is None explain why they cannot check by name.
+    built object is checked to be of the declared class. ``_module`` is None
+    for classes whose public module differs between pandas versions, any
+    module of pandas is accepted then, and the loaders whose ``_classes`` is
+    None explain why they cannot check the class by name.
     """
 
-    _module = "pandas"
+    _module: str | None = "pandas"
     _classes: tuple[str, ...] | None = ()
 
     def __init__(
@@ -404,12 +453,12 @@ class _PandasNode(Node):
         super().__init__(state, load_context, trusted)
         trusted = _public_trusted(trusted)
         self.trusted = self._get_trusted(trusted, [])
-        if self._classes is None:
+        if self._module is None:
             declared_ok = self.module_name.partition(".")[0] == "pandas"
         else:
-            declared_ok = (
-                self.module_name == self._module and self.class_name in self._classes
-            )
+            declared_ok = self.module_name == self._module
+        if self._classes is not None:
+            declared_ok = declared_ok and self.class_name in self._classes
         if not declared_ok:
             raise ValueError(
                 f"{self.module_name}.{self.class_name} is not a class"
@@ -444,13 +493,17 @@ class _PandasNode(Node):
 
     def _construct(self):
         obj = self._build()
-        declared = f"{self.module_name}.{self.class_name}"
-        if self._classes is not None and _public_name(type(obj)) != declared:
-            raise ValueError(
-                f"The file declares {declared}, but its data builds"
-                f" {_public_name(type(obj))}. This is probably due to a corrupted"
-                " or a malicious file."
-            )
+        if self._classes is not None:
+            built = _public_name(type(obj))
+            module, _, class_name = built.rpartition(".")
+            if class_name != self.class_name or (
+                self._module is not None and module != self.module_name
+            ):
+                raise ValueError(
+                    f"The file declares {self.module_name}.{self.class_name}, but"
+                    f" its data builds {built}. This is probably due to a corrupted"
+                    " or a malicious file."
+                )
         return obj
 
 
@@ -602,6 +655,48 @@ class PandasNumpyBackedArrayNode(_PandasNode):
         return array
 
 
+class PandasTimestampNode(_PandasNode):
+    _classes = ("Timestamp",)
+
+    def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
+        return {"value": (NdArrayNode,), "tz": (JsonNode,)}
+
+    def _build(self):
+        import pandas as pd
+
+        content = self._construct_content()
+        stamp = pd.Timestamp(content["value"])
+        if content["tz"] is not None:
+            stamp = stamp.tz_localize("UTC").tz_convert(_timezone(content["tz"]))
+        return stamp
+
+
+class PandasTimedeltaNode(_PandasNode):
+    _classes = ("Timedelta",)
+
+    def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
+        return {"value": (NdArrayNode,)}
+
+    def _build(self):
+        import pandas as pd
+
+        return pd.Timedelta(self._construct_content()["value"])
+
+
+class PandasNANode(_PandasNode):
+    # the public module of NAType differs between pandas versions
+    _module = None
+    _classes = ("NAType",)
+
+    def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
+        return {}
+
+    def _build(self):
+        import pandas as pd
+
+        return pd.NA
+
+
 class PandasMaskedArrayNode(_PandasNode):
     _module = "pandas.arrays"
     _classes = ("IntegerArray", "FloatingArray", "BooleanArray")
@@ -664,6 +759,7 @@ class PandasExtensionArrayNode(_PandasNode):
     # whose node is audited itself, the class of a string array follows the
     # string storage of the environment, and pandas has private array
     # classes, e.g. the ones behind the ``str`` dtype of pandas 3.
+    _module = None
     _classes = None
 
     def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
@@ -680,6 +776,7 @@ class PandasExtensionDtypeNode(_PandasNode):
     # Not checked by name: the declared class is resolved and checked when
     # the dtype is built, and pandas has private dtype classes, e.g. the one
     # of a NumpyExtensionArray.
+    _module = None
     _classes = None
 
     def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
@@ -711,6 +808,9 @@ class PandasExtensionDtypeNode(_PandasNode):
                 f"{self.class_name} is not stored by its name. This is probably"
                 " due to a corrupted or a malicious file."
             )
+        if cls is pd.ArrowDtype:
+            # its names would be parsed by pyarrow, which has not been reviewed
+            raise ValueError(_ARROW_UNSUPPORTED)
         try:
             return cls.construct_from_string(name)
         except TypeError:
@@ -844,6 +944,9 @@ def register_if_imported() -> None:
         (pd.api.extensions.ExtensionArray, extension_array_get_state),
         (pd.arrays.DatetimeArray, numpy_backed_array_get_state),
         (pd.arrays.TimedeltaArray, numpy_backed_array_get_state),
+        (pd.Timestamp, timestamp_get_state),
+        (pd.Timedelta, timedelta_get_state),
+        (type(pd.NA), na_get_state),
         (pd.arrays.IntegerArray, masked_array_get_state),
         (pd.arrays.FloatingArray, masked_array_get_state),
         (pd.arrays.BooleanArray, masked_array_get_state),
@@ -878,6 +981,9 @@ NODE_TYPE_MAPPING = {
     ("PandasSeriesNode", PROTOCOL): PandasSeriesNode,
     ("PandasDataFrameNode", PROTOCOL): PandasDataFrameNode,
     ("PandasNumpyBackedArrayNode", PROTOCOL): PandasNumpyBackedArrayNode,
+    ("PandasTimestampNode", PROTOCOL): PandasTimestampNode,
+    ("PandasTimedeltaNode", PROTOCOL): PandasTimedeltaNode,
+    ("PandasNANode", PROTOCOL): PandasNANode,
     ("PandasMaskedArrayNode", PROTOCOL): PandasMaskedArrayNode,
     ("PandasCategoricalNode", PROTOCOL): PandasCategoricalNode,
     ("PandasPeriodArrayNode", PROTOCOL): PandasPeriodArrayNode,
