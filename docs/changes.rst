@@ -13,6 +13,10 @@ v0.17
 -----
 - Fix loading empty NumPy object arrays: the recorded shape is preserved even
   when a zero-length axis hides later dimensions from the nested list.
+- Fix loading multi-dimensional NumPy object arrays whose cells are sequences
+  of equal length, such as lists, tuples, or arrays: the cells used to be
+  expanded into extra axes of the loaded array, changing its shape and the
+  type of its cells. :issue:`561` by `Adrin Jalali`_.
 - Fix ``skops update`` failing when a relative output path contains a
   directory, including updates with ``--inplace``.
 - Loading a skops file now checks that each part of the file holds the kind

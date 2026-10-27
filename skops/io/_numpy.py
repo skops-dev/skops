@@ -105,22 +105,21 @@ class NdArrayNode(Node):
             return content
 
         if self.type == "json":
-            # We explicitly set the dtype to "O" since we only save object
-            # arrays in json.
+            # Object arrays are stored as the nested list returned by
+            # ``ndarray.tolist()``, along with the original shape. The array is
+            # allocated with that shape and the cells are assigned one at a
+            # time, since ``np.array(nested_list, dtype="O")`` would let NumPy
+            # infer extra axes from cells which are themselves sequences of
+            # equal length, such as lists, tuples, or arrays (gh-561), and
+            # would lose the dimensions following a zero-length axis (gh-558).
             shape = self.shape.construct()
-            tmp = [o.construct() for o in self.items]
-
-            if 0 in shape:
-                return np.empty(shape, dtype="O")
-
-            # TODO: this is a hack to get the correct shape of the array. We
-            # should find _a better way_ to do this.
-            if len(shape) == 1:
-                content = np.ndarray(shape=len(tmp), dtype="O")
-                for i, v in enumerate(tmp):
-                    content[i] = v
-            else:
-                content = np.array(tmp, dtype="O")
+            items = [o.construct() for o in self.items]
+            content = np.empty(shape, dtype="O")
+            for index in np.ndindex(*shape):
+                cell = items
+                for i in index:
+                    cell = cell[i]
+                content[index] = cell
 
             return content
 
