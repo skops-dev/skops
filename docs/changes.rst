@@ -11,6 +11,7 @@ skops Changelog
 
 v0.17
 -----
+- Preserve the fill value of NumPy masked arrays when saving and loading.
 - Fix loading empty NumPy object arrays: the recorded shape is preserved even
   when a zero-length axis hides later dimensions from the nested list.
 - Fix ``skops update`` failing when a relative output path contains a
