@@ -135,6 +135,7 @@ def maskedarray_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]
         "content": {
             "data": get_state(obj.data, save_context),
             "mask": get_state(obj.mask, save_context),
+            "fill_value": get_state(obj.fill_value, save_context),
         },
     }
     return res
@@ -164,11 +165,23 @@ class MaskedArrayNode(Node):
             allowed_types=(NdArrayNode,),
         )
         self.children = {"data": self.data, "mask": self.mask}
+        self.fill_value = None
+        if "fill_value" in state["content"]:
+            self.fill_value = get_tree(
+                state["content"]["fill_value"],
+                load_context,
+                trusted=trusted,
+                allowed_types=(NdArrayNode,),
+            )
+            self.children["fill_value"] = self.fill_value
 
     def _construct(self):
         data = self.data.construct()
         mask = self.mask.construct()
-        return np.ma.MaskedArray(data, mask)
+        fill_value = (
+            self.fill_value.construct() if self.fill_value is not None else None
+        )
+        return np.ma.MaskedArray(data, mask, fill_value=fill_value)
 
 
 def random_state_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
