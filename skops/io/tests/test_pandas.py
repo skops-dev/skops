@@ -1,0 +1,686 @@
+"""Tests for persisting pandas objects."""
+
+from __future__ import annotations
+
+import datetime as dt
+import io
+import json
+import struct
+import warnings
+import zoneinfo
+from pathlib import Path
+from zipfile import ZipFile
+
+import numpy as np
+import pytest
+from packaging.version import Version
+
+from skops.io import dump, dumps, get_untrusted_types, load, loads, visualize
+from skops.io._pandas import _RENAMED_CLASSES
+from skops.io._utils import get_type_name
+from skops.io.exceptions import (
+    UnsupportedTypeException,
+    UntrustedTypesFoundException,
+)
+from skops.io.tests._utils import _assert_vals_equal
+
+pd = pytest.importorskip("pandas")
+
+
+INDEXES = [
+    pd.Index([1, 2, 3], name="ints"),
+    pd.Index([1.5, np.nan, 3.0]),
+    pd.Index([True, False]),
+    pd.Index(["a", None, "c"], name="strings"),
+    pd.Index([1, "a", None], dtype=object),
+    pd.Index([(1, 2), (3, 4)], dtype=object, tupleize_cols=False),
+    pd.Index([], dtype=object),
+    pd.Index([1, None, 3], dtype="Int64"),
+    pd.RangeIndex(5),
+    pd.RangeIndex(2, 20, 3, name="range"),
+    pd.date_range("2024-01-01", periods=3, name="dates"),
+    pd.date_range("2024-01-01", periods=3, tz="Europe/Berlin"),
+    pd.date_range("2024-01-01", periods=2, tz="UTC"),
+    # a fixed offset parsed from the strings
+    pd.to_datetime(["2024-01-01T00:00:00+01:00", "2024-01-02T00:00:00+01:00"]),
+    pd.DatetimeIndex(["2024-01-01", None]),
+    pd.timedelta_range("1D", periods=2),
+    pd.period_range("2024-01", periods=2, freq="M"),
+    pd.interval_range(0, 3),
+    pd.CategoricalIndex(["a", "b", "a"], categories=["b", "a"], ordered=True),
+    pd.MultiIndex.from_tuples([("a", 1), ("b", 2)], names=["letters", None]),
+    pd.MultiIndex.from_tuples([("a", 1), ("b", 2)], sortorder=0),
+]
+
+SERIES = [
+    pd.Series([1, 2, 3]),
+    pd.Series([1.5, np.nan], index=["a", "b"], name="floats"),
+    pd.Series(["x", "y", None]),
+    pd.Series(["x", 1, None], dtype=object),
+    pd.Series(np.array(["x", "y"], dtype=object), dtype=object),
+    pd.Series([1, None, 3], dtype="Int64"),
+    pd.Series([True, None], dtype="boolean"),
+    pd.Series([1.5, None], dtype="Float64"),
+    pd.Series(["a", "b", "a"], dtype="category"),
+    pd.Series(pd.Categorical(["a", "b"], categories=["b", "a", "c"], ordered=True)),
+    pd.Series(pd.to_datetime(["2024-01-01", None])),
+    pd.Series(pd.date_range("2024-01-01", periods=2, tz="UTC")),
+    pd.Series(pd.to_timedelta([1, 2], unit="D")),
+    pd.Series(pd.period_range("2024-01", periods=2, freq="M")),
+    pd.Series(pd.interval_range(0, 2)),
+    pd.Series(pd.arrays.SparseArray([0, 0, 1.5])),
+    pd.Series(pd.arrays.SparseArray([1 + 2j, 0, 0], fill_value=0)),
+    pd.Series(pd.arrays.SparseArray(pd.to_datetime(["2024-01-01", None]))),
+    pd.Series([1, 2], index=pd.MultiIndex.from_tuples([("a", 1), ("b", 2)])),
+    pd.Series([1, 2, 3], index=[1, 1, 2]),
+    pd.Series([1], name=("a", "b")),
+    pd.Series([], dtype=float),
+    # the shape of category_encoders' TargetEncoder.mapping values
+    pd.Series([0.49, 0.66, 0.6], index=pd.Index([1, 2, -1]), name="category"),
+    # pandas scalars in an object column
+    pd.Series(
+        [
+            pd.Timestamp("2024-01-01 00:00:00.000000001", tz="Europe/Berlin"),
+            pd.Timedelta(1, unit="ns"),
+            pd.NA,
+        ],
+        dtype=object,
+    ),
+]
+
+FRAMES = [
+    pd.DataFrame(
+        {"i": [1, 2], "f": [1.5, np.nan], "s": ["a", None], "b": [True, False]}
+    ),
+    pd.DataFrame(
+        {
+            "o": pd.Series(["a", "b"], dtype=object),
+            "n": pd.array([1, None], dtype="Int64"),
+            "c": pd.Categorical(["x", "y"]),
+            "t": pd.date_range("2024-01-01", periods=2, tz="Europe/Berlin"),
+        }
+    ),
+    pd.DataFrame([[1, 2], [3, 4]], columns=["a", "a"]),
+    pd.DataFrame({"a": [1, 2]}, index=pd.Index(["x", "x"], name="dups")),
+    pd.DataFrame(index=pd.RangeIndex(3)),
+    pd.DataFrame(columns=["a", "b"]),
+    pd.DataFrame(),
+    pd.DataFrame(
+        np.arange(6).reshape(2, 3),
+        columns=pd.MultiIndex.from_tuples([("x", 1), ("x", 2), ("y", 1)]),
+    ),
+    pd.DataFrame(
+        {"a": [1]}, index=pd.MultiIndex.from_tuples([("k", 0)], names=["l", "n"])
+    ),
+]
+
+# the plain wrapper of a numpy array, under its old name on pandas 2.0
+_NumpyBackedArray = (
+    getattr(pd.arrays, "NumpyExtensionArray", None) or pd.arrays.PandasArray
+)
+
+ARRAYS = [
+    pd.array([1, None], dtype="Int64"),
+    pd.array([1.5, None], dtype="Float64"),
+    pd.array([True, None], dtype="boolean"),
+    pd.array(["a", None], dtype="string"),
+    pd.Categorical(["a", "b"], categories=["b", "a"], ordered=True),
+    pd.array(pd.to_datetime(["2024-01-01", None])),
+    pd.array(
+        pd.to_datetime(["2024-01-01"]).tz_localize(dt.timezone(dt.timedelta(hours=1)))
+    ),
+    # fixed offsets with seconds, as in the local mean time of old data
+    pd.array(
+        pd.to_datetime(["1850-01-01"]).tz_localize(
+            dt.timezone(dt.timedelta(minutes=19, seconds=32))
+        )
+    ),
+    pd.array(
+        pd.to_datetime(["2024-01-01"]).tz_localize(
+            dt.timezone(-dt.timedelta(hours=3, minutes=30, seconds=45))
+        )
+    ),
+    pd.array(pd.to_timedelta([1], unit="s")),
+    pd.array(pd.period_range("2024-01", periods=1, freq="M")),
+    pd.array(pd.interval_range(0, 2)),
+    pd.arrays.SparseArray([0, 1]),
+    pd.Series([1, 2]).array,
+    # the plain wrapper around datetime64 and timedelta64 values, which pandas
+    # itself represents as DatetimeArray and TimedeltaArray
+    _NumpyBackedArray(np.array(["2024-01-01"], dtype="datetime64[ns]")),
+    _NumpyBackedArray(np.array([1], dtype="timedelta64[ns]")),
+]
+
+DTYPES = [
+    pd.Int64Dtype(),
+    pd.BooleanDtype(),
+    pd.StringDtype(),
+    pd.CategoricalDtype(["b", "a"], ordered=True),
+    pd.CategoricalDtype(),
+    pd.DatetimeTZDtype("ns", "UTC"),
+    pd.DatetimeTZDtype("us", "Europe/Berlin"),
+    pd.DatetimeTZDtype("ns", dt.timezone(dt.timedelta(seconds=30))),
+    pd.PeriodDtype("M"),
+    pd.IntervalDtype("int64", closed="left"),
+    pd.IntervalDtype("datetime64[ns]"),
+    pd.IntervalDtype(),
+    pd.SparseDtype(float, 0.0),
+    # fill values JSON cannot hold, and missing ones
+    pd.SparseDtype("complex128", 1 + 2j),
+    pd.SparseDtype("int64", np.nan),
+    pd.SparseDtype("datetime64[ns]"),
+    pd.SparseDtype("datetime64[ns]", pd.Timestamp("2024-01-01")),
+    pd.SparseDtype("timedelta64[ns]", pd.Timedelta("1h")),
+    # fill values with nanoseconds, which the numpy scalar constructors drop
+    pd.SparseDtype("datetime64[ns]", pd.Timestamp("2024-01-01 00:00:00.000000001")),
+    pd.SparseDtype("timedelta64[ns]", pd.Timedelta(1, unit="ns")),
+    pd.SparseDtype(object, "missing"),
+]
+
+
+SCALARS = [
+    pd.Timestamp("2024-01-01 00:00:00.000000001"),
+    pd.Timestamp("2024-01-01", tz="Europe/Berlin"),
+    pd.Timestamp("2024-01-01", tz=dt.timezone(dt.timedelta(hours=1))),
+    pd.Timestamp("2024-01-01").as_unit("s"),
+    pd.Timedelta(1, unit="ns"),
+    pd.Timedelta(days=1).as_unit("ms"),
+    pd.NA,
+]
+
+
+def _id(obj):
+    return f"{type(obj).__name__}-{getattr(obj, 'dtype', '')}"
+
+
+def _loads(dumped):
+    # pandas types are not trusted by default: a user passes the names a file
+    # holds, which are all public pandas names
+    untrusted = get_untrusted_types(data=dumped)
+    assert untrusted and all(name.partition(".")[0] == "pandas" for name in untrusted)
+    return loads(dumped, trusted=untrusted)
+
+
+@pytest.mark.parametrize("obj", INDEXES + SERIES + FRAMES + ARRAYS + DTYPES, ids=_id)
+def test_roundtrip(obj):
+    loaded = _loads(dumps(obj))
+    # the strict pandas comparison shared with the estimator tests
+    _assert_vals_equal(obj, loaded)
+
+
+@pytest.mark.parametrize("obj", SCALARS, ids=repr)
+def test_scalar_roundtrip(obj):
+    loaded = _loads(dumps(obj))
+    assert type(loaded) is type(obj)
+    # the repr shows the unit, the nanoseconds and the zone
+    assert repr(loaded) == repr(obj)
+
+
+def test_pandas_types_are_not_trusted_by_default():
+    dumped = dumps(FRAMES[1])
+    untrusted = get_untrusted_types(data=dumped)
+    assert "pandas.DataFrame" in untrusted
+    with pytest.raises(UntrustedTypesFoundException, match="pandas.DataFrame"):
+        loads(dumped)
+    loads(dumped, trusted=untrusted)
+
+
+def test_private_pandas_type_is_named_by_its_module():
+    # the dtype of a numpy-backed extension array has no public name, so the
+    # file holds its defining module, which is then the name to trust
+    dtype = pd.Series([1, 2]).array.dtype
+    assert get_untrusted_types(data=dumps(dtype)) == [get_type_name(type(dtype))]
+
+
+def _with_edited_schema(dumped, edit):
+    # ``dumped`` with ``edit`` applied to its schema, to mimic a crafted file
+    with ZipFile(io.BytesIO(dumped)) as zip_file:
+        schema = json.loads(zip_file.read("schema.json"))
+        files = {
+            name: zip_file.read(name)
+            for name in zip_file.namelist()
+            if name != "schema.json"
+        }
+    edit(schema)
+    buffer = io.BytesIO()
+    with ZipFile(buffer, "w") as zip_file:
+        zip_file.writestr("schema.json", json.dumps(schema))
+        for name, data in files.items():
+            zip_file.writestr(name, data)
+    return buffer.getvalue()
+
+
+def test_dtype_node_only_builds_the_declared_class():
+    # the name in the file is parsed by the declared dtype class, which the
+    # user trusts, and not looked up in pandas' registry of extension dtypes,
+    # where it could name the dtype of another library, whose code would run
+    dumped = dumps(pd.Int64Dtype())
+
+    def edit(schema):
+        schema["content"]["name"]["content"] = json.dumps("period[M]")
+
+    with pytest.raises(TypeError, match="Cannot construct"):
+        loads(_with_edited_schema(dumped, edit), trusted=["pandas.Int64Dtype"])
+
+
+def test_dtype_node_refuses_other_classes():
+    # a pandas class the user trusts that is not an extension dtype cannot be
+    # routed through the name based dtype loader
+    dumped = dumps(pd.Int64Dtype())
+
+    def edit(schema):
+        schema["__class__"] = "Series"
+
+    with pytest.raises(ValueError, match="not a pandas extension dtype"):
+        loads(_with_edited_schema(dumped, edit), trusted=["pandas.Series"])
+
+
+def test_dtype_node_refuses_dtypes_stored_as_parts():
+    # the parsers of these dtypes consult pandas' registry of extension dtypes
+    # or the file system, so a file cannot route them through the name based
+    # loader
+    dumped = dumps(pd.Int64Dtype())
+
+    def edit(schema):
+        schema["__class__"] = "DatetimeTZDtype"
+        schema["content"]["name"]["content"] = json.dumps(
+            "datetime64[ns, dateutil//etc/localtime]"
+        )
+
+    with pytest.raises(ValueError, match="not stored by its name"):
+        loads(_with_edited_schema(dumped, edit), trusted=["pandas.DatetimeTZDtype"])
+
+
+def test_dtype_node_refuses_arrow_dtype():
+    # pyarrow backed dtypes are not supported: pyarrow would parse their
+    # names, so a file cannot route a name to it, whatever the user trusts
+    dumped = dumps(pd.Int64Dtype())
+
+    def edit(schema):
+        schema["__class__"] = "ArrowDtype"
+
+    with pytest.raises(ValueError, match="not supported"):
+        loads(_with_edited_schema(dumped, edit), trusted=["pandas.ArrowDtype"])
+
+
+def test_arrow_backed_types_are_unsupported():
+    pa = pytest.importorskip("pyarrow")
+    arrow = pd.ArrowDtype(pa.int64())
+    for obj in [arrow, pd.array([1, None], dtype=arrow), pd.Series([1], dtype=arrow)]:
+        with pytest.raises(UnsupportedTypeException, match="not supported"):
+            dumps(obj)
+    # the string dtype with pyarrow storage is a string dtype, and supported
+    strings = pd.array(["a", None], dtype=pd.StringDtype("pyarrow"))
+    _assert_vals_equal(strings, _loads(dumps(strings)))
+
+
+@pytest.mark.parametrize(
+    "name", ["dateutil//etc/localtime", "tzlocal()", "../../etc/localtime", "/x"]
+)
+def test_timezone_from_file_is_restricted(name):
+    # pandas' own parser would open any file on disk for "dateutil/<path>";
+    # only "UTC", fixed offsets and valid zoneinfo keys are accepted
+    dumped = dumps(pd.date_range("2024-01-01", periods=2, tz="UTC"))
+    trusted = get_untrusted_types(data=dumped)
+
+    def edit(schema):
+        schema["content"]["values"]["content"]["tz"]["content"] = json.dumps(name)
+
+    with pytest.raises(ValueError, match="not a known time zone"):
+        loads(_with_edited_schema(dumped, edit), trusted=trusted)
+
+
+def test_file_backed_zone_is_unsupported():
+    # a zone created with ZoneInfo.from_file may carry a key that does not
+    # describe its data, and the key is all the file holds, so it is refused
+    # like skops.io refuses such zones on their own. This one is a minimal
+    # version 1 TZif file with a single offset of one hour, under the key UTC.
+    tzif = (
+        b"TZif\x00"
+        + bytes(15)
+        # number of isut, isstd, leap, transition, type and abbreviation entries
+        + struct.pack(">6l", 0, 0, 0, 0, 1, 4)
+        # the single type entry: utoff, isdst, abbreviation index
+        + struct.pack(">lbb", 3600, 0, 0)
+        + b"UTC\x00"
+    )
+    tz = zoneinfo.ZoneInfo.from_file(io.BytesIO(tzif), key="UTC")
+    with pytest.raises(UnsupportedTypeException, match="ZoneInfo.from_file"):
+        dumps(pd.DatetimeTZDtype("ns", tz))
+    with pytest.raises(UnsupportedTypeException, match="ZoneInfo.from_file"):
+        dumps(pd.array(pd.to_datetime(["2024-01-01"]).tz_localize(tz)))
+
+
+def test_declared_class_must_be_one_the_loader_builds():
+    # the audit trusts the class a file declares, so a loader only accepts the
+    # classes it builds: a trusted name cannot make it build another class
+    dumped = dumps(pd.RangeIndex(3))
+
+    def edit(schema):
+        schema["__class__"] = "Series"
+
+    with pytest.raises(ValueError, match="not a class PandasRangeIndexNode builds"):
+        get_untrusted_types(data=_with_edited_schema(dumped, edit))
+
+    def edit_module(schema):
+        schema["__module__"] = "pandas.core.indexes.range"
+
+    with pytest.raises(ValueError, match="not a class PandasRangeIndexNode builds"):
+        get_untrusted_types(data=_with_edited_schema(dumped, edit_module))
+
+
+def test_built_object_must_be_of_the_declared_class():
+    # the declared class is one the loader builds, but the data builds another
+    dumped = dumps(pd.Index(pd.to_datetime(["2024-01-01"])))
+
+    def edit(schema):
+        schema["__class__"] = "Index"
+
+    with pytest.raises(ValueError, match="builds pandas.DatetimeIndex"):
+        loads(_with_edited_schema(dumped, edit), trusted=["pandas.Index"])
+
+
+def test_numpy_backed_array_follows_the_declared_class():
+    # the declared class, not the dtype of the values, decides between the
+    # plain wrapper and the datetime-like arrays, and must fit the values
+    timedeltas = dumps(pd.array(pd.to_timedelta([1], unit="s")))
+    aware = dumps(pd.array(pd.to_datetime(["2024-01-01"]).tz_localize("UTC")))
+
+    def to_datetime_array(schema):
+        schema["__class__"] = "DatetimeArray"
+
+    with pytest.raises(ValueError, match="must have a datetime64 dtype"):
+        loads(
+            _with_edited_schema(timedeltas, to_datetime_array),
+            trusted=["pandas.arrays.DatetimeArray"],
+        )
+
+    def to_wrapper(schema):
+        schema["__class__"] = "NumpyExtensionArray"
+
+    with pytest.raises(ValueError, match="NumpyExtensionArray has no time zone"):
+        loads(
+            _with_edited_schema(aware, to_wrapper),
+            trusted=["pandas.arrays.NumpyExtensionArray"],
+        )
+
+    def with_zone(schema):
+        schema["content"]["tz"]["content"] = json.dumps("UTC")
+
+    with pytest.raises(ValueError, match="TimedeltaArray has no time zone"):
+        loads(
+            _with_edited_schema(timedeltas, with_zone),
+            trusted=["pandas.arrays.TimedeltaArray"],
+        )
+
+
+def test_pandas_classes_as_trusted_entries():
+    # a pandas class passed as trusted is matched by the public name the file
+    # holds, which on pandas 2.x differs from its defining module
+    loads(dumps(pd.Int64Dtype()), trusted=[pd.Int64Dtype])
+    loads(dumps(pd.Series([1], index=pd.Index([1]))), trusted=[pd.Series, pd.Index])
+    # PandasArray on pandas 2.0, with a dtype of a private class
+    array = pd.Series([1, 2]).array
+    loads(dumps(array), trusted=[type(array), type(array.dtype)])
+
+
+def test_sub_second_offset_is_unsupported():
+    # the name of a fixed offset holds whole seconds; a finer offset cannot be
+    # written, and must not be rounded silently
+    tz = dt.timezone(dt.timedelta(microseconds=1))
+    with pytest.raises(UnsupportedTypeException, match="whole seconds"):
+        dumps(pd.DatetimeTZDtype("ns", tz))
+
+
+def test_interval_dtype_subtype_is_parsed_by_numpy():
+    # pandas would look a subtype name up in its registry of extension dtypes,
+    # where any imported library can register a dtype whose parser then runs
+    dumped = dumps(pd.IntervalDtype("int64"))
+
+    def edit(schema):
+        schema["content"]["subtype"]["content"] = json.dumps("probe")
+
+    trusted = ["pandas.IntervalDtype"]
+    with pytest.raises(ValueError, match="subtype of an interval dtype"):
+        loads(_with_edited_schema(dumped, edit), trusted=trusted)
+
+    def edit_to_number(schema):
+        schema["content"]["subtype"]["content"] = json.dumps(5)
+
+    with pytest.raises(ValueError, match="subtype of an interval dtype"):
+        loads(_with_edited_schema(dumped, edit_to_number), trusted=trusted)
+
+
+def test_child_of_wrong_kind_is_refused():
+    # the values of an Index are an array; a file holding something else there
+    # is refused while it is read, before anything is constructed
+    dumped = dumps(pd.Index([1, 2]))
+
+    def edit(schema):
+        schema["content"]["values"] = {
+            "__class__": "str",
+            "__module__": "builtins",
+            "__loader__": "JsonNode",
+            "content": json.dumps("x"),
+            "is_json": True,
+            "__id__": 1,
+        }
+
+    with pytest.raises(ValueError, match="Expected a node of type"):
+        loads(_with_edited_schema(dumped, edit))
+
+
+def test_missing_entry_is_refused():
+    dumped = dumps(pd.Index([1, 2]))
+
+    def edit(schema):
+        del schema["content"]["name"]
+
+    with pytest.raises(ValueError, match="Expected the entries"):
+        loads(_with_edited_schema(dumped, edit))
+
+
+def test_subclass_from_other_library_is_unsupported():
+    class MySeries(pd.Series):
+        pass
+
+    with pytest.raises(UnsupportedTypeException, match="subclass of a pandas type"):
+        dumps(MySeries([1, 2]))
+
+
+def test_visualize(capsys):
+    visualize(dumps(FRAMES[0]))
+    assert "pandas.DataFrame" in capsys.readouterr().out
+
+
+def test_file_uses_public_type_names():
+    # older pandas versions report the defining module of a class, e.g.
+    # pandas.core.series.Series, and pandas 3 reports pandas.Series; the file
+    # always holds the public name, which is the one a user passes as trusted
+    dumped = dumps(pd.Series([1], index=pd.Index([1])))
+    with ZipFile(io.BytesIO(dumped)) as zip_file:
+        schema = json.loads(zip_file.read("schema.json"))
+    assert (schema["__module__"], schema["__class__"]) == ("pandas", "Series")
+    index = schema["content"]["index"]
+    assert (index["__module__"], index["__class__"]) == ("pandas", "Index")
+
+
+class NamelessDtype(pd.api.extensions.ExtensionDtype):
+    """A dtype whose name does not rebuild it.
+
+    pandas has such a dtype, ``ArrowDtype(pyarrow.string())``, whose name
+    "string[pyarrow]" it reserves for its ``StringDtype``; this stand-in needs
+    no pyarrow. The module is faked since skops only saves pandas' own dtypes.
+    """
+
+    __module__ = "pandas.tests"
+    name = "nameless"
+    type = object
+
+    @classmethod
+    def construct_array_type(cls):
+        return pd.arrays.NumpyExtensionArray  # pragma: no cover
+
+    @classmethod
+    def construct_from_string(cls, string):
+        raise TypeError(f"Cannot construct a 'NamelessDtype' from '{string}'")
+
+
+def test_sparse_fill_value_outside_json_is_unsupported():
+    # a fill value of an object subtype has to be a JSON scalar: refused when
+    # saving rather than failing when loading
+    dtype = pd.SparseDtype(object, pd.Timestamp("2024-01-01"))
+    with pytest.raises(UnsupportedTypeException, match="fill value"):
+        dumps(dtype)
+
+
+def test_sparse_fill_value_pandas_nat():
+    # The missing value of pandas is not the one of numpy, and pandas does not
+    # consider the two dtypes equal, so it is refused; recent versions of
+    # pandas convert it to the numpy one when building the dtype.
+    dtype = pd.SparseDtype("datetime64[ns]", pd.NaT)
+    if isinstance(dtype.fill_value, np.generic):
+        assert _loads(dumps(dtype)) == dtype
+    else:
+        with pytest.raises(UnsupportedTypeException, match="fill value"):
+            dumps(dtype)
+
+
+def test_dtype_not_rebuildable_from_its_name_is_unsupported():
+    # refused when saving rather than failing when loading
+    with pytest.raises(UnsupportedTypeException, match="cannot be rebuilt"):
+        dumps(NamelessDtype())
+
+
+def test_renamed_classes_match_pandas_version():
+    # each rename is a fact about pandas: before the version that introduced
+    # the new name only the old one exists, from then on the new one does
+    def exists(name):
+        with warnings.catch_warnings():
+            # the old name may live on as a deprecated alias that warns
+            warnings.simplefilter("ignore")
+            return any(hasattr(module, name) for module in (pd, pd.arrays))
+
+    for old, (new, since) in _RENAMED_CLASSES.items():
+        if Version(pd.__version__) < Version(since):
+            assert exists(old) and not exists(new), old
+        else:
+            assert exists(new), new
+
+
+FIXTURE_DIR = Path(__file__).parent / "data"
+
+
+def cross_version_objects():
+    """Objects whose files, written by one pandas version, load on every other.
+
+    :func:`write_pandas_fixture_file` dumps them with the running pandas version
+    into ``data/``, and :func:`test_load_file_of_other_pandas_version` loads
+    every file there. Add a file for a new pandas minor version when it changes
+    how any of these is represented, and never regenerate an existing one.
+    """
+    return {
+        "str_index": pd.Index(["a", None, "c"], name="strings"),
+        "str_series": pd.Series(["x", "y", None], index=["a", "b", "c"]),
+        "mixed_frame": pd.DataFrame(
+            {
+                "i": [1, 2],
+                "f": [1.5, np.nan],
+                "s": ["a", None],
+                "o": pd.Series(["a", 1], dtype=object),
+                "c": pd.Categorical(["x", "y"], categories=["y", "x"], ordered=True),
+                "t": pd.date_range("2024-01-01", periods=2, tz="Europe/Berlin"),
+            }
+        ),
+        "datetime_index": pd.date_range("2024-01-01", periods=3, name="dates"),
+        "datetime_index_tz": pd.date_range("2024-01-01", periods=3, tz="UTC"),
+        "datetime_fixed_offset": pd.to_datetime(["2024-01-01T00:00:00+01:00"]),
+        "timedelta_index": pd.timedelta_range("1D", periods=2),
+        "period_series": pd.Series(pd.period_range("2024-01", periods=2, freq="M")),
+        "interval_index": pd.interval_range(0, 3),
+        "categorical_index": pd.CategoricalIndex(
+            ["a", "b", "a"], categories=["b", "a"], ordered=True
+        ),
+        "multi_index": pd.MultiIndex.from_tuples(
+            [("a", 1), ("b", 2)], names=["letters", None]
+        ),
+        "range_index": pd.RangeIndex(2, 20, 3, name="range"),
+        "nullable_frame": pd.DataFrame(
+            {
+                "i": pd.array([1, None], dtype="Int64"),
+                "b": pd.array([True, None], dtype="boolean"),
+                "f": pd.array([1.5, None], dtype="Float64"),
+            }
+        ),
+        "sparse_series": pd.Series(pd.arrays.SparseArray([0, 0, 1.5])),
+        "duplicate_columns": pd.DataFrame([[1, 2]], columns=["a", "a"]),
+        # the shape of category_encoders' TargetEncoder.mapping
+        "encoder_mapping": {"col": pd.Series([0.49, 0.66], index=pd.Index([1, 2]))},
+        "dtypes": [
+            pd.Int64Dtype(),
+            pd.CategoricalDtype(["b", "a"], ordered=True),
+            pd.StringDtype(),
+        ],
+    }
+
+
+def write_pandas_fixture_file():
+    """Dump the cross-version objects with the running pandas version."""
+    path = FIXTURE_DIR / f"pandas-{pd.__version__}.skops"
+    dump(cross_version_objects(), path)
+    return path
+
+
+def _as_objects(values):
+    # the values as Python objects, with ``None`` for every missing value
+    return values.to_numpy(dtype=object, na_value=None)
+
+
+def assert_same_data(expected, actual):
+    """Equality up to the dtype differences between pandas versions.
+
+    Strings are ``str`` in pandas 3 and ``object`` before, datetimes have a
+    microsecond resolution in pandas 3 and nanoseconds before, and a file keeps
+    the dtypes of the version that wrote it. The values are therefore compared
+    as Python objects, with a single marker for missing values.
+    """
+    assert type(actual) is type(expected)
+    if isinstance(expected, pd.DataFrame):
+        assert expected.shape == actual.shape
+        assert_same_data(expected.columns, actual.columns)
+        assert_same_data(expected.index, actual.index)
+        for i in range(expected.shape[1]):
+            np.testing.assert_array_equal(
+                _as_objects(expected.iloc[:, i]), _as_objects(actual.iloc[:, i])
+            )
+    elif isinstance(expected, pd.Series):
+        assert expected.name == actual.name
+        assert_same_data(expected.index, actual.index)
+        np.testing.assert_array_equal(_as_objects(expected), _as_objects(actual))
+    elif isinstance(expected, pd.MultiIndex):
+        assert list(expected.names) == list(actual.names)
+        assert_same_data(expected.to_frame(index=False), actual.to_frame(index=False))
+    elif isinstance(expected, pd.Index):
+        assert expected.name == actual.name
+        np.testing.assert_array_equal(_as_objects(expected), _as_objects(actual))
+    elif isinstance(expected, dict):
+        assert expected.keys() == actual.keys()
+        for key in expected:
+            assert_same_data(expected[key], actual[key])
+    elif isinstance(expected, list):
+        assert len(expected) == len(actual)
+        for expected_item, actual_item in zip(expected, actual):
+            assert_same_data(expected_item, actual_item)
+    else:
+        assert expected == actual
+
+
+@pytest.mark.parametrize(
+    "path", sorted(FIXTURE_DIR.glob("pandas-*.skops")), ids=lambda path: path.stem
+)
+def test_load_file_of_other_pandas_version(path):
+    # the names in the file are the public ones, which every version resolves
+    untrusted = get_untrusted_types(file=path)
+    assert all(name.partition(".")[0] == "pandas" for name in untrusted)
+    loaded = load(path, trusted=untrusted)
+    assert_same_data(cross_version_objects(), loaded)
