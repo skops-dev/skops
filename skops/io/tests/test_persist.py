@@ -808,6 +808,29 @@ def test_numpy_object_dtype_empty_array(shape, use_file, tmp_path):
     np.testing.assert_array_equal(loaded, arr)
 
 
+@pytest.mark.parametrize("shape", [(2,), (2, 2), (2, 3, 2)])
+@pytest.mark.parametrize(
+    "cell",
+    [[1, 2], (1, 2), np.array([1, 2])],
+    ids=["list", "tuple", "ndarray"],
+)
+def test_numpy_object_dtype_sequence_cells(shape, cell):
+    # Regression test for gh-561: cells of a multi-dimensional object array
+    # which are sequences of equal length used to be expanded into extra axes
+    # of the loaded array, changing both its shape and the type of its cells.
+    arr = np.empty(shape, dtype=object)
+    for index in np.ndindex(shape):
+        arr[index] = cell
+
+    loaded = loads(dumps(arr))
+
+    assert loaded.shape == shape
+    assert loaded.dtype == arr.dtype
+    for index in np.ndindex(shape):
+        assert type(loaded[index]) is type(cell)
+        np.testing.assert_array_equal(loaded[index], cell)
+
+
 def test_metainfo():
     class MyEstimator(BaseEstimator):
         """Estimator with attributes of different supported types"""
