@@ -29,6 +29,10 @@ v0.17
   of equal length, such as lists, tuples, or arrays: the cells used to be
   expanded into extra axes of the loaded array, changing its shape and the
   type of its cells. :issue:`561` by `Adrin Jalali`_.
+- Loading a NumPy object array now checks that its recorded shape is the
+  shape of its saved items. A file where the two disagree is refused with a
+  ``ValueError`` when it is loaded, instead of being loaded with the shape of
+  its items as in v0.16. :pr:`566` by `Adrin Jalali`_.
 - Fix ``skops update`` failing when a relative output path contains a
   directory, including updates with ``--inplace``.
 - Loading a skops file now checks that each part of the file holds the kind
