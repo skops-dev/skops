@@ -22,7 +22,7 @@ v0.17
   writes out of bounds, crashing the process. The raised
   ``UntrustedTypesFoundException`` explains the risk, and files from a trusted
   source still load with, for example, ``trusted=["sklearn.svm._classes.SVC"]``.
-  :pr:`566` by `Adrin Jalali`_.
+  :pr:`567` by `Adrin Jalali`_.
 - Fix loading empty NumPy object arrays: the recorded shape is preserved even
   when a zero-length axis hides later dimensions from the nested list.
 - Fix loading multi-dimensional NumPy object arrays whose cells are sequences
