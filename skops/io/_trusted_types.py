@@ -71,7 +71,11 @@ if not _sklearn_validates_libsvm_load(
         from sklearn.svm import SVC, SVR, NuSVC, NuSVR, OneClassSVM
 
         _SKLEARN_UNTRUSTED_TYPES.extend([SVC, SVR, NuSVC, NuSVR, OneClassSVM])
-    except ImportError:
+    except ImportError:  # pragma: no cover
+        # These are fundamental public estimators present in every supported
+        # scikit-learn (they are among what ``all_estimators()`` returns just
+        # below), so the import cannot actually fail; the guard only mirrors the
+        # defensive style of the internal-type imports above.
         pass
 
 SKLEARN_UNTRUSTED_ESTIMATOR_TYPE_NAMES = [
