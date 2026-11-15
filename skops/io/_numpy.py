@@ -63,6 +63,43 @@ def ndarray_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     return res
 
 
+def _get_object_array_cells(
+    items: list[Any], shape: tuple[Any, ...]
+) -> list[Any] | None:
+    """Return the cells of an object array in C order, given its saved items.
+
+    ``items`` is the nested list returned by ``ndarray.tolist()``: one level of
+    lists per axis, each list having the length of its axis. ``shape`` is read
+    from the file as well, and nothing makes the two agree: a file can declare
+    a shape of billions of cells and store a single one. So ``items`` is
+    checked against ``shape`` here, and ``None`` is returned if it is not a
+    nested list of that shape.
+
+    The lists also have to be distinct objects, as the ones returned by
+    ``tolist()`` are. A file can use the same ``__id__`` to have a list stand
+    for all the rows of the list containing it, and a few such lists nested
+    into each other would describe an array of any size.
+
+    This way there are never more cells than what the lists constructed from
+    the file hold. The dimensions following a zero-length axis are the
+    exception, since there is nothing to check them against, but an array
+    with such an axis has no cells, whatever they are.
+    """
+    if not all(type(dim) is int and dim >= 0 for dim in shape):
+        return None
+
+    seen: set[int] = set()
+    cells = [items]
+    for dim in shape:
+        rows, cells = cells, []
+        for row in rows:
+            if type(row) is not list or len(row) != dim or id(row) in seen:
+                return None
+            seen.add(id(row))
+            cells.extend(row)
+    return cells
+
+
 class NdArrayNode(Node):
     # TODO: NdArrayNode is not only responsible for np.arrays
     #  but also for np.generics, thus the confusion with DTypeNode.
@@ -114,12 +151,20 @@ class NdArrayNode(Node):
             # would lose the dimensions following a zero-length axis (gh-558).
             shape = self.shape.construct()
             items = [o.construct() for o in self.items]
+            # The shape comes from the file, so it is only used to allocate
+            # after it is checked against the items, which is what getting the
+            # cells does.
+            cells = _get_object_array_cells(items, shape)
+            if cells is None:
+                raise ValueError(
+                    f"A NumPy object array is saved with the shape {shape!r}, which"
+                    " is not the shape of its saved items. This is probably due to"
+                    " a corrupted or a malicious file."
+                )
             content = np.empty(shape, dtype="O")
-            for index in np.ndindex(*shape):
-                cell = items
-                for i in index:
-                    cell = cell[i]
-                content[index] = cell
+            flat = content.reshape(-1)
+            for i, cell in enumerate(cells):
+                flat[i] = cell
 
             return content
 

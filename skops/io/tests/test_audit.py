@@ -4,6 +4,7 @@ import io
 import json
 import operator
 import re
+import tracemalloc
 from collections import defaultdict
 from contextlib import suppress
 from datetime import timezone
@@ -554,4 +555,121 @@ def test_child_aliased_to_earlier_node_is_rejected():
     with pytest.raises(ValueError, match=msg):
         get_untrusted_types(data=data)
     with pytest.raises(ValueError, match=msg):
+        loads(data)
+
+
+def _object_array_with_shape(saved_shape: tuple, shape: tuple) -> bytes:
+    """Return the dump of an object array where the shape is replaced.
+
+    The array is saved with ``saved_shape``, which is the shape its items keep,
+    and the file states ``shape`` instead.
+    """
+    data = dumps(np.full(saved_shape, "value", dtype=object))
+    state = get_state(shape, make_save_context())
+    # These ids are not the ones of objects of the dump above, so they are
+    # removed, for them not to be mistaken for the id of one of its nodes.
+    del state["__id__"]
+    for dim_state in state["content"]:
+        del dim_state["__id__"]
+    return _replace_child(data, ["shape"], state)
+
+
+OBJECT_ARRAY_SHAPE_MSG = "which is not the shape of its saved items"
+
+
+@pytest.mark.parametrize(
+    "saved_shape, shape",
+    [
+        ((2, 3), (1_000_000,)),
+        ((2, 3), (2, 1_000_000)),
+        ((2, 3), (2, 2)),
+        ((2, 3), (3, 2)),
+        ((2, 3), (2, 3, 1)),
+        ((2, 3), (2.0, 3)),
+        ((2, 3), (0, 3)),
+        ((0, 3), (1, 3)),
+        ((0, 3), (0, -1)),
+    ],
+    ids=[
+        "more-items",
+        "more-items-last-axis",
+        "fewer-items",
+        "transposed",
+        "more-axes",
+        "float-axis",
+        "empty",
+        "not-empty",
+        "negative-axis-after-empty-axis",
+    ],
+)
+def test_object_array_shape_not_matching_items_is_rejected(saved_shape, shape):
+    # An object array is saved as a nested list of its items along with its
+    # shape, and a file can state a shape which its items don't have. Such a
+    # file is refused, instead of loading an array where items are missing,
+    # dropped, or indexed into, as with the strings of the "more-axes" case.
+    data = _object_array_with_shape(saved_shape, shape)
+    with pytest.raises(ValueError, match=OBJECT_ARRAY_SHAPE_MSG):
+        loads(data)
+
+
+def _traced_peak(func) -> int:
+    """Return the peak of the memory allocated while calling ``func``, in bytes."""
+    tracing = tracemalloc.is_tracing()
+    if not tracing:
+        tracemalloc.start()
+    try:
+        tracemalloc.reset_peak()
+        before, _ = tracemalloc.get_traced_memory()
+        func()
+        _, peak = tracemalloc.get_traced_memory()
+    finally:
+        if not tracing:
+            tracemalloc.stop()
+    return peak - before
+
+
+def test_object_array_shape_is_checked_before_allocating():
+    # The shape stated in the file is not what decides how much memory loading
+    # an object array takes: a file of a few hundred bytes stating a shape of a
+    # million cells, i.e. an array of 8 MB, is refused before anything of that
+    # size is allocated, rather than after.
+    loads(dumps(np.full((1,), "value", dtype=object)))  # imports and caches
+    data = _object_array_with_shape((1,), (1_000_000,))
+    assert len(data) < 1_000
+
+    def load():
+        with pytest.raises(ValueError, match=OBJECT_ARRAY_SHAPE_MSG):
+            loads(data)
+
+    assert _traced_peak(load) < 1_000_000
+
+
+def test_object_array_axis_after_empty_axis_is_not_allocated():
+    # There are no items to check the axes following an empty axis against.
+    # The array has no cells whatever these axes are, and loading it does not
+    # take memory depending on them either.
+    loads(dumps(np.full((0, 3), "value", dtype=object)))  # imports and caches
+    data = _object_array_with_shape((0, 3), (0, 1_000_000))
+    loaded = []
+    assert _traced_peak(lambda: loaded.append(loads(data))) < 1_000_000
+    assert loaded[0].shape == (0, 1_000_000)
+    assert loaded[0].dtype == object
+
+
+def test_object_array_rows_sharing_a_list_are_rejected():
+    # ``get_tree`` hands back the node it already built for an ``__id__``, so a
+    # file can make every row of an object array the very same list, and by
+    # nesting such lists describe an array of any size with a few nodes. The
+    # lists of a saved array are all distinct, so such a file is refused, even
+    # though its items do have the shape it states.
+    data = dumps(np.full((2, 3), "value", dtype=object))
+    schema = json.loads(ZipFile(io.BytesIO(data)).read("schema.json"))
+    alias = {
+        "__class__": "list",
+        "__module__": "builtins",
+        "__loader__": "ListNode",
+        "__id__": schema["content"][0]["__id__"],
+    }
+    data = _replace_child(data, ["content", 1], alias)
+    with pytest.raises(ValueError, match=OBJECT_ARRAY_SHAPE_MSG):
         loads(data)
