@@ -34,6 +34,32 @@ UNTRUSTED_TYPE_REASONS: dict[str, str] = {
     ),
 }
 
+# The libsvm-backed SVM estimators (SVC, NuSVC, SVR, NuSVR, OneClassSVM) all
+# share one failure mode, so their reasons are generated from a single template
+# rather than written out five times. Unlike Tree, the unsafe data is not a
+# separate internal type but plain arrays stored on the estimator itself, so it
+# is the estimator that is reported as untrusted. These keys must match
+# ``SKLEARN_UNTRUSTED_ESTIMATOR_TYPE_NAMES`` in ``_trusted_types.py``.
+for _svm_type in (
+    "sklearn.svm._classes.SVC",
+    "sklearn.svm._classes.NuSVC",
+    "sklearn.svm._classes.SVR",
+    "sklearn.svm._classes.NuSVR",
+    "sklearn.svm._classes.OneClassSVM",
+):
+    UNTRUSTED_TYPE_REASONS[_svm_type] = (
+        f"{_svm_type} is a libsvm-backed SVM. It stores arrays "
+        "(support_vectors_, _n_support, _dual_coef_, _intercept_) that "
+        "scikit-learn hands to the libsvm C code, which indexes into them "
+        "without bounds checking. A malicious file can keep each array's dtype "
+        "and shape valid but make them inconsistent with one another: skops "
+        "loads the object successfully, but calling .predict() on it can then "
+        "crash the process (segfault), read out-of-bounds memory, or overflow "
+        "the heap. If you created the file yourself or otherwise fully trust "
+        f'its source, you can load it with trusted=["{_svm_type}"].'
+    )
+del _svm_type
+
 
 class UntrustedTypesFoundException(TypeError):
     """Raise when some untrusted objects are found in the file."""

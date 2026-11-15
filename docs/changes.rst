@@ -11,6 +11,18 @@ skops Changelog
 
 v0.17
 -----
+- The libsvm-backed SVM estimators ``sklearn.svm.SVC``, ``NuSVC``, ``SVR``,
+  ``NuSVR`` and ``OneClassSVM`` are no longer trusted by default: skops
+  validates that a loaded object is of a trusted type, but not the contents of
+  its raw state, and these estimators pass their saved arrays
+  (``support_vectors_``, ``_n_support``, ``_dual_coef_``, ``_intercept_``) to
+  libsvm's C code, which indexes into them without bounds checks. A crafted
+  file keeps each array's dtype and shape valid but makes them inconsistent, so
+  skops loads the object successfully and the first ``.predict()`` reads or
+  writes out of bounds, crashing the process. The raised
+  ``UntrustedTypesFoundException`` explains the risk, and files from a trusted
+  source still load with, for example, ``trusted=["sklearn.svm._classes.SVC"]``.
+  :pr:`567` by `Adrin Jalali`_.
 - Fix loading empty NumPy object arrays: the recorded shape is preserved even
   when a zero-length axis hides later dimensions from the nested list.
 - Fix loading multi-dimensional NumPy object arrays whose cells are sequences
