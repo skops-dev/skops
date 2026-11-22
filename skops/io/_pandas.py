@@ -17,7 +17,8 @@ dtype, so that no type inference happens on load:
   and ``pandas.NaT`` by their names alone.
 
 Values with a numpy dtype are stored as numpy arrays, everything else as lists
-of scalars.
+of scalars, and strings with their missing values as a single JSON list, see
+:class:`_Strings`.
 
 pandas is optional and slow to import, so ``skops.io`` does not import it. The
 ``get_state`` handlers are registered on the first dump after the user has
@@ -188,8 +189,63 @@ def _values(obj: Any) -> Any:
     # The array behind an Index or Series: a numpy array for numpy dtypes, the
     # extension array otherwise.
     if isinstance(obj.dtype, np.dtype):
-        return obj.to_numpy()
+        return _strings_or_array(obj.to_numpy())
     return obj.array
+
+
+def _is_string_item(item: Any) -> bool:
+    # a str, or a missing value, None or NaN
+    return type(item) is str or item is None or (type(item) is float and item != item)
+
+
+class _Strings:
+    """A 1-d object array of strings and missing values, saved as a JSON list.
+
+    Saved as an object array, every string would be a node of its own, many
+    times the size of the string and slow to load, and columns of strings are
+    common: they are object arrays before pandas 3, and the values of every
+    string array.
+    """
+
+    def __init__(self, items: list[Any]) -> None:
+        self.items = items
+
+
+def _strings_or_array(values: np.ndarray) -> Any:
+    # ``values`` as ``_Strings`` if it is a 1-d object array of strings and
+    # missing values only, as it is otherwise
+    if values.dtype != object or values.ndim != 1:
+        return values
+    items = values.tolist()
+    if not all(_is_string_item(item) for item in items):
+        return values
+    return _Strings(items)
+
+
+def strings_get_state(obj: _Strings, save_context: SaveContext) -> dict[str, Any]:
+    # NaN is written as the NaN of Python's json module, which reads it back
+    return {
+        "__class__": "list",
+        "__module__": "builtins",
+        "__loader__": "JsonNode",
+        "content": json.dumps(obj.items),
+        "is_json": True,
+    }
+
+
+def _from_json(values: Any) -> Any:
+    # The loaded values of an object: the object array of a JSON list from
+    # ``strings_get_state``, any other array as it is.
+    if not isinstance(values, (list, dict, str, int, float, bool, type(None))):
+        return values
+    if not isinstance(values, list) or not all(_is_string_item(v) for v in values):
+        raise ValueError(
+            "Expected an array or a list of strings and missing values. This is"
+            " probably due to a corrupted or a malicious file."
+        )
+    array = np.empty(len(values), dtype=object)
+    array[:] = values
+    return array
 
 
 def _offset(parts: Any) -> Any:
@@ -478,7 +534,8 @@ def extension_array_get_state(obj: Any, save_context: SaveContext) -> dict[str, 
         name = "pandas.arrays." + (
             "StringArray" if storage == "python" else "ArrowStringArray"
         )
-    content = {"values": obj.to_numpy(dtype=object, na_value=None), "dtype": obj.dtype}
+    values = obj.to_numpy(dtype=object, na_value=None)
+    content = {"values": _strings_or_array(values), "dtype": obj.dtype}
     return _pandas_state(
         obj, "PandasExtensionArrayNode", content, save_context, name=name
     )
@@ -720,7 +777,7 @@ class PandasIndexNode(_PandasNode):
         import pandas as pd
 
         content = self._construct_content()
-        values = content["values"]
+        values = _from_json(content["values"])
         # The dtype is passed to prevent inference, and ``tupleize_cols`` keeps
         # an object Index of tuples from becoming a MultiIndex.
         index = pd.Index(
@@ -799,7 +856,7 @@ class PandasSeriesNode(_PandasNode):
         import pandas as pd
 
         content = self._construct_content()
-        values = content["values"]
+        values = _from_json(content["values"])
         series = pd.Series(
             values, index=content["index"], dtype=values.dtype, name=content["name"]
         )
@@ -822,7 +879,8 @@ class PandasDataFrameNode(_PandasNode):
         import pandas as pd
 
         content = self._construct_content()
-        columns = [pd.Series(values, dtype=values.dtype) for values in content["data"]]
+        data = [_from_json(values) for values in content["data"]]
+        columns = [pd.Series(values, dtype=values.dtype) for values in data]
         if columns:
             frame = pd.concat(columns, axis=1, ignore_index=True)
             frame.index = content["index"]
@@ -1001,13 +1059,13 @@ class PandasExtensionArrayNode(_PandasNode):
     _classes = (*_STRING_ARRAYS, "SparseArray")
 
     def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
-        return {"values": (NdArrayNode,), "dtype": _DTYPE_NODES}
+        return {"values": (NdArrayNode, JsonNode), "dtype": _DTYPE_NODES}
 
     def _build(self):
         import pandas as pd
 
         content = self._construct_content()
-        return pd.array(content["values"], dtype=content["dtype"])
+        return pd.array(_from_json(content["values"]), dtype=content["dtype"])
 
     def _built_name(self, obj: Any) -> str | None:
         # The class of a string array follows the string storage of the
@@ -1161,6 +1219,8 @@ class PandasIntervalDtypeNode(_PandasNode):
 # stored as.
 _ARRAY_NODES = (
     NdArrayNode,
+    # a list of strings, see _Strings
+    JsonNode,
     PandasNumpyBackedArrayNode,
     PandasMaskedArrayNode,
     PandasCategoricalNode,
@@ -1215,6 +1275,7 @@ def register_if_imported() -> None:
     import pandas as pd
 
     dispatch_functions = [
+        (_Strings, strings_get_state),
         (pd.Index, index_get_state),
         (pd.RangeIndex, range_index_get_state),
         (pd.MultiIndex, multi_index_get_state),

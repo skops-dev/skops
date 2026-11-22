@@ -669,16 +669,53 @@ def test_child_of_wrong_kind_is_refused():
 
     def edit(schema):
         schema["content"]["values"] = {
-            "__class__": "str",
+            "__class__": "list",
             "__module__": "builtins",
-            "__loader__": "JsonNode",
-            "content": json.dumps("x"),
-            "is_json": True,
+            "__loader__": "ListNode",
+            "content": [],
             "__id__": 1,
         }
 
     with pytest.raises(ValueError, match="Expected a node of type"):
-        loads(_with_edited_schema(dumped, edit))
+        get_untrusted_types(data=_with_edited_schema(dumped, edit))
+
+
+@pytest.mark.parametrize("values", ["x", 1, {"a": "b"}, ["a", 1], ["a", [None]]])
+def test_json_values_must_be_strings(values):
+    # values may be a JSON list of strings and missing values, see _Strings;
+    # any other JSON is refused
+    dumped = dumps(pd.Index(["a", "b"], dtype=object))
+
+    def edit(schema):
+        schema["content"]["values"]["content"] = json.dumps(values)
+
+    with pytest.raises(ValueError, match="list of strings and missing values"):
+        loads(_with_edited_schema(dumped, edit), trusted=["pandas.Index"])
+
+
+def test_strings_are_one_json_list():
+    # one node for the whole column, not one per string: about 15 times
+    # smaller than before for short strings
+    values = [f"category {i % 5000}" for i in range(20_000)] + [None, np.nan]
+    series = pd.Series(values, dtype=object)
+    dumped = dumps(series)
+    with ZipFile(io.BytesIO(dumped)) as zip_file:
+        schema = json.loads(zip_file.read("schema.json"))
+    assert schema["content"]["values"]["__loader__"] == "JsonNode"
+    assert len(dumped) < 30 * len(values)
+    loaded = _loads(dumped)
+    pd.testing.assert_series_equal(loaded, series)
+    # the missing values keep their kind
+    assert loaded[20_000] is None
+    assert isinstance(loaded[20_001], float)
+
+
+def test_other_object_values_keep_their_types():
+    # numpy strings, or a mix with other objects, are saved item by item
+    for values in [np.array(["a", "b"]).astype(object), ["a", b"b"], ["a", 1]]:
+        series = pd.Series(values, dtype=object)
+        loaded = _loads(dumps(series))
+        assert [type(v) for v in loaded] == [type(v) for v in series]
 
 
 def test_missing_entry_is_refused():
