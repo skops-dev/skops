@@ -10,7 +10,7 @@ import sys
 import warnings
 import zoneinfo
 from pathlib import Path
-from zipfile import ZipFile
+from zipfile import ZIP_DEFLATED, ZipFile
 
 import numpy as np
 import pytest
@@ -1059,26 +1059,45 @@ def cross_version_objects():
     into ``data/``, and :func:`test_load_file_of_other_pandas_version` loads
     every file there. Add a file for a new pandas minor version when it changes
     how any of these is represented, and never regenerate an existing one.
+
+    They hold every pandas node, and are built the same way on every pandas
+    version: frequencies from offsets, not from their aliases, which changed.
+    The string dtypes, which depend on the version and on pyarrow, are in
+    :func:`string_fixture_objects`.
     """
+    frame = pd.DataFrame(
+        {
+            "i": [1, 2],
+            "f": [1.5, np.nan],
+            "s": ["a", None],
+            "o": pd.Series(["a", 1], dtype=object),
+            "c": pd.Categorical(["x", "y"], categories=["y", "x"], ordered=True),
+            "t": pd.date_range("2024-01-01", periods=2, tz="Europe/Berlin"),
+        }
+    )
+    frame.attrs = {"unit": "m"}
     return {
         "str_index": pd.Index(["a", None, "c"], name="strings"),
         "str_series": pd.Series(["x", "y", None], index=["a", "b", "c"]),
-        "mixed_frame": pd.DataFrame(
-            {
-                "i": [1, 2],
-                "f": [1.5, np.nan],
-                "s": ["a", None],
-                "o": pd.Series(["a", 1], dtype=object),
-                "c": pd.Categorical(["x", "y"], categories=["y", "x"], ordered=True),
-                "t": pd.date_range("2024-01-01", periods=2, tz="Europe/Berlin"),
-            }
+        "mixed_frame": frame,
+        "unique_labels": pd.DataFrame({"a": [1]}).set_flags(
+            allows_duplicate_labels=False
         ),
         "datetime_index": pd.date_range("2024-01-01", periods=3, name="dates"),
         "datetime_index_tz": pd.date_range("2024-01-01", periods=3, tz="UTC"),
+        "month_end_index": pd.date_range(
+            "2024-01-31", periods=3, freq=pd.offsets.MonthEnd()
+        ),
+        "hourly_index": pd.date_range("2024-01-01", periods=3, freq=pd.offsets.Hour()),
         "datetime_fixed_offset": pd.to_datetime(["2024-01-01T00:00:00+01:00"]),
         "timedelta_index": pd.timedelta_range("1D", periods=2),
         "period_series": pd.Series(pd.period_range("2024-01", periods=2, freq="M")),
+        "annual_periods": pd.Series(
+            pd.period_range("2020", periods=2, freq=pd.offsets.YearEnd())
+        ),
+        "hourly_period_dtype": pd.PeriodDtype(pd.offsets.Hour()),
         "interval_index": pd.interval_range(0, 3),
+        "interval_dtype": pd.IntervalDtype("float64", closed="left"),
         "categorical_index": pd.CategoricalIndex(
             ["a", "b", "a"], categories=["b", "a"], ordered=True
         ),
@@ -1094,21 +1113,53 @@ def cross_version_objects():
             }
         ),
         "sparse_series": pd.Series(pd.arrays.SparseArray([0, 0, 1.5])),
+        "sparse_dtype": pd.SparseDtype("float64", 1.5),
         "duplicate_columns": pd.DataFrame([[1, 2]], columns=["a", "a"]),
         # the shape of category_encoders' TargetEncoder.mapping
         "encoder_mapping": {"col": pd.Series([0.49, 0.66], index=pd.Index([1, 2]))},
         "dtypes": [
             pd.Int64Dtype(),
             pd.CategoricalDtype(["b", "a"], ordered=True),
-            pd.StringDtype(),
+            pd.DatetimeTZDtype("ns", "Europe/Berlin"),
+        ],
+        "scalars": [
+            pd.NA,
+            pd.NaT,
+            pd.Timestamp("2024-01-01 00:00:00.000000001", tz="Europe/Berlin"),
+            pd.Timedelta(1, unit="ns"),
         ],
     }
 
 
+def _string_key(dtype):
+    # the storage and the missing value of a string dtype, e.g. "pyarrow-NaN"
+    storage = "python" if dtype.storage == "python" else "pyarrow"
+    return f"{storage}-{'NaN' if isinstance(dtype.na_value, float) else 'NA'}"
+
+
+def string_fixture_objects():
+    """A Series of every string dtype the running pandas version has.
+
+    Which those are depends on the pandas version and on pyarrow, so they are
+    checked by how they behave rather than against objects built when loading.
+    """
+    return {
+        _string_key(dtype): pd.Series(["a", None, "c"], dtype=dtype)
+        for dtype in _string_dtypes()
+    }
+
+
 def write_pandas_fixture_file():
-    """Dump the cross-version objects with the running pandas version."""
+    """Dump the cross-version objects with the running pandas version.
+
+    Run it with pyarrow installed, so that the file has the pyarrow string
+    dtypes too.
+    """
+    import pyarrow  # noqa: F401
+
     path = FIXTURE_DIR / f"pandas-{pd.__version__}.skops"
-    dump(cross_version_objects(), path)
+    objects = {"common": cross_version_objects(), "strings": string_fixture_objects()}
+    dump(objects, path, compression=ZIP_DEFLATED, compresslevel=9)
     return path
 
 
@@ -1125,7 +1176,16 @@ def assert_same_data(expected, actual):
     the dtypes of the version that wrote it. The values are therefore compared
     as Python objects, with a single marker for missing values.
     """
+    if expected is pd.NA or expected is pd.NaT:
+        assert actual is expected
+        return
     assert type(actual) is type(expected)
+    if isinstance(expected, (pd.DataFrame, pd.Series)):
+        assert expected.attrs == actual.attrs
+        assert (
+            expected.flags.allows_duplicate_labels
+            == actual.flags.allows_duplicate_labels
+        )
     if isinstance(expected, pd.DataFrame):
         assert expected.shape == actual.shape
         assert_same_data(expected.columns, actual.columns)
@@ -1143,7 +1203,13 @@ def assert_same_data(expected, actual):
         assert_same_data(expected.to_frame(index=False), actual.to_frame(index=False))
     elif isinstance(expected, pd.Index):
         assert expected.name == actual.name
+        if isinstance(expected, (pd.DatetimeIndex, pd.TimedeltaIndex)):
+            assert expected.freq == actual.freq
         np.testing.assert_array_equal(_as_objects(expected), _as_objects(actual))
+    elif isinstance(expected, pd.CategoricalDtype):
+        # the categories keep the string dtype of the version that wrote them
+        assert expected.ordered == actual.ordered
+        assert_same_data(expected.categories, actual.categories)
     elif isinstance(expected, dict):
         assert expected.keys() == actual.keys()
         for key in expected:
@@ -1156,6 +1222,33 @@ def assert_same_data(expected, actual):
         assert expected == actual
 
 
+def _has_string_dtype(key):
+    # whether this pandas version has the string dtype of ``key``
+    return key in {_string_key(dtype) for dtype in _string_dtypes()}
+
+
+def assert_same_strings(key, actual):
+    # A Series of strings from string_fixture_objects, loaded with this pandas
+    # version: same values, same missing value semantics, and the same storage
+    # if pyarrow is installed.
+    assert _as_objects(actual).tolist() == ["a", None, "c"]
+    storage, na_value = key.split("-")
+    equal = actual == "b"
+    if na_value == "NA":
+        # "boolean", or "bool[pyarrow]" for the pyarrow storage
+        assert equal.isna().tolist() == [False, True, False]
+    else:
+        assert equal.dtype == bool and equal.tolist() == [False, False, False]
+    if isinstance(actual.dtype, pd.StringDtype):
+        # the storage is kept when this version has it with the same missing
+        # value: pandas 2.1 and 2.2 have NaN strings with pyarrow storage only
+        if _has_string_dtype(key):
+            assert _string_key(actual.dtype) == key
+    else:
+        # pandas versions without a string dtype with NaN keep object strings
+        assert na_value == "NaN" and actual.dtype == object
+
+
 @pytest.mark.parametrize(
     "path", sorted(FIXTURE_DIR.glob("pandas-*.skops")), ids=lambda path: path.stem
 )
@@ -1163,4 +1256,7 @@ def test_load_file_of_other_pandas_version(path):
     # the names in the file are the public ones, which every version resolves
     assert set(get_untrusted_types(file=path)) <= set(PANDAS_TYPES)
     loaded = load(path, trusted=PANDAS_TYPES)
-    assert_same_data(cross_version_objects(), loaded)
+    assert_same_data(cross_version_objects(), loaded["common"])
+    assert loaded["strings"]
+    for key, strings in loaded["strings"].items():
+        assert_same_strings(key, strings)
