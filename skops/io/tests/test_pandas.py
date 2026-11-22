@@ -6,6 +6,7 @@ import datetime as dt
 import io
 import json
 import struct
+import sys
 import warnings
 import zoneinfo
 from pathlib import Path
@@ -17,7 +18,6 @@ from packaging.version import Version
 
 from skops.io import dump, dumps, get_untrusted_types, load, loads, visualize
 from skops.io._pandas import _RENAMED_CLASSES
-from skops.io._utils import get_type_name
 from skops.io.exceptions import (
     UnsupportedTypeException,
     UntrustedTypesFoundException,
@@ -225,11 +225,11 @@ def test_pandas_types_are_not_trusted_by_default():
     loads(dumped, trusted=untrusted)
 
 
-def test_private_pandas_type_is_named_by_its_module():
-    # the dtype of a numpy-backed extension array has no public name, so the
-    # file holds its defining module, which is then the name to trust
-    dtype = pd.Series([1, 2]).array.dtype
-    assert get_untrusted_types(data=dumps(dtype)) == [get_type_name(type(dtype))]
+def test_class_without_public_name_is_unsupported():
+    # the dtype of a numpy-backed extension array has no public name; a file
+    # never names a private class, whose module moves between versions
+    with pytest.raises(UnsupportedTypeException, match="not supported"):
+        dumps(pd.Series([1, 2]).array.dtype)
 
 
 def _with_edited_schema(dumped, edit):
@@ -263,44 +263,62 @@ def test_dtype_node_only_builds_the_declared_class():
         loads(_with_edited_schema(dumped, edit), trusted=["pandas.Int64Dtype"])
 
 
-def test_dtype_node_refuses_other_classes():
-    # a pandas class the user trusts that is not an extension dtype cannot be
-    # routed through the name based dtype loader
+@pytest.mark.parametrize(
+    "module, class_name",
+    [
+        # a pandas class that is not a dtype
+        ("pandas", "Series"),
+        # dtypes whose parsers consult pandas' registry of extension dtypes or
+        # the file system, which have loaders of their own
+        ("pandas", "DatetimeTZDtype"),
+        ("pandas", "IntervalDtype"),
+        # its names would be parsed by pyarrow
+        ("pandas", "ArrowDtype"),
+        # a private module, and pandas' own test suite, which ships with it
+        ("pandas.core.dtypes.dtypes", "NumpyEADtype"),
+        ("pandas.tests.extension.decimal.array", "DecimalDtype"),
+        ("pandas.conftest", "Anything"),
+    ],
+)
+def test_dtype_node_refuses_other_classes(module, class_name):
+    # the name based dtype loader only accepts the public dtype classes it
+    # builds; anything else is refused while the file is read, before any
+    # module the file names could be imported
     dumped = dumps(pd.Int64Dtype())
 
     def edit(schema):
-        schema["__class__"] = "Series"
-
-    with pytest.raises(ValueError, match="not a pandas extension dtype"):
-        loads(_with_edited_schema(dumped, edit), trusted=["pandas.Series"])
-
-
-def test_dtype_node_refuses_dtypes_stored_as_parts():
-    # the parsers of these dtypes consult pandas' registry of extension dtypes
-    # or the file system, so a file cannot route them through the name based
-    # loader
-    dumped = dumps(pd.Int64Dtype())
-
-    def edit(schema):
-        schema["__class__"] = "DatetimeTZDtype"
+        schema["__module__"], schema["__class__"] = module, class_name
         schema["content"]["name"]["content"] = json.dumps(
             "datetime64[ns, dateutil//etc/localtime]"
         )
 
-    with pytest.raises(ValueError, match="not stored by its name"):
-        loads(_with_edited_schema(dumped, edit), trusted=["pandas.DatetimeTZDtype"])
+    imported = set(sys.modules)
+    with pytest.raises(ValueError, match="not a class PandasExtensionDtypeNode"):
+        get_untrusted_types(data=_with_edited_schema(dumped, edit))
+    assert module == "pandas" or module in imported or module not in sys.modules
 
 
-def test_dtype_node_refuses_arrow_dtype():
-    # pyarrow backed dtypes are not supported: pyarrow would parse their
-    # names, so a file cannot route a name to it, whatever the user trusts
-    dumped = dumps(pd.Int64Dtype())
+def test_array_node_refuses_other_classes():
+    # a trusted name cannot label an object of another class: an array
+    # declared as a DataFrame is refused while the file is read
+    dumped = dumps(pd.array(["a", None], dtype="string"))
 
     def edit(schema):
-        schema["__class__"] = "ArrowDtype"
+        schema["__module__"], schema["__class__"] = "pandas", "DataFrame"
 
-    with pytest.raises(ValueError, match="not supported"):
-        loads(_with_edited_schema(dumped, edit), trusted=["pandas.ArrowDtype"])
+    with pytest.raises(ValueError, match="not a class PandasExtensionArrayNode"):
+        get_untrusted_types(data=_with_edited_schema(dumped, edit))
+
+
+def test_na_node_refuses_other_modules():
+    dumped = dumps(pd.NA)
+    assert get_untrusted_types(data=dumped) == ["pandas.api.typing.NAType"]
+
+    def edit(schema):
+        schema["__module__"] = "pandas.io.anything"
+
+    with pytest.raises(ValueError, match="not a class PandasNANode"):
+        get_untrusted_types(data=_with_edited_schema(dumped, edit))
 
 
 def test_arrow_backed_types_are_unsupported():

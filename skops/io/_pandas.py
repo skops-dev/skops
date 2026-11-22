@@ -35,11 +35,17 @@ storage is a string dtype, and supported as one.
 The pandas types are not trusted by default, since this support is new; a user
 passes the names a file holds, see :func:`skops.io.get_untrusted_types`.
 Trusting them should mean trusting pandas and nothing else, so loading stays
-within pandas' constructors and the data from the file. In particular, no name
-from the file is looked up in pandas' registry of extension dtypes, where any
-imported library can register a dtype whose parser would then run, and time
-zones are parsed here rather than by pandas, whose parser can open any file on
-disk.
+within pandas' constructors and the data from the file. Every node lists the
+public pandas classes it builds, by their name in ``pandas`` or
+``pandas.arrays``; a file declaring any other class is refused while it is
+read, before anything is constructed, and the built object is checked to be of
+the declared class. Classes are looked up in those two namespaces rather than
+imported from a module the file names, so a file cannot make the loader import
+any other part of pandas, such as its test suite, which ships with it. In
+particular, no name from the file is looked up in pandas' registry of extension
+dtypes, where any imported library can register a dtype whose parser would
+then run, and time zones are parsed here rather than by pandas, whose parser
+can open any file on disk.
 """
 
 from __future__ import annotations
@@ -65,28 +71,8 @@ from ._utils import (
     _get_state,
     get_module,
     get_state,
-    gettype,
 )
 from .exceptions import UnsupportedTypeException
-
-
-def _public_module(cls: type) -> str:
-    # The public module of a pandas class: "pandas.arrays" for the array
-    # classes and "pandas" for everything else. pandas 3 reports these as
-    # ``__module__`` already, but older versions report the defining module,
-    # e.g. ``pandas.core.series``, and a file must not depend on that: the
-    # public name is what a user passes as ``trusted``, and what stays
-    # importable across versions. Deprecated aliases such as
-    # ``pandas.arrays.PandasArray`` warn when accessed, hence the suppression.
-    import pandas as pd
-
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        for module in (pd.arrays, pd):
-            if getattr(module, cls.__name__, None) is cls:
-                return module.__name__
-    return get_module(cls)
-
 
 # Classes that later pandas versions renamed, mapped to their current name and
 # the pandas version that introduced it, so that a file never names a class
@@ -103,13 +89,40 @@ _ARROW_UNSUPPORTED = (
 )
 
 
-def _public_name(cls: type) -> str:
-    # The name a file holds for a pandas class, which is also the name to pass
-    # as ``trusted``.
-    class_name = cls.__name__
-    if class_name in _RENAMED_CLASSES:
-        class_name, _ = _RENAMED_CLASSES[class_name]
-    return f"{_public_module(cls)}.{class_name}"
+def _public_name(cls: type) -> str | None:
+    """The name a file holds for a pandas class, or ``None`` if it has none.
+
+    This is also the name a user passes as ``trusted``: the name of the class
+    in ``pandas.arrays`` for the array classes and in ``pandas`` for everything
+    else, under its current name if it was renamed. pandas 3 reports these as
+    ``__module__`` already, but older versions report the defining module, e.g.
+    ``pandas.core.series``, and a file must not depend on that, since those
+    modules are private and move between versions. The types of ``pandas.NA``
+    and ``pandas.NaT`` are named by ``pandas.api.typing``, where pandas 3
+    defines them, on every version. Deprecated aliases such as
+    ``pandas.arrays.PandasArray`` warn when accessed, hence the suppression.
+    """
+    import pandas as pd
+
+    if cls is type(pd.NA) or cls is type(pd.NaT):
+        return f"pandas.api.typing.{cls.__name__}"
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        for module in (pd.arrays, pd):
+            if getattr(module, cls.__name__, None) is cls:
+                class_name = _RENAMED_CLASSES.get(cls.__name__, (cls.__name__,))[0]
+                return f"{module.__name__}.{class_name}"
+    return None
+
+
+def _nearest_public_name(cls: type) -> str | None:
+    # The public name of ``cls`` or of its closest base class that has one,
+    # e.g. ``pandas.arrays.ArrowStringArray`` for the private string array
+    # classes of some pandas versions.
+    for base in cls.__mro__:
+        if (name := _public_name(base)) is not None:
+            return name
+    return None  # pragma: no cover
 
 
 def _public_trusted(trusted: Any) -> Any:
@@ -121,7 +134,7 @@ def _public_trusted(trusted: Any) -> Any:
     if not isinstance(trusted, (list, tuple)):
         return trusted
     return [
-        _public_name(entry)
+        (_public_name(entry) or entry)
         if isinstance(entry, type) and entry.__module__.partition(".")[0] == "pandas"
         else entry
         for entry in trusted
@@ -129,8 +142,13 @@ def _public_trusted(trusted: Any) -> Any:
 
 
 def _pandas_state(
-    obj: Any, loader: str, content: dict[str, Any], save_context: SaveContext
+    obj: Any,
+    loader: str,
+    content: dict[str, Any],
+    save_context: SaveContext,
+    name: str | None = None,
 ) -> dict[str, Any]:
+    # ``name`` is the public name to write, if it is not the one of the class.
     cls = type(obj)
     # The nodes below rebuild objects with the pandas constructors, so an
     # instance of a subclass defined by another library would silently be
@@ -142,7 +160,16 @@ def _pandas_state(
             " as its pandas base class."
         )
 
-    module, _, class_name = _public_name(cls).rpartition(".")
+    # Only write a file the loader accepts: a class that is not among the
+    # ones the node builds, e.g. a private one, is refused now rather than
+    # when the file is loaded.
+    node = NODE_TYPE_MAPPING[(loader, PROTOCOL)]
+    name = name or _public_name(cls)
+    module, _, class_name = (name or "").rpartition(".")
+    if module != node._module or class_name not in node._classes:
+        raise UnsupportedTypeException(
+            f"Objects of type {get_module(cls)}.{cls.__name__} are not supported yet."
+        )
     return {
         "__class__": class_name,
         "__module__": module,
@@ -325,14 +352,24 @@ def interval_array_get_state(obj: Any, save_context: SaveContext) -> dict[str, A
 
 
 def extension_array_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
-    # Any other extension array, e.g. a string array of either storage: stored
-    # as its scalars, with ``None`` for missing values, plus its dtype.
+    # Any other extension array, of which only the string arrays are
+    # supported: stored as their scalars, with ``None`` for missing values,
+    # plus their dtype. They are named by their storage, since some pandas
+    # versions have private string array classes.
     import pandas as pd
 
     if isinstance(obj.dtype, pd.ArrowDtype):
         raise UnsupportedTypeException(_ARROW_UNSUPPORTED)
+    name = None
+    if isinstance(obj.dtype, pd.StringDtype):
+        storage = obj.dtype.storage
+        name = "pandas.arrays." + (
+            "StringArray" if storage == "python" else "ArrowStringArray"
+        )
     content = {"values": obj.to_numpy(dtype=object, na_value=None), "dtype": obj.dtype}
-    return _pandas_state(obj, "PandasExtensionArrayNode", content, save_context)
+    return _pandas_state(
+        obj, "PandasExtensionArrayNode", content, save_context, name=name
+    )
 
 
 def sparse_array_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
@@ -434,15 +471,14 @@ class _PandasNode(Node):
 
     The audit trusts the class a file declares, so the declared class has to
     be one the loader builds: ``_module`` and ``_classes`` of each subclass
-    name them, the declaration is checked while the file is read, and the
-    built object is checked to be of the declared class. ``_module`` is None
-    for classes whose public module differs between pandas versions, any
-    module of pandas is accepted then, and the loaders whose ``_classes`` is
-    None explain why they cannot check the class by name.
+    name them by their public names, see :func:`_public_name`, the declaration
+    is checked while the file is read, and the built object is checked to be
+    of the declared class, see ``_built_name``. The dump functions only write
+    these names, see :func:`_pandas_state`.
     """
 
-    _module: str | None = "pandas"
-    _classes: tuple[str, ...] | None = ()
+    _module: str = "pandas"
+    _classes: tuple[str, ...] = ()
 
     def __init__(
         self,
@@ -453,12 +489,9 @@ class _PandasNode(Node):
         super().__init__(state, load_context, trusted)
         trusted = _public_trusted(trusted)
         self.trusted = self._get_trusted(trusted, [])
-        if self._module is None:
-            declared_ok = self.module_name.partition(".")[0] == "pandas"
-        else:
-            declared_ok = self.module_name == self._module
-        if self._classes is not None:
-            declared_ok = declared_ok and self.class_name in self._classes
+        declared_ok = (
+            self.module_name == self._module and self.class_name in self._classes
+        )
         if not declared_ok:
             raise ValueError(
                 f"{self.module_name}.{self.class_name} is not a class"
@@ -491,19 +524,21 @@ class _PandasNode(Node):
     def _build(self):
         raise NotImplementedError  # pragma: no cover
 
+    def _built_name(self, obj: Any) -> str | None:
+        # The public name of the built object, which has to be the declared
+        # one. Loaders whose class follows the environment override this.
+        return _public_name(type(obj))
+
     def _construct(self):
         obj = self._build()
-        if self._classes is not None:
-            built = _public_name(type(obj))
-            module, _, class_name = built.rpartition(".")
-            if class_name != self.class_name or (
-                self._module is not None and module != self.module_name
-            ):
-                raise ValueError(
-                    f"The file declares {self.module_name}.{self.class_name}, but"
-                    f" its data builds {built}. This is probably due to a corrupted"
-                    " or a malicious file."
-                )
+        declared = f"{self.module_name}.{self.class_name}"
+        built = self._built_name(obj)
+        if built != declared:
+            raise ValueError(
+                f"The file declares {declared}, but its data builds"
+                f" {built or get_module(type(obj)) + '.' + type(obj).__name__}."
+                " This is probably due to a corrupted or a malicious file."
+            )
         return obj
 
 
@@ -684,8 +719,8 @@ class PandasTimedeltaNode(_PandasNode):
 
 
 class PandasNANode(_PandasNode):
-    # the public module of NAType differs between pandas versions
-    _module = None
+    # named by pandas.api.typing on every version, see _public_name
+    _module = "pandas.api.typing"
     _classes = ("NAType",)
 
     def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
@@ -705,8 +740,10 @@ class PandasMaskedArrayNode(_PandasNode):
         return {"values": (NdArrayNode,), "mask": (NdArrayNode,)}
 
     def _build(self):
+        import pandas as pd
+
         content = self._construct_content()
-        cls = gettype(self.module_name, self.class_name)
+        cls = getattr(pd.arrays, self.class_name)
         return cls(content["values"], content["mask"])
 
 
@@ -754,13 +791,15 @@ class PandasIntervalArrayNode(_PandasNode):
         )
 
 
+_STRING_ARRAYS = ("StringArray", "ArrowStringArray")
+
+
 class PandasExtensionArrayNode(_PandasNode):
-    # Not checked by name: the array is built by ``pd.array`` from its dtype,
-    # whose node is audited itself, the class of a string array follows the
-    # string storage of the environment, and pandas has private array
-    # classes, e.g. the ones behind the ``str`` dtype of pandas 3.
-    _module = None
-    _classes = None
+    # The string arrays, and the sparse array whose values are its dense
+    # numpy array. The array is built by ``pd.array`` from its dtype, whose
+    # node is audited itself.
+    _module = "pandas.arrays"
+    _classes = (*_STRING_ARRAYS, "SparseArray")
 
     def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
         return {"values": (NdArrayNode,), "dtype": _DTYPE_NODES}
@@ -771,13 +810,42 @@ class PandasExtensionArrayNode(_PandasNode):
         content = self._construct_content()
         return pd.array(content["values"], dtype=content["dtype"])
 
+    def _built_name(self, obj: Any) -> str | None:
+        # The class of a string array follows the string storage of the
+        # environment, and some pandas versions have private subclasses of
+        # the public ones, e.g. for the strings with ``NaN`` as missing value.
+        # Versions without the string dtype of the file keep the strings in an
+        # object array, see PandasExtensionDtypeNode.
+        built = _nearest_public_name(type(obj))
+        string_arrays = ["pandas.arrays." + name for name in _STRING_ARRAYS]
+        if self.class_name in _STRING_ARRAYS and (
+            built in string_arrays
+            or (
+                built == "pandas.arrays.NumpyExtensionArray"
+                and obj.to_numpy().dtype == object
+            )
+        ):
+            return f"{self.module_name}.{self.class_name}"
+        return built
+
 
 class PandasExtensionDtypeNode(_PandasNode):
-    # Not checked by name: the declared class is resolved and checked when
-    # the dtype is built, and pandas has private dtype classes, e.g. the one
-    # of a NumpyExtensionArray.
-    _module = None
-    _classes = None
+    # The dtypes that are rebuilt from their string form.
+    _classes = (
+        "Int8Dtype",
+        "Int16Dtype",
+        "Int32Dtype",
+        "Int64Dtype",
+        "UInt8Dtype",
+        "UInt16Dtype",
+        "UInt32Dtype",
+        "UInt64Dtype",
+        "Float32Dtype",
+        "Float64Dtype",
+        "BooleanDtype",
+        "StringDtype",
+        "PeriodDtype",
+    )
 
     def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
         return {"name": (JsonNode,)}
@@ -790,27 +858,11 @@ class PandasExtensionDtypeNode(_PandasNode):
         # ``pandas.api.types.pandas_dtype`` would look the name up in pandas'
         # registry of extension dtypes instead, where any imported library can
         # register one, and run that library's code for a name from the file.
-        # The parsers of the remaining pandas dtypes, the masked numeric and
-        # boolean ones, StringDtype and PeriodDtype, compare the name with
-        # their own or hand it to the offset parser. ArrowDtype hands it to
-        # pyarrow.
-        cls = gettype(self.module_name, self.class_name)
-        if not issubclass(cls, pd.api.extensions.ExtensionDtype):
-            raise ValueError(
-                f"{self.module_name}.{self.class_name} is not a pandas extension"
-                " dtype. This is probably due to a corrupted or a malicious file."
-            )
-        if cls in _dtypes_stored_as_parts():
-            # Their parsers consult the registry (the subtype of an interval
-            # or sparse dtype) or the file system (the time zone of a
-            # datetime dtype), so they have loaders of their own.
-            raise ValueError(
-                f"{self.class_name} is not stored by its name. This is probably"
-                " due to a corrupted or a malicious file."
-            )
-        if cls is pd.ArrowDtype:
-            # its names would be parsed by pyarrow, which has not been reviewed
-            raise ValueError(_ARROW_UNSUPPORTED)
+        # The parsers of the dtypes above compare the name with their own or
+        # hand it to the offset parser. The dtypes whose parsers consult the
+        # registry (the subtype of an interval or sparse dtype) or the file
+        # system (the time zone of a datetime dtype) have loaders of their own.
+        cls = getattr(pd, self.class_name)
         try:
             return cls.construct_from_string(name)
         except TypeError:
@@ -820,6 +872,12 @@ class PandasExtensionDtypeNode(_PandasNode):
                 # which is what the values are stored as.
                 return np.dtype(object)
             raise
+
+    def _built_name(self, obj: Any) -> str | None:
+        if isinstance(obj, np.dtype) and self.class_name == "StringDtype":
+            # the fallback for "str" above
+            return f"{self.module_name}.{self.class_name}"
+        return super()._built_name(obj)
 
 
 class PandasCategoricalDtypeNode(_PandasNode):
@@ -890,12 +948,6 @@ class PandasIntervalDtypeNode(_PandasNode):
         elif subtype is not None and not isinstance(subtype, pd.DatetimeTZDtype):
             raise ValueError(message)
         return pd.IntervalDtype(subtype, closed=content["closed"])
-
-
-def _dtypes_stored_as_parts():
-    import pandas as pd
-
-    return (pd.CategoricalDtype, pd.SparseDtype, pd.DatetimeTZDtype, pd.IntervalDtype)
 
 
 # The node types the values, the index and the dtype of a pandas object may be
