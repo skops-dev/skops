@@ -1,8 +1,12 @@
+from __future__ import annotations
+
 import warnings
 
 import numpy as np
 import scipy
+import sklearn
 from sklearn.utils import all_estimators
+from sklearn.utils.fixes import parse_version
 
 from skops.utils._fixes import get_scipy_ufunc_wrapper_type
 
@@ -16,10 +20,73 @@ CONTAINER_TYPES = [list, set, map, tuple]
 
 CONTAINER_TYPE_NAMES = ["builtins." + t.__name__ for t in CONTAINER_TYPES]
 
+# libsvm-backed estimators are deliberately *not* trusted by default, even
+# though they are public scikit-learn estimators. skops can only check that a
+# loaded object is of a trusted type, not that its content is safe. These
+# estimators hand their saved arrays (``support_vectors_``, ``_n_support``,
+# ``_dual_coef_``, ``_intercept_``) straight to the libsvm C code, which
+# indexes into them without bounds checks. A crafted file can keep each array's
+# dtype and shape valid but make them inconsistent with one another, so skops
+# loads the object successfully and the first ``.predict()`` reads or writes
+# out of bounds, crashing the process (and, in one case, overflowing the heap).
+# The names are derived from the classes so they stay in sync with what the
+# audit sees via ``all_estimators()``. See
+# https://github.com/scikit-learn/scikit-learn/pull/34558 and
+# ``UNTRUSTED_TYPE_REASONS`` in ``exceptions.py``.
+#
+# This is an "until" gate. skops reconstructs estimators through
+# ``__setstate__`` (see ``_set_attrs`` in ``_general.py``), so once
+# scikit-learn validates these arrays at load time -- e.g. via a
+# ``__sklearn_validate_model__`` called from ``__setstate__`` -- a loaded
+# object is safe and the estimators can be trusted again. No released
+# scikit-learn validates the libsvm models yet (scikit-learn#34558 currently
+# covers only the tree types), so ``_SKLEARN_LIBSVM_VALIDATED_VERSION`` is
+# ``None``, meaning "no fixed version yet", and the estimators are untrusted on
+# every version. When a fixed scikit-learn ships, set it to that version string
+# (e.g. ``"1.11"``) to trust the estimators again from that version on.
+_SKLEARN_LIBSVM_VALIDATED_VERSION: str | None = None
+
+
+def _sklearn_validates_libsvm_load(
+    sklearn_version: str, validated_version: str | None
+) -> bool:
+    """Whether the installed scikit-learn validates libsvm estimators' arrays
+    at load time, which would make them safe for skops to trust by default.
+
+    ``validated_version`` is the first scikit-learn version that does so, or
+    ``None`` when no such version exists yet -- the arrays are then never
+    considered validated, so the estimators stay untrusted on every version.
+    """
+    if validated_version is None:
+        return False
+    return parse_version(sklearn_version) >= parse_version(validated_version)
+
+
+_SKLEARN_UNTRUSTED_TYPES: list[type] = []
+
+if not _sklearn_validates_libsvm_load(
+    sklearn.__version__, _SKLEARN_LIBSVM_VALIDATED_VERSION
+):
+    try:
+        from sklearn.svm import SVC, SVR, NuSVC, NuSVR, OneClassSVM
+
+        _SKLEARN_UNTRUSTED_TYPES.extend([SVC, SVR, NuSVC, NuSVR, OneClassSVM])
+    except ImportError:  # pragma: no cover
+        # These are fundamental public estimators present in every supported
+        # scikit-learn (they are among what ``all_estimators()`` returns just
+        # below), so the import cannot actually fail; the guard only mirrors the
+        # defensive style of the internal-type imports above.
+        pass
+
+SKLEARN_UNTRUSTED_ESTIMATOR_TYPE_NAMES = [
+    get_type_name(t) for t in _SKLEARN_UNTRUSTED_TYPES
+]
+
 SKLEARN_ESTIMATOR_TYPE_NAMES = [
-    get_type_name(estimator_class)
+    name
     for _, estimator_class in all_estimators()
-    if get_type_name(estimator_class).startswith("sklearn.")
+    if (name := get_type_name(estimator_class)).startswith("sklearn.")
+    and name not in SKLEARN_UNTRUSTED_ESTIMATOR_TYPE_NAMES
 ]
 
 # Internal sklearn types used by GradientBoosting and HistGradientBoosting models.

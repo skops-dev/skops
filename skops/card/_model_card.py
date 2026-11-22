@@ -1260,11 +1260,11 @@ class Card:
         path: Path
             Filepath to save your card.
 
-        plot_path: str
-            Filepath to save the plots. Use this when saving the model card
-            before creating the repository. Without this path the README will
-            have an absolute path to the plot that won't exist in the
-            repository.
+        copy_files: bool
+            Whether to copy the plots next to the saved card. Use this when
+            saving the model card before creating the repository. Without it
+            the README will have an absolute path to the plot that won't exist
+            in the repository.
         """
         with open(path, "w", encoding="utf-8") as f:
             if not isinstance(path, Path):

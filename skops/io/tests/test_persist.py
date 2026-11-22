@@ -52,6 +52,7 @@ from sklearn.preprocessing import (
     PolynomialFeatures,
     StandardScaler,
 )
+from sklearn.svm import SVC, SVR, NuSVC, NuSVR, OneClassSVM
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.utils import Bunch, all_estimators, check_random_state
 from sklearn.utils._testing import SkipTest, set_random_state
@@ -69,12 +70,15 @@ from skops.io._general import dict_get_state, list_get_state, set_get_state
 from skops.io._protocol import PROTOCOL
 from skops.io._sklearn import UNSUPPORTED_TYPES, loss_get_state
 from skops.io._trusted_types import (
+    _SKLEARN_LIBSVM_VALIDATED_VERSION,
     CONTAINER_TYPE_NAMES,
     NUMPY_DTYPE_TYPE_NAMES,
     NUMPY_UFUNC_TYPE_NAMES,
     PRIMITIVE_TYPE_NAMES,
     SCIPY_UFUNC_TYPE_NAMES,
     SKLEARN_ESTIMATOR_TYPE_NAMES,
+    SKLEARN_UNTRUSTED_ESTIMATOR_TYPE_NAMES,
+    _sklearn_validates_libsvm_load,
 )
 from skops.io._utils import (
     LoadContext,
@@ -84,7 +88,11 @@ from skops.io._utils import (
     get_type_name,
     gettype,
 )
-from skops.io.exceptions import UnsupportedTypeException, UntrustedTypesFoundException
+from skops.io.exceptions import (
+    UNTRUSTED_TYPE_REASONS,
+    UnsupportedTypeException,
+    UntrustedTypesFoundException,
+)
 from skops.io.tests._utils import (
     assert_method_outputs_equal,
     assert_params_equal,
@@ -657,6 +665,85 @@ def test_untrusted_tree_types_explain_the_risk(estimator, expected_type):
     assert "segfault" in msg or "crash" in msg
 
 
+def test_untrusted_estimator_names_have_reasons():
+    """Every estimator removed from the default-trusted set must ship an
+    explanation, so the error can tell the user why it is not trusted and how
+    to load it anyway."""
+    assert SKLEARN_UNTRUSTED_ESTIMATOR_TYPE_NAMES  # guard against an empty list
+    for name in SKLEARN_UNTRUSTED_ESTIMATOR_TYPE_NAMES:
+        assert name in UNTRUSTED_TYPE_REASONS
+
+
+def test_libsvm_validation_version_gate():
+    """The libsvm estimators are untrusted *until* a scikit-learn version
+    validates their arrays at load time. With no such version yet
+    (``validated_version=None``) they are untrusted on every version; setting a
+    fixed version re-trusts them from that version on."""
+    # No fixed version yet: never treated as validated, so always untrusted.
+    assert _sklearn_validates_libsvm_load("1.9.0", None) is False
+    assert _sklearn_validates_libsvm_load("999.0", None) is False
+    # Once a fixed version is set, re-trust from that version on (inclusive).
+    assert _sklearn_validates_libsvm_load("1.10.0", "1.11") is False
+    assert _sklearn_validates_libsvm_load("1.11.0", "1.11") is True
+    assert _sklearn_validates_libsvm_load("1.12.0", "1.11") is True
+    # The shipped default keeps them untrusted on the installed scikit-learn.
+    assert _SKLEARN_LIBSVM_VALIDATED_VERSION is None
+    assert not _sklearn_validates_libsvm_load(
+        sklearn.__version__, _SKLEARN_LIBSVM_VALIDATED_VERSION
+    )
+
+
+@pytest.mark.parametrize(
+    "estimator",
+    [
+        pytest.param(SVC(random_state=0), id="SVC"),
+        pytest.param(NuSVC(random_state=0), id="NuSVC"),
+        pytest.param(SVR(), id="SVR"),
+        pytest.param(NuSVR(), id="NuSVR"),
+        pytest.param(OneClassSVM(), id="OneClassSVM"),
+    ],
+)
+def test_libsvm_estimators_not_trusted_by_default(estimator):
+    """libsvm-backed SVMs are public estimators but are not trusted by default:
+    they hand their saved arrays to libsvm's C code, which indexes into them
+    without bounds checks, so a crafted file can crash the process at predict
+    time (GHSA-qv59-26gx-cp7w). Unlike the tree types, the unsafe data lives on
+    the estimator itself rather than in a separate internal type, so it is the
+    estimator that is reported as untrusted. It remains loadable by explicitly
+    trusting that type, e.g. ``trusted=["sklearn.svm._classes.SVC"]``."""
+    X, y = make_classification(
+        n_samples=N_SAMPLES, n_features=N_FEATURES, random_state=0
+    )
+    if is_regressor(estimator):
+        _, y = make_regression(
+            n_samples=N_SAMPLES, n_features=N_FEATURES, random_state=0
+        )
+    if isinstance(estimator, OneClassSVM):
+        estimator.fit(X)
+    else:
+        estimator.fit(X, y)
+
+    expected_type = f"sklearn.svm._classes.{type(estimator).__name__}"
+    assert expected_type in SKLEARN_UNTRUSTED_ESTIMATOR_TYPE_NAMES
+    assert expected_type in UNTRUSTED_TYPE_REASONS
+
+    dumped = dumps(estimator)
+    assert get_untrusted_types(data=dumped) == [expected_type]
+
+    # Loading without trusting it is refused with a message that explains why.
+    with pytest.raises(UntrustedTypesFoundException) as exc_info:
+        loads(dumped)
+    msg = str(exc_info.value)
+    assert expected_type in msg
+    assert "predict" in msg
+    assert "segfault" in msg or "crash" in msg
+
+    # Trust exactly (and only) the one type known to be needed here.
+    loaded = loads(dumped, trusted=[expected_type])
+    assert_params_equal(estimator.__dict__, loaded.__dict__)
+    assert_method_outputs_equal(estimator, loaded, X)
+
+
 @pytest.mark.parametrize(
     "estimator", list(_unsupported_estimators()), ids=_get_check_estimator_ids
 )
@@ -813,6 +900,29 @@ def test_numpy_object_dtype_empty_array(shape, use_file, tmp_path):
     assert loaded.shape == shape
     assert loaded.dtype == arr.dtype
     np.testing.assert_array_equal(loaded, arr)
+
+
+@pytest.mark.parametrize("shape", [(2,), (2, 2), (2, 3, 2)])
+@pytest.mark.parametrize(
+    "cell",
+    [[1, 2], (1, 2), np.array([1, 2])],
+    ids=["list", "tuple", "ndarray"],
+)
+def test_numpy_object_dtype_sequence_cells(shape, cell):
+    # Regression test for gh-561: cells of a multi-dimensional object array
+    # which are sequences of equal length used to be expanded into extra axes
+    # of the loaded array, changing both its shape and the type of its cells.
+    arr = np.empty(shape, dtype=object)
+    for index in np.ndindex(shape):
+        arr[index] = cell
+
+    loaded = loads(dumps(arr))
+
+    assert loaded.shape == shape
+    assert loaded.dtype == arr.dtype
+    for index in np.ndindex(shape):
+        assert type(loaded[index]) is type(cell)
+        np.testing.assert_array_equal(loaded[index], cell)
 
 
 def test_metainfo():
