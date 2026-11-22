@@ -24,9 +24,10 @@ pandas is optional and slow to import, so ``skops.io`` does not import it. The
 imported pandas, see :func:`register_if_imported`, and the nodes only import
 pandas when they construct an object.
 
-Not preserved: the ``freq`` of datetime-like indexes and arrays, the ``attrs``
-and ``flags`` of a Series or DataFrame, and the storage, python or pyarrow, of
-a string dtype, which is an environment choice over the same values.
+Not preserved: the ``freq`` of datetime-like indexes and arrays, and the
+``attrs`` and ``flags`` of a Series or DataFrame. A string dtype keeps its
+missing value, ``pandas.NA`` or ``NaN``, and its storage, python or pyarrow,
+when the loading environment has them, see :func:`_string_dtype`.
 
 Not supported: the pyarrow backed arrays and dtypes, those with an
 ``ArrowDtype``, whose names pyarrow parses. The string dtype with pyarrow
@@ -382,8 +383,9 @@ def sparse_array_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any
 
 def extension_dtype_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     # Extension dtypes are rebuilt from their string form, e.g. "Int64" or
-    # "period[M]", except those whose parser consults pandas' registry of
-    # extension dtypes or the file system, which are stored as parts below.
+    # "period[M]", except those whose name does not hold all of their state,
+    # or whose parser consults pandas' registry of extension dtypes or the
+    # file system, which are stored as parts below.
     import pandas as pd
 
     if isinstance(obj, pd.ArrowDtype):
@@ -393,14 +395,61 @@ def extension_dtype_get_state(obj: Any, save_context: SaveContext) -> dict[str, 
         rebuilt = type(obj).construct_from_string(name)
     except TypeError:
         rebuilt = None
-    if type(rebuilt) is not type(obj):
-        # e.g. a dtype whose name another dtype claims
+    if rebuilt != obj:
+        # e.g. a dtype whose name another dtype claims, or whose name leaves
+        # out some of its state
         raise UnsupportedTypeException(
             f"The dtype {obj!r} cannot be rebuilt from its name {name!r}, so it"
             " cannot be saved."
         )
     content = {"name": name}
     return _pandas_state(obj, "PandasExtensionDtypeNode", content, save_context)
+
+
+def string_dtype_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
+    # The name of a string dtype leaves out how it behaves: "string" is the
+    # name of the dtype with pandas.NA as missing value on every version, but
+    # also of the one with NaN on pandas 2.1 and 2.2, whose storage is
+    # "pyarrow_numpy". The storage and the missing value are stored instead.
+    na_value = obj.na_value
+    content = {
+        "storage": "python" if obj.storage == "python" else "pyarrow",
+        "na_value": "NaN" if isinstance(na_value, float) else "NA",
+    }
+    return _pandas_state(obj, "PandasStringDtypeNode", content, save_context)
+
+
+def _string_dtype(storage: str, nan: bool) -> Any:
+    """The string dtype closest to a saved one that this pandas version has.
+
+    The missing value, ``pandas.NA`` or ``NaN``, decides how the strings
+    behave, e.g. whether comparisons return booleans or ``NA``, and is always
+    kept. The storage, python or pyarrow, holds the same values, and is kept
+    when pyarrow is installed.
+
+    pandas 2.3 and later have ``NaN`` strings of both storages, 2.1 and 2.2 only
+    with pyarrow, under the storage name "pyarrow_numpy", and 2.0 not at all.
+    Without such a dtype, strings with ``NaN`` as missing value are object
+    arrays of strings, which is how pandas keeps them without a string dtype.
+    """
+    import pandas as pd
+
+    candidates = [storage, "python"] if storage == "pyarrow" else ["python"]
+    for candidate in candidates:
+        try:
+            if not nan:
+                return pd.StringDtype(candidate)
+            return pd.StringDtype(candidate, na_value=np.nan)
+        except ImportError:
+            # pyarrow is not installed
+            continue
+        except TypeError:
+            # pandas before 2.3, which has no ``na_value``
+            break
+    try:
+        return pd.StringDtype("pyarrow_numpy")
+    except (ImportError, ValueError):
+        return np.dtype(object)
 
 
 def datetime_tz_dtype_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
@@ -843,7 +892,6 @@ class PandasExtensionDtypeNode(_PandasNode):
         "Float32Dtype",
         "Float64Dtype",
         "BooleanDtype",
-        "StringDtype",
         "PeriodDtype",
     )
 
@@ -862,20 +910,29 @@ class PandasExtensionDtypeNode(_PandasNode):
         # hand it to the offset parser. The dtypes whose parsers consult the
         # registry (the subtype of an interval or sparse dtype) or the file
         # system (the time zone of a datetime dtype) have loaders of their own.
-        cls = getattr(pd, self.class_name)
-        try:
-            return cls.construct_from_string(name)
-        except TypeError:
-            if name == "str" and cls is pd.StringDtype:
-                # "str" is the default string dtype of pandas 3. Older versions
-                # do not know it, and keep strings in object arrays instead,
-                # which is what the values are stored as.
-                return np.dtype(object)
-            raise
+        return getattr(pd, self.class_name).construct_from_string(name)
+
+
+class PandasStringDtypeNode(_PandasNode):
+    _classes = ("StringDtype",)
+
+    def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
+        return {"storage": (JsonNode,), "na_value": (JsonNode,)}
+
+    def _build(self):
+        content = self._construct_content()
+        storage, na_value = content["storage"], content["na_value"]
+        if storage not in ("python", "pyarrow") or na_value not in ("NA", "NaN"):
+            raise ValueError(
+                f"Unknown string dtype with storage {storage!r} and missing value"
+                f" {na_value!r}. This is probably due to a corrupted or a malicious"
+                " file."
+            )
+        return _string_dtype(storage, nan=na_value == "NaN")
 
     def _built_name(self, obj: Any) -> str | None:
-        if isinstance(obj, np.dtype) and self.class_name == "StringDtype":
-            # the fallback for "str" above
+        if obj == np.dtype(object):
+            # strings with NaN as missing value where pandas has no such dtype
             return f"{self.module_name}.{self.class_name}"
         return super()._built_name(obj)
 
@@ -964,6 +1021,7 @@ _ARRAY_NODES = (
 _INDEX_NODES = (PandasIndexNode, PandasRangeIndexNode, PandasMultiIndexNode)
 _DTYPE_NODES = (
     PandasExtensionDtypeNode,
+    PandasStringDtypeNode,
     PandasCategoricalDtypeNode,
     PandasSparseDtypeNode,
     PandasDatetimeTZDtypeNode,
@@ -1007,6 +1065,7 @@ def register_if_imported() -> None:
         (pd.arrays.IntervalArray, interval_array_get_state),
         (pd.arrays.SparseArray, sparse_array_get_state),
         (pd.api.extensions.ExtensionDtype, extension_dtype_get_state),
+        (pd.StringDtype, string_dtype_get_state),
         (pd.CategoricalDtype, categorical_dtype_get_state),
         (pd.SparseDtype, sparse_dtype_get_state),
         (pd.DatetimeTZDtype, datetime_tz_dtype_get_state),
@@ -1042,6 +1101,7 @@ NODE_TYPE_MAPPING = {
     ("PandasIntervalArrayNode", PROTOCOL): PandasIntervalArrayNode,
     ("PandasExtensionArrayNode", PROTOCOL): PandasExtensionArrayNode,
     ("PandasExtensionDtypeNode", PROTOCOL): PandasExtensionDtypeNode,
+    ("PandasStringDtypeNode", PROTOCOL): PandasStringDtypeNode,
     ("PandasCategoricalDtypeNode", PROTOCOL): PandasCategoricalDtypeNode,
     ("PandasSparseDtypeNode", PROTOCOL): PandasSparseDtypeNode,
     ("PandasDatetimeTZDtypeNode", PROTOCOL): PandasDatetimeTZDtypeNode,

@@ -332,6 +332,87 @@ def test_arrow_backed_types_are_unsupported():
     _assert_vals_equal(strings, _loads(dumps(strings)))
 
 
+def _string_dtypes():
+    # every string dtype this pandas version has: both storages, if pyarrow is
+    # installed, with pandas.NA and, from pandas 2.1 on, with NaN as missing
+    # value, which pandas 2.1 and 2.2 call the "pyarrow_numpy" storage
+    dtypes = [pd.StringDtype("python")]
+    candidates = [
+        lambda: pd.StringDtype("pyarrow"),
+        lambda: pd.StringDtype("python", na_value=np.nan),
+        lambda: pd.StringDtype("pyarrow", na_value=np.nan),
+    ]
+    has_na_value = True
+    for candidate in candidates:
+        try:
+            dtypes.append(candidate())
+        except ImportError:
+            pass
+        except TypeError:
+            has_na_value = False
+    if not has_na_value:
+        # pandas 2.1 and 2.2; deprecated from 2.3 on, which has na_value
+        try:
+            dtypes.append(pd.StringDtype("pyarrow_numpy"))
+        except (ImportError, ValueError):
+            pass
+    return dtypes
+
+
+@pytest.mark.parametrize("dtype", _string_dtypes(), ids=repr)
+def test_string_dtype_keeps_missing_value_and_storage(dtype):
+    # the name of a string dtype leaves out its missing value: on pandas 2.1
+    # and 2.2, "string" is also the name of the dtype with NaN, which would
+    # then load as the one with pandas.NA, whose comparisons return NA
+    series = pd.Series(["a", None], dtype=dtype)
+    loaded = _loads(dumps(series))
+    assert loaded.dtype == series.dtype
+    assert type(loaded.array) is type(series.array)
+    pd.testing.assert_series_equal(loaded == "b", series == "b")
+
+
+def test_string_dtype_fallbacks(monkeypatch):
+    # without pyarrow the python storage is used, and without a string dtype
+    # with NaN as missing value, object arrays of strings
+    from skops.io._pandas import _string_dtype
+
+    real = pd.StringDtype
+
+    def no_pyarrow(storage=None, *args, **kwargs):
+        if storage is not None and storage.startswith("pyarrow"):
+            raise ImportError("no pyarrow")
+        return real(storage, *args, **kwargs)
+
+    monkeypatch.setattr(pd, "StringDtype", no_pyarrow)
+    assert _string_dtype("pyarrow", nan=False) == real("python")
+    nan_strings = _string_dtype("pyarrow", nan=True)
+    assert nan_strings == np.dtype(object) or nan_strings == real(
+        "python", na_value=np.nan
+    )
+
+    def old_pandas(storage=None, **kwargs):
+        if kwargs or storage != "python":
+            raise ImportError("no pyarrow") if kwargs == {} else TypeError("old")
+        return real(storage)
+
+    monkeypatch.setattr(pd, "StringDtype", old_pandas)
+    assert _string_dtype("python", nan=True) == np.dtype(object)
+
+
+@pytest.mark.parametrize(
+    "storage, na_value", [("pyarrow_numpy", "NaN"), ("python", "nan"), (1, "NA")]
+)
+def test_string_dtype_node_refuses_unknown_parts(storage, na_value):
+    dumped = dumps(pd.StringDtype("python"))
+
+    def edit(schema):
+        schema["content"]["storage"]["content"] = json.dumps(storage)
+        schema["content"]["na_value"]["content"] = json.dumps(na_value)
+
+    with pytest.raises(ValueError, match="Unknown string dtype"):
+        loads(_with_edited_schema(dumped, edit), trusted=["pandas.StringDtype"])
+
+
 @pytest.mark.parametrize(
     "name", ["dateutil//etc/localtime", "tzlocal()", "../../etc/localtime", "/x"]
 )
