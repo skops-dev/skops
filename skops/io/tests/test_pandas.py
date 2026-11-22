@@ -18,6 +18,7 @@ from packaging.version import Version
 
 from skops.io import dump, dumps, get_untrusted_types, load, loads, visualize
 from skops.io._pandas import _RENAMED_CLASSES
+from skops.io._utils import get_type_name
 from skops.io.exceptions import (
     UnsupportedTypeException,
     UntrustedTypesFoundException,
@@ -599,6 +600,48 @@ def test_subclass_from_other_library_is_unsupported():
 
     with pytest.raises(UnsupportedTypeException, match="subclass of a pandas type"):
         dumps(MySeries([1, 2]))
+
+
+class ThirdPartyDtype(pd.api.extensions.ExtensionDtype):
+    """The dtype of an extension array defined outside pandas."""
+
+    name = "third_party"
+    type = object
+
+    @classmethod
+    def construct_array_type(cls):
+        return ThirdPartyArray
+
+
+class ThirdPartyArray(pd.api.extensions.ExtensionArray):
+    """A minimal extension array defined outside pandas, e.g. by pint-pandas."""
+
+    dtype = ThirdPartyDtype()
+
+    def __init__(self, values):
+        self.values = np.asarray(values, dtype=object)
+
+    def __len__(self):
+        return len(self.values)
+
+    def __getitem__(self, item):  # pragma: no cover
+        return self.values[item]
+
+
+def test_extension_types_from_other_libraries_are_saved_generically():
+    # They derive from pandas' extension base classes, but are saved through
+    # their state under their own class, as before pandas was supported, and
+    # not rebuilt as a pandas class.
+    array = ThirdPartyArray(["a", 1])
+    dumped = dumps({"fitted_": array, "dtype_": array.dtype})
+    untrusted = get_untrusted_types(data=dumped)
+    assert {get_type_name(ThirdPartyArray), get_type_name(ThirdPartyDtype)} <= set(
+        untrusted
+    )
+    loaded = loads(dumped, trusted=untrusted)
+    assert type(loaded["fitted_"]) is ThirdPartyArray
+    assert loaded["fitted_"].values.tolist() == ["a", 1]
+    assert type(loaded["dtype_"]) is ThirdPartyDtype
 
 
 def test_visualize(capsys):

@@ -52,6 +52,7 @@ can open any file on disk.
 from __future__ import annotations
 
 import datetime
+import functools
 import pickle
 import re
 import sys
@@ -62,7 +63,7 @@ from typing import Any
 import numpy as np
 
 from ._audit import Node, get_tree
-from ._general import JsonNode, ListNode
+from ._general import JsonNode, ListNode, object_get_state
 from ._numpy import NdArrayNode
 from ._protocol import PROTOCOL
 from ._utils import (
@@ -1053,6 +1054,25 @@ _DTYPE_NODES = (
 _registered = False
 
 
+def _generic_outside_pandas(func):
+    """Save extension arrays and dtypes of other libraries the generic way.
+
+    They derive from pandas' extension base classes, so the functions above
+    are dispatched for them too, but rebuilding them with the pandas
+    constructors would load them as their pandas base class. They are saved
+    as they were before pandas was supported, through their state, under
+    their own class, which the user then trusts or not.
+    """
+
+    @functools.wraps(func)
+    def get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
+        if type(obj).__module__.partition(".")[0] != "pandas":
+            return object_get_state(obj, save_context)
+        return func(obj, save_context)
+
+    return get_state
+
+
 def register_if_imported() -> None:
     """Register the ``get_state`` handlers of pandas types, if pandas is imported.
 
@@ -1102,7 +1122,11 @@ def register_if_imported() -> None:
     # object array which loses the string dtype, so it takes the generic path.
     dispatch_functions.append((pd.arrays.StringArray, extension_array_get_state))
 
+    extensions = pd.api.extensions
+    extension_types = (extensions.ExtensionArray, extensions.ExtensionDtype)
     for cls, func in dispatch_functions:
+        if issubclass(cls, extension_types):
+            func = _generic_outside_pandas(func)
         _get_state.register(cls)(func)
     _registered = True
 
