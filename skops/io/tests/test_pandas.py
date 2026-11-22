@@ -83,6 +83,7 @@ SERIES = [
             pd.Timestamp("2024-01-01 00:00:00.000000001", tz="Europe/Berlin"),
             pd.Timedelta(1, unit="ns"),
             pd.NA,
+            pd.NaT,
         ],
         dtype=object,
     ),
@@ -186,6 +187,7 @@ SCALARS = [
     pd.Timedelta(1, unit="ns"),
     pd.Timedelta(days=1).as_unit("ms"),
     pd.NA,
+    pd.NaT,
 ]
 
 
@@ -214,6 +216,18 @@ def test_scalar_roundtrip(obj):
     assert type(loaded) is type(obj)
     # the repr shows the unit, the nanoseconds and the zone
     assert repr(loaded) == repr(obj)
+
+
+@pytest.mark.parametrize("singleton", [pd.NA, pd.NaT], ids=repr)
+def test_missing_value_singletons_keep_their_identity(singleton):
+    # pandas recognises these by identity: a copy of NaT is not missing to
+    # pd.isna, and acts as the year 1 in arithmetic
+    loaded = _loads(dumps({"fill_value_": singleton, "values_": [singleton]}))
+    assert loaded["fill_value_"] is singleton
+    assert loaded["values_"][0] is singleton
+    assert pd.isna(loaded["fill_value_"])
+    series = _loads(dumps(pd.Series([singleton, 1], dtype=object)))
+    assert series.isna().tolist() == [True, False]
 
 
 def test_pandas_types_are_not_trusted_by_default():

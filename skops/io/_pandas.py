@@ -14,7 +14,7 @@ dtype, so that no type inference happens on load:
   dtype, and extension dtypes as their string representation,
 - a :class:`~pandas.Timestamp` or :class:`~pandas.Timedelta` as the numpy
   scalar of its value, plus the zone of an aware Timestamp, and ``pandas.NA``
-  by its name alone.
+  and ``pandas.NaT`` by their names alone.
 
 Values with a numpy dtype are stored as numpy arrays, everything else as lists
 of scalars.
@@ -323,6 +323,13 @@ def timedelta_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
 def na_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     # ``pandas.NA`` is a singleton, so nothing but its name is stored.
     return _pandas_state(obj, "PandasNANode", {}, save_context)
+
+
+def nat_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
+    # ``pandas.NaT`` is a singleton too, which pandas recognises as missing by
+    # identity: a copy built from its state, as the generic path would, is not
+    # missing to ``pandas.isna`` and acts as the year 1 in arithmetic.
+    return _pandas_state(obj, "PandasNaTNode", {}, save_context)
 
 
 def masked_array_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
@@ -781,6 +788,20 @@ class PandasNANode(_PandasNode):
         return pd.NA
 
 
+class PandasNaTNode(_PandasNode):
+    # named by pandas.api.typing on every version, see _public_name
+    _module = "pandas.api.typing"
+    _classes = ("NaTType",)
+
+    def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
+        return {}
+
+    def _build(self):
+        import pandas as pd
+
+        return pd.NaT
+
+
 class PandasMaskedArrayNode(_PandasNode):
     _module = "pandas.arrays"
     _classes = ("IntegerArray", "FloatingArray", "BooleanArray")
@@ -1057,6 +1078,7 @@ def register_if_imported() -> None:
         (pd.Timestamp, timestamp_get_state),
         (pd.Timedelta, timedelta_get_state),
         (type(pd.NA), na_get_state),
+        (type(pd.NaT), nat_get_state),
         (pd.arrays.IntegerArray, masked_array_get_state),
         (pd.arrays.FloatingArray, masked_array_get_state),
         (pd.arrays.BooleanArray, masked_array_get_state),
@@ -1095,6 +1117,7 @@ NODE_TYPE_MAPPING = {
     ("PandasTimestampNode", PROTOCOL): PandasTimestampNode,
     ("PandasTimedeltaNode", PROTOCOL): PandasTimedeltaNode,
     ("PandasNANode", PROTOCOL): PandasNANode,
+    ("PandasNaTNode", PROTOCOL): PandasNaTNode,
     ("PandasMaskedArrayNode", PROTOCOL): PandasMaskedArrayNode,
     ("PandasCategoricalNode", PROTOCOL): PandasCategoricalNode,
     ("PandasPeriodArrayNode", PROTOCOL): PandasPeriodArrayNode,
