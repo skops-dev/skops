@@ -56,7 +56,8 @@ v0.17
   kept, including the missing value and, with pyarrow installed, the storage of
   a string dtype, and so are the ``freq`` of an index and the ``attrs`` and
   ``flags`` of a Series or DataFrame. The pyarrow backed arrays and dtypes,
-  those with an ``ArrowDtype``, are not supported yet.
+  those with an ``ArrowDtype``, the period, interval and sparse arrays and
+  dtypes, and the plain ``NumpyExtensionArray`` are not supported yet.
   :pr:`552` by `Adrin Jalali`_.
 - Fix a regression since v0.12.0 where saving an object whose ``__reduce__``
   raises failed at dump time. ``__reduce__`` is called on every object to

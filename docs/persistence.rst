@@ -283,9 +283,10 @@ kept when pyarrow is installed. The ``freq`` of an index, and the ``attrs`` and
 ``flags`` of a ``Series`` or ``DataFrame``, are kept too; an index whose
 ``freq`` is an offset with other arguments than numbers and strings, such as
 the holidays of a ``CustomBusinessDay``, cannot be saved. The pyarrow backed
-arrays and dtypes, those with an ``ArrowDtype``, are not supported yet. The
-extension arrays and dtypes of other libraries are saved through their state
-under their own class, as any other object.
+arrays and dtypes, those with an ``ArrowDtype``, are not supported yet, and
+neither are the period, interval and sparse arrays and dtypes, and the plain
+``NumpyExtensionArray``. The extension arrays and dtypes of other libraries
+are saved through their state under their own class, as any other object.
 
 Apart from this core, we plan to support machine learning libraries commonly
 used be the community. So far, we have tested the following libraries:

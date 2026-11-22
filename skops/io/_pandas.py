@@ -32,8 +32,11 @@ missing value, ``pandas.NA`` or ``NaN``, and its storage, python or pyarrow,
 when the loading environment has them, see :func:`_string_dtype`.
 
 Not supported: the pyarrow backed arrays and dtypes, those with an
-``ArrowDtype``, whose names pyarrow parses. The string dtype with pyarrow
-storage is a string dtype, and supported as one.
+``ArrowDtype``, whose names pyarrow parses; the string dtype with pyarrow
+storage is a string dtype, and supported as one. Not supported yet, to keep
+the first version small: the period, interval and sparse arrays and dtypes,
+and the plain ``NumpyExtensionArray`` around a numpy array. They are refused
+when saving, and can be added as their own nodes when needed.
 
 The pandas types are not trusted by default, since this support is new; a user
 passes :data:`PANDAS_TYPES`, the names of every pandas class the nodes build,
@@ -147,6 +150,24 @@ def _public_trusted(trusted: Any) -> Any:
     ]
 
 
+def _supported_name(obj: Any, loader: str, name: str | None = None) -> str:
+    """The public name to write for ``obj``, if ``loader`` builds its class.
+
+    Only write a file the loader accepts: a class that is not among the ones
+    the node builds, e.g. a private one, or one not supported yet, is refused
+    now rather than when the file is loaded.
+    """
+    cls = type(obj)
+    node = NODE_TYPE_MAPPING[(loader, PROTOCOL)]
+    name = name or _public_name(cls)
+    module, _, class_name = (name or "").rpartition(".")
+    if module != node._module or class_name not in node._classes:
+        raise UnsupportedTypeException(
+            f"Objects of type {get_module(cls)}.{cls.__name__} are not supported yet."
+        )
+    return f"{module}.{class_name}"
+
+
 def _pandas_state(
     obj: Any,
     loader: str,
@@ -166,16 +187,7 @@ def _pandas_state(
             " as its pandas base class."
         )
 
-    # Only write a file the loader accepts: a class that is not among the
-    # ones the node builds, e.g. a private one, is refused now rather than
-    # when the file is loaded.
-    node = NODE_TYPE_MAPPING[(loader, PROTOCOL)]
-    name = name or _public_name(cls)
-    module, _, class_name = (name or "").rpartition(".")
-    if module != node._module or class_name not in node._classes:
-        raise UnsupportedTypeException(
-            f"Objects of type {get_module(cls)}.{cls.__name__} are not supported yet."
-        )
+    module, _, class_name = _supported_name(obj, loader, name).rpartition(".")
     return {
         "__class__": class_name,
         "__module__": module,
@@ -457,7 +469,7 @@ def _timezone(name: str) -> str | datetime.tzinfo:
 
 
 def numpy_backed_array_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
-    # NumpyExtensionArray, DatetimeArray and TimedeltaArray wrap a numpy array.
+    # DatetimeArray and TimedeltaArray wrap a numpy array.
     # Time zone aware datetimes are stored as naive UTC values plus the zone,
     # since ``to_numpy`` would otherwise give an array of Timestamp objects.
     tz = getattr(obj, "tz", None)
@@ -515,16 +527,6 @@ def categorical_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]
     return _pandas_state(obj, "PandasCategoricalNode", content, save_context)
 
 
-def period_array_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
-    content = {"ordinals": obj.asi8, "dtype": obj.dtype}
-    return _pandas_state(obj, "PandasPeriodArrayNode", content, save_context)
-
-
-def interval_array_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
-    content = {"left": obj.left, "right": obj.right, "closed": obj.closed}
-    return _pandas_state(obj, "PandasIntervalArrayNode", content, save_context)
-
-
 def extension_array_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     # Any other extension array, of which only the string arrays are
     # supported: stored as their scalars, with ``None`` for missing values,
@@ -547,24 +549,16 @@ def extension_array_get_state(obj: Any, save_context: SaveContext) -> dict[str, 
     )
 
 
-def sparse_array_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
-    # Stored dense, as the numpy array of its subtype, rather than as scalars:
-    # the array keeps its subtype, e.g. a complex one which scalars would not,
-    # and the fill value is part of the dtype, which rebuilds the sparse array.
-    content = {"values": obj.to_numpy(), "dtype": obj.dtype}
-    return _pandas_state(obj, "PandasExtensionArrayNode", content, save_context)
-
-
 def extension_dtype_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     # Extension dtypes are rebuilt from their string form, e.g. "Int64", except
     # those whose name does not hold all of their state or changed between
-    # versions,
-    # or whose parser consults pandas' registry of extension dtypes or the
-    # file system, which are stored as parts below.
+    # versions, or whose parser consults pandas' registry of extension dtypes
+    # or the file system, which are stored as parts below.
     import pandas as pd
 
     if isinstance(obj, pd.ArrowDtype):
         raise UnsupportedTypeException(_ARROW_UNSUPPORTED)
+    _supported_name(obj, "PandasExtensionDtypeNode")
     name = str(obj)
     try:
         rebuilt = type(obj).construct_from_string(name)
@@ -627,72 +621,15 @@ def _string_dtype(storage: str, nan: bool) -> Any:
         return np.dtype(object)
 
 
-def period_dtype_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
-    # By its offset rather than its name, e.g. "period[A-DEC]" or "period[H]",
-    # since the aliases changed between versions, see ``_offset_parts``.
-    freq = _offset_parts(obj.freq)
-    if freq is None:  # pragma: no cover
-        # the offsets of periods all have JSON arguments
-        raise UnsupportedTypeException(f"The dtype {obj!r} cannot be saved.")
-    return _pandas_state(obj, "PandasPeriodDtypeNode", {"freq": freq}, save_context)
-
-
 def datetime_tz_dtype_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     content = {"unit": obj.unit, "tz": _timezone_name(obj.tz)}
     return _pandas_state(obj, "PandasDatetimeTZDtypeNode", content, save_context)
-
-
-def interval_dtype_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
-    # The subtype is a numpy dtype, stored by its name like the subtype of a
-    # sparse dtype, a tz-aware datetime dtype, or None.
-    subtype = obj.subtype
-    if isinstance(subtype, np.dtype):
-        subtype = str(subtype)
-    content = {"subtype": subtype, "closed": obj.closed}
-    return _pandas_state(obj, "PandasIntervalDtypeNode", content, save_context)
 
 
 def categorical_dtype_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
     # The string form of a categorical dtype does not include its categories.
     content = {"categories": obj.categories, "ordered": obj.ordered}
     return _pandas_state(obj, "PandasCategoricalDtypeNode", content, save_context)
-
-
-def _sparse_fill_value(dtype: Any) -> Any:
-    """The fill value of a sparse dtype in a form that can be stored.
-
-    JSON scalars and numpy scalars are stored as they are. Any other scalar is
-    converted to the numpy scalar of the subtype, e.g. a complex number, a
-    Timestamp or a Timedelta, which JSON cannot hold.
-    """
-    import pandas as pd
-
-    fill_value = dtype.fill_value
-    if fill_value is None or isinstance(
-        fill_value, (str, bool, int, float, np.generic)
-    ):
-        return fill_value
-    kind = dtype.subtype.kind
-    if kind in "biufcMm" and not pd.isna(fill_value):
-        try:
-            if kind == "M":
-                # keeps the nanoseconds, which np.datetime64(datetime) drops
-                return pd.Timestamp(fill_value).to_datetime64()
-            if kind == "m":
-                return pd.Timedelta(fill_value).to_timedelta64()
-            return dtype.subtype.type(fill_value)
-        except (TypeError, ValueError):  # pragma: no cover
-            pass
-    raise UnsupportedTypeException(
-        f"The fill value {fill_value!r} of the sparse dtype {dtype} cannot be saved."
-    )
-
-
-def sparse_dtype_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
-    # The string form of a sparse dtype can only be parsed back when the fill
-    # value is the default one for its subtype, so the parts are stored.
-    content = {"subtype": str(obj.subtype), "fill_value": _sparse_fill_value(obj)}
-    return _pandas_state(obj, "PandasSparseDtypeNode", content, save_context)
 
 
 class _PandasNode(Node):
@@ -782,9 +719,7 @@ class PandasIndexNode(_PandasNode):
         "Index",
         "DatetimeIndex",
         "TimedeltaIndex",
-        "PeriodIndex",
         "CategoricalIndex",
-        "IntervalIndex",
     )
 
     def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
@@ -909,7 +844,7 @@ class PandasDataFrameNode(_PandasNode):
 
 class PandasNumpyBackedArrayNode(_PandasNode):
     _module = "pandas.arrays"
-    _classes = ("NumpyExtensionArray", "DatetimeArray", "TimedeltaArray")
+    _classes = ("DatetimeArray", "TimedeltaArray")
 
     def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
         return {"values": (NdArrayNode,), "tz": (JsonNode,)}
@@ -919,18 +854,6 @@ class PandasNumpyBackedArrayNode(_PandasNode):
 
         content = self._construct_content()
         values, tz = content["values"], content["tz"]
-        if self.class_name == "NumpyExtensionArray":
-            # The plain wrapper of a numpy array of any dtype, datetime64 and
-            # timedelta64 included, which pandas 2.0 has under its old name.
-            if tz is not None:
-                raise ValueError(
-                    "A NumpyExtensionArray has no time zone. This is probably due"
-                    " to a corrupted or a malicious file."
-                )
-            cls = getattr(pd.arrays, "NumpyExtensionArray", None)
-            if cls is None:
-                cls = pd.arrays.PandasArray
-            return cls(values)
         # A DatetimeArray or TimedeltaArray, which ``pd.array`` infers from the
         # dtype of the values on every pandas version.
         kind = "M" if self.class_name == "DatetimeArray" else "m"
@@ -1035,45 +958,14 @@ class PandasCategoricalNode(_PandasNode):
         return pd.Categorical.from_codes(content["codes"], dtype=content["dtype"])
 
 
-class PandasPeriodArrayNode(_PandasNode):
-    _module = "pandas.arrays"
-    _classes = ("PeriodArray",)
-
-    def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
-        return {"ordinals": (NdArrayNode,), "dtype": (PandasPeriodDtypeNode,)}
-
-    def _build(self):
-        import pandas as pd
-
-        content = self._construct_content()
-        return pd.arrays.PeriodArray(content["ordinals"], dtype=content["dtype"])
-
-
-class PandasIntervalArrayNode(_PandasNode):
-    _module = "pandas.arrays"
-    _classes = ("IntervalArray",)
-
-    def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
-        return {"left": _INDEX_NODES, "right": _INDEX_NODES, "closed": (JsonNode,)}
-
-    def _build(self):
-        import pandas as pd
-
-        content = self._construct_content()
-        return pd.arrays.IntervalArray.from_arrays(
-            content["left"], content["right"], closed=content["closed"]
-        )
-
-
 _STRING_ARRAYS = ("StringArray", "ArrowStringArray")
 
 
 class PandasExtensionArrayNode(_PandasNode):
-    # The string arrays, and the sparse array whose values are its dense
-    # numpy array. The array is built by ``pd.array`` from its dtype, whose
-    # node is audited itself.
+    # The string arrays, built by ``pd.array`` from their dtype, whose node is
+    # audited itself.
     _module = "pandas.arrays"
-    _classes = (*_STRING_ARRAYS, "SparseArray")
+    _classes = _STRING_ARRAYS
 
     def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
         return {"values": (NdArrayNode, JsonNode), "dtype": _DTYPE_NODES}
@@ -1130,37 +1022,11 @@ class PandasExtensionDtypeNode(_PandasNode):
         # ``pandas.api.types.pandas_dtype`` would look the name up in pandas'
         # registry of extension dtypes instead, where any imported library can
         # register one, and run that library's code for a name from the file.
-        # The parsers of the dtypes above compare the name with their own or
-        # hand it to the offset parser. The dtypes whose parsers consult the
-        # registry (the subtype of an interval or sparse dtype) or the file
-        # system (the time zone of a datetime dtype) have loaders of their own.
+        # The parsers of the dtypes above compare the name with their own. The
+        # datetime dtype, whose parser consults the file system for the time
+        # zone, has a loader of its own; the interval and sparse dtypes, whose
+        # parsers consult the registry for their subtype, are not supported.
         return getattr(pd, self.class_name).construct_from_string(name)
-
-
-class PandasPeriodDtypeNode(_PandasNode):
-    _classes = ("PeriodDtype",)
-
-    def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
-        return {"freq": (JsonNode,)}
-
-    def _build(self):
-        import pandas as pd
-
-        freq = self._construct_content()["freq"]
-        if not isinstance(freq, str):
-            raise ValueError(
-                "The freq of a period dtype must be a JSON string. This is probably"
-                " due to a corrupted or a malicious file."
-            )
-        offset = _offset(json.loads(freq))
-        try:
-            return pd.PeriodDtype(offset)
-        except (AttributeError, KeyError, TypeError) as err:
-            # how pandas refuses the offsets that are no frequencies of periods
-            raise ValueError(
-                f"{offset!r} is not a frequency of periods. This is probably due to"
-                " a corrupted or a malicious file."
-            ) from err
 
 
 class PandasStringDtypeNode(_PandasNode):
@@ -1200,21 +1066,6 @@ class PandasCategoricalDtypeNode(_PandasNode):
         return pd.CategoricalDtype(content["categories"], ordered=content["ordered"])
 
 
-class PandasSparseDtypeNode(_PandasNode):
-    _classes = ("SparseDtype",)
-
-    def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
-        return {"subtype": (JsonNode,), "fill_value": (JsonNode, NdArrayNode)}
-
-    def _build(self):
-        import pandas as pd
-
-        content = self._construct_content()
-        # numpy parses the subtype, so that the name from the file is not
-        # looked up in pandas' registry of extension dtypes
-        return pd.SparseDtype(np.dtype(content["subtype"]), content["fill_value"])
-
-
 class PandasDatetimeTZDtypeNode(_PandasNode):
     _classes = ("DatetimeTZDtype",)
 
@@ -1228,35 +1079,6 @@ class PandasDatetimeTZDtypeNode(_PandasNode):
         return pd.DatetimeTZDtype(unit=content["unit"], tz=_timezone(content["tz"]))
 
 
-class PandasIntervalDtypeNode(_PandasNode):
-    _classes = ("IntervalDtype",)
-
-    def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
-        return {"subtype": (JsonNode, PandasDatetimeTZDtypeNode), "closed": (JsonNode,)}
-
-    def _build(self):
-        import pandas as pd
-
-        content = self._construct_content()
-        subtype = content["subtype"]
-        # A name is parsed by numpy, so that it is not looked up in pandas'
-        # registry of extension dtypes; otherwise the subtype is a tz-aware
-        # datetime dtype, built by its own node, or None.
-        message = (
-            "The subtype of an interval dtype must be a numpy dtype, a datetime"
-            " dtype or None. This is probably due to a corrupted or a malicious"
-            " file."
-        )
-        if isinstance(subtype, str):
-            try:
-                subtype = np.dtype(subtype)
-            except TypeError as err:
-                raise ValueError(message) from err
-        elif subtype is not None and not isinstance(subtype, pd.DatetimeTZDtype):
-            raise ValueError(message)
-        return pd.IntervalDtype(subtype, closed=content["closed"])
-
-
 # The node types the values, the index and the dtype of a pandas object may be
 # stored as.
 _ARRAY_NODES = (
@@ -1266,19 +1088,14 @@ _ARRAY_NODES = (
     PandasNumpyBackedArrayNode,
     PandasMaskedArrayNode,
     PandasCategoricalNode,
-    PandasPeriodArrayNode,
-    PandasIntervalArrayNode,
     PandasExtensionArrayNode,
 )
 _INDEX_NODES = (PandasIndexNode, PandasRangeIndexNode, PandasMultiIndexNode)
 _DTYPE_NODES = (
     PandasExtensionDtypeNode,
     PandasStringDtypeNode,
-    PandasPeriodDtypeNode,
     PandasCategoricalDtypeNode,
-    PandasSparseDtypeNode,
     PandasDatetimeTZDtypeNode,
-    PandasIntervalDtypeNode,
 )
 
 
@@ -1335,22 +1152,11 @@ def register_if_imported() -> None:
         (pd.arrays.FloatingArray, masked_array_get_state),
         (pd.arrays.BooleanArray, masked_array_get_state),
         (pd.Categorical, categorical_get_state),
-        (pd.arrays.PeriodArray, period_array_get_state),
-        (pd.arrays.IntervalArray, interval_array_get_state),
-        (pd.arrays.SparseArray, sparse_array_get_state),
         (pd.api.extensions.ExtensionDtype, extension_dtype_get_state),
         (pd.StringDtype, string_dtype_get_state),
-        (pd.PeriodDtype, period_dtype_get_state),
         (pd.CategoricalDtype, categorical_dtype_get_state),
-        (pd.SparseDtype, sparse_dtype_get_state),
         (pd.DatetimeTZDtype, datetime_tz_dtype_get_state),
-        (pd.IntervalDtype, interval_dtype_get_state),
     ]
-    # pandas.arrays.PandasArray was renamed to NumpyExtensionArray in pandas 2.1
-    numpy_backed = getattr(pd.arrays, "NumpyExtensionArray", None)
-    if numpy_backed is None:
-        numpy_backed = pd.arrays.PandasArray
-    dispatch_functions.append((numpy_backed, numpy_backed_array_get_state))
     # StringArray subclasses NumpyExtensionArray, but its numpy form is an
     # object array which loses the string dtype, so it takes the generic path.
     dispatch_functions.append((pd.arrays.StringArray, extension_array_get_state))
@@ -1377,16 +1183,11 @@ NODE_TYPE_MAPPING = {
     ("PandasNaTNode", PROTOCOL): PandasNaTNode,
     ("PandasMaskedArrayNode", PROTOCOL): PandasMaskedArrayNode,
     ("PandasCategoricalNode", PROTOCOL): PandasCategoricalNode,
-    ("PandasPeriodArrayNode", PROTOCOL): PandasPeriodArrayNode,
-    ("PandasIntervalArrayNode", PROTOCOL): PandasIntervalArrayNode,
     ("PandasExtensionArrayNode", PROTOCOL): PandasExtensionArrayNode,
     ("PandasExtensionDtypeNode", PROTOCOL): PandasExtensionDtypeNode,
     ("PandasStringDtypeNode", PROTOCOL): PandasStringDtypeNode,
-    ("PandasPeriodDtypeNode", PROTOCOL): PandasPeriodDtypeNode,
     ("PandasCategoricalDtypeNode", PROTOCOL): PandasCategoricalDtypeNode,
-    ("PandasSparseDtypeNode", PROTOCOL): PandasSparseDtypeNode,
     ("PandasDatetimeTZDtypeNode", PROTOCOL): PandasDatetimeTZDtypeNode,
-    ("PandasIntervalDtypeNode", PROTOCOL): PandasIntervalDtypeNode,
 }
 
 

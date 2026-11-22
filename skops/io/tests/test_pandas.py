@@ -55,8 +55,6 @@ INDEXES = [
     pd.to_datetime(["2024-01-01T00:00:00+01:00", "2024-01-02T00:00:00+01:00"]),
     pd.DatetimeIndex(["2024-01-01", None]),
     pd.timedelta_range("1D", periods=2),
-    pd.period_range("2024-01", periods=2, freq="M"),
-    pd.interval_range(0, 3),
     pd.CategoricalIndex(["a", "b", "a"], categories=["b", "a"], ordered=True),
     pd.MultiIndex.from_tuples([("a", 1), ("b", 2)], names=["letters", None]),
     pd.MultiIndex.from_tuples([("a", 1), ("b", 2)], sortorder=0),
@@ -76,11 +74,6 @@ SERIES = [
     pd.Series(pd.to_datetime(["2024-01-01", None])),
     pd.Series(pd.date_range("2024-01-01", periods=2, tz="UTC")),
     pd.Series(pd.to_timedelta([1, 2], unit="D")),
-    pd.Series(pd.period_range("2024-01", periods=2, freq="M")),
-    pd.Series(pd.interval_range(0, 2)),
-    pd.Series(pd.arrays.SparseArray([0, 0, 1.5])),
-    pd.Series(pd.arrays.SparseArray([1 + 2j, 0, 0], fill_value=0)),
-    pd.Series(pd.arrays.SparseArray(pd.to_datetime(["2024-01-01", None]))),
     pd.Series([1, 2], index=pd.MultiIndex.from_tuples([("a", 1), ("b", 2)])),
     pd.Series([1, 2, 3], index=[1, 1, 2]),
     pd.Series([1], name=("a", "b")),
@@ -152,14 +145,6 @@ ARRAYS = [
         )
     ),
     pd.array(pd.to_timedelta([1], unit="s")),
-    pd.array(pd.period_range("2024-01", periods=1, freq="M")),
-    pd.array(pd.interval_range(0, 2)),
-    pd.arrays.SparseArray([0, 1]),
-    pd.Series([1, 2]).array,
-    # the plain wrapper around datetime64 and timedelta64 values, which pandas
-    # itself represents as DatetimeArray and TimedeltaArray
-    _NumpyBackedArray(np.array(["2024-01-01"], dtype="datetime64[ns]")),
-    _NumpyBackedArray(np.array([1], dtype="timedelta64[ns]")),
 ]
 
 DTYPES = [
@@ -171,21 +156,6 @@ DTYPES = [
     pd.DatetimeTZDtype("ns", "UTC"),
     pd.DatetimeTZDtype("us", "Europe/Berlin"),
     pd.DatetimeTZDtype("ns", dt.timezone(dt.timedelta(seconds=30))),
-    pd.PeriodDtype("M"),
-    pd.IntervalDtype("int64", closed="left"),
-    pd.IntervalDtype("datetime64[ns]"),
-    pd.IntervalDtype(),
-    pd.SparseDtype(float, 0.0),
-    # fill values JSON cannot hold, and missing ones
-    pd.SparseDtype("complex128", 1 + 2j),
-    pd.SparseDtype("int64", np.nan),
-    pd.SparseDtype("datetime64[ns]"),
-    pd.SparseDtype("datetime64[ns]", pd.Timestamp("2024-01-01")),
-    pd.SparseDtype("timedelta64[ns]", pd.Timedelta("1h")),
-    # fill values with nanoseconds, which the numpy scalar constructors drop
-    pd.SparseDtype("datetime64[ns]", pd.Timestamp("2024-01-01 00:00:00.000000001")),
-    pd.SparseDtype("timedelta64[ns]", pd.Timedelta(1, unit="ns")),
-    pd.SparseDtype(object, "missing"),
 ]
 
 
@@ -315,37 +285,6 @@ def test_freq_only_on_datetime_like_indexes():
         _loads(_with_edited_schema(dumped, edit))
 
 
-@pytest.mark.parametrize(
-    "freq",
-    [
-        pd.offsets.YearEnd(),
-        pd.offsets.Hour(),
-        pd.offsets.QuarterEnd(startingMonth=6),
-        pd.offsets.Week(weekday=6),
-        pd.offsets.Day(3),
-    ],
-    ids=repr,
-)
-def test_period_dtype_is_stored_by_its_offset(freq):
-    # its name holds the alias, which changed: pandas 2.0 writes "period[A-DEC]"
-    # and "period[H]", which pandas 3 cannot parse
-    dtype = pd.PeriodDtype(freq)
-    assert _loads(dumps(dtype)) == dtype
-    periods = pd.Series(pd.period_range("2024-01-01", periods=2, freq=freq))
-    _assert_vals_equal(periods, _loads(dumps(periods)))
-
-
-def test_period_dtype_refuses_other_offsets():
-    dumped = dumps(pd.PeriodDtype("M"))
-
-    def edit(schema):
-        parts = {"name": "BusinessHour", "n": 1, "normalize": False, "kwds": {}}
-        schema["content"]["freq"]["content"] = json.dumps(json.dumps(parts))
-
-    with pytest.raises(ValueError, match="not a frequency of periods"):
-        _loads(_with_edited_schema(dumped, edit))
-
-
 def test_attrs_and_flags_are_kept():
     frame = pd.DataFrame({"a": [1, 2]}).set_flags(allows_duplicate_labels=False)
     frame.attrs = {"unit": "m", "source": [1, 2]}
@@ -357,18 +296,12 @@ def test_attrs_and_flags_are_kept():
     assert _loads(dumps(series)).attrs == {"unit": "s"}
 
 
-@pytest.mark.parametrize(
-    "dumped, entry",
-    [
-        (dumps(pd.DataFrame({"a": [1]})), "allows_duplicate_labels"),
-        (dumps(pd.PeriodDtype("M")), "freq"),
-    ],
-    ids=["flag", "period-freq"],
-)
-def test_json_entries_of_the_wrong_type_are_refused(dumped, entry):
+def test_json_entries_of_the_wrong_type_are_refused():
+    dumped = dumps(pd.DataFrame({"a": [1]}))
+
     def edit(schema):
-        schema["content"][entry]["content"] = json.dumps(1)
-        schema["content"][entry]["__id__"] = -1
+        schema["content"]["allows_duplicate_labels"]["content"] = json.dumps(1)
+        schema["content"]["allows_duplicate_labels"]["__id__"] = -1
 
     with pytest.raises(ValueError, match="must be a"):
         _loads(_with_edited_schema(dumped, edit))
@@ -687,11 +620,9 @@ def test_numpy_backed_array_follows_the_declared_class():
     def to_wrapper(schema):
         schema["__class__"] = "NumpyExtensionArray"
 
-    with pytest.raises(ValueError, match="NumpyExtensionArray has no time zone"):
-        loads(
-            _with_edited_schema(aware, to_wrapper),
-            trusted=["pandas.arrays.NumpyExtensionArray"],
-        )
+    # the plain wrapper is not supported yet
+    with pytest.raises(ValueError, match="not a class PandasNumpyBackedArrayNode"):
+        get_untrusted_types(data=_with_edited_schema(aware, to_wrapper))
 
     def with_zone(schema):
         schema["content"]["tz"]["content"] = json.dumps("UTC")
@@ -708,9 +639,6 @@ def test_pandas_classes_as_trusted_entries():
     # holds, which on pandas 2.x differs from its defining module
     loads(dumps(pd.Int64Dtype()), trusted=[pd.Int64Dtype])
     loads(dumps(pd.Series([1], index=pd.Index([1]))), trusted=[pd.Series, pd.Index])
-    # PandasArray on pandas 2.0, with a dtype of a private class
-    array = pd.Series([1, 2]).array
-    loads(dumps(array), trusted=[type(array), type(array.dtype)])
 
 
 def test_sub_second_offset_is_unsupported():
@@ -719,25 +647,6 @@ def test_sub_second_offset_is_unsupported():
     tz = dt.timezone(dt.timedelta(microseconds=1))
     with pytest.raises(UnsupportedTypeException, match="whole seconds"):
         dumps(pd.DatetimeTZDtype("ns", tz))
-
-
-def test_interval_dtype_subtype_is_parsed_by_numpy():
-    # pandas would look a subtype name up in its registry of extension dtypes,
-    # where any imported library can register a dtype whose parser then runs
-    dumped = dumps(pd.IntervalDtype("int64"))
-
-    def edit(schema):
-        schema["content"]["subtype"]["content"] = json.dumps("probe")
-
-    trusted = ["pandas.IntervalDtype"]
-    with pytest.raises(ValueError, match="subtype of an interval dtype"):
-        loads(_with_edited_schema(dumped, edit), trusted=trusted)
-
-    def edit_to_number(schema):
-        schema["content"]["subtype"]["content"] = json.dumps(5)
-
-    with pytest.raises(ValueError, match="subtype of an interval dtype"):
-        loads(_with_edited_schema(dumped, edit_to_number), trusted=trusted)
 
 
 def test_child_of_wrong_kind_is_refused():
@@ -804,6 +713,27 @@ def test_missing_entry_is_refused():
 
     with pytest.raises(ValueError, match="Expected the entries"):
         loads(_with_edited_schema(dumped, edit))
+
+
+@pytest.mark.parametrize(
+    "obj",
+    [
+        pd.PeriodDtype("M"),
+        pd.period_range("2024-01", periods=2, freq="M"),
+        pd.array(pd.period_range("2024-01", periods=1, freq="M")),
+        pd.IntervalDtype("int64"),
+        pd.interval_range(0, 2),
+        pd.SparseDtype(float, 0.0),
+        pd.arrays.SparseArray([0, 1]),
+        pd.Series(pd.arrays.SparseArray([0, 1])),
+        pd.Series([1, 2]).array,
+    ],
+    ids=_id,
+)
+def test_types_not_supported_yet(obj):
+    # refused when saving, to keep the first version small
+    with pytest.raises(UnsupportedTypeException, match="not supported yet"):
+        dumps(obj)
 
 
 def test_subclass_from_other_library_is_unsupported():
@@ -873,51 +803,16 @@ def test_file_uses_public_type_names():
     assert (index["__module__"], index["__class__"]) == ("pandas", "Index")
 
 
-class NamelessDtype(pd.api.extensions.ExtensionDtype):
-    """A dtype whose name does not rebuild it.
-
-    pandas has such a dtype, ``ArrowDtype(pyarrow.string())``, whose name
-    "string[pyarrow]" it reserves for its ``StringDtype``; this stand-in needs
-    no pyarrow. The module is faked since skops only saves pandas' own dtypes.
-    """
-
-    __module__ = "pandas.tests"
-    name = "nameless"
-    type = object
-
-    @classmethod
-    def construct_array_type(cls):
-        return pd.arrays.NumpyExtensionArray  # pragma: no cover
-
-    @classmethod
-    def construct_from_string(cls, string):
-        raise TypeError(f"Cannot construct a 'NamelessDtype' from '{string}'")
-
-
-def test_sparse_fill_value_outside_json_is_unsupported():
-    # a fill value of an object subtype has to be a JSON scalar: refused when
-    # saving rather than failing when loading
-    dtype = pd.SparseDtype(object, pd.Timestamp("2024-01-01"))
-    with pytest.raises(UnsupportedTypeException, match="fill value"):
-        dumps(dtype)
-
-
-def test_sparse_fill_value_pandas_nat():
-    # The missing value of pandas is not the one of numpy, and pandas does not
-    # consider the two dtypes equal, so it is refused; recent versions of
-    # pandas convert it to the numpy one when building the dtype.
-    dtype = pd.SparseDtype("datetime64[ns]", pd.NaT)
-    if isinstance(dtype.fill_value, np.generic):
-        assert _loads(dumps(dtype)) == dtype
-    else:
-        with pytest.raises(UnsupportedTypeException, match="fill value"):
-            dumps(dtype)
-
-
-def test_dtype_not_rebuildable_from_its_name_is_unsupported():
-    # refused when saving rather than failing when loading
+def test_dtype_not_rebuildable_from_its_name_is_unsupported(monkeypatch):
+    # A dtype stored by its name is refused when saving, rather than failing
+    # or changing when loading, if its name does not rebuild it: a guard for
+    # future pandas versions. ArrowDtype(pyarrow.string()) is such a dtype, a
+    # name "string[pyarrow]" that pandas reserves for its StringDtype.
+    monkeypatch.setattr(
+        pd.Int64Dtype, "construct_from_string", classmethod(lambda cls, name: None)
+    )
     with pytest.raises(UnsupportedTypeException, match="cannot be rebuilt"):
-        dumps(NamelessDtype())
+        dumps(pd.Int64Dtype())
 
 
 def test_renamed_classes_match_pandas_version():
@@ -945,16 +840,11 @@ TAMPER_OBJECTS = [
     pd.array([1, None], dtype="Int64"),
     pd.array(["a", None], dtype="string"),
     pd.Categorical(["a"]),
-    pd.array(pd.period_range("2024-01", periods=1, freq="M")),
-    pd.arrays.IntervalArray.from_breaks([0, 1]),
-    pd.arrays.SparseArray([0, 1]),
-    pd.IntervalDtype("int64"),
     pd.Timestamp("2024-01-01"),
     pd.Timedelta(1),
     pd.NA,
     pd.NaT,
     pd.array(pd.to_timedelta([1], unit="s")),
-    _NumpyBackedArray(np.array([1])),
 ]
 
 # Names no loader builds: pandas' test suite and configuration, which ship
@@ -1003,8 +893,6 @@ def _builds_declared(module, name, obj):
         )
     if name == "StringDtype":
         return isinstance(obj, pd.StringDtype) or obj == np.dtype(object)
-    if name == "NumpyExtensionArray":
-        return type(obj) is _NumpyBackedArray
     namespace = pd.arrays if module == "pandas.arrays" else pd
     return type(obj) is getattr(namespace, name)
 
@@ -1032,15 +920,8 @@ def test_tampered_class_names(obj, monkeypatch):
     imported = set(sys.modules)
     trusted = [*PANDAS_TYPES, *HOSTILE_NAMES]
     # the classes one loader builds from the same data: the string arrays of
-    # either storage, and the numpy wrapper, which holds any numpy array
-    interchangeable = [
-        {"pandas.arrays.StringArray", "pandas.arrays.ArrowStringArray"},
-        {
-            "pandas.arrays.NumpyExtensionArray",
-            "pandas.arrays.DatetimeArray",
-            "pandas.arrays.TimedeltaArray",
-        },
-    ]
+    # either storage
+    interchangeable = [{"pandas.arrays.StringArray", "pandas.arrays.ArrowStringArray"}]
     for path in _pandas_node_paths(schema):
         state = _at(schema, path)
         node = NODE_TYPE_MAPPING[(state["__loader__"], PROTOCOL)]
@@ -1113,13 +994,6 @@ def cross_version_objects():
         "hourly_index": pd.date_range("2024-01-01", periods=3, freq=pd.offsets.Hour()),
         "datetime_fixed_offset": pd.to_datetime(["2024-01-01T00:00:00+01:00"]),
         "timedelta_index": pd.timedelta_range("1D", periods=2),
-        "period_series": pd.Series(pd.period_range("2024-01", periods=2, freq="M")),
-        "annual_periods": pd.Series(
-            pd.period_range("2020", periods=2, freq=pd.offsets.YearEnd())
-        ),
-        "hourly_period_dtype": pd.PeriodDtype(pd.offsets.Hour()),
-        "interval_index": pd.interval_range(0, 3),
-        "interval_dtype": pd.IntervalDtype("float64", closed="left"),
         "categorical_index": pd.CategoricalIndex(
             ["a", "b", "a"], categories=["b", "a"], ordered=True
         ),
@@ -1134,8 +1008,6 @@ def cross_version_objects():
                 "f": pd.array([1.5, None], dtype="Float64"),
             }
         ),
-        "sparse_series": pd.Series(pd.arrays.SparseArray([0, 0, 1.5])),
-        "sparse_dtype": pd.SparseDtype("float64", 1.5),
         "duplicate_columns": pd.DataFrame([[1, 2]], columns=["a", "a"]),
         # the shape of category_encoders' TargetEncoder.mapping
         "encoder_mapping": {"col": pd.Series([0.49, 0.66], index=pd.Index([1, 2]))},
