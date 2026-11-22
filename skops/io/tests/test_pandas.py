@@ -26,6 +26,7 @@ from skops.io import (
     visualize,
 )
 from skops.io._pandas import _RENAMED_CLASSES
+from skops.io._protocol import PROTOCOL
 from skops.io._utils import get_type_name
 from skops.io.exceptions import (
     UnsupportedTypeException,
@@ -911,6 +912,141 @@ def test_renamed_classes_match_pandas_version():
             assert exists(old) and not exists(new), old
         else:
             assert exists(new), new
+
+
+# Small objects which together hold every pandas node, for the tampering test.
+TAMPER_OBJECTS = [
+    pd.Series(["a", None], index=pd.RangeIndex(2), name="s"),
+    pd.DataFrame({"i": [1, 2]}, index=pd.Index(["x", "y"])),
+    pd.MultiIndex.from_tuples([("a", 1)]),
+    pd.date_range("2024-01-01", periods=2, freq="D", tz="UTC"),
+    pd.array([1, None], dtype="Int64"),
+    pd.array(["a", None], dtype="string"),
+    pd.Categorical(["a"]),
+    pd.array(pd.period_range("2024-01", periods=1, freq="M")),
+    pd.arrays.IntervalArray.from_breaks([0, 1]),
+    pd.arrays.SparseArray([0, 1]),
+    pd.IntervalDtype("int64"),
+    pd.Timestamp("2024-01-01"),
+    pd.Timedelta(1),
+    pd.NA,
+    pd.NaT,
+    pd.array(pd.to_timedelta([1], unit="s")),
+    _NumpyBackedArray(np.array([1])),
+]
+
+# Names no loader builds: pandas' test suite and configuration, which ship
+# with it, a private class, an invented module, and no pandas at all.
+HOSTILE_NAMES = [
+    "pandas.tests.extension.decimal.array.DecimalDtype",
+    "pandas.conftest.Anything",
+    "pandas.core.dtypes.dtypes.NumpyEADtype",
+    "pandas.io.anything.NAType",
+    "builtins.eval",
+    "os.system",
+]
+
+
+def _pandas_node_paths(state, path=()):
+    # the paths to the states of the pandas nodes in a schema
+    from skops.io._pandas import NODE_TYPE_MAPPING
+
+    if isinstance(state, dict):
+        if (state.get("__loader__"), PROTOCOL) in NODE_TYPE_MAPPING:
+            yield path
+        for key, value in state.items():
+            yield from _pandas_node_paths(value, path + (key,))
+    elif isinstance(state, list):
+        for i, value in enumerate(state):
+            yield from _pandas_node_paths(value, path + (i,))
+
+
+def _at(state, path):
+    for key in path:
+        state = state[key]
+    return state
+
+
+def _builds_declared(module, name, obj):
+    # whether ``obj`` is of the class a file declares, decided independently
+    # of the check the loaders do themselves
+    if module == "pandas.api.typing":
+        return obj is {"NAType": pd.NA, "NaTType": pd.NaT}[name]
+    if name in ("StringArray", "ArrowStringArray"):
+        # the class follows the storage of the environment, or is an object
+        # array where pandas has no string dtype with the saved missing value
+        strings = (pd.arrays.StringArray, pd.arrays.ArrowStringArray)
+        return isinstance(obj, strings) or (
+            type(obj) is _NumpyBackedArray and obj.to_numpy().dtype == object
+        )
+    if name == "StringDtype":
+        return isinstance(obj, pd.StringDtype) or obj == np.dtype(object)
+    if name == "NumpyExtensionArray":
+        return type(obj) is _NumpyBackedArray
+    namespace = pd.arrays if module == "pandas.arrays" else pd
+    return type(obj) is getattr(namespace, name)
+
+
+@pytest.mark.parametrize("obj", TAMPER_OBJECTS, ids=_id)
+def test_tampered_class_names(obj, monkeypatch):
+    # Every pandas node of a file, declared as every other pandas class and as
+    # hostile names, while the user trusts PANDAS_TYPES and the hostile names.
+    # A name the node does not build is refused while the file is read; one it
+    # does build either fails to construct or builds exactly that class.
+    from skops.io._pandas import NODE_TYPE_MAPPING, _PandasNode
+
+    built = []
+    construct = _PandasNode._construct
+
+    def recording_construct(node):
+        result = construct(node)
+        built.append((node.module_name, node.class_name, result))
+        return result
+
+    monkeypatch.setattr(_PandasNode, "_construct", recording_construct)
+    dumped = dumps(obj)
+    with ZipFile(io.BytesIO(dumped)) as zip_file:
+        schema = json.loads(zip_file.read("schema.json"))
+    imported = set(sys.modules)
+    trusted = [*PANDAS_TYPES, *HOSTILE_NAMES]
+    # the classes one loader builds from the same data: the string arrays of
+    # either storage, and the numpy wrapper, which holds any numpy array
+    interchangeable = [
+        {"pandas.arrays.StringArray", "pandas.arrays.ArrowStringArray"},
+        {
+            "pandas.arrays.NumpyExtensionArray",
+            "pandas.arrays.DatetimeArray",
+            "pandas.arrays.TimedeltaArray",
+        },
+    ]
+    for path in _pandas_node_paths(schema):
+        state = _at(schema, path)
+        node = NODE_TYPE_MAPPING[(state["__loader__"], PROTOCOL)]
+        original = f"{state['__module__']}.{state['__class__']}"
+        for name in [*PANDAS_TYPES, *HOSTILE_NAMES]:
+            if name == original:
+                continue
+            module, _, class_name = name.rpartition(".")
+
+            def edit(schema):
+                tampered = _at(schema, path)
+                tampered["__module__"], tampered["__class__"] = module, class_name
+
+            tampered = _with_edited_schema(dumped, edit)
+            if module != node._module or class_name not in node._classes:
+                with pytest.raises(ValueError, match="is not a class"):
+                    get_untrusted_types(data=tampered)
+                continue
+            built.clear()
+            try:
+                loads(tampered, trusted=trusted)
+            except (ValueError, TypeError):
+                continue
+            assert any({original, name} <= names for names in interchangeable), name
+            for built_module, built_name, result in built:
+                assert _builds_declared(built_module, built_name, result), name
+    # no module the file names was imported
+    assert {m for m in set(sys.modules) - imported if m.startswith("pandas.")} == set()
 
 
 FIXTURE_DIR = Path(__file__).parent / "data"
