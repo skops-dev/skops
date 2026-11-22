@@ -231,6 +231,103 @@ def test_missing_value_singletons_keep_their_identity(singleton):
     assert series.isna().tolist() == [True, False]
 
 
+@pytest.mark.parametrize(
+    "freq",
+    [
+        pd.offsets.Day(2),
+        pd.offsets.Hour(),
+        pd.offsets.MonthEnd(),
+        pd.offsets.Week(weekday=6),
+        pd.offsets.QuarterEnd(startingMonth=3),
+        pd.offsets.BusinessDay(),
+        pd.offsets.MonthBegin(normalize=True),
+    ],
+    ids=repr,
+)
+def test_index_freq_is_kept(freq):
+    # Stored as the offset's class and arguments: the aliases changed between
+    # pandas versions, e.g. the month end is "M" on pandas 2.0 and "ME" on 3.
+    # A time series index without its freq cannot be shifted.
+    index = pd.date_range("2024-01-01", periods=3, freq=freq)
+    loaded = _loads(dumps(pd.Series([1, 2, 3], index=index)))
+    assert loaded.index.freq == freq
+    assert loaded.index.shift(1).equals(index.shift(1))
+    timedeltas = pd.timedelta_range("1D", periods=2, freq="6h")
+    assert _loads(dumps(timedeltas)).freq == timedeltas.freq
+
+
+@pytest.mark.parametrize(
+    "freq",
+    [pd.offsets.CustomBusinessDay(holidays=["2024-01-02"]), pd.offsets.BusinessHour()],
+    ids=repr,
+)
+def test_index_freq_with_other_arguments_is_unsupported(freq):
+    # their arguments are a holiday calendar and times of day, not JSON
+    index = pd.date_range("2024-01-01", periods=3, freq=freq)
+    with pytest.raises(UnsupportedTypeException, match="freq=None"):
+        dumps(index)
+    # the hint in the message works
+    assert _loads(dumps(pd.DatetimeIndex(index, freq=None))).freq is None
+
+
+@pytest.mark.parametrize(
+    "freq, match",
+    [
+        # not an offset, or not one of pandas.offsets
+        ({"name": "BaseOffset", "n": 1, "normalize": False, "kwds": {"x": 1}}, "x"),
+        ({"name": "__class__", "n": 1, "normalize": False, "kwds": {}}, "offset"),
+        ({"name": "Day", "n": "1", "normalize": False, "kwds": {}}, "offset"),
+        ({"name": "Week", "n": 1, "normalize": False, "kwds": {"weekday": [6]}}, None),
+        # values that do not conform to the freq
+        ({"name": "Day", "n": 2, "normalize": False, "kwds": {}}, "conform"),
+    ],
+)
+def test_index_freq_is_validated(freq, match):
+    dumped = dumps(pd.date_range("2024-01-01", periods=3, freq="D"))
+
+    def edit(schema):
+        schema["content"]["freq"]["content"] = json.dumps(json.dumps(freq))
+
+    with pytest.raises((ValueError, TypeError), match=match):
+        _loads(_with_edited_schema(dumped, edit))
+
+
+def test_freq_only_on_datetime_like_indexes():
+    dumped = dumps(pd.Index([1, 2, 3]))
+
+    def edit(schema):
+        parts = {"name": "Day", "n": 1, "normalize": False, "kwds": {}}
+        freq = schema["content"]["freq"]
+        freq["content"] = json.dumps(json.dumps(parts))
+        # the name is None too, and shares the node of the same object
+        freq["__id__"] = -1
+
+    with pytest.raises(ValueError, match="Only a DatetimeIndex"):
+        _loads(_with_edited_schema(dumped, edit))
+
+
+def test_attrs_and_flags_are_kept():
+    frame = pd.DataFrame({"a": [1, 2]}).set_flags(allows_duplicate_labels=False)
+    frame.attrs = {"unit": "m", "source": [1, 2]}
+    loaded = _loads(dumps(frame))
+    assert loaded.attrs == frame.attrs
+    assert loaded.flags.allows_duplicate_labels is False
+    series = pd.Series([1], name="s")
+    series.attrs = {"unit": "s"}
+    assert _loads(dumps(series)).attrs == {"unit": "s"}
+
+
+def test_duplicate_labels_flag_is_validated():
+    # a file cannot claim unique labels the data does not have
+    dumped = dumps(pd.DataFrame({"a": [1, 2]}, index=["x", "x"]))
+
+    def edit(schema):
+        schema["content"]["allows_duplicate_labels"]["content"] = "false"
+
+    with pytest.raises(pd.errors.DuplicateLabelError):
+        _loads(_with_edited_schema(dumped, edit))
+
+
 def test_pandas_types_are_not_trusted_by_default():
     dumped = dumps(FRAMES[1])
     untrusted = get_untrusted_types(data=dumped)

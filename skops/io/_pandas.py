@@ -24,8 +24,9 @@ pandas is optional and slow to import, so ``skops.io`` does not import it. The
 imported pandas, see :func:`register_if_imported`, and the nodes only import
 pandas when they construct an object.
 
-Not preserved: the ``freq`` of datetime-like indexes and arrays, and the
-``attrs`` and ``flags`` of a Series or DataFrame. A string dtype keeps its
+Not preserved: the ``freq`` of datetime-like arrays outside an index; an
+index keeps it, unless it is an offset whose arguments are not JSON scalars,
+which cannot be saved, see :func:`_freq`. A string dtype keeps its
 missing value, ``pandas.NA`` or ``NaN``, and its storage, python or pyarrow,
 when the loading environment has them, see :func:`_string_dtype`.
 
@@ -53,6 +54,7 @@ from __future__ import annotations
 
 import datetime
 import functools
+import json
 import pickle
 import re
 import sys
@@ -63,7 +65,7 @@ from typing import Any
 import numpy as np
 
 from ._audit import Node, get_tree
-from ._general import JsonNode, ListNode, object_get_state
+from ._general import DictNode, JsonNode, ListNode, object_get_state
 from ._numpy import NdArrayNode
 from ._protocol import PROTOCOL
 from ._utils import (
@@ -190,8 +192,80 @@ def _values(obj: Any) -> Any:
     return obj.array
 
 
+def _offset(parts: Any) -> Any:
+    """The offset of ``pandas.offsets`` that ``parts`` describe, see ``_freq``.
+
+    Only the offsets themselves can be built, from JSON scalars, and they
+    validate their arguments.
+    """
+    import pandas as pd
+
+    keys = {"name", "n", "normalize", "kwds"}
+    cls = None
+    if isinstance(parts, dict) and set(parts) == keys:
+        cls = getattr(pd.offsets, parts["name"], None)
+    if (
+        not isinstance(cls, type)
+        or not issubclass(cls, pd.offsets.BaseOffset)
+        or type(parts["n"]) is not int
+        or not isinstance(parts["normalize"], bool)
+        or not isinstance(parts["kwds"], dict)
+        or not all(
+            v is None or isinstance(v, (str, int, float))
+            for v in parts["kwds"].values()
+        )
+    ):
+        raise ValueError(
+            f"{parts!r} is not a pandas offset. This is probably due to a corrupted"
+            " or a malicious file."
+        )
+    kwargs = dict(parts["kwds"])
+    if parts["normalize"]:
+        # passed only when set: the offsets of fixed duration refuse it
+        kwargs["normalize"] = True
+    return cls(parts["n"], **kwargs)
+
+
+def _freq(obj: Any) -> str | None:
+    """The freq of a DatetimeIndex or TimedeltaIndex as JSON, or ``None``.
+
+    The offset is stored as its class in ``pandas.offsets`` and its
+    arguments rather than by its alias, which changed between pandas versions:
+    pandas 2.0 calls the month end "M" and the hour "H", which pandas 3 does
+    not accept. Offsets whose arguments are not JSON scalars, e.g. the holiday
+    calendar of a ``CustomBusinessDay``, cannot be saved.
+    """
+    import pandas as pd
+
+    if not isinstance(obj, (pd.DatetimeIndex, pd.TimedeltaIndex)) or obj.freq is None:
+        return None
+    freq = obj.freq
+    kwds = {
+        key: value
+        for key, value in freq.kwds.items()
+        # the default of the business day offsets
+        if not (key == "offset" and value == datetime.timedelta(0))
+    }
+    parts = {
+        "name": type(freq).__name__,
+        "n": freq.n,
+        "normalize": freq.normalize,
+        "kwds": kwds,
+    }
+    try:
+        rebuilt = _offset(json.loads(json.dumps(parts)))
+    except (TypeError, ValueError):
+        rebuilt = None
+    if rebuilt != freq:
+        raise UnsupportedTypeException(
+            f"The freq {freq!r} of the index cannot be saved. Save the index"
+            f" without it, as {type(obj).__name__}(index, freq=None)."
+        )
+    return json.dumps(parts)
+
+
 def index_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
-    content = {"values": _values(obj), "name": obj.name}
+    content = {"values": _values(obj), "name": obj.name, "freq": _freq(obj)}
     return _pandas_state(obj, "PandasIndexNode", content, save_context)
 
 
@@ -210,8 +284,36 @@ def multi_index_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]
     return _pandas_state(obj, "PandasMultiIndexNode", content, save_context)
 
 
+def _frame_content(obj: Any) -> dict[str, Any]:
+    # The metadata of a Series or DataFrame: ``attrs``, a dict of anything,
+    # and the one flag pandas has.
+    return {
+        "attrs": dict(obj.attrs),
+        "allows_duplicate_labels": obj.flags.allows_duplicate_labels,
+    }
+
+
+def _with_frame_content(obj: Any, content: dict[str, Any]) -> Any:
+    allows_duplicate_labels = content["allows_duplicate_labels"]
+    if not isinstance(allows_duplicate_labels, bool):
+        raise ValueError(
+            "allows_duplicate_labels must be a bool. This is probably due to a"
+            " corrupted or a malicious file."
+        )
+    if not allows_duplicate_labels:
+        # raises if the labels are not unique
+        obj = obj.set_flags(allows_duplicate_labels=False)
+    obj.attrs = content["attrs"]
+    return obj
+
+
 def series_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
-    content = {"values": _values(obj), "index": obj.index, "name": obj.name}
+    content = {
+        "values": _values(obj),
+        "index": obj.index,
+        "name": obj.name,
+        **_frame_content(obj),
+    }
     return _pandas_state(obj, "PandasSeriesNode", content, save_context)
 
 
@@ -220,6 +322,7 @@ def dataframe_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
         "columns": obj.columns,
         "index": obj.index,
         "data": [_values(obj.iloc[:, i]) for i in range(obj.shape[1])],
+        **_frame_content(obj),
     }
     return _pandas_state(obj, "PandasDataFrameNode", content, save_context)
 
@@ -611,7 +714,7 @@ class PandasIndexNode(_PandasNode):
     )
 
     def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
-        return {"values": _ARRAY_NODES, "name": None}
+        return {"values": _ARRAY_NODES, "name": None, "freq": (JsonNode,)}
 
     def _build(self):
         import pandas as pd
@@ -620,9 +723,21 @@ class PandasIndexNode(_PandasNode):
         values = content["values"]
         # The dtype is passed to prevent inference, and ``tupleize_cols`` keeps
         # an object Index of tuples from becoming a MultiIndex.
-        return pd.Index(
+        index = pd.Index(
             values, dtype=values.dtype, name=content["name"], tupleize_cols=False
         )
+        freq = content["freq"]
+        if freq is None:
+            return index
+        if not isinstance(index, (pd.DatetimeIndex, pd.TimedeltaIndex)) or not (
+            isinstance(freq, str)
+        ):
+            raise ValueError(
+                "Only a DatetimeIndex or a TimedeltaIndex has a freq. This is"
+                " probably due to a corrupted or a malicious file."
+            )
+        # raises if the values do not conform to the freq
+        return type(index)(index, freq=_offset(json.loads(freq)))
 
 
 class PandasRangeIndexNode(_PandasNode):
@@ -672,23 +787,36 @@ class PandasSeriesNode(_PandasNode):
     _classes = ("Series",)
 
     def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
-        return {"values": _ARRAY_NODES, "index": _INDEX_NODES, "name": None}
+        return {
+            "values": _ARRAY_NODES,
+            "index": _INDEX_NODES,
+            "name": None,
+            "attrs": (DictNode,),
+            "allows_duplicate_labels": (JsonNode,),
+        }
 
     def _build(self):
         import pandas as pd
 
         content = self._construct_content()
         values = content["values"]
-        return pd.Series(
+        series = pd.Series(
             values, index=content["index"], dtype=values.dtype, name=content["name"]
         )
+        return _with_frame_content(series, content)
 
 
 class PandasDataFrameNode(_PandasNode):
     _classes = ("DataFrame",)
 
     def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
-        return {"columns": _INDEX_NODES, "index": _INDEX_NODES, "data": (ListNode,)}
+        return {
+            "columns": _INDEX_NODES,
+            "index": _INDEX_NODES,
+            "data": (ListNode,),
+            "attrs": (DictNode,),
+            "allows_duplicate_labels": (JsonNode,),
+        }
 
     def _build(self):
         import pandas as pd
@@ -701,7 +829,7 @@ class PandasDataFrameNode(_PandasNode):
         else:
             frame = pd.DataFrame(index=content["index"])
         frame.columns = content["columns"]
-        return frame
+        return _with_frame_content(frame, content)
 
 
 class PandasNumpyBackedArrayNode(_PandasNode):

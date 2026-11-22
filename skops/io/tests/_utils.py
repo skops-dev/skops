@@ -123,23 +123,25 @@ def _is_pandas_object(val):
 
 
 def _assert_pandas_equal(val1, val2, path=""):
-    # Strict equality of pandas objects, up to what skops does not preserve:
-    # the freq of datetime-like indexes and arrays.
+    # Strict equality of pandas objects, including the freq of datetime-like
+    # indexes, which assert_index_equal only checks from pandas 3.1 on, and the
+    # attrs of a Series or DataFrame, which it does not check.
     assert pd is not None  # only called for pandas objects
     assert type(val1) is type(val2), f"Path: type({path})"
+    if isinstance(val1, (pd.DataFrame, pd.Series)):
+        assert val1.attrs == val2.attrs, f"Path: {path}.attrs"
     if isinstance(val1, pd.DataFrame):
-        pd.testing.assert_frame_equal(val1, val2, check_freq=False, obj=path or "df")
+        pd.testing.assert_frame_equal(val1, val2, obj=path or "df")
+        _assert_pandas_equal(val1.index, val2.index, path=f"{path}.index")
     elif isinstance(val1, pd.Series):
-        pd.testing.assert_series_equal(
-            val1, val2, check_freq=False, obj=path or "Series"
-        )
+        pd.testing.assert_series_equal(val1, val2, obj=path or "Series")
+        _assert_pandas_equal(val1.index, val2.index, path=f"{path}.index")
     elif isinstance(val1, pd.MultiIndex):
         assert val1.sortorder == val2.sortorder, f"Path: {path}.sortorder"
         pd.testing.assert_index_equal(val1, val2, exact=True, obj=path or "Index")
     elif isinstance(val1, pd.Index):
         if isinstance(val1, (pd.DatetimeIndex, pd.TimedeltaIndex)):
-            # assert_index_equal starts checking the freq by default in pandas 3.1
-            val1 = type(val1)(val1, freq=None)
+            assert val1.freq == val2.freq, f"Path: {path}.freq"
         pd.testing.assert_index_equal(val1, val2, exact=True, obj=path or "Index")
     elif isinstance(val1, pd.api.extensions.ExtensionArray):
         pd.testing.assert_extension_array_equal(val1, val2)
