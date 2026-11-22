@@ -64,7 +64,15 @@ from sklearn.utils.estimator_checks import (
 from sklearn.utils.fixes import parse_version, sp_version
 
 import skops
-from skops.io import dump, dumps, get_untrusted_types, load, loads, visualize
+from skops.io import (
+    PANDAS_TYPES,
+    dump,
+    dumps,
+    get_untrusted_types,
+    load,
+    loads,
+    visualize,
+)
 from skops.io._audit import NODE_TYPE_MAPPING, Node, get_tree
 from skops.io._general import dict_get_state, list_get_state, set_get_state
 from skops.io._protocol import PROTOCOL
@@ -1722,11 +1730,11 @@ def test_estimator_with_pandas_attributes():
     dumped = dumps(estimator)
     # neither the estimator nor the pandas objects it holds are trusted by
     # default; the file names the latter by their public pandas names
-    untrusted = get_untrusted_types(data=dumped)
-    assert get_type_name(PandasEncoder) in untrusted
-    assert {"pandas.Series", "pandas.Index", "pandas.StringDtype"} <= set(untrusted)
+    untrusted = set(get_untrusted_types(data=dumped))
+    assert untrusted - set(PANDAS_TYPES) == {get_type_name(PandasEncoder)}
+    assert {"pandas.Series", "pandas.Index", "pandas.StringDtype"} <= untrusted
 
-    loaded = loads(dumped, trusted=untrusted)
+    loaded = loads(dumped, trusted=[*PANDAS_TYPES, PandasEncoder])
     assert_params_equal(estimator.__dict__, loaded.__dict__)
 
 

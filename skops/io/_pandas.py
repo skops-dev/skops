@@ -36,7 +36,8 @@ Not supported: the pyarrow backed arrays and dtypes, those with an
 storage is a string dtype, and supported as one.
 
 The pandas types are not trusted by default, since this support is new; a user
-passes the names a file holds, see :func:`skops.io.get_untrusted_types`.
+passes :data:`PANDAS_TYPES`, the names of every pandas class the nodes build,
+so that any other name in :func:`skops.io.get_untrusted_types` stands out.
 Trusting them should mean trusting pandas and nothing else, so loading stays
 within pandas' constructors and the data from the file. Every node lists the
 public pandas classes it builds, by their name in ``pandas`` or
@@ -1343,3 +1344,17 @@ NODE_TYPE_MAPPING = {
     ("PandasDatetimeTZDtypeNode", PROTOCOL): PandasDatetimeTZDtypeNode,
     ("PandasIntervalDtypeNode", PROTOCOL): PandasIntervalDtypeNode,
 }
+
+
+# The names of the pandas classes the nodes above build, which are all the
+# pandas names a file can hold. Users pass them as ``trusted`` instead of the
+# names a file lists, see the module docstring; documented in persistence.rst.
+PANDAS_TYPES: tuple[str, ...] = tuple(
+    sorted(
+        {
+            f"{node._module}.{class_name}"
+            for node in NODE_TYPE_MAPPING.values()
+            for class_name in node._classes
+        }
+    )
+)

@@ -42,24 +42,22 @@ v0.17
   constructed, instead of failing with an unrelated error, or being accepted,
   during construction. :pr:`547` by `Adrin Jalali`_.
 - Add support for pandas objects: :class:`~pandas.DataFrame`,
-  :class:`~pandas.Series`, every kind of :class:`~pandas.Index`, and the
-  extension arrays and extension dtypes of pandas itself, not those of other
-  libraries, can now be saved and loaded. They are stored as
-  the numpy arrays and scalars they are made of and rebuilt through the public
-  pandas constructors, so no pandas internals end up in the file. They are
-  not trusted by default: the pandas types a file holds, which
-  :func:`skops.io.get_untrusted_types` lists, have to be passed as
-  ``trusted``. The scalars :class:`~pandas.Timestamp`,
-  :class:`~pandas.Timedelta` and ``pandas.NA`` are saved as well. The pyarrow
-  backed arrays and dtypes, those with an ``ArrowDtype``, are not supported
-  yet; the string dtype with pyarrow storage is, as a string dtype.
-  Estimators from other libraries that keep pandas objects
-  in their fitted attributes, such as ``category_encoders``, can now be
-  persisted. A file written with one pandas version loads with any other from
-  2.0 on, keeping the dtypes of the version that wrote it. Not preserved are
-  the ``freq`` of datetime-like indexes and arrays, the ``attrs`` and ``flags``
-  of a Series or DataFrame, and the storage, python or pyarrow, of a string
-  dtype. :pr:`552` by `Adrin Jalali`_.
+  :class:`~pandas.Series`, every kind of :class:`~pandas.Index`, the extension
+  arrays and extension dtypes of pandas itself, and the scalars
+  :class:`~pandas.Timestamp`, :class:`~pandas.Timedelta`, ``pandas.NA`` and
+  ``pandas.NaT`` can now be saved and loaded with pandas 2.0 or later. They are
+  stored as the numpy arrays and scalars they are made of and rebuilt through
+  the public pandas constructors, so no pandas internals end up in the file,
+  and a file written with one pandas version loads with any other. Estimators
+  from other libraries that keep pandas objects in their fitted attributes,
+  such as ``category_encoders``, can now be persisted. The pandas types are not
+  trusted by default: pass ``skops.io.PANDAS_TYPES``, the names of every pandas
+  class skops builds, along with the other types you trust. The dtypes are
+  kept, including the missing value and, with pyarrow installed, the storage of
+  a string dtype, and so are the ``freq`` of an index and the ``attrs`` and
+  ``flags`` of a Series or DataFrame. The pyarrow backed arrays and dtypes,
+  those with an ``ArrowDtype``, are not supported yet.
+  :pr:`552` by `Adrin Jalali`_.
 - Fix a regression since v0.12.0 where saving an object whose ``__reduce__``
   raises failed at dump time. ``__reduce__`` is called on every object to
   detect a plain constructor call, but Cython extension types with a

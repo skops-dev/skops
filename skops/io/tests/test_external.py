@@ -17,7 +17,7 @@ from unittest.mock import Mock, patch
 import pytest
 from sklearn.datasets import make_classification, make_regression
 
-from skops.io import dumps, get_untrusted_types, loads, visualize
+from skops.io import PANDAS_TYPES, dumps, get_untrusted_types, loads, visualize
 from skops.io._utils import get_type_name
 from skops.io.tests._utils import assert_method_outputs_equal, assert_params_equal
 from skops.utils._fixes import make_xgboost_random_forest
@@ -470,13 +470,11 @@ class TestCategoryEncoders:
         dumped = dumps(estimator)
         # the pandas objects in the fitted attributes are not trusted by
         # default either; a user passes the names the file holds
-        untrusted = get_untrusted_types(data=dumped)
-        assert {name for name in untrusted if not name.startswith("pandas.")} == {
-            get_type_name(t) for t in trusted
-        }
-        loaded = loads(dumped, trusted=untrusted)
+        untrusted = set(get_untrusted_types(data=dumped))
+        assert untrusted - set(PANDAS_TYPES) == {get_type_name(t) for t in trusted}
+        loaded = loads(dumped, trusted=[*PANDAS_TYPES, *trusted])
         assert_params_equal(estimator.__dict__, loaded.__dict__)
         X_new = pd.DataFrame({"category": ["A", "C", "unseen", None]})
         assert_method_outputs_equal(estimator, loaded, X_new)
 
-        visualize(dumped, trusted=untrusted)
+        visualize(dumped, trusted=[*PANDAS_TYPES, *trusted])

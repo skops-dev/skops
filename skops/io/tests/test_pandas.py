@@ -16,7 +16,15 @@ import numpy as np
 import pytest
 from packaging.version import Version
 
-from skops.io import dump, dumps, get_untrusted_types, load, loads, visualize
+from skops.io import (
+    PANDAS_TYPES,
+    dump,
+    dumps,
+    get_untrusted_types,
+    load,
+    loads,
+    visualize,
+)
 from skops.io._pandas import _RENAMED_CLASSES
 from skops.io._utils import get_type_name
 from skops.io.exceptions import (
@@ -197,11 +205,11 @@ def _id(obj):
 
 
 def _loads(dumped):
-    # pandas types are not trusted by default: a user passes the names a file
-    # holds, which are all public pandas names
+    # pandas types are not trusted by default: a user passes PANDAS_TYPES,
+    # which hold every pandas name a file can hold
     untrusted = get_untrusted_types(data=dumped)
-    assert untrusted and all(name.partition(".")[0] == "pandas" for name in untrusted)
-    return loads(dumped, trusted=untrusted)
+    assert untrusted and set(untrusted) <= set(PANDAS_TYPES)
+    return loads(dumped, trusted=PANDAS_TYPES)
 
 
 @pytest.mark.parametrize("obj", INDEXES + SERIES + FRAMES + ARRAYS + DTYPES, ids=_id)
@@ -326,6 +334,22 @@ def test_duplicate_labels_flag_is_validated():
 
     with pytest.raises(pd.errors.DuplicateLabelError):
         _loads(_with_edited_schema(dumped, edit))
+
+
+def test_pandas_types():
+    # the public names of the classes the loaders build, which a user passes
+    # as trusted; a tuple so that it cannot be changed by accident
+    from skops.io._pandas import NODE_TYPE_MAPPING
+
+    assert isinstance(PANDAS_TYPES, tuple)
+    expected = {
+        f"{node._module}.{name}"
+        for node in NODE_TYPE_MAPPING.values()
+        for name in node._classes
+    }
+    assert set(PANDAS_TYPES) == expected
+    assert all(name.startswith("pandas.") for name in PANDAS_TYPES)
+    assert "pandas.DataFrame" in PANDAS_TYPES
 
 
 def test_pandas_types_are_not_trusted_by_default():
@@ -970,7 +994,6 @@ def assert_same_data(expected, actual):
 )
 def test_load_file_of_other_pandas_version(path):
     # the names in the file are the public ones, which every version resolves
-    untrusted = get_untrusted_types(file=path)
-    assert all(name.partition(".")[0] == "pandas" for name in untrusted)
-    loaded = load(path, trusted=untrusted)
+    assert set(get_untrusted_types(file=path)) <= set(PANDAS_TYPES)
+    loaded = load(path, trusted=PANDAS_TYPES)
     assert_same_data(cross_version_objects(), loaded)

@@ -251,21 +251,41 @@ Skops intends to support all of **scikit-learn**, that is, not only its
 estimators, but also other classes like cross validation splitters. Furthermore,
 most types from **numpy** and **scipy** should be supported, such as (sparse)
 arrays, dtypes, random generators, and ufuncs. **pandas** objects, that is
-``DataFrame``, ``Series``, every kind of ``Index``, and the extension arrays
-and extension dtypes of pandas itself, not those of other libraries, are
-supported as well with pandas 2.0 or later: they are
-stored as the arrays they are made of and rebuilt through the public pandas
-constructors, so that no pandas internals end up in the file, and a file
-written with one pandas version loads with any other. They are not trusted by
-default: the pandas types a file holds, which
-:func:`skops.io.get_untrusted_types` lists, have to be passed as ``trusted``.
-The scalars ``Timestamp``, ``Timedelta`` and ``NA`` are supported as well. The
-pyarrow backed arrays and dtypes, those with an ``ArrowDtype``, are not
-supported yet; the string dtype with pyarrow storage is, as a string dtype.
-Not preserved are the
-``freq`` of datetime-like indexes and arrays, the ``attrs`` and ``flags`` of a
-``Series`` or ``DataFrame``, and the storage, python or pyarrow, of a string
-dtype, which is an environment choice over the same values.
+``DataFrame``, ``Series``, every kind of ``Index``, the extension arrays and
+extension dtypes of pandas itself, and the scalars ``Timestamp``,
+``Timedelta``, ``NA`` and ``NaT``, are supported as well with pandas 2.0 or
+later. They are stored as the arrays they are made of and rebuilt through the
+public pandas constructors, so that no pandas internals end up in the file,
+and a file written with one pandas version loads with any other.
+
+The pandas types are not trusted by default. ``skops.io.PANDAS_TYPES`` holds
+the public names of every pandas class skops builds, and is what to pass to
+load the pandas objects of a file, along with the other types you trust:
+
+.. code-block:: python
+
+    from skops.io import PANDAS_TYPES, get_untrusted_types, load
+
+    unknown_types = get_untrusted_types(file="my-model.skops")
+    # review the names that are not pandas ones
+    print(sorted(set(unknown_types) - set(PANDAS_TYPES)))
+    loaded = load("my-model.skops", trusted=[*PANDAS_TYPES, MyEstimator])
+
+A loader only accepts the classes it builds, so a file cannot name another
+pandas class, or a module of pandas such as its test suite, under a trusted
+name.
+
+The dtypes are kept, including the missing value of a string dtype,
+``pandas.NA`` or ``NaN``, where the loading pandas version has them: strings
+with ``NaN`` as missing value load as object arrays on pandas 2.0, and on 2.1
+and 2.2 without pyarrow. The storage of a string dtype, python or pyarrow, is
+kept when pyarrow is installed. The ``freq`` of an index, and the ``attrs`` and
+``flags`` of a ``Series`` or ``DataFrame``, are kept too; an index whose
+``freq`` is an offset with other arguments than numbers and strings, such as
+the holidays of a ``CustomBusinessDay``, cannot be saved. The pyarrow backed
+arrays and dtypes, those with an ``ArrowDtype``, are not supported yet. The
+extension arrays and dtypes of other libraries are saved through their state
+under their own class, as any other object.
 
 Apart from this core, we plan to support machine learning libraries commonly
 used be the community. So far, we have tested the following libraries:
