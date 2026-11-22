@@ -283,20 +283,15 @@ def _offset(parts: Any) -> Any:
     return cls(parts["n"], **kwargs)
 
 
-def _freq(obj: Any) -> str | None:
-    """The freq of a DatetimeIndex or TimedeltaIndex as JSON, or ``None``.
+def _offset_parts(freq: Any) -> str | None:
+    """An offset as JSON of its class in ``pandas.offsets`` and its arguments.
 
-    The offset is stored as its class in ``pandas.offsets`` and its
-    arguments rather than by its alias, which changed between pandas versions:
-    pandas 2.0 calls the month end "M" and the hour "H", which pandas 3 does
-    not accept. Offsets whose arguments are not JSON scalars, e.g. the holiday
-    calendar of a ``CustomBusinessDay``, cannot be saved.
+    Offsets are stored like this rather than by their alias, which changed
+    between pandas versions: pandas 2.0 calls the month end "M", the hour "H"
+    and the year end "A", which pandas 3 does not accept. ``None`` for an
+    offset whose arguments are not JSON scalars, e.g. the holiday calendar of
+    a ``CustomBusinessDay``, which cannot be saved.
     """
-    import pandas as pd
-
-    if not isinstance(obj, (pd.DatetimeIndex, pd.TimedeltaIndex)) or obj.freq is None:
-        return None
-    freq = obj.freq
     kwds = {
         key: value
         for key, value in freq.kwds.items()
@@ -312,13 +307,23 @@ def _freq(obj: Any) -> str | None:
     try:
         rebuilt = _offset(json.loads(json.dumps(parts)))
     except (TypeError, ValueError):
-        rebuilt = None
-    if rebuilt != freq:
+        return None
+    return json.dumps(parts) if rebuilt == freq else None
+
+
+def _freq(obj: Any) -> str | None:
+    # The freq of a DatetimeIndex or TimedeltaIndex, see ``_offset_parts``.
+    import pandas as pd
+
+    if not isinstance(obj, (pd.DatetimeIndex, pd.TimedeltaIndex)) or obj.freq is None:
+        return None
+    parts = _offset_parts(obj.freq)
+    if parts is None:
         raise UnsupportedTypeException(
-            f"The freq {freq!r} of the index cannot be saved. Save the index"
+            f"The freq {obj.freq!r} of the index cannot be saved. Save the index"
             f" without it, as {type(obj).__name__}(index, freq=None)."
         )
-    return json.dumps(parts)
+    return parts
 
 
 def index_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
@@ -551,8 +556,9 @@ def sparse_array_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any
 
 
 def extension_dtype_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
-    # Extension dtypes are rebuilt from their string form, e.g. "Int64" or
-    # "period[M]", except those whose name does not hold all of their state,
+    # Extension dtypes are rebuilt from their string form, e.g. "Int64", except
+    # those whose name does not hold all of their state or changed between
+    # versions,
     # or whose parser consults pandas' registry of extension dtypes or the
     # file system, which are stored as parts below.
     import pandas as pd
@@ -619,6 +625,16 @@ def _string_dtype(storage: str, nan: bool) -> Any:
         return pd.StringDtype("pyarrow_numpy")
     except (ImportError, ValueError):
         return np.dtype(object)
+
+
+def period_dtype_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
+    # By its offset rather than its name, e.g. "period[A-DEC]" or "period[H]",
+    # since the aliases changed between versions, see ``_offset_parts``.
+    freq = _offset_parts(obj.freq)
+    if freq is None:  # pragma: no cover
+        # the offsets of periods all have JSON arguments
+        raise UnsupportedTypeException(f"The dtype {obj!r} cannot be saved.")
+    return _pandas_state(obj, "PandasPeriodDtypeNode", {"freq": freq}, save_context)
 
 
 def datetime_tz_dtype_get_state(obj: Any, save_context: SaveContext) -> dict[str, Any]:
@@ -1024,7 +1040,7 @@ class PandasPeriodArrayNode(_PandasNode):
     _classes = ("PeriodArray",)
 
     def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
-        return {"ordinals": (NdArrayNode,), "dtype": (PandasExtensionDtypeNode,)}
+        return {"ordinals": (NdArrayNode,), "dtype": (PandasPeriodDtypeNode,)}
 
     def _build(self):
         import pandas as pd
@@ -1101,7 +1117,6 @@ class PandasExtensionDtypeNode(_PandasNode):
         "Float32Dtype",
         "Float64Dtype",
         "BooleanDtype",
-        "PeriodDtype",
     )
 
     def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
@@ -1120,6 +1135,32 @@ class PandasExtensionDtypeNode(_PandasNode):
         # registry (the subtype of an interval or sparse dtype) or the file
         # system (the time zone of a datetime dtype) have loaders of their own.
         return getattr(pd, self.class_name).construct_from_string(name)
+
+
+class PandasPeriodDtypeNode(_PandasNode):
+    _classes = ("PeriodDtype",)
+
+    def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
+        return {"freq": (JsonNode,)}
+
+    def _build(self):
+        import pandas as pd
+
+        freq = self._construct_content()["freq"]
+        if not isinstance(freq, str):
+            raise ValueError(
+                "The freq of a period dtype must be a JSON string. This is probably"
+                " due to a corrupted or a malicious file."
+            )
+        offset = _offset(json.loads(freq))
+        try:
+            return pd.PeriodDtype(offset)
+        except (AttributeError, KeyError, TypeError) as err:
+            # how pandas refuses the offsets that are no frequencies of periods
+            raise ValueError(
+                f"{offset!r} is not a frequency of periods. This is probably due to"
+                " a corrupted or a malicious file."
+            ) from err
 
 
 class PandasStringDtypeNode(_PandasNode):
@@ -1233,6 +1274,7 @@ _INDEX_NODES = (PandasIndexNode, PandasRangeIndexNode, PandasMultiIndexNode)
 _DTYPE_NODES = (
     PandasExtensionDtypeNode,
     PandasStringDtypeNode,
+    PandasPeriodDtypeNode,
     PandasCategoricalDtypeNode,
     PandasSparseDtypeNode,
     PandasDatetimeTZDtypeNode,
@@ -1298,6 +1340,7 @@ def register_if_imported() -> None:
         (pd.arrays.SparseArray, sparse_array_get_state),
         (pd.api.extensions.ExtensionDtype, extension_dtype_get_state),
         (pd.StringDtype, string_dtype_get_state),
+        (pd.PeriodDtype, period_dtype_get_state),
         (pd.CategoricalDtype, categorical_dtype_get_state),
         (pd.SparseDtype, sparse_dtype_get_state),
         (pd.DatetimeTZDtype, datetime_tz_dtype_get_state),
@@ -1339,6 +1382,7 @@ NODE_TYPE_MAPPING = {
     ("PandasExtensionArrayNode", PROTOCOL): PandasExtensionArrayNode,
     ("PandasExtensionDtypeNode", PROTOCOL): PandasExtensionDtypeNode,
     ("PandasStringDtypeNode", PROTOCOL): PandasStringDtypeNode,
+    ("PandasPeriodDtypeNode", PROTOCOL): PandasPeriodDtypeNode,
     ("PandasCategoricalDtypeNode", PROTOCOL): PandasCategoricalDtypeNode,
     ("PandasSparseDtypeNode", PROTOCOL): PandasSparseDtypeNode,
     ("PandasDatetimeTZDtypeNode", PROTOCOL): PandasDatetimeTZDtypeNode,

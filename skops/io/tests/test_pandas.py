@@ -314,6 +314,37 @@ def test_freq_only_on_datetime_like_indexes():
         _loads(_with_edited_schema(dumped, edit))
 
 
+@pytest.mark.parametrize(
+    "freq",
+    [
+        pd.offsets.YearEnd(),
+        pd.offsets.Hour(),
+        pd.offsets.QuarterEnd(startingMonth=6),
+        pd.offsets.Week(weekday=6),
+        pd.offsets.Day(3),
+    ],
+    ids=repr,
+)
+def test_period_dtype_is_stored_by_its_offset(freq):
+    # its name holds the alias, which changed: pandas 2.0 writes "period[A-DEC]"
+    # and "period[H]", which pandas 3 cannot parse
+    dtype = pd.PeriodDtype(freq)
+    assert _loads(dumps(dtype)) == dtype
+    periods = pd.Series(pd.period_range("2024-01-01", periods=2, freq=freq))
+    _assert_vals_equal(periods, _loads(dumps(periods)))
+
+
+def test_period_dtype_refuses_other_offsets():
+    dumped = dumps(pd.PeriodDtype("M"))
+
+    def edit(schema):
+        parts = {"name": "BusinessHour", "n": 1, "normalize": False, "kwds": {}}
+        schema["content"]["freq"]["content"] = json.dumps(json.dumps(parts))
+
+    with pytest.raises(ValueError, match="not a frequency of periods"):
+        _loads(_with_edited_schema(dumped, edit))
+
+
 def test_attrs_and_flags_are_kept():
     frame = pd.DataFrame({"a": [1, 2]}).set_flags(allows_duplicate_labels=False)
     frame.attrs = {"unit": "m", "source": [1, 2]}
