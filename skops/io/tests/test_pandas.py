@@ -357,6 +357,28 @@ def test_attrs_and_flags_are_kept():
     assert _loads(dumps(series)).attrs == {"unit": "s"}
 
 
+@pytest.mark.parametrize(
+    "dumped, entry",
+    [
+        (dumps(pd.DataFrame({"a": [1]})), "allows_duplicate_labels"),
+        (dumps(pd.PeriodDtype("M")), "freq"),
+    ],
+    ids=["flag", "period-freq"],
+)
+def test_json_entries_of_the_wrong_type_are_refused(dumped, entry):
+    def edit(schema):
+        schema["content"][entry]["content"] = json.dumps(1)
+        schema["content"][entry]["__id__"] = -1
+
+    with pytest.raises(ValueError, match="must be a"):
+        _loads(_with_edited_schema(dumped, edit))
+
+
+def test_single_pandas_class_as_trusted():
+    # a single class rather than a list, matched by its public name
+    loads(dumps(pd.Int64Dtype()), trusted=pd.Int64Dtype)
+
+
 def test_duplicate_labels_flag_is_validated():
     # a file cannot claim unique labels the data does not have
     dumped = dumps(pd.DataFrame({"a": [1, 2]}, index=["x", "x"]))
