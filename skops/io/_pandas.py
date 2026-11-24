@@ -246,19 +246,29 @@ def strings_get_state(obj: _Strings, save_context: SaveContext) -> dict[str, Any
     }
 
 
-def _from_json(values: Any) -> Any:
-    # The loaded values of an object: the object array of a JSON list from
-    # ``strings_get_state``, any other array as it is.
-    if not isinstance(values, (list, dict, str, int, float, bool, type(None))):
+def _array_values(values: Any) -> Any:
+    """The loaded values of an Index, Series, column or array, checked.
+
+    The object array of a JSON list from ``strings_get_state``, or a
+    one-dimensional numpy or extension array. Anything else is refused, in
+    particular a numpy scalar, which pandas would repeat for every label of
+    a long index, e.g. a ``RangeIndex`` of a billion labels, which takes no
+    space in the file.
+    """
+    import pandas as pd
+
+    if isinstance(values, list) and all(_is_string_item(v) for v in values):
+        array = np.empty(len(values), dtype=object)
+        array[:] = values
+        return array
+    arrays = (np.ndarray, pd.api.extensions.ExtensionArray)
+    if isinstance(values, arrays) and values.ndim == 1:
         return values
-    if not isinstance(values, list) or not all(_is_string_item(v) for v in values):
-        raise ValueError(
-            "Expected an array or a list of strings and missing values. This is"
-            " probably due to a corrupted or a malicious file."
-        )
-    array = np.empty(len(values), dtype=object)
-    array[:] = values
-    return array
+    raise ValueError(
+        "Expected a one-dimensional array or a list of strings and missing"
+        f" values, got {type(values).__name__}. This is probably due to a"
+        " corrupted or a malicious file."
+    )
 
 
 def _offset(parts: Any) -> Any:
@@ -729,7 +739,7 @@ class PandasIndexNode(_PandasNode):
         import pandas as pd
 
         content = self._construct_content()
-        values = _from_json(content["values"])
+        values = _array_values(content["values"])
         # The dtype is passed to prevent inference, and ``tupleize_cols`` keeps
         # an object Index of tuples from becoming a MultiIndex.
         index = pd.Index(
@@ -808,10 +818,15 @@ class PandasSeriesNode(_PandasNode):
         import pandas as pd
 
         content = self._construct_content()
-        values = _from_json(content["values"])
-        series = pd.Series(
-            values, index=content["index"], dtype=values.dtype, name=content["name"]
-        )
+        values, index = _array_values(content["values"]), content["index"]
+        if len(values) != len(index):
+            raise ValueError(
+                f"A Series of {len(values)} values cannot have an index of"
+                f" {len(index)} labels. This is probably due to a corrupted or a"
+                " malicious file."
+            )
+        name = content["name"]
+        series = pd.Series(values, index=index, dtype=values.dtype, name=name)
         return _with_frame_content(series, content)
 
 
@@ -831,14 +846,26 @@ class PandasDataFrameNode(_PandasNode):
         import pandas as pd
 
         content = self._construct_content()
-        data = [_from_json(values) for values in content["data"]]
+        index, column_labels = content["index"], content["columns"]
+        data = [_array_values(values) for values in content["data"]]
+        # Checked before building anything: pd.concat pads columns of
+        # different lengths, so one long column and many short ones would
+        # take rows times columns of memory before the index is assigned.
+        lengths = {len(values) for values in data}
+        if len(data) != len(column_labels) or lengths - {len(index)}:
+            raise ValueError(
+                f"A DataFrame of {len(index)} rows and {len(column_labels)}"
+                f" columns cannot hold {len(data)} columns of"
+                f" {sorted(lengths)} rows. This is probably due to a corrupted or"
+                " a malicious file."
+            )
         columns = [pd.Series(values, dtype=values.dtype) for values in data]
         if columns:
             frame = pd.concat(columns, axis=1, ignore_index=True)
-            frame.index = content["index"]
+            frame.index = index
         else:
-            frame = pd.DataFrame(index=content["index"])
-        frame.columns = content["columns"]
+            frame = pd.DataFrame(index=index)
+        frame.columns = column_labels
         return _with_frame_content(frame, content)
 
 
@@ -853,7 +880,7 @@ class PandasNumpyBackedArrayNode(_PandasNode):
         import pandas as pd
 
         content = self._construct_content()
-        values, tz = content["values"], content["tz"]
+        values, tz = _array_values(content["values"]), content["tz"]
         # A DatetimeArray or TimedeltaArray, which ``pd.array`` infers from the
         # dtype of the values on every pandas version.
         kind = "M" if self.class_name == "DatetimeArray" else "m"
@@ -974,7 +1001,7 @@ class PandasExtensionArrayNode(_PandasNode):
         import pandas as pd
 
         content = self._construct_content()
-        return pd.array(_from_json(content["values"]), dtype=content["dtype"])
+        return pd.array(_array_values(content["values"]), dtype=content["dtype"])
 
     def _built_name(self, obj: Any) -> str | None:
         # The class of a string array follows the string storage of the

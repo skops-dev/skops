@@ -667,6 +667,89 @@ def test_child_of_wrong_kind_is_refused():
         get_untrusted_types(data=_with_edited_schema(dumped, edit))
 
 
+def _npy(array):
+    buffer = io.BytesIO()
+    np.save(buffer, array, allow_pickle=False)
+    return buffer.getvalue()
+
+
+def _with_edited_files(dumped, edit):
+    # like _with_edited_schema, with the other files of the archive editable
+    with ZipFile(io.BytesIO(dumped)) as zip_file:
+        schema = json.loads(zip_file.read("schema.json"))
+        files = {n: zip_file.read(n) for n in zip_file.namelist() if n != "schema.json"}
+    edit(schema, files)
+    buffer = io.BytesIO()
+    with ZipFile(buffer, "w") as zip_file:
+        zip_file.writestr("schema.json", json.dumps(schema))
+        for name, data in files.items():
+            zip_file.writestr(name, data)
+    return buffer.getvalue()
+
+
+@pytest.mark.parametrize(
+    "obj, values_path",
+    [
+        (pd.Series([1, 2]), ("values",)),
+        (pd.Index([1, 2]), ("values",)),
+        (pd.DataFrame({"a": [1, 2]}), ("data", "content", 0)),
+        (pd.array(pd.to_timedelta([1, 2], unit="s")), ("values",)),
+    ],
+    ids=["Series", "Index", "DataFrame", "TimedeltaArray"],
+)
+@pytest.mark.parametrize("kind", ["0-d", "scalar", "2-d"])
+def test_values_must_be_one_dimensional(obj, values_path, kind):
+    # A numpy scalar as the values of a Series is repeated for every label of
+    # its index, and a RangeIndex of 10**9 labels takes no space in a file:
+    # pandas would allocate gigabytes. Values must be 1-d arrays.
+    dumped = dumps(obj)
+    values = np.zeros((2, 2)) if kind == "2-d" else np.array(1)
+
+    def edit(schema, files):
+        node = schema["content"]
+        for key in values_path:
+            node = node[key]
+        files[node["file"]] = _npy(values.astype(np.dtype(node.get("dtype", "f8"))))
+        if kind == "scalar":
+            # the class of a numpy scalar, which NdArrayNode builds
+            node["__module__"], node["__class__"] = "numpy", "float64"
+        if "index" in schema["content"] and kind != "2-d":
+            stop = schema["content"]["index"]["content"]["stop"]
+            stop["content"] = json.dumps(10**9)
+
+    with pytest.raises(ValueError, match="one-dimensional"):
+        _loads(_with_edited_files(dumped, edit))
+
+
+def test_dataframe_columns_must_fit_its_axes():
+    # pd.concat pads columns of different lengths, so one long column and many
+    # short ones would take rows times columns of memory: refused before that
+    frame = pd.DataFrame({f"c{i}": [1.0] for i in range(3)})
+    dumped = dumps(frame)
+
+    def long_column(schema, files):
+        files[schema["content"]["data"]["content"][0]["file"]] = _npy(np.zeros(10**5))
+
+    with pytest.raises(ValueError, match="cannot hold 3 columns"):
+        _loads(_with_edited_files(dumped, long_column))
+
+    def fewer_columns(schema, files):
+        del schema["content"]["data"]["content"][0]
+
+    with pytest.raises(ValueError, match="cannot hold 2 columns"):
+        _loads(_with_edited_files(dumped, fewer_columns))
+
+
+def test_series_values_must_fit_its_index():
+    dumped = dumps(pd.Series([1, 2]))
+
+    def long_index(schema, files):
+        schema["content"]["index"]["content"]["stop"]["content"] = json.dumps(10**9)
+
+    with pytest.raises(ValueError, match="cannot have an index of 1000000000"):
+        _loads(_with_edited_files(dumped, long_index))
+
+
 @pytest.mark.parametrize("values", ["x", 1, {"a": "b"}, ["a", 1], ["a", [None]]])
 def test_json_values_must_be_strings(values):
     # values may be a JSON list of strings and missing values, see _Strings;
