@@ -46,9 +46,12 @@ within pandas' constructors and the data from the file. Every node lists the
 public pandas classes it builds, by their name in ``pandas`` or
 ``pandas.arrays``; a file declaring any other class is refused while it is
 read, before anything is constructed, and the built object is checked to be of
-the declared class. Classes are looked up in those two namespaces rather than
-imported from a module the file names, so a file cannot make the loader import
-any other part of pandas, such as its test suite, which ships with it. In
+the declared class. These names are only accepted on the pandas loaders: a file
+declaring one with a generic loader, which would call its constructor with
+arguments from the file, is refused, see ``RESERVED_TYPE_LOADERS``. Classes are
+looked up in those two namespaces rather than imported from a module the file
+names, so a file cannot make the loader import any other part of pandas, such
+as its test suite, which ships with it. In
 particular, no name from the file is looked up in pandas' registry of extension
 dtypes, where any imported library can register a dtype whose parser would
 then run, and time zones are parsed here rather than by pandas, whose parser
@@ -74,6 +77,7 @@ from ._general import DictNode, JsonNode, ListNode, object_get_state
 from ._numpy import NdArrayNode
 from ._protocol import PROTOCOL
 from ._utils import (
+    RESERVED_TYPE_LOADERS,
     LoadContext,
     SaveContext,
     TrustedTypes,
@@ -1230,3 +1234,12 @@ PANDAS_TYPES: tuple[str, ...] = tuple(
         }
     )
 )
+
+# The pandas types are only loaded by these loaders, see RESERVED_TYPE_LOADERS:
+# trusting PANDAS_TYPES must not let a generic loader build them, e.g. a
+# DatetimeTZDtype whose time zone pandas would read from any file on disk.
+for (_loader, _), _node in NODE_TYPE_MAPPING.items():
+    for _class_name in _node._classes:
+        RESERVED_TYPE_LOADERS.setdefault(f"{_node._module}.{_class_name}", set()).add(
+            _loader
+        )

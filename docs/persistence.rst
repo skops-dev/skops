@@ -273,7 +273,9 @@ load the pandas objects of a file, along with the other types you trust:
 
 A loader only accepts the classes it builds, so a file cannot name another
 pandas class, or a module of pandas such as its test suite, under a trusted
-name.
+name. These names are only accepted on skops' pandas loaders, so trusting them
+does not let the generic loaders, which call a class with arguments from the
+file, build pandas objects either.
 
 The dtypes are kept, including the missing value of a string dtype,
 ``pandas.NA`` or ``NaN``, where the loading pandas version has them: strings

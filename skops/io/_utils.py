@@ -219,6 +219,24 @@ def read_schema(zip_file: ZipFile) -> tuple[dict[str, Any], LoadContext]:
     return schema, LoadContext(src=zip_file, protocol=protocol)
 
 
+# Type names that only some loaders may declare, mapped to the names of those
+# loaders. A module that saves a type with loaders of its own registers it
+# here, so that a file cannot declare the type with another loader, e.g. a
+# generic one that calls its constructor with arguments from the file, and
+# pass the audit on a trust meant for the module's own loaders: the pandas
+# types, which users trust as a whole through ``skops.io.PANDAS_TYPES``, are
+# only loaded by the pandas loaders. ``CachedNode`` refers to a node built
+# earlier, and is always allowed. Checked when saving, in ``get_state``, and
+# when loading, in ``skops.io._audit.get_tree``.
+RESERVED_TYPE_LOADERS: dict[str, set[str]] = {}
+
+
+def is_allowed_loader(type_name: str, loader: str) -> bool:
+    """Whether a file may declare ``type_name`` with ``loader``."""
+    allowed = RESERVED_TYPE_LOADERS.get(type_name)
+    return allowed is None or loader in allowed or loader == "CachedNode"
+
+
 @singledispatch
 def _get_state(obj, save_context: SaveContext):
     # This function should never be called directly. Instead, it is used to
@@ -275,6 +293,14 @@ def get_state(value, save_context: SaveContext) -> dict[str, Any]:
     finally:
         del save_context.in_progress[__id__]
 
+    type_name = f"{res.get('__module__')}.{res.get('__class__')}"
+    if not is_allowed_loader(type_name, res["__loader__"]):
+        # e.g. the class pandas.DataFrame itself, rather than a DataFrame,
+        # which would not load
+        raise UnsupportedTypeException(
+            f"Saving {type_name} with {res['__loader__']}, e.g. the class"
+            " itself rather than an instance of it, is not supported yet."
+        )
     res["__id__"] = __id__
     return res
 

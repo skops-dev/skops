@@ -416,9 +416,77 @@ def test_dtype_node_refuses_other_classes(module, class_name):
         )
 
     imported = set(sys.modules)
-    with pytest.raises(ValueError, match="not a class PandasExtensionDtypeNode"):
+    with pytest.raises(
+        ValueError, match="not a class PandasExtensionDtypeNode|only be loaded by"
+    ):
         get_untrusted_types(data=_with_edited_schema(dumped, edit))
     assert module == "pandas" or module in imported or module not in sys.modules
+
+
+# The skops loaders that build an object from the class a file names, or hand
+# out the class itself, which a file could then call through other objects.
+GENERIC_LOADERS = [
+    "ObjectNode",
+    "ConstructorFromReduceNode",
+    "TypeNode",
+    "FunctionNode",
+    "MethodNode",
+    "PartialNode",
+]
+
+
+@pytest.mark.parametrize("loader", GENERIC_LOADERS)
+def test_pandas_names_only_on_pandas_loaders(loader):
+    # Trusting PANDAS_TYPES must not let a generic loader build those classes:
+    # it would call their constructors with arguments from the file, e.g. a
+    # DatetimeTZDtype whose time zone pandas reads from any file on disk.
+    for name in PANDAS_TYPES:
+        module, _, class_name = name.rpartition(".")
+        state = {
+            "__class__": class_name,
+            "__module__": module,
+            "__loader__": loader,
+            "__id__": 1,
+            "content": {},
+        }
+        buffer = io.BytesIO()
+        with ZipFile(buffer, "w") as zip_file:
+            zip_file.writestr(
+                "schema.json", json.dumps({**state, "protocol": PROTOCOL})
+            )
+        with pytest.raises(ValueError, match="can only be loaded by Pandas"):
+            get_untrusted_types(data=buffer.getvalue())
+
+
+def test_datetime_dtype_through_a_generic_loader_is_refused():
+    # the case of the review: pandas.DatetimeTZDtype("ns", "dateutil/<path>")
+    # through ConstructorFromReduceNode, whose time zone would be read from a
+    # file outside the zoneinfo directories
+    dumped = dumps(pd.Interval(0, 1))
+
+    def edit(schema):
+        schema["__module__"], schema["__class__"] = "pandas", "DatetimeTZDtype"
+        args = schema["content"]["content"]
+        args[0]["content"] = json.dumps("ns")
+        args[1]["content"] = json.dumps("dateutil//etc/localtime")
+        del args[2:]
+
+    with pytest.raises(ValueError, match="not by ConstructorFromReduceNode"):
+        loads(_with_edited_schema(dumped, edit), trusted=PANDAS_TYPES)
+
+
+def test_pandas_class_itself_is_unsupported_where_its_name_is_public():
+    # The class itself, rather than an instance, would be saved by TypeNode
+    # under the public name, which only the pandas loaders may declare: refused
+    # when saving. pandas before 3.0 names it by its defining module, which is
+    # not one of PANDAS_TYPES, and it is saved like any other class.
+    if get_type_name(pd.DataFrame) in PANDAS_TYPES:
+        with pytest.raises(UnsupportedTypeException, match="the class itself"):
+            dumps({"cls": pd.DataFrame})
+    else:
+        dumped = dumps({"cls": pd.DataFrame})
+        trusted = get_untrusted_types(data=dumped)
+        assert loads(dumped, trusted=trusted)["cls"] is pd.DataFrame
 
 
 def test_array_node_refuses_other_classes():
@@ -429,7 +497,9 @@ def test_array_node_refuses_other_classes():
     def edit(schema):
         schema["__module__"], schema["__class__"] = "pandas", "DataFrame"
 
-    with pytest.raises(ValueError, match="not a class PandasExtensionArrayNode"):
+    with pytest.raises(
+        ValueError, match="not a class PandasExtensionArrayNode|only be loaded by"
+    ):
         get_untrusted_types(data=_with_edited_schema(dumped, edit))
 
 
@@ -581,13 +651,17 @@ def test_declared_class_must_be_one_the_loader_builds():
     def edit(schema):
         schema["__class__"] = "Series"
 
-    with pytest.raises(ValueError, match="not a class PandasRangeIndexNode builds"):
+    with pytest.raises(
+        ValueError, match="not a class PandasRangeIndexNode builds|only be loaded by"
+    ):
         get_untrusted_types(data=_with_edited_schema(dumped, edit))
 
     def edit_module(schema):
         schema["__module__"] = "pandas.core.indexes.range"
 
-    with pytest.raises(ValueError, match="not a class PandasRangeIndexNode builds"):
+    with pytest.raises(
+        ValueError, match="not a class PandasRangeIndexNode builds|only be loaded by"
+    ):
         get_untrusted_types(data=_with_edited_schema(dumped, edit_module))
 
 
@@ -1020,7 +1094,9 @@ def test_tampered_class_names(obj, monkeypatch):
 
             tampered = _with_edited_schema(dumped, edit)
             if module != node._module or class_name not in node._classes:
-                with pytest.raises(ValueError, match="is not a class"):
+                # refused by the node, or before it is built, if another
+                # pandas loader builds that name
+                with pytest.raises(ValueError, match="is not a class|only be loaded"):
                     get_untrusted_types(data=tampered)
                 continue
             built.clear()
