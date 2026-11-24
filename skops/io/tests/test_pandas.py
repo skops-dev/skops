@@ -913,18 +913,51 @@ class ThirdPartyDtype(pd.api.extensions.ExtensionDtype):
 
 
 class ThirdPartyArray(pd.api.extensions.ExtensionArray):
-    """A minimal extension array defined outside pandas, e.g. by pint-pandas."""
+    """An extension array defined outside pandas, as pint-pandas does."""
 
     dtype = ThirdPartyDtype()
 
     def __init__(self, values):
         self.values = np.asarray(values, dtype=object)
 
+    @classmethod
+    def _from_sequence(cls, scalars, *, dtype=None, copy=False):
+        return cls(list(scalars))
+
+    @classmethod
+    def _from_factorized(cls, values, original):  # pragma: no cover
+        return cls(values)
+
+    def __getitem__(self, item):
+        if isinstance(item, (int, np.integer)):
+            return self.values[item]
+        return type(self)(self.values[item])
+
     def __len__(self):
         return len(self.values)
 
-    def __getitem__(self, item):  # pragma: no cover
-        return self.values[item]
+    def __eq__(self, other):  # pragma: no cover
+        return np.asarray(self.values == np.asarray(other, dtype=object), dtype=bool)
+
+    @property
+    def nbytes(self):  # pragma: no cover
+        return self.values.nbytes
+
+    def isna(self):
+        return np.array([value is None for value in self.values], dtype=bool)
+
+    def take(self, indices, allow_fill=False, fill_value=None):
+        values = pd.api.extensions.take(
+            self.values, indices, allow_fill=allow_fill, fill_value=fill_value
+        )
+        return type(self)(values)
+
+    def copy(self):
+        return type(self)(self.values.copy())
+
+    @classmethod
+    def _concat_same_type(cls, to_concat):
+        return cls(np.concatenate([array.values for array in to_concat]))
 
 
 def test_extension_types_from_other_libraries_are_saved_generically():
@@ -941,6 +974,26 @@ def test_extension_types_from_other_libraries_are_saved_generically():
     assert type(loaded["fitted_"]) is ThirdPartyArray
     assert loaded["fitted_"].values.tolist() == ["a", 1]
     assert type(loaded["dtype_"]) is ThirdPartyDtype
+
+
+@pytest.mark.parametrize(
+    "container",
+    [pd.Series, pd.Index, lambda array: pd.DataFrame({"a": array})],
+    ids=["Series", "Index", "DataFrame"],
+)
+def test_containers_of_extension_arrays_from_other_libraries(container):
+    # The array is saved the generic way, under its own class, and the
+    # container loads once the user trusts that class too.
+    obj = container(ThirdPartyArray(["a", None, "b"]))
+    dumped = dumps(obj)
+    untrusted = set(get_untrusted_types(data=dumped))
+    assert untrusted - set(PANDAS_TYPES) == {get_type_name(ThirdPartyArray)}
+    with pytest.raises(UntrustedTypesFoundException, match="ThirdPartyArray"):
+        loads(dumped, trusted=PANDAS_TYPES)
+    loaded = loads(dumped, trusted=[*PANDAS_TYPES, ThirdPartyArray])
+    values = loaded.iloc[:, 0] if isinstance(loaded, pd.DataFrame) else loaded
+    assert type(values.array) is ThirdPartyArray
+    assert list(values.array.values) == ["a", None, "b"]
 
 
 def test_visualize(capsys):

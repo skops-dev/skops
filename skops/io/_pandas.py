@@ -73,7 +73,14 @@ from typing import Any
 import numpy as np
 
 from ._audit import Node, get_tree
-from ._general import DictNode, JsonNode, ListNode, object_get_state
+from ._general import (
+    ConstructorFromReduceNode,
+    DictNode,
+    JsonNode,
+    ListNode,
+    ObjectNode,
+    object_get_state,
+)
 from ._numpy import NdArrayNode
 from ._protocol import PROTOCOL
 from ._utils import (
@@ -737,7 +744,7 @@ class PandasIndexNode(_PandasNode):
     )
 
     def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
-        return {"values": _ARRAY_NODES, "name": None, "freq": (JsonNode,)}
+        return {"values": _VALUES_NODES, "name": None, "freq": (JsonNode,)}
 
     def _build(self):
         import pandas as pd
@@ -811,7 +818,7 @@ class PandasSeriesNode(_PandasNode):
 
     def _allowed_types(self) -> dict[str, tuple[type[Node], ...] | None]:
         return {
-            "values": _ARRAY_NODES,
+            "values": _VALUES_NODES,
             "index": _INDEX_NODES,
             "name": None,
             "attrs": (DictNode,),
@@ -1121,6 +1128,12 @@ _ARRAY_NODES = (
     PandasCategoricalNode,
     PandasExtensionArrayNode,
 )
+# The values of an Index, a Series or a DataFrame column may also be the
+# extension array of another library, saved the generic way, see
+# _generic_outside_pandas, whose class the user trusts or not. The generic
+# loaders cannot build a pandas class, see RESERVED_TYPE_LOADERS, and the
+# values must be an array, see _array_values.
+_VALUES_NODES = (*_ARRAY_NODES, ObjectNode, ConstructorFromReduceNode)
 _INDEX_NODES = (PandasIndexNode, PandasRangeIndexNode, PandasMultiIndexNode)
 _DTYPE_NODES = (
     PandasExtensionDtypeNode,
