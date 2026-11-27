@@ -197,10 +197,6 @@ python = "~=3.10.0"
 [tool.pixi.feature.sklearn14.dependencies]
 scikit-learn = "~=1.4.0"
 pandas = "~=2.1.0"
-# pyarrow changes how pandas stores strings, so skops.io's pandas support is
-# tested with it on pandas 2.1, 2.2, 2.3 and 3.0, and without it on 2.0, 2.2,
-# 2.3 and the nightly build.
-pyarrow = "*"
 numpy = "~=1.26.0"
 scipy = "~=1.13.0"
 fairlearn = "~=0.10.0"
@@ -212,8 +208,6 @@ scikit-learn = "~=1.5.0"
 fairlearn = "~=0.10.0"
 pandas = "~=2.2.0"
 numpy = "~=2.0.0"
-# see the comment on pyarrow in the sklearn14 feature
-pyarrow = "*"
 scipy = "~=1.13.0"
 python = "~=3.12.0"
 quantile-forest = "~=1.3.11"
@@ -233,8 +227,6 @@ scikit-learn = "~=1.7.0"
 fairlearn = "~=0.12.0"
 pandas = "~=2.3.0"
 numpy = "~=2.3.0"
-# see the comment on pyarrow in the sklearn14 feature
-pyarrow = "*"
 scipy = "~=1.16.0"
 catboost = ">=1.0"
 quantile-forest = "~=1.4.0"
@@ -255,8 +247,6 @@ python = "~=3.14.0"
 scikit-learn = "~=1.9.0"
 fairlearn = "~=0.14.0"
 pandas = "~=3.0.0"
-# see the comment on pyarrow in the sklearn14 feature
-pyarrow = "*"
 numpy = "~=2.5.0"
 scipy = "~=1.18.0"
 catboost = ">=1.0"
@@ -296,6 +286,16 @@ scipy = "*"
 # above, the version needs a bump after each pandas release.
 pandas = "==3.2.0.dev0"
 
+[tool.pixi.feature.pyarrow.pypi-dependencies]
+# pyarrow changes how pandas stores strings, so skops.io's pandas support is
+# tested with it on pandas 2.2, 2.3 and 3.0, and without it on 2.0, 2.1, 2.2,
+# 2.3 and the nightly build: the feature is part of the environments below, no
+# environment is added for it. The wheel is used since the conda package pulls
+# in the whole Arrow C++ stack, with the cloud storage SDKs, about 60 packages.
+# The pandas 2.1 environment pins numpy 1.26, which current pyarrow wheels do
+# not load with; pandas 2.2 has the same string dtypes, so nothing is lost.
+pyarrow = "*"
+
 [tool.pixi.feature.lint.tasks]
 lint = { cmd = "pre-commit install && pre-commit run -v --all-files --show-diff-on-failure" }
 
@@ -309,9 +309,9 @@ docs = ["docs"]
 ci-sklearn12 = ["rich", "tests", "lint", "sklearn12"]
 ci-sklearn13 = ["rich", "tests", "lint", "sklearn13"]
 ci-sklearn14 = ["rich", "tests", "lint", "sklearn14"]
-ci-sklearn15 = ["rich", "tests", "lint", "sklearn15"]
+ci-sklearn15 = ["rich", "tests", "lint", "sklearn15", "pyarrow"]
 ci-sklearn16 = ["rich", "tests", "lint", "sklearn16"]
-ci-sklearn17 = ["rich", "tests", "lint", "sklearn17"]
+ci-sklearn17 = ["rich", "tests", "lint", "sklearn17", "pyarrow"]
 ci-sklearn18 = ["rich", "tests", "lint", "sklearn18"]
-ci-sklearn19 = ["rich", "tests", "lint", "sklearn19"]
+ci-sklearn19 = ["rich", "tests", "lint", "sklearn19", "pyarrow"]
 ci-sklearn-nightly = ["rich", "tests", "lint", "sklearn-nightly", "pandas-nightly"]
