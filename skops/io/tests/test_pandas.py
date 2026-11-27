@@ -425,10 +425,11 @@ def test_dtype_node_refuses_other_classes(module, class_name):
 
 # The skops loaders that build an object from the class a file names, or hand
 # out the class itself, which a file could then call through other objects.
+# the loaders that build an instance from the file; TypeNode, which yields
+# the class object itself, may carry a pandas name
 GENERIC_LOADERS = [
     "ObjectNode",
     "ConstructorFromReduceNode",
-    "TypeNode",
     "FunctionNode",
     "MethodNode",
     "PartialNode",
@@ -475,18 +476,16 @@ def test_datetime_dtype_through_a_generic_loader_is_refused():
         loads(_with_edited_schema(dumped, edit), trusted=PANDAS_TYPES)
 
 
-def test_pandas_class_itself_is_unsupported_where_its_name_is_public():
-    # The class itself, rather than an instance, would be saved by TypeNode
-    # under the public name, which only the pandas loaders may declare: refused
-    # when saving. pandas before 3.0 names it by its defining module, which is
-    # not one of PANDAS_TYPES, and it is saved like any other class.
-    if get_type_name(pd.DataFrame) in PANDAS_TYPES:
-        with pytest.raises(UnsupportedTypeException, match="the class itself"):
-            dumps({"cls": pd.DataFrame})
-    else:
-        dumped = dumps({"cls": pd.DataFrame})
-        trusted = get_untrusted_types(data=dumped)
-        assert loads(dumped, trusted=trusted)["cls"] is pd.DataFrame
+@pytest.mark.parametrize("cls", [pd.DataFrame, pd.DatetimeTZDtype])
+def test_pandas_class_itself_round_trips(cls):
+    # The class itself, rather than an instance, e.g. a parameter set to
+    # pandas.DataFrame, is saved by TypeNode like any other class, under the
+    # name get_type_name gives it: the public one on pandas 3, which is one of
+    # PANDAS_TYPES, the defining module before. TypeNode yields the class
+    # object and builds nothing, so it may carry a pandas name.
+    dumped = dumps({"cls": cls})
+    assert get_untrusted_types(data=dumped) == [get_type_name(cls)]
+    assert loads(dumped, trusted=[get_type_name(cls)])["cls"] is cls
 
 
 def test_array_node_refuses_other_classes():
