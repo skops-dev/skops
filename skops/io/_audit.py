@@ -5,7 +5,14 @@ from contextlib import contextmanager
 from typing import Any, Generator, Type, Union
 
 from ._protocol import PROTOCOL
-from ._utils import LoadContext, TrustedTypes, get_module, get_type_paths
+from ._utils import (
+    RESERVED_TYPE_LOADERS,
+    LoadContext,
+    TrustedTypes,
+    get_module,
+    get_type_paths,
+    is_allowed_loader,
+)
 from .exceptions import UntrustedTypesFoundException
 
 NODE_TYPE_MAPPING: dict[tuple[str, int], Type[Node]] = {}
@@ -448,4 +455,11 @@ def get_tree(
     # Check the loader before building its node, so that nothing in a rejected
     # subtree is read or parsed.
     _check_node_type(node_cls, allowed_types)
+    type_name = f"{state.get('__module__')}.{state.get('__class__')}"
+    if not is_allowed_loader(type_name, loader):
+        allowed = " or ".join(sorted(RESERVED_TYPE_LOADERS[type_name]))
+        raise ValueError(
+            f"{type_name} can only be loaded by {allowed}, not by {loader}. This"
+            " is probably due to a corrupted or a malicious file."
+        )
     return node_cls(state, load_context, trusted=trusted)

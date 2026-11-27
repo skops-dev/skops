@@ -64,7 +64,15 @@ from sklearn.utils.estimator_checks import (
 from sklearn.utils.fixes import parse_version, sp_version
 
 import skops
-from skops.io import dump, dumps, get_untrusted_types, load, loads, visualize
+from skops.io import (
+    PANDAS_TYPES,
+    dump,
+    dumps,
+    get_untrusted_types,
+    load,
+    loads,
+    visualize,
+)
 from skops.io._audit import NODE_TYPE_MAPPING, Node, get_tree
 from skops.io._general import dict_get_state, list_get_state, set_get_state
 from skops.io._protocol import PROTOCOL
@@ -80,7 +88,14 @@ from skops.io._trusted_types import (
     SKLEARN_UNTRUSTED_ESTIMATOR_TYPE_NAMES,
     _sklearn_validates_libsvm_load,
 )
-from skops.io._utils import LoadContext, _get_state, get_module, get_state, gettype
+from skops.io._utils import (
+    LoadContext,
+    _get_state,
+    get_module,
+    get_state,
+    get_type_name,
+    gettype,
+)
 from skops.io.exceptions import (
     UNTRUSTED_TYPE_REASONS,
     UnsupportedTypeException,
@@ -1695,6 +1710,32 @@ def test_reduce_raises_falls_back_to_dict():
     loaded_obj = loads(dumped, trusted=[RaisingReduce])
     assert type(loaded_obj) is RaisingReduce
     assert loaded_obj.x == 3
+
+
+# This class is here as opposed to inside the test because it needs to be importable.
+# It mirrors the fitted attributes of category_encoders' TargetEncoder, see gh-450.
+class PandasEncoder(BaseEstimator):
+    def fit(self, X, y=None):
+        import pandas as pd
+
+        self.mapping_ = {"col": pd.Series([0.49, 0.66], index=pd.Index([1, 2]))}
+        self.categories_ = pd.Index(["A", "B"], name="col")
+        self.dtypes_ = [pd.StringDtype(), pd.Int64Dtype()]
+        return self
+
+
+def test_estimator_with_pandas_attributes():
+    pytest.importorskip("pandas")
+    estimator = PandasEncoder().fit(None)
+    dumped = dumps(estimator)
+    # neither the estimator nor the pandas objects it holds are trusted by
+    # default; the file names the latter by their public pandas names
+    untrusted = set(get_untrusted_types(data=dumped))
+    assert untrusted - set(PANDAS_TYPES) == {get_type_name(PandasEncoder)}
+    assert {"pandas.Series", "pandas.Index", "pandas.StringDtype"} <= untrusted
+
+    loaded = loads(dumped, trusted=[*PANDAS_TYPES, PandasEncoder])
+    assert_params_equal(estimator.__dict__, loaded.__dict__)
 
 
 def test_loss_get_state_unsupported_reduce():

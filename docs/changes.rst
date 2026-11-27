@@ -41,6 +41,24 @@ v0.17
   with an error while it is read, before anything in it is audited or
   constructed, instead of failing with an unrelated error, or being accepted,
   during construction. :pr:`547` by `Adrin Jalali`_.
+- Add support for pandas objects: :class:`~pandas.DataFrame`,
+  :class:`~pandas.Series`, every kind of :class:`~pandas.Index`, the extension
+  arrays and extension dtypes of pandas itself, and the scalars
+  :class:`~pandas.Timestamp`, :class:`~pandas.Timedelta`, ``pandas.NA`` and
+  ``pandas.NaT`` can now be saved and loaded with pandas 2.0 or later. They are
+  stored as the numpy arrays and scalars they are made of and rebuilt through
+  the public pandas constructors, so no pandas internals end up in the file,
+  and a file written with one pandas version loads with any other. Estimators
+  from other libraries that keep pandas objects in their fitted attributes,
+  such as ``category_encoders``, can now be persisted. The pandas types are not
+  trusted by default: pass ``skops.io.PANDAS_TYPES``, the names of every pandas
+  class skops builds, along with the other types you trust. The dtypes are
+  kept, including the missing value and, with pyarrow installed, the storage of
+  a string dtype, and so are the ``freq`` of an index and the ``attrs`` and
+  ``flags`` of a Series or DataFrame. The pyarrow backed arrays and dtypes,
+  those with an ``ArrowDtype``, the period, interval and sparse arrays and
+  dtypes, and the plain ``NumpyExtensionArray`` are not supported yet.
+  :pr:`552` by `Adrin Jalali`_.
 - Fix a regression since v0.12.0 where saving an object whose ``__reduce__``
   raises failed at dump time. ``__reduce__`` is called on every object to
   detect a plain constructor call, but Cython extension types with a
