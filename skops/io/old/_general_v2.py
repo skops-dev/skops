@@ -30,7 +30,12 @@ class OperatorFuncNode(Node):
                 " due to a corrupted or a malicious file."
             )
         self.trusted = self._get_trusted(trusted, [])
-        self.attrs = get_tree(state["attrs"], load_context, trusted=trusted)
+        self.attrs = get_tree(
+            state["attrs"],
+            load_context,
+            trusted=trusted,
+            allowed_types=(_general.TupleNode,),
+        )
         self.children = {"attrs": self.attrs}
 
     def _construct(self):
