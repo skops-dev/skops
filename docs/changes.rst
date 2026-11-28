@@ -11,6 +11,8 @@ skops Changelog
 
 v0.17
 -----
+- Avoid exponential traversal of shared subtrees referenced through the same
+  ``__id__`` during type auditing and :func:`skops.io.visualize`.
 - The libsvm-backed SVM estimators ``sklearn.svm.SVC``, ``NuSVC``, ``SVR``,
   ``NuSVR`` and ``OneClassSVM`` are no longer trusted by default: skops
   validates that a loaded object is of a trusted type, but not the contents of

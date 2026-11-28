@@ -198,12 +198,24 @@ def pretty_print_tree(
             print(f" {node.key}: {label}")
 
 
+def _has_visitable_children(node: Node) -> bool:
+    for key, val in node.children.items():
+        if val is None or (
+            key == "key_types" and isinstance(val, ListNode) and val.is_safe()
+        ):
+            continue
+        if isinstance(val, Node) or (isinstance(val, (list, tuple, dict)) and val):
+            return True
+    return False
+
+
 def walk_tree(
     node: VALID_NODE_CHILD_TYPES | dict[str, VALID_NODE_CHILD_TYPES],
     node_name: str = "root",
     level: int = 0,
     is_last: bool = False,
     _ancestors: frozenset[int] = frozenset(),
+    _visited: set[int] | None = None,
 ) -> Iterator[NodeInfo]:
     """Visit all nodes of the tree and yield their important attributes.
 
@@ -239,12 +251,20 @@ def walk_tree(
         which is its own ancestor is a circular reference; it is shown once
         more, but its children are not visited again.
 
+    _visited: set of int or None (default=None)
+        The ids of non-empty nodes whose subtrees have already been visited
+        during this walk. Subsequent occurrences are shown once as a shared
+        reference without visiting their children again.
+
     Yields
     ------
     :class:`~NodeInfo`:
         A dataclass containing the aforementioned information.
 
     """
+    if _visited is None:
+        _visited = set()
+
     # key_types is not helpful, as it is artificially added by skops to
     # circumvent the fact that json only allows keys to be strings. It is not
     # useful to the user and adds a lot of noise, thus skip key_types.
@@ -265,6 +285,7 @@ def walk_tree(
                 level=level,
                 is_last=i == num_nodes,
                 _ancestors=_ancestors,
+                _visited=_visited,
             )
         return
 
@@ -277,6 +298,7 @@ def walk_tree(
                 level=level,
                 is_last=i == num_nodes,
                 _ancestors=_ancestors,
+                _visited=_visited,
             )
         return
 
@@ -289,14 +311,19 @@ def walk_tree(
 
     # YIELDING THE ACTUAL NODE INFORMATION HERE
 
-    # Note: calling node.is_safe() on all nodes is potentially wasteful because
-    # it is already a recursive call, i.e. child nodes will be checked many
-    # times. A solution to this would be to add caching to its call.
     is_circular = id(node) in _ancestors
+    is_shared = not is_circular and id(node) in _visited
+    suffix = (
+        " (circular reference)"
+        if is_circular
+        else " (shared reference)"
+        if is_shared
+        else ""
+    )
     yield NodeInfo(
         level=level,
         key=node_name,
-        val=node.format() + (" (circular reference)" if is_circular else ""),
+        val=node.format() + suffix,
         is_self_safe=node.is_self_safe(),
         is_safe=node.is_safe(),
         is_last=is_last,
@@ -306,14 +333,18 @@ def walk_tree(
     # TODO: For better security, we should check the schema if we return early,
     # otherwise something nefarious could be hidden inside (however, if there
     # is, the node should be marked as unsafe)
-    if isinstance(node, SKIPPED_TYPES) or is_circular:
+    if isinstance(node, SKIPPED_TYPES) or is_circular or is_shared:
         return
+
+    if _has_visitable_children(node):
+        _visited.add(id(node))
 
     yield from walk_tree(
         node.children,
         node_name=node_name,
         level=level + 1,
         _ancestors=_ancestors | {id(node)},
+        _visited=_visited,
     )
 
 

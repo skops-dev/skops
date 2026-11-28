@@ -38,7 +38,9 @@ from skops.io._general import (
     method_get_state,
     operator_func_get_state,
 )
-from skops.io._utils import LoadContext, get_state, gettype
+from skops.io._protocol import PROTOCOL
+from skops.io._utils import LoadContext, get_state, gettype, read_schema
+from skops.io._visualize import walk_tree
 from skops.io.tests._utils import make_load_context, make_save_context
 
 
@@ -673,3 +675,66 @@ def test_object_array_rows_sharing_a_list_are_rejected():
     data = _replace_child(data, ["content", 1], alias)
     with pytest.raises(ValueError, match=OBJECT_ARRAY_SHAPE_MSG):
         loads(data)
+
+
+def test_shared_subtrees_visited_once_during_audit_and_visualize():
+    # Each level holds two references to the next level's __id__, forming a
+    # 25-level diamond DAG (2^25 paths, 26 distinct nodes). Caching
+    # get_unsafe_set and deduplicating shared subtrees in walk_tree keeps both
+    # get_untrusted_types and visualize linear in the number of distinct nodes.
+    leaf: dict[str, object] = {
+        "__class__": "int",
+        "__module__": "builtins",
+        "__loader__": "JsonNode",
+        "content": "1",
+        "__id__": 100,
+    }
+    state: dict[str, object] = leaf
+    for idx in range(25):
+        next_id = state["__id__"]
+        ref = {
+            "__class__": state["__class__"],
+            "__module__": state["__module__"],
+            "__loader__": "CachedNode",
+            "__id__": next_id,
+        }
+        state = {
+            "__class__": "list",
+            "__module__": "builtins",
+            "__loader__": "ListNode",
+            "__id__": idx + 1,
+            "content": [state, ref],
+        }
+    state["protocol"] = PROTOCOL
+
+    buf = io.BytesIO()
+    with ZipFile(buf, "w") as zf:
+        zf.writestr("schema.json", json.dumps(state))
+    data = buf.getvalue()
+
+    assert get_untrusted_types(data=data) == []
+    with ZipFile(io.BytesIO(data)) as zf:
+        schema, load_context = read_schema(zf)
+        tree = get_tree(schema, load_context, trusted=None)
+
+    walked = list(walk_tree(tree))
+    assert len(walked) == 51
+
+
+def test_unsafe_set_cache_does_not_mask_unsafe_branch_in_cycle():
+    # In a cycle A -> B -> A where A also has an unsafe child C, computing
+    # B.get_unsafe_set() while A is active must not cache an incomplete safe
+    # result on B: querying B directly afterwards must still surface C.
+    b: list[object] = []
+    a: list[object] = [b, CustomType(1)]
+    b.append(a)
+    data = dumps(a)
+    with ZipFile(io.BytesIO(data)) as zf:
+        schema, load_context = read_schema(zf)
+        tree_a = get_tree(schema, load_context, trusted=None)
+
+    assert isinstance(tree_a, ListNode)
+    tree_b = tree_a.content[0]
+    expected = {f"{CustomType.__module__}.CustomType"}
+    assert tree_a.get_unsafe_set() == expected
+    assert tree_b.get_unsafe_set() == expected

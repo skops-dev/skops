@@ -354,3 +354,22 @@ def test_visualize_circular_reference(capsys):
     ]
     stdout, _ = capsys.readouterr()
     assert stdout.strip() == "\n".join(expected)
+
+
+def test_visualize_shared_reference(capsys):
+    # A non-empty container referenced more than once is expanded on its first
+    # occurrence and marked as a shared reference on subsequent ones without
+    # re-visiting its subtree.
+    shared = [1, 2]
+    obj = [shared, shared]
+    sio.visualize(sio.dumps(obj))
+
+    expected = [
+        "root: builtins.list",
+        "├── content: builtins.list",
+        "│   ├── content: json-type(1)",
+        "│   └── content: json-type(2)",
+        "└── content: builtins.list (shared reference)",
+    ]
+    stdout, _ = capsys.readouterr()
+    assert stdout.strip() == "\n".join(expected)
