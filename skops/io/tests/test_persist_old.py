@@ -374,6 +374,35 @@ def test_operator_func_v2(save_context, func, arg, protocol):
     assert loaded(arg) == func(arg)
 
 
+@pytest.mark.parametrize("protocol", [0, 1, 2])
+def test_operator_func_v2_wrong_child_type_is_rejected(protocol):
+    # As for the current node (see test_audit.py), the positional arguments in
+    # "attrs" have to be stored as a TupleNode, and a file claiming an older
+    # protocol with any other node there is refused before the audit.
+    bad_state = {
+        "__class__": "itemgetter",
+        "__module__": "operator",
+        "__loader__": "OperatorFuncNode",
+        "attrs": {
+            "__class__": "slice",
+            "__module__": "builtins",
+            "__loader__": "SliceNode",
+            "content": {"start": None, "stop": None, "step": None},
+        },
+    }
+    broken = downgrade_state(
+        data=dumps(operator.itemgetter(1)),
+        keys=None,
+        old_state=bad_state,
+        protocol=protocol,
+    )
+    msg = "Expected a node of type TupleNode, got SliceNode"
+    with pytest.raises(ValueError, match=msg):
+        get_untrusted_types(data=broken)
+    with pytest.raises(ValueError, match=msg):
+        loads(broken, trusted=["operator.itemgetter"])
+
+
 def test_operator_func_current_requires_kwargs(save_context):
     # The current OperatorFuncNode requires the "kwargs" entry added in
     # protocol 3, so it cannot read a protocol-2 state; those go through the
