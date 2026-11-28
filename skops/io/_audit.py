@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import threading
 from contextlib import contextmanager
 from typing import Any, Generator, Type, Union
 
@@ -9,6 +10,14 @@ from ._utils import LoadContext, TrustedTypes, get_module, get_type_paths
 from .exceptions import UntrustedTypesFoundException
 
 NODE_TYPE_MAPPING: dict[tuple[str, int], Type[Node]] = {}
+
+
+class _UnsafeWalkState(threading.local):
+    depth: int = 0
+    min_loop: int = 0
+
+
+_unsafe_walk_state = _UnsafeWalkState()
 VALID_NODE_CHILD_TYPES = Union[
     "Node", list["Node"], dict[str, "Node"], Type, str, io.BytesIO, None
 ]
@@ -142,6 +151,8 @@ class Node:
     ) -> None:
         self.class_name, self.module_name = state["__class__"], state["__module__"]
         self._is_safe = None
+        self._unsafe_set: set[str] | None = None
+        self._computing_depth: int | None = None
         # the constructed object can be anything, hence ``Any``
         self._constructed: Any = UNINITIALIZED
         # set while ``_construct`` runs, see ``construct``
@@ -251,54 +262,74 @@ class Node:
         unsafe_set : set
             A set of unsafe types.
         """
-        if hasattr(self, "_computing_unsafe_set"):
+        if self._unsafe_set is not None:
+            return set(self._unsafe_set)
+
+        if self._computing_depth is not None:
             # this means we're already computing this node's unsafe set, so we
-            # return an empty set and let the computation of the parent node
-            # continue. This is to avoid infinite recursion.
+            # record the ancestor depth we looped back to and return an empty
+            # set to let the parent computation continue without infinite recursion.
+            _unsafe_walk_state.min_loop = min(
+                _unsafe_walk_state.min_loop, self._computing_depth
+            )
             return set()
 
-        with temp_setattr(self, _computing_unsafe_set=True):
-            res = set()
-            if not self.is_self_safe():
-                res.add(self.module_name + "." + self.class_name)
+        depth = _unsafe_walk_state.depth
+        saved_min_loop = _unsafe_walk_state.min_loop
+        _unsafe_walk_state.depth = depth + 1
+        _unsafe_walk_state.min_loop = depth
+        try:
+            with temp_setattr(self, _computing_depth=depth):
+                res = set()
+                if not self.is_self_safe():
+                    res.add(self.module_name + "." + self.class_name)
 
-            for child in self.children.values():
-                if child is None:
-                    continue
+                for child in self.children.values():
+                    if child is None:
+                        continue
 
-                # Get the safety set based on the type of the child. In most cases
-                # other than ListNode and DictNode, children are all of type Node.
-                if isinstance(child, list):
-                    # iterate through the list
-                    for value in child:
-                        res.update(value.get_unsafe_set())
-                elif isinstance(child, dict):
-                    # iterate through the values of the dict only
-                    # TODO: should we check the types of the keys?
-                    for value in child.values():
-                        res.update(value.get_unsafe_set())
-                elif isinstance(child, Node):
-                    # delegate to the child Node
-                    res.update(child.get_unsafe_set())
-                elif type(child) is type:
-                    # the if condition bellow is not merged with the previous
-                    # one because if the above condition is True, the following
-                    # conditions about BytesIO, etc should be ignored.
-                    if not check_type(get_module(child), child.__name__, self.trusted):
-                        # if the child is a type, we check its safety
-                        res.add(get_module(child) + "." + child.__name__)
-                elif isinstance(child, (io.BytesIO, str)):
-                    # We trust BytesIO objects, which are read by other
-                    # libraries such as numpy, scipy. We trust str but have to
-                    # be careful that anything with str is dealt with
-                    # appropriately.
-                    continue
-                else:
-                    raise ValueError(
-                        f"Cannot determine the safety of type {type(child)}. Please"
-                        " open an issue at https://github.com/skops-dev/skops/issues"
-                        " for us to fix the issue."
-                    )
+                    # Get the safety set based on the type of the child. In most cases
+                    # other than ListNode and DictNode, children are all of type Node.
+                    if isinstance(child, list):
+                        # iterate through the list
+                        for value in child:
+                            res.update(value.get_unsafe_set())
+                    elif isinstance(child, dict):
+                        # iterate through the values of the dict only
+                        # TODO: should we check the types of the keys?
+                        for value in child.values():
+                            res.update(value.get_unsafe_set())
+                    elif isinstance(child, Node):
+                        # delegate to the child Node
+                        res.update(child.get_unsafe_set())
+                    elif type(child) is type:
+                        # the if condition bellow is not merged with the previous
+                        # one because if the above condition is True, the following
+                        # conditions about BytesIO, etc should be ignored.
+                        if not check_type(
+                            get_module(child), child.__name__, self.trusted
+                        ):
+                            # if the child is a type, we check its safety
+                            res.add(get_module(child) + "." + child.__name__)
+                    elif isinstance(child, (io.BytesIO, str)):
+                        # We trust BytesIO objects, which are read by other
+                        # libraries such as numpy, scipy. We trust str but have to
+                        # be careful that anything with str is dealt with
+                        # appropriately.
+                        continue
+                    else:
+                        raise ValueError(
+                            f"Cannot determine the safety of type {type(child)}. Please"
+                            " open an issue at https://github.com/skops-dev/skops/issues"
+                            " for us to fix the issue."
+                        )
+
+            my_min_loop = _unsafe_walk_state.min_loop
+            if my_min_loop >= depth:
+                self._unsafe_set = set(res)
+            _unsafe_walk_state.min_loop = min(saved_min_loop, my_min_loop)
+        finally:
+            _unsafe_walk_state.depth = depth
 
         return res
 
